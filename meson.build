@@ -41,8 +41,8 @@ crest_exe = executable(
   link_language: 'fortran',
 )
 
-install_data(
-  files('combi-scripts/crest_combi'),
-  install_dir: get_option('bindir'),
-  install_mode: 'rwxr--r--',
-)
+# install_data(
+#   files('combi-scripts/crest_combi'),
+#   install_dir: get_option('bindir'),
+#   install_mode: 'rwxr--r--',
+# )
