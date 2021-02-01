@@ -74,8 +74,8 @@ install(
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
 )
 
-install(
-  PROGRAMS
-  "${CMAKE_CURRENT_SOURCE_DIR}/combi-scripts/crest_combi"
-  DESTINATION "${CMAKE_INSTALL_BINDIR}"
-)
+# install(
+#   PROGRAMS
+#   "${CMAKE_CURRENT_SOURCE_DIR}/combi-scripts/crest_combi"
+#   DESTINATION "${CMAKE_INSTALL_BINDIR}"
+# )
