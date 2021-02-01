@@ -1,0 +1,14 @@
+*.o
+*.mod
+backups/
+old_source/
+*.tgz
+version_pack.sh
+github_bin/
+snippits
+stefan-source/
+schick/
+build_majestix
+crest-build-files.tar.xz
+build_commands
+_build*

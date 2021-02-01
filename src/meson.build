@@ -1,0 +1,106 @@
+# This file is part of crest.
+# SPDX-Identifier: LGPL-3.0-or-later
+#
+# crest is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# crest is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with crest.  If not, see <https://www.gnu.org/licenses/>.
+
+srcs += files(
+  'acidbase.f90',
+  'atmasses.f90',
+  'axis3.f',
+  'biasmerge.f90',
+  'bondconstraint.f90',
+  'ccegen.f90',
+  'classes.f90',
+  'cleanup.f90',
+  'compress.f90',
+  'confcross.f90',
+  'confopt.f90',
+  'confparse.f90',
+  'confscript1.f90',
+  'confscript2_main.f90',
+  'confscript2_misc.f90',
+  'confscript3.f90',
+  'constraining.f90',
+  'cregen.f90',
+  'data.f90',
+  'deprotonate.f90',
+  'dft_propcalc.f90',
+  'drsp.f',
+  'ensemblecomp.f90',
+  'entropic.f90',
+  'entropy.f90',
+  'filemod.f90',
+  'flexi.f90',
+  'floydwarshall.f90',
+  'freqmasses.f90',
+  'geo.f90',
+  'identifiers.f90',
+  'intmodes.f',
+  'io.f',
+  'iomod.f90',
+  'ligands.f90',
+  'ls_rmsd.f90',
+  'marqfit.f',
+  'minitools.f90',
+  'msmod.f90',
+  'msreact.f90',
+  'ncigeo.f90',
+  'neighbor.f',
+  'newcregen.f90',
+  'normmd.f90',
+  'ompmklset.f90',
+  'optinplace.f90',
+  'pka.f90',
+  'printouts.f90',
+  'prmat.f',
+  'progressbar.f90',
+  'propcalc.f90',
+  'protonate.f90',
+  'quicksort.f90',
+  'reactor.f90',
+  'readl2.f',
+  'readl.f',
+  'relaxensemble.f90',
+  'rotcompare.f90',
+  'scratch.f90',
+  'sdfio.f90',
+  'select.f90',
+  'setdg.f90',
+  'shortpath.f90',
+  'signal.c',
+  'sigterm.f90',
+  'solve.f',
+  'sortens.f90',
+  'spline.f90',
+  'stereoisomers.f90',
+  'strucreader.f90',
+  'symmetry2.f90',
+  'symmetry_i.c',
+  'syscheck.f90',
+  'tautomerize.f90',
+  'thermocalc.f90',
+  'thermo.f90',
+  'trackorigin.f90',
+  'trialmd.f90',
+  'utilities.f',
+  'xtbmodef.f90',
+  'zdata.f90',
+  'zfunctional.f90',
+  'zsort.f90',
+  'ztopology.f90',
+)
+
+prog += files(
+  'crest_main.f90',
+)

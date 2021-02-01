@@ -16,18 +16,58 @@ structure ensembles.
 
 ## Installation
 
-We are currently preparing the source code and will be providing it in this repository
-with one of the upcoming releases.
+For any installation make sure that you have correctly installed and sourced the [`xtb`](https://github.com/grimme-lab/xtb) program before attempting any calculations with `crest`.
 
-Until then please use the statically linked binaries (Intel Compiler 17.0.7)
+There are multiple possible ways of installing `crest`. 
+For building the program from source we recommend the Intel `ifort` and `icc` compilers.
+
+
+### The easy way
+
+Use the statically linked binaries (Intel Compiler 2019.6.324)
 that can be found at the [release page](https://github.com/grimme-lab/crest/releases),
 of this repository.
 Simply unpack the binary and add it to your *PATH* variable.
 ```bash
 tar -xvzf crest.tgz
 ```
+The program should be directly executable in most cases.
 
-Also make sure that you have correctly installed and sourced the [`xtb`](https://github.com/grimme-lab/xtb) program before attempting any calculations with `crest`.
+### Building via `make`
+
+In the `src` directory a `Makefile` can be found to build a statically linked binary. Modify the makefile to your requirements and build the program via
+```bash
+make
+```
+
+### Cmake
+
+For the setup of Cmake see also the [Cmake setup](https://github.com/grimme-lab/xtb/blob/master/cmake/README.adoc) page hosted at the `xtb` repository.
+Building `crest` with CMake works with the following chain of commands:
+
+```bash
+export FC=ifort CC=icc
+cmake -B _build_intel -DCMAKE_BUILD_TYPE=Release
+make -C _build_intel
+```
+
+To install the `crest` binaries to `/usr/local` use (might require `sudo`)
+
+```bash
+make -C _build_intel install
+```
+
+### Meson
+
+For the setup an configuration of meson see also the [meson setup](https://github.com/grimme-lab/xtb/blob/master/meson/README.adoc) page hosted at the `xtb` repository.
+The chain of commands to build `crest` with meson is:
+
+```bash
+export FC=ifort CC=icc
+meson setup _build_intel --prefix=$PWD/_dist
+meson install -C _build_intel
+```
+
 
 ## Examples
 
@@ -50,7 +90,8 @@ The `crest` documentation is hosted at [read-the-docs](https://xtb-docs.readthed
 
 ## License
 
-`crest` is distributed in the hope that it will be useful,
-but without any warranty; without even the implied warranty of
-merchantability or fitness for a particular purpose.
+`crest` is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
+`crest` is distributed in the hope that it will be useful, but without any warranty; without even the implied warranty of merchantability or fitness for a particular purpose. See the GNU Lesser General Public License for more details.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in `crest` by you, as defined in the GNU Lesser General Public license, shall be licensed as above, without any additional terms or conditions
