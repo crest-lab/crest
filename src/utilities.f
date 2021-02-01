@@ -38,7 +38,7 @@
           integer :: i,j
           real*8 :: kf
           real*8 :: idum
-          kf = floatk(k)  !for int8 conversion   
+          kf = real(k, 8)
           idum = 1.0 + 8.0*kf
           !idum = sqrt(idum)
           idum = idum ** 0.5

@@ -50,6 +50,18 @@ subroutine simpletopo_file(fname,zmol,verbose,wbofile)
      integer,allocatable :: at(:)
      real(wp),allocatable :: xyz(:,:)
      logical :: ex
+     interface
+         subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
+             import :: zmolecule, wp
+             implicit none
+             type(zmolecule)  :: zmol       
+             logical          :: verbose
+             integer,intent(in)  :: n
+             integer,intent(in)  :: at(n)
+             real(wp),intent(in) :: xyz(3,n) !in Bohrs
+             character(len=*),intent(in),optional :: wbofile
+         end subroutine simpletopo
+     end interface
 
      call rdnat(fname,n)
      allocate(at(n),xyz(3,n))
@@ -70,12 +82,25 @@ subroutine simpletopo_file(fname,zmol,verbose,wbofile)
 end subroutine simpletopo_file
 
 subroutine simpletopo_mol(mol,zmol,verbose)
+     use iso_fortran_env, wp => real64
      use zdata
      use strucrd
      implicit none
      type(coord)      :: mol    !in 
      type(zmolecule)  :: zmol   !out
      logical          :: verbose
+     interface
+         subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
+             import :: zmolecule, wp
+             implicit none
+             type(zmolecule)  :: zmol       
+             logical          :: verbose
+             integer,intent(in)  :: n
+             integer,intent(in)  :: at(n)
+             real(wp),intent(in) :: xyz(3,n) !in Bohrs
+             character(len=*),intent(in),optional :: wbofile
+         end subroutine simpletopo
+     end interface
      call simpletopo(mol%nat,mol%at,mol%xyz,zmol,verbose,'')
      return
 end subroutine simpletopo_mol

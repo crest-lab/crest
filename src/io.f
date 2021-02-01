@@ -97,6 +97,7 @@
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       subroutine getname_dir(base,fname)
+      use iomod, only : directory_exist
       character(len=*) :: base,fname
       integer :: i
       logical :: ex
@@ -106,7 +107,8 @@
       do
         i=i+1
         write(dir,'(a,i0)')trim(base),i
-        inquire(directory=dir,exist=ex)
+        ! Inquire is not consitent across compilers
+        ex = directory_exist(dir)
         if(.not.ex)then
           fname=trim(dir) 
           exit

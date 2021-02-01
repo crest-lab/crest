@@ -332,6 +332,7 @@ subroutine MetaMD_para_OMP(env)
       character(len=512) :: jobcall
       character(len=80)  :: fname,pipe,solv,atmp,btmp
       integer :: dum,io
+      logical :: ex
 
       if(env%autothreads)then
          dum = env%nmetadyn
@@ -372,7 +373,7 @@ subroutine MetaMD_para_OMP(env)
       do i=1,env%nmetadyn
          call initsignal()
          vz=i
-       !$omp task firstprivate( vz ) private( tmppath,io )
+       !$omp task firstprivate( vz ) private( tmppath,io,ex )
          call initsignal()
        !$omp critical
              write(*,'(a,i4,a)') 'Starting Meta-MD',vz,' with the settings:'
@@ -385,8 +386,8 @@ subroutine MetaMD_para_OMP(env)
        !$omp end critical
          write(tmppath,'(a,i0)')'METADYN',vz
          call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
-         inquire(file=trim(tmppath)//'/'//'xtb.trj',exist=io)
-         if(.not.io)then
+         inquire(file=trim(tmppath)//'/'//'xtb.trj',exist=ex)
+         if(.not.ex .or. io.ne.0)then
          write(*,'(a,i0,a)')'*Warning: Meta-MTD ',vz,' seemingly failed (no xtb.trj)*'
          call system('cp -r '//trim(tmppath)//' FAILED-MTD')
          else
@@ -976,7 +977,7 @@ subroutine collect_trj(base,whichfile)
       i=1
       do
         write(dir,'(a,i0)')trim(base),i
-        inquire(directory=trim(dir),exist=ex)
+        ex = directory_exist(trim(dir))
         if(.not.ex)then
           exit
         else
@@ -1001,7 +1002,7 @@ subroutine collect_trj_skipfirst(base,whichfile)
       i=1
       do
         write(dir,'(a,i0)')trim(base),i
-        inquire(directory=trim(dir),exist=ex)
+        ex = directory_exist(trim(dir))
         if(.not.ex)then
           exit
         else

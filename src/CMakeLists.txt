@@ -50,7 +50,7 @@ list(APPEND srcs
   "${dir}/identifiers.f90"
   "${dir}/intmodes.f"
   "${dir}/io.f"
-  "${dir}/iomod.f90"
+  "${dir}/iomod.F90"
   "${dir}/ligands.f90"
   "${dir}/ls_rmsd.f90"
   "${dir}/marqfit.f"

@@ -48,7 +48,7 @@ srcs += files(
   'identifiers.f90',
   'intmodes.f',
   'io.f',
-  'iomod.f90',
+  'iomod.F90',
   'ligands.f90',
   'ls_rmsd.f90',
   'marqfit.f',

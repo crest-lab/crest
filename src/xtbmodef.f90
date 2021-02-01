@@ -46,8 +46,10 @@ subroutine xtbmodef(env,s,e,n,u,l,o,x)
       character(len=868) :: str2
       character(len=1024):: jobcall
       character(len=200):: finfile,runfile
+      character(len=:), allocatable :: ProgName, gfnver
 
       logical:: l1,l2,fin,run,modefok,mop,update,ex,clo
+      logical :: niceprint
 
       real(wp) :: percent
       character(len=52) :: bar
@@ -55,9 +57,12 @@ subroutine xtbmodef(env,s,e,n,u,l,o,x)
 
       call getcwd(thispath)  !get current working directory
 
-      associate( ProgName => env%ProgName, gbsa => env%gbsa, solvent => env%solvent,  &
+      associate( gbsa => env%gbsa, solvent => env%solvent,  &
       & fixfile => env%fixfile, constraints => env%constraints, optlev => env%optlev, &
-      & niceprint => env%niceprint, gfnver => env%gfnver, trackorigin => env%trackorigin)
+      & trackorigin => env%trackorigin)
+      niceprint = env%niceprint
+      gfnver = env%gfnver
+      ProgName = env%ProgName
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 

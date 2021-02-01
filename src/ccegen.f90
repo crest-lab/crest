@@ -891,7 +891,7 @@ end function eucdist
 ! 
 !======================================================================!
 subroutine kmeans(nclust,npc,mm,centroid,pcvec,ndist,dist,member)
-    use iso_fortran_env, wp => real64, idp => int64, sp => real32, ap => real32
+    use iso_fortran_env, wp => real64, idp => int64, sp => real32, ap => real64
     implicit none
     integer,intent(in) :: nclust  ! number of required centroids
     integer,intent(in) :: npc,mm

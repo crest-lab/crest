@@ -168,7 +168,7 @@ fortran.o : $(CUDA)/src/fortran.c
 # aus *.F mache ein *.f
 %.f: %.F
 	@echo "making $@ from $<"
-	$(CC) $(PREFLAG) $(PREOPTS) $< -o $@
+	$(FC) $(PREFLAG) $(PREOPTS) $< -o $@
 
 # aus *.f mache ein *.o
 $(OBJDIR)/%.o: %.f
@@ -176,6 +176,10 @@ $(OBJDIR)/%.o: %.f
 	$(FC) $(FFLAGS) $(INC) -c $< -o $@
 
 $(OBJDIR)/%.o: %.f90
+	@echo "making $@ from $<"
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(OBJDIR)/%.o: %.F90
 	@echo "making $@ from $<"
 	$(FC) $(FFLAGS) -c $< -o $@
 

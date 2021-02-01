@@ -93,6 +93,15 @@ subroutine exchangeligands(infile,infile2,centeratom,ligandnr)
     real(wp),allocatable :: xyz(:,:)
     integer,allocatable :: at(:)
     character(len=128) :: atmp,btmp
+    interface
+        subroutine matchligands(mol1,mol2,metal)
+            import :: coord, wp
+            implicit none
+            type(coord) :: mol1 !reference ligand
+            type(coord) :: mol2 !new ligand
+            real(wp),optional :: metal(3) !coordinates of the metal center
+        end subroutine matchligands
+    end interface
     real(wp) :: refdist !distance of the old ligand
     type(coord) :: oldligand
     type(coord) :: newligand

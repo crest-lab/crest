@@ -434,13 +434,14 @@ subroutine cip_sphere(zmol,k,i,s,sphere)
       integer,intent(inout) :: sphere(zmol%nat)
       integer,allocatable :: sphereold(:)
 
-      integer :: j,m,n
+      integer :: j,m,n,dummy
 
       allocate(sphereold(zmol%nat), source=0)
 
       !get the s-th sphere in direction of i
       sphere=0
-      call cip_getsphere(zmol,k,i,1,s,sphere,sphereold)
+      dummy=1
+      call cip_getsphere(zmol,k,i,dummy,s,sphere,sphereold)
 
       !sphere contains the atoms, which we have now to convert to
       !integer atom types:
@@ -658,7 +659,7 @@ subroutine stereoinvert(zmol)
                 zmol%invector(3,i)=j                                  ! <----
                 !--- get the atoms to be rotated in the special polycycle case
                 yloop2: do y=1,xnei
-                    if(checkcounter(y)==.false.)then
+                    if(checkcounter(y).eqv..false.)then
                      allocate(path2(nat), source = 0)
                      k=zmol%zat(i)%ngh(y)
                      l=0
@@ -676,13 +677,13 @@ subroutine stereoinvert(zmol)
                  !--- get the atoms for the rotational axis setup in the polycyle case
                  yloop3: do y=1,xnei
                    if(zmol%invector(1,i).eq.0)then
-                     if(checkcounter(y)==.true.)then
+                     if(checkcounter(y).eqv..true.)then
                         k=zmol%zat(i)%ngh(y)
                         if(k.eq.zmol%invector(3,i)) cycle yloop3
                         zmol%invector(1,i)=k                           ! <----
                      endif
                    else if(zmol%invector(2,i).eq.0)then
-                     if(checkcounter(y)==.true.)then
+                     if(checkcounter(y).eqv..true.)then
                         k=zmol%zat(i)%ngh(y)
                         if(k.eq.zmol%invector(3,i)) cycle yloop3
                         zmol%invector(2,i)=k                           ! <----
@@ -749,7 +750,7 @@ subroutine whichinvert(zmol,i,these,vec)
      integer :: i
 
      integer,intent(out) :: these(2)  !--- the two neighbours which must be inverted
-     integer,intent(out) :: vec(3)    !--- vector of the inversion axis
+     real(wp),intent(out) :: vec(3)   !--- vector of the inversion axis
 
      integer :: sref
      integer :: j,k,l,m
