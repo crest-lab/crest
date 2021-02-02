@@ -366,7 +366,6 @@ subroutine confcross(env,maxgen,kk)
 !---- change back to working directory
       call chdir(trim(thispath))
 
-!      stop
 666   continue
 
       deallocate(ind)

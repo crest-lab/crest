@@ -112,6 +112,7 @@ subroutine confopt(env,xyz,TMPCONF,confcross)
          goto 667
       endif
  
+      write(*,*) trim(jobcall)
       !-- Do the optimizations (parallel system calls) 
       call opt_OMP_loop(TMPCONF,'TMPCONF',jobcall,niceprint)
 
@@ -223,9 +224,6 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
       character(len=512) :: str,thispath,tmppath,optpath
 
 
-!----- quick settings
-      bdir = trim(adjustl(base))
-
       !niceprint=env%niceprint
       if(niceprint)then
         call printemptybar()
@@ -239,8 +237,9 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
          vz=i
       !$omp task firstprivate( vz ) private( tmppath,io )
          call initsignal()
-         write(tmppath,'(a,i0)')bdir,vz
-         !call system('cd '//trim(tmppath)//' && '//trim(jobcall))
+         write(tmppath,'(a,i0)')trim(base),vz
+         !write(str,'("cd ",a," && ",a)')trim(tmppath),trim(jobcall)
+         !write(*,*) trim(str)
          call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
       !$omp critical
         k=k+1

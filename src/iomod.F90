@@ -243,12 +243,18 @@ subroutine appendto(from,to)
       open(newunit=och,file=from)
       do
         read(ich,*,iostat=io)
-        if(io<0)exit
+        if(io<0)then
+            backspace(ich)
+            exit
+        endif
       enddo
       do
         read(och,'(a)',iostat=io)str
-        if(io<0)exit
-        write(ich,'(a)')trim(str)
+        if(io<0)then
+            exit
+        else
+            write(ich,'(a)')trim(str)
+        endif
       enddo
       close(och)
       close(ich)
