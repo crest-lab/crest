@@ -39,7 +39,6 @@ subroutine confopt(env,xyz,TMPCONF,confcross)
       implicit none
  
       type(systemdata) :: env
-      !type(options)    :: opt
 
       character(len=*),intent(in)  :: xyz   !file base name
       integer,intent(in) :: TMPCONF  !number of structures to be optimized
@@ -112,7 +111,6 @@ subroutine confopt(env,xyz,TMPCONF,confcross)
          goto 667
       endif
  
-      write(*,*) trim(jobcall)
       !-- Do the optimizations (parallel system calls) 
       call opt_OMP_loop(TMPCONF,'TMPCONF',jobcall,niceprint)
 
