@@ -85,8 +85,8 @@ module zdata
       integer,allocatable :: rlist(:)
 
       contains
-         procedure deallocate => deallocate_zring  !deallocate (if allocated)
-         procedure print => print_zring !print to screen
+         procedure :: deallocate => deallocate_zring  !deallocate (if allocated)
+         procedure :: print => print_zring !print to screen
    end type zring
 
 !==========================================================================================================!
@@ -96,10 +96,10 @@ module zdata
       integer :: nm !# of members in group
       integer,allocatable :: mem(:)
       contains
-         procedure allocate => allocate_zgrp
-         procedure deallocate => deallocate_zgrp
-         procedure append => append_zgrp
-         procedure prgrp => print_zgrp
+         procedure :: allocate => allocate_zgrp
+         procedure :: deallocate => deallocate_zgrp
+         procedure :: append => append_zgrp
+         procedure :: prgrp => print_zgrp
    end type zgrp
    !equivalencies-class. contains information about equivalent nuclei
    type :: zequal
@@ -111,10 +111,10 @@ module zdata
       type(zgrp),allocatable :: grp(:) !all groups (dimension <= nat)
 
       contains
-         procedure allocate => allocate_zequal !allocate nat, ord(:) and grp(:)
-         procedure member => is_x_member       !check if atom x is member of any group
-         procedure prsum => prsummary_zequal   !print a summary of all the groups
-         procedure geteng => zequal_geteng     !count number of groups with more than 1 member
+         procedure :: allocate => allocate_zequal !allocate nat, ord(:) and grp(:)
+         procedure :: member => is_x_member       !check if atom x is member of any group
+         procedure :: prsum => prsummary_zequal   !print a summary of all the groups
+         procedure :: geteng => zequal_geteng     !count number of groups with more than 1 member
 
    end type zequal
 
@@ -197,8 +197,8 @@ module zdata
 
    !--- procedures to be used with the zensemble
       contains
-        procedure allocate =>  allocate_zensemble
-        procedure deallocate => deallocate_zensemble
+        procedure :: allocate =>  allocate_zensemble
+        procedure :: deallocate => deallocate_zensemble
 
    end type zensemble
 

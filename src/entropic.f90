@@ -1210,7 +1210,7 @@ subroutine atmsTobool(n,atms,bool)
      implicit none
      integer :: n
      integer :: atms(n)
-     integer :: bool(n)
+     logical :: bool(n)
      integer :: i
      do i=1,n
        if(atms(i).ne.0)then
@@ -1339,6 +1339,7 @@ end subroutine analsym
 subroutine analsym_geo(grp,nat,xyz,at,fac,pr,sfsm)
       use iso_fortran_env, wp => real64
       use zdata
+      implicit none
       type(zequal) :: grp
       real(wp),intent(out) :: fac
       logical :: pr
@@ -1348,13 +1349,13 @@ subroutine analsym_geo(grp,nat,xyz,at,fac,pr,sfsm)
       integer :: i,io
       character(len=4) :: sfsym
       character(len=4),intent(out) :: sfsm
-      real(wp) :: symfactor
+      real(wp),external :: symfactor
       real(wp),parameter :: desy = 0.1_wp
       integer,parameter  :: maxat = 200
       fac = 1.0_wp
       call getsymmetry2(pr,6,nat,at,xyz, desy, maxat, sfsym)
 
-      fac = 1.0_wp / symfactor(grps,sfsym)
+      fac = 1.0_wp / symfactor(grp,sfsym)
       sfsm=sfsym(1:3)
       return
 end subroutine analsym_geo

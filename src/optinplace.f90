@@ -43,6 +43,7 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
 
          real(wp) :: lev
 
+         integer :: nat
          real(wp),allocatable :: eread(:)
          real(wp),allocatable :: xyz(:,:,:)
          integer,allocatable  :: at(:)
@@ -61,7 +62,7 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
 
          logical :: verbose,l1
        
-         associate( nat => env%nat )
+         nat = env%nat
 
 !---- get current path
          call getcwd(thispath)
@@ -281,5 +282,4 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
 !---- go back to original directory
       call chdir(thispath)
 
-      end associate
 end subroutine MDopt_para_inplace

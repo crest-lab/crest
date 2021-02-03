@@ -465,7 +465,7 @@ subroutine entropyMD_para_OMP(env)
 !$omp single
       do i=1,tot
          vz=i
-       !$omp task firstprivate( vz ) private( tmppath,io )
+       !$omp task firstprivate( vz ) private( tmppath,io,ex )
          call initsignal()
        !$omp critical
              write(*,'(a,i4,a)') 'Starting MTD',vz,' with the settings:'
@@ -478,8 +478,8 @@ subroutine entropyMD_para_OMP(env)
        !$omp end critical
          write(tmppath,'(a,i0)')'STATICMTD',vz
          call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
-         inquire(file=trim(tmppath)//'/'//'xtb.trj',exist=io)
-         if(.not.io)then
+         inquire(file=trim(tmppath)//'/'//'xtb.trj',exist=ex)
+         if(.not.ex .or. io.ne.0)then
          write(*,'(a,i0,a)')'*Warning: static MTD ',vz,' seemingly failed (no xtb.trj)*'
          call system('cp -r '//trim(tmppath)//' FAILEDMTD')
          else

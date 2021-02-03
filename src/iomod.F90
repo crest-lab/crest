@@ -243,12 +243,18 @@ subroutine appendto(from,to)
       open(newunit=och,file=from)
       do
         read(ich,*,iostat=io)
-        if(io<0)exit
+        if(io<0)then
+            backspace(ich)
+            exit
+        endif
       enddo
       do
         read(och,'(a)',iostat=io)str
-        if(io<0)exit
-        write(ich,'(a)')trim(str)
+        if(io<0)then
+            exit
+        else
+            write(ich,'(a)')trim(str)
+        endif
       enddo
       close(och)
       close(ich)
@@ -612,5 +618,20 @@ function filechecker(fin,fout) result(have)
     return
 end function filechecker
 
+! Checking directories with Fortran's inquire is not handled by the standard.
+! The interpretation whether or not to report a directory as file is compiler
+! specific and therefore always an extension to the Fortran standard.
+function directory_exist(file) result(exist)
+    character(len=*), intent(in) :: file
+    logical :: exist
+#ifdef __INTEL_COMPILER
+    ! Intel provides the directory extension to inquire to handle this case
+    inquire(directory=file, exist=exist)
+#else
+    ! GCC handles directories as files, to make sure we get a directory and
+    ! not a file append a path separator and the current dir
+    inquire(file=trim(file)//"/.", exist=exist)
+#endif
+end function directory_exist
 
 end module iomod

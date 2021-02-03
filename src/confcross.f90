@@ -46,10 +46,11 @@ subroutine confcross(env,maxgen,kk)
       parameter (autokcal=627.509541d0)
       parameter (pi =  3.14159265358979D0)
 
-      integer :: i,j,k,l,m,nall,n,lin,ig,ng,m1,ierr,nmax,nl,kl,kk
+      integer :: i,j,k,l,m,nall,n,ig,ng,m1,ierr,nmax,nl,kl,kk
       integer :: maxgen,r,n2,nk,ident,nmaxmax,ii
       integer :: io,ich
       integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
+      integer, external :: lin
 
       character(len=512) :: thispath
       character(len=80) :: atmp,btmp,ctmp,fname,oname
@@ -365,7 +366,6 @@ subroutine confcross(env,maxgen,kk)
 !---- change back to working directory
       call chdir(trim(thispath))
 
-!      stop
 666   continue
 
       deallocate(ind)

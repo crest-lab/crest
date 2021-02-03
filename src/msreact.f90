@@ -36,6 +36,16 @@ subroutine msreact_handler(env,tim)
     type(msobj) :: mso  !a new msreact object
     type(coord) :: struc
 
+    interface
+        subroutine msreact_topowrap(mol,pair,paths,wboname)
+            import :: msmol
+            implicit none
+            type(msmol) :: mol
+            integer :: pair(mol%nat*(mol%nat+1)/2)
+            integer :: paths(mol%nat*(mol%nat+1)/2,mol%nat)
+            character(len=*),optional :: wboname
+        end subroutine msreact_topowrap
+    end interface
     integer :: nat
     integer,allocatable :: pair(:)
     integer,allocatable :: paths(:,:)

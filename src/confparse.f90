@@ -65,7 +65,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
        do i=1,nra
              if( any( (/'--GUI','--gui'/)==trim(arg(i)))) gui =.true.
              if( '-niceprint'==trim(arg(i)) ) env%niceprint=.true.
-             if( any( (/'-version','--version'/)==trim(arg(i))))then
+             if( any( (/character(9)::'-version','--version'/)==trim(arg(i))))then
                  call confscript_head()
                  stop
              endif
@@ -85,10 +85,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
 
 !--- check if help is requested or citations shall be diplayed
       do i=1,nra
-            if( any( (/'-h','-H','--h','--H','--help'/)==trim(arg(i))))then
+            if( any( (/character(6)::'-h','-H','--h','--H','--help'/)==trim(arg(i))))then
                call confscript_help()
             endif
-            if( any( (/'-cite','--cite','--citation'/)==trim(arg(i))))then
+            if( any( (/character(10)::'-cite','--cite','--citation'/)==trim(arg(i))))then
                call crestcite()
             endif
       enddo

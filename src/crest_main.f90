@@ -179,7 +179,7 @@ program CREST
         call propquit(tim)
   !---- extended tautomerization
        case( p_tautomerize2 )
-        call tautomerize_ext(env,env%ensemblename,env,tim)
+        call tautomerize_ext(env%ensemblename,env,tim)
         call propquit(tim)
   !---- stereoisomerization
        case( p_isomerize )

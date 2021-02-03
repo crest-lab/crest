@@ -160,7 +160,16 @@ subroutine pkaquick(env,tim)
       real(wp) :: GA,GB,dG
       real(wp) :: eatb,gsa,grrhoa,ebtb,gsb,grrhob,dE
       real(wp) :: pKa,dum,pkaref
-      real(wp) :: pKaCFER !this is a function
+      interface
+          function pKaCFER(dG,c1,c2,c3,c4,T) result(pka)
+              import :: wp
+              implicit none
+              real(wp) :: dG         !in Eh
+              real(wp),optional :: T !in K
+              real(wp) :: pka
+              real(wp) :: c1,c2,c3,c4
+          end function pKaCFER
+      end interface
       real(wp) :: c0,c1,c2,c3,c4
       integer :: i,j,k,l,h,ich,io
       integer :: refnat,refchrg
@@ -375,12 +384,13 @@ contains
        character(len=*) :: fname
        character(len=1028) :: jobcall
        integer :: io
+       logical :: ex
        call env%wrtCHRG('')
        write(jobcall,'(a,1x,a,1x,a,'' --ceasefiles --opt '',a,1x,a,'' >xtb.out'')') &
        &    trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),' 2>/dev/null'
        call execute_command_line(trim(jobcall), exitstat=io)
-       inquire(file='xtbopt.xyz',exist=io)
-       if(io)then
+       inquire(file='xtbopt.xyz',exist=ex)
+       if(ex)then
            call rename('xtbopt.xyz',fname)
        endif
        call remove('xtbrestart')

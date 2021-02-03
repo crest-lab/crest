@@ -177,7 +177,7 @@ subroutine set_trj_origins(base,origin)
       i=1
       do
         write(dir,'(a,i0)')trim(base),i
-        inquire(directory=trim(dir),exist=ex)
+        ex = directory_exist(trim(dir))
         if(.not.ex)then
           exit
         else
@@ -206,7 +206,7 @@ subroutine set_trj_timestamps(base,nsplit)
       i=1
       do
         write(dir,'(a,i0)')trim(base),i
-        inquire(directory=trim(dir),exist=ex)
+        ex = directory_exist(trim(dir))
         if(.not.ex)then
           exit
         else

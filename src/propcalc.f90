@@ -65,6 +65,18 @@ subroutine propcalc(iname,imode,env,tim)
       integer :: P
       integer :: fileid,ich
 
+      interface
+          subroutine prop_OMP_loop(env,TMPCONF,jobcall,pop)
+              import :: systemdata, wp
+              implicit none
+
+              type(systemdata) :: env
+              integer :: TMPCONF
+              character(len=1024) :: jobcall
+              real(wp),intent(in),optional :: pop(TMPCONF)
+          end subroutine
+      end interface
+
       character(len=20) :: xname
       character(len=20) :: optl,pipe
       character(len=80) :: solv
@@ -245,7 +257,7 @@ subroutine propcalc(iname,imode,env,tim)
       enddo
       write(*,'(1x,a)') 'done.'
 
-      if(any(mask==.false.))then
+      if(any(mask.eqv..false.))then
          TMPCONF=ii-1
          nall=ii-1
          if(allocated(popul))deallocate(popul)
@@ -310,7 +322,7 @@ subroutine propcalc(iname,imode,env,tim)
   
       write(*,'(1x,a,i0,a)')'Performing calculations for ', &
       & TMPCONF,' structures ...'
-      call sleep(0.5_wp)
+      call sleep(1)
       call tim%start(10,'PROPERTY calc.')
       allocate(dumm(TMPCONF), source=1.0_wp)
       call prop_OMP_loop(env,TMPCONF,jobcall,dumm)  !<------- this is where the "magic" happens

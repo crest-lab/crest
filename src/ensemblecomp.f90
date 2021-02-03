@@ -73,8 +73,8 @@ subroutine compare_ensembles(env)
          real(wp),parameter :: autokcal = 627.509541d0
 
          associate( ensemblename => env%ensemblename, ensemblename2 => env%ensemblename2, &
-         & thresholds => env%thresholds, cgf => env%cgf, maxcompare => env%maxcompare,    &
-         & nat => env%nat)
+         & thresholds => env%thresholds, cgf => env%cgf, maxcompare => env%maxcompare)
+         nat = env%nat
 
 !----
       call compens_cleanup()

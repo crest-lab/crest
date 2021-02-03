@@ -28,6 +28,7 @@ subroutine cregen2(env)
       use ls_rmsd
       use iomod
       use strucrd, only: rdnat,rdcoord,wrc0,i2e,e2i
+   !$ use omp_lib
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
       !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
@@ -55,39 +56,43 @@ subroutine cregen2(env)
       real(wp) :: autokcal,beta,eav,A,T,rthr,s,g
       real(wp) :: ss,ethr,de,dr,bthr,aa
       real(wp) :: elow,psum,ewin,pthr,eref,athr,r,dsum,dav
-      real(wp) :: rotdiff,dum,shortest_distance,distcma,esort
+      real(wp) :: dum,distcma,esort
       real(wp) :: rij(3),ri,rj,cnorm,erj
       !real*8 :: gdum(3,3),Udum(3,3),xdum(3), ydum(3)  ! rmsd dummy stuff
+      real(wp), external :: rotdiff,shortest_distance
 
       parameter (autokcal=627.509541d0)
 
-      integer :: i,j,k,l,m,nall,n,lin,ig,ng,nall2,norig
+      integer :: i,j,k,l,m,nall,n,ig,ng,nall2,norig
       integer :: m1,m2,s1,s2,maxg,current,mm,mmm,ndoub
       integer :: molcount0,j1,iat,k2,molcount,m1end,imax
       integer :: kk,memb,irr,ir,nr,jj,nall_old,iig
-      integer :: TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
-      integer :: ich,ich2,io,ich3
-      integer*8 :: lina,linr
+      integer :: TID, nproc
+      integer :: ich,ich2,io,ich3,rednat
+      integer, external :: lin
+      integer*8, external :: lina,linr
       integer(idp) :: klong
       integer(idp),allocatable :: rmatmap1(:)
-      integer,allocatable :: rmatmap2(:)
+      integer,allocatable :: rmatmap2(:),includeRMSD(:)
 
       character(len=80) :: atmp,btmp,ctmp,oname,fname,cname
       character(len=3) :: a3            
       character(len=512) :: outfile
 
-      logical :: debug,heavy,equalrot,l1,l2,l3,ex,newfile,anal,rmsdchk
-      logical :: exchok,distcheck,fail,equalrot2
-      logical :: substruc,equalrotall
+      logical :: debug,heavy,l1,l2,l3,ex,newfile,anal,rmsdchk
+      logical :: exchok,fail,equalrot2
+      logical :: substruc
       logical :: ttag
+      logical, external :: distcheck,equalrot,equalrotall
 
       settingNames: associate( crestver => env%crestver, confgo => env%confgo, &
       &             methautocorr => env%methautocorr, printscoords => env%printscoords,  &
       &             ensemblename => env%ensemblename, compareens => env%compareens,      &
       &             elowest => env%elowest, ENSO => env%ENSO, subRMSD => env%subRMSD,    &
       &             trackorigin => env%trackorigin, autothreads => env%autothreads,      &
-      &             omp => env%omp, MAXRUN => env%MAXRUN, threads => env%threads,        &
-      &             rednat => env%rednat, includeRMSD => env%includeRMSD)
+      &             omp => env%omp, MAXRUN => env%MAXRUN, threads => env%threads)
+      rednat = env%rednat
+      includeRMSD = env%includeRMSD
 
       thresholdNames: associate( cgf => env%cgf, thresholds => env%thresholds)
 

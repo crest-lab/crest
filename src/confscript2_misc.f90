@@ -332,6 +332,7 @@ subroutine MetaMD_para_OMP(env)
       character(len=512) :: jobcall
       character(len=80)  :: fname,pipe,solv,atmp,btmp
       integer :: dum,io
+      logical :: ex
 
       if(env%autothreads)then
          dum = env%nmetadyn
@@ -372,7 +373,7 @@ subroutine MetaMD_para_OMP(env)
       do i=1,env%nmetadyn
          call initsignal()
          vz=i
-       !$omp task firstprivate( vz ) private( tmppath,io )
+       !$omp task firstprivate( vz ) private( tmppath,io,ex )
          call initsignal()
        !$omp critical
              write(*,'(a,i4,a)') 'Starting Meta-MD',vz,' with the settings:'
@@ -385,8 +386,8 @@ subroutine MetaMD_para_OMP(env)
        !$omp end critical
          write(tmppath,'(a,i0)')'METADYN',vz
          call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
-         inquire(file=trim(tmppath)//'/'//'xtb.trj',exist=io)
-         if(.not.io)then
+         inquire(file=trim(tmppath)//'/'//'xtb.trj',exist=ex)
+         if(.not.ex .or. io.ne.0)then
          write(*,'(a,i0,a)')'*Warning: Meta-MTD ',vz,' seemingly failed (no xtb.trj)*'
          call system('cp -r '//trim(tmppath)//' FAILED-MTD')
          else
@@ -740,37 +741,37 @@ subroutine  setMDrun2(fname,hmass,mdtime,mdtemp,mdstep,shake,mddumpxyz, &
     enddo
     !--- then write the MD settings 
     write(ich,'(a)') '$md'
-         if(hmass.gt.0)then      !set H-atom mass
+         if(hmass>0.0_wp)then      !set H-atom mass
             write(ich,'(2x,a,i0)') 'hmass=',nint(hmass)
          endif
-         if(mdtime.gt.0.0d0)then     !set MD simulation time in ps
+         if(mdtime>0.0_wp)then     !set MD simulation time in ps
             write(ich,'(2x,a,f10.2)') 'time=',mdtime
          endif
-         if(mdtemp.gt.0)then     !set MD Temperature
+         if(mdtemp>0.0_wp)then     !set MD Temperature
             write(ich,'(2x,a,f10.2)') 'temp=',mdtemp
          endif
          if(mdstep.gt.0)then     !set MD timestep in fs
             write(ich,'(2x,a,f10.2)') 'step=',mdstep
          endif
-         if(shake.ge.0)then     !set MD shake mode
+         if(shake>=0)then     !set MD shake mode
             write(ich,'(2x,a,i0)')'shake=',shake
          endif
          !the order of setting mddump and mddumpxyz is important!!!
-         if(mddumpxyz.gt.0)then    ! Frequency of structure dump into xtb.trj in fs
+         if(mddumpxyz>0)then    ! Frequency of structure dump into xtb.trj in fs
             write(ich,'(2x,a,i0)')'dump=',mddumpxyz
          endif
-         if(mdskip.ge.0)then    !skipping optimizations in -mdopt
+         if(mdskip>=0)then    !skipping optimizations in -mdopt
              write(ich,'(2x,a,i0)')'skip=',mdskip
          endif
-         if(nvt.ge.0)then      ! NVT ensemble
-           if(nvt.eq.0)then
+         if(nvt>=0)then      ! NVT ensemble
+           if(nvt==0)then
              write(ich,'(2x,a)')'nvt=false'
            else
              write(ich,'(2x,a)')'nvt=true'
            endif
          endif
          !the order of setting mddump and mddumpxyz is important!!!
-         if(mddump.gt.0)then     ! Vbias dump for metadyn in fs                       
+         if(mddump>0)then     ! Vbias dump for metadyn in fs                       
             write(ich,'(a)')'$set'
             write(ich,'(2x,a,2x,i0)')'mddump',mddump
          endif
@@ -785,6 +786,7 @@ subroutine  setMDrun2(fname,hmass,mdtime,mdtemp,mdstep,shake,mddumpxyz, &
     endif
     call write_cts_rcontrol(ich,cts)
     write(ich,'(a)') '$end'
+    close(ich)
     return
 end subroutine setMDrun2
 
@@ -976,7 +978,7 @@ subroutine collect_trj(base,whichfile)
       i=1
       do
         write(dir,'(a,i0)')trim(base),i
-        inquire(directory=trim(dir),exist=ex)
+        ex = directory_exist(trim(dir))
         if(.not.ex)then
           exit
         else
@@ -1001,7 +1003,7 @@ subroutine collect_trj_skipfirst(base,whichfile)
       i=1
       do
         write(dir,'(a,i0)')trim(base),i
-        inquire(directory=trim(dir),exist=ex)
+        ex = directory_exist(trim(dir))
         if(.not.ex)then
           exit
         else

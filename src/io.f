@@ -97,6 +97,7 @@
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
       subroutine getname_dir(base,fname)
+      use iomod, only : directory_exist
       character(len=*) :: base,fname
       integer :: i
       logical :: ex
@@ -106,7 +107,8 @@
       do
         i=i+1
         write(dir,'(a,i0)')trim(base),i
-        inquire(directory=dir,exist=ex)
+        ! Inquire is not consitent across compilers
+        ex = directory_exist(dir)
         if(.not.ex)then
           fname=trim(dir) 
           exit
@@ -274,18 +276,17 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       character(len=*) :: to
       integer :: i,j,k,nat
       character(len=1024) :: str
-
       open(unit=666,file=to)
       open(unit=777,file=from)
-
       do
         read(666,*,iostat=io)
-        if(io<0)exit
+        if(io<0)then
+          backspace(666)  
+          exit
+        endif
       enddo
-     
       read(777,*)nat
       write(666,*)nat
-
       do i=1,nat+1
         read(777,'(a)',iostat=io)str
         if(io<0)exit
@@ -310,7 +311,10 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       open(newunit=och,file=from)
       do
         read(ich,*,iostat=io)
-        if(io<0)exit
+        if(io<0)then
+           backspace(ich) 
+           exit
+        endif
       enddo
       !---first structure is read, but not copied 
       read(och,'(a)',iostat=io)str
