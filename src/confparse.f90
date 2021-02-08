@@ -1399,6 +1399,8 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%thermo%avbhess = .true.  !use bhess in rrhoav for all structures (expensive)    
             case( '-avchess' ) 
                env%thermo%constrhess = .true.   !apply constraints during rrhoav routine
+            case( '-printpop' )
+               env%thermo%printpop = .true. !print a file with free energy pop. at different T   
             case( '-noref' )              ! dont use a bhess reference
                env%emtd%bhess = .false.   
             case( '-ref' )
