@@ -220,6 +220,7 @@ module crest_data
       integer  :: pcap = 50000    ! limit number of structures
       logical :: avbhess = .false.  !use bhess in the msRRHO average calc. for all structures (expensive!)
       logical :: constrhess = .false. !apply constraints in rrhoav?
+      logical :: printpop = .false. !print a file with populations at different T
     contains
       procedure :: get_temps => thermo_get_temps
       procedure :: read_temps => thermo_read_temps

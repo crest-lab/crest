@@ -500,7 +500,7 @@ subroutine calcSrrhoav(env,ensname)
     real(wp),allocatable :: stot(:)
     real(wp),allocatable :: c0(:,:)
     character(len=64) :: atmp
-    integer :: i,j,k,ich,io
+    integer :: i,j,k,ich,io,popf
     logical :: ex
     logical :: niceprint
     real(wp) :: percent
@@ -715,6 +715,17 @@ subroutine calcSrrhoav(env,ensname)
     enddo
     deallocate(pdum)
     write(*,'(a11)')'done.'
+    if(env%thermo%printpop)then
+    popf = makedir('populations')    
+    do j=1,nt
+    write(tmppath,'(a,a,a,i0)')'populations','/','.pop_',nint(temps(j))
+    open(newunit=popf,file=trim(tmppath))    
+      do k=1,nall
+      write(popf,'(f16.8)') p(k,j)
+      enddo
+    close(popf)
+    enddo
+    endif
 !>========================================================================================<!
 !>==== after this point p now contains the correct populations based on free energies ====<!
 !>========================================================================================<!

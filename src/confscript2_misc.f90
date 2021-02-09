@@ -1377,7 +1377,7 @@ subroutine emtdcopy(env,iter,stopiter,broken)
       call copy(trim(btmp),trim(crename))
       call xyz2coord(trim(crename),'coord')  !get the right coord again
       call newcregen(env,2) !get the right crest_conformers again
-      !iter=iter-1  !*
+      iter=iter-1  !*
       stopiter = .true.
     endif
 
