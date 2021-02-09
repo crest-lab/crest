@@ -470,7 +470,7 @@ function pKaCFER(dG,c1,c2,c3,c4,T) result(pka)
     real(wp) :: pka
     real(wp),parameter :: kcal =627.5095d0
     real(wp),parameter :: R = 0.00198720425  !in kcal/K mol
-    real(wp) :: logk
+    real(wp) :: logk,logkfix
     real(wp) :: c1,c2,c3,c4
     if(.not.present(T))then
     T=298.15_wp 
@@ -478,6 +478,7 @@ function pKaCFER(dG,c1,c2,c3,c4,T) result(pka)
     pka = 0.0d0
     !logk = kcal*dG/0.592452/2.302585
     logk =kcal*dG/(log(10.0d0)*R*T)
-    pka = c1 + c2*logk + c3*(logk**2) + c4*(logk**3)
+    logkfix=kcal*dG/(log(10.0d0)*R*298.15_wp)
+    pka = c1 + c2*logk + c3*(logkfix**2) + c4*(logkfix**3)
     return
 end function pKaCFER

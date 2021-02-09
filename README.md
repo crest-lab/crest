@@ -68,6 +68,7 @@ meson setup _build_intel --prefix=$PWD/_dist
 meson install -C _build_intel
 ```
 
+When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Tested with version 10.2 of the GNU compilers.
 
 ## Examples
 

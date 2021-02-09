@@ -417,7 +417,7 @@ subroutine newentropyextrapol(env)
        enddo
        write(*,'(3x,71("-"))')
        write(*,'(3x,a)')'S and Cp in cal/mol*K; H and G in kcal/mol'
-       write(*,'(3x,a,a)')'G(total) is the ensemble free energy', &
+       write(*,'(3x,a,a)')'G(total) is the ensemble free energy (H-T*S)', &
        &    ' and S(total) = S(conf,extrapol.) + δSrrho'
     endif
 
@@ -453,10 +453,13 @@ subroutine entropyprintout(T,Srrho,S,Cp,H)
     write(*,'(1x,''+ δSrrho  =      '',f12.6)') Srrho
     write(*,'(1x,40("-"))')
     write(*,'(1x,''= S(total)  =      '',f12.6)') S
-    write(*,'(3x,''G(total)  =      '',f12.6)') -S * T / 1000.0_wp + H
+    write(*,*)
     write(*,'(3x,''H(T)-H(0) =      '',f12.6)') h
-    write(*,'(3x,''Cp(total) =      '',f12.6)') cp
-    
+    write(*,'(3x,''G         =      '',f12.6,a)') (-S * T / 1000.0_wp),'   (-T*S)'
+    write(*,'(1x,40("-"))')
+    write(*,'(1x,''= G(total)  =      '',f12.6,a)') (-S * T / 1000.0_wp + H),'  (H-T*S)'
+    write(*,*)
+    write(*,'(3x,''Cp(total) =      '',f12.6)') cp    
     write(*,*)
 
     return
