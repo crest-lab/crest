@@ -371,8 +371,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%solv='--alpb h2o'
                env%ptb%h_acidic=0
                call pka_argparse(arg(i+1),env%ptb%h_acidic)
-               !read(arg(i+1),*,iostat=io) rdum
-               !if((io==0).and.(rdum>0.0d0)) env%ptb%h_acidic = nint(rdum)
+               if(env%ptb%h_acidic==-2)env%ptb%pka_baseinp=trim(arg(i+1)) 
           case( '-compare' )                                         !flag for comparing two ensembles, analysis tool
                env%compareens=.true.
                env%crestver = 5
@@ -567,20 +566,24 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 !  call exchangeligands(ctmp,dtmp,k,l)
                 !endif
                 !stop
-            case( "-acidbase","-ab" )  !-- acid base correction
+            case( "-acidbase","-ab",'-abprep','-pkaprep','-gdissprep' )  !-- acid base correction
                 ! crest --ab <acid.xyz> <base.xyz> --chrg <acidchrg>
                 env%properties = p_acidbase
-                ctmp=trim(arg(i+1))
-                inquire(file=ctmp,exist=ex)
-                if(ex)then
-                  env%ensemblename=trim(ctmp)
-                  write(*,'(1x,a,a)') 'File used for the acid: ',trim(ctmp)
-                endif
-                ctmp=trim(arg(i+2))
-                inquire(file=ctmp,exist=ex)
-                if(ex)then
-                  env%ensemblename2=trim(ctmp)
-                  write(*,'(1x,a,a)') 'File used for the base: ',trim(ctmp)
+                if(index(arg(i),'prep').ne.0)then
+                call  pka_argparse2(env,arg(i+1),arg(i+2),env%ptb%pka_mode)    
+                else
+                  ctmp=trim(arg(i+1))
+                  inquire(file=ctmp,exist=ex)
+                  if(ex)then
+                    env%ptb%pka_acidensemble=trim(ctmp)
+                    write(*,'(1x,a,a)') 'File used for the acid: ',trim(ctmp)
+                  endif
+                  ctmp=trim(arg(i+2))
+                  inquire(file=ctmp,exist=ex)
+                  if(ex)then
+                    env%ptb%pka_baseensemble=trim(ctmp)
+                    write(*,'(1x,a,a)') 'File used for the base: ',trim(ctmp)
+                  endif
                 endif
                 env%solv='--alpb h2o'
                 env%gfnver='--gfn2'
@@ -1358,6 +1361,8 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 env%ptb%strictPDT = .true.
                 env%ptb%fixPDT = .true.
                 env%ptb%ABcorrection = .true.
+            case( '-pkaensemble' )
+               call  pka_argparse2(env,arg(i+1),arg(i+2),env%ptb%pka_mode)
 !======================================================================================================!
            case( '-entropy','-entropic' )    !new, specialized calculation of molecular entropies
                 write(*,'(2x,a,'' : enhanced ensemble entropy calculation'')')trim(arg(i))

@@ -144,6 +144,10 @@ module crest_data
 
       !--- pka
       integer :: h_acidic = 0  !which h atom to remove in pka script
+      integer :: pka_mode = 0  !what to do in the pka calc.
+      character(len=:),allocatable :: pka_baseinp  !if a base file is read in instead
+      character(len=:),allocatable :: pka_acidensemble  !
+      character(len=:),allocatable :: pka_baseensemble  !
 
       integer :: divers = 1    !number of structures red from given ensemble for extended taut. mode
       logical :: alldivers = .false.  !use all structures of given ensemble for extended taut mode
@@ -714,7 +718,7 @@ subroutine wrtCHRG(self,dir)
        if(k>0)then
        path=trim(dir)//'/'//'.UHF'
        else
-       path='.UHR'
+       path='.UHF'
        endif    
        open(newunit=ich,file=path)
        write(ich,*) self%uhf

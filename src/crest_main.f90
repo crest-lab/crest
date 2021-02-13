@@ -213,8 +213,12 @@ program CREST
   !---- calculate potential correction for acid/base reaction
        case( p_acidbase )
          call tim%start(4,'acid/base')
-         call acidbase(env,env%ensemblename,env%ensemblename2,env%chrg,.true., &
+         if(env%ptb%pka_mode==0)then
+         call acidbase(env,env%ptb%pka_acidensemble,env%ptb%pka_baseensemble,env%chrg,.true., &
              & .false.,dumfloat,.false.,d3,d4,d5,d6,d7,d8)
+         else
+         call rewrite_AB_ensemble(env,env%ptb%pka_acidensemble,env%ptb%pka_baseensemble)
+         endif
          call tim%stop(4)
          call propquit(tim)  
   !---- calculate potential correction for acid/base reaction

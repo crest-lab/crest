@@ -153,6 +153,7 @@ module strucrd
        contains
            procedure :: deallocate => deallocate_ensembletype !clear memory space
            procedure :: open => openensemble !read an ensemble file
+           procedure :: write => write_ensemble !write to file
 
    end type ensemble
 !=========================================================================================!
@@ -530,6 +531,18 @@ end subroutine wrensemble_conf_energy_comment
 
 
 !==================================================================!
+! subroutine write_ensemble
+! wrapper to write an ensemble from the "ensemble" class
+!==================================================================!
+subroutine write_ensemble(self,fname)
+      implicit none
+      class(ensemble) :: self
+      character(len=*),intent(in) :: fname
+      call wrensemble_conf_energy(fname,self%nat,self%nall,self%at,self%xyz,self%er)
+      return
+end subroutine write_ensemble
+
+!==================================================================!
 ! subroutine deallocate_ensembletype
 ! is used to clear memory for the ensemble type
 !==================================================================!
@@ -584,6 +597,8 @@ subroutine openensemble(self,fname)
 
       return
 end subroutine openensemble
+
+
 
 
 !=====================================================================================================!

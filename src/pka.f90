@@ -156,6 +156,8 @@ subroutine pkaquick(env,tim)
       type(timer)   :: tim
       type(coord) :: ACID
       type(coord) :: BASE
+      type(ensemble) :: ACIDENSEMBLE
+      type(ensemble) :: BASEENSEMBLE
       real(wp) :: t
       real(wp) :: GA,GB,dG
       real(wp) :: eatb,gsa,grrhoa,ebtb,gsb,grrhob,dE
@@ -172,19 +174,24 @@ subroutine pkaquick(env,tim)
       end interface
       real(wp) :: c0,c1,c2,c3,c4
       integer :: i,j,k,l,h,ich,io
-      integer :: refnat,refchrg
+      integer :: refnat,refchrg,basechrg
       logical :: bhess,ex
+      integer :: nalla,nallb
+      real(wp),allocatable :: gacid(:),pacid(:)
+      real(wp),allocatable :: gbase(:),pbase(:)
       real(wp),parameter :: kcal =627.5095d0
 
-      character(len=:),allocatable :: anionfile
       character(len=:),allocatable :: pkaparam
 
       !T=env%tboltz
       T=298.15d0  !CFER was fitted with this temperature
       refnat = env%nat
       refchrg = env%chrg
+      basechrg = env%chrg-1
       bhess = .true.
 
+   select case(env%ptb%pka_mode)  
+   case( 0 )  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!  
       env%crestver=2
       env%gbsa=.true.
       if((index(env%solv,'--alpb h2o')==0)) then
@@ -242,9 +249,9 @@ subroutine pkaquick(env,tim)
       call largehead2('Calculation of the base')
       env%ensemblename='none selected'  !RESET, IMPORTANT!
       env%ptb%threshsort=.true.
+    !=================================================================================!      
       !--- write the base input file
-      if(env%ptb%h_acidic>0)then
-        !-- for a manually selected H atom  
+      if(env%ptb%h_acidic>0)then            !-- for a manually selected H atom  
         BASE%nat=refnat-1
         allocate(BASE%at(BASE%nat), source=0)
         allocate(BASE%xyz(3,BASE%nat), source=0.0_wp)
@@ -255,16 +262,19 @@ subroutine pkaquick(env,tim)
            BASE%at(j) = ACID%at(i)
            BASE%xyz(1:3,j)=ACID%xyz(1:3,i)  
         enddo
-      else if(env%ptb%h_acidic==-1)then
-        !-- "automatic" mode  
+      else if(env%ptb%h_acidic==-1)then      !-- "automatic" mode  
         call deprotonate(env,tim)
         call rmrfw('deprotonate_')
         call BASE%open('deprotonated.xyz')
+      else if(env%ptb%h_acidic==-2)then      !-- read-in base file mode  
+        call BASE%open(env%ptb%pka_baseinp)
       endif
       call BASE%write('base.xyz')
       env%chrg=refchrg-1
+      basechrg=refchrg-1
       env%nat = refnat - 1
       env%rednat = refnat - 1
+   !=================================================================================!      
       if(env%preopt)then  !--- optional geometry optimization
           write(6,'(1x,a)',advance='no')'Optimizing base geometry ... '
           flush(6)
@@ -297,6 +307,40 @@ subroutine pkaquick(env,tim)
           GA = GA + grrhoa
           GB = GB + grrhob
       endif
+   case( 1 )  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!  
+       call largehead2('Read ensemble data for pKa calculation')
+       write(*,*)'Note: In order to work properly the ensembles must be in the xyz'
+       write(*,*)'format and contain the final free energies in solution (in Eh) as'
+       write(*,*)'comment line for each structure.'
+       write(*,*)
+       call ACIDENSEMBLE%open(env%ptb%pka_acidensemble)
+       write(*,'(1x,a,a,a,i0,a)')'Ensemble read for acid: ',env%ptb%pka_acidensemble, &
+           & ' with ',ACIDENSEMBLE%nall,' structures'
+       call BASEENSEMBLE%open(env%ptb%pka_baseensemble)
+       write(*,'(1x,a,a,a,i0,a)')'Ensemble read for base: ',env%ptb%pka_baseensemble, &
+           & ' with ',BASEENSEMBLE%nall,' structures'
+       write(*,'(1x,a)') 'Calculating population average from read-in (free) energies ...'
+       nalla = ACIDENSEMBLE%nall
+       allocate(gacid(nalla), source=1.0_wp)
+       allocate(pacid(nalla), source=0.0_wp)
+       call pka_boltz(nalla,T,ACIDENSEMBLE%er,gacid,pacid)
+       GA = 0.0_wp
+       do i=1,nalla
+         GA = GA + pacid(i)*ACIDENSEMBLE%er(i)
+       enddo
+       nallb = BASEENSEMBLE%nall
+       allocate(gbase(nallb), source=1.0_wp)
+       allocate(pbase(nallb), source=0.0_wp)
+       call pka_boltz(nallb,T,BASEENSEMBLE%er,gbase,pbase)       
+       GB = 0.0_wp
+       do i=1,nallb
+         GB = GB + pbase(i)*BASEENSEMBLE%er(i)
+       enddo
+       deallocate(pbase,gbase,pacid,gacid)
+       write(*,'(1x,a,f16.8,a)') '|G(AH)| =',GA,' Eh'
+       write(*,'(1x,a,f16.8,a)') '|G(A⁻)| =',GB,' Eh'
+       dE = 0.0_wp !would be the energy correction Ecorr, ignore for read-in
+   end select !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!  
       
 !--- calculate the pKa via the free energy relationship
       call largehead2('pKa CALCULATION')
@@ -305,11 +349,14 @@ subroutine pkaquick(env,tim)
       write(*,'(1x,a)') '(Note: H₂O/H₃O⁺ is not included in ΔG)'
       write(*,'(1x,a,f16.2,a)') 'T     =',T,' K'
       write(*,'(1x,a,f16.8,a)') 'G(AH) =',GA,' Eh'
+
       write(*,'(1x,a,f16.8,a)') 'G(A⁻) =',GB,' Eh' 
       dum = GB - GA
       write(*,'(1x,a,f16.8,a,f8.2,a)') 'ΔG       =',dum,' Eh,',dum*kcal,' kcal/mol'
       dG = dum + dE
+      if(env%ptb%pka_mode.ne.1)then
       write(*,'(1x,a,f16.8,a,f8.2,a)') 'ΔG+Ecorr =',dG,' Eh,',dG*kcal,' kcal/mol'
+      endif
       write(*,*)
 
       if(env%extLFER)then
@@ -382,11 +429,12 @@ contains
        implicit none
        type(systemdata) :: env
        character(len=*) :: fname
+       integer :: chrg
        character(len=1028) :: jobcall
        integer :: io
        logical :: ex
        call env%wrtCHRG('')
-       write(jobcall,'(a,1x,a,1x,a,'' --ceasefiles --opt '',a,1x,a,'' >xtb.out'')') &
+       write(jobcall,'(a,1x,a,1x,a,'' --ceasefiles --opt vitght '',a,1x,a,'' >xtb.out'')') &
        &    trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),' 2>/dev/null'
        call execute_command_line(trim(jobcall), exitstat=io)
        inquire(file='xtbopt.xyz',exist=ex)
@@ -409,16 +457,83 @@ subroutine pka_argparse(str,h)
     integer :: h,io
     character(len=:),allocatable :: arg
     real(wp) :: rdum
+    logical :: ex
     h=0
     arg=trim(str)
+    if(arg(1:1)=='-')then
+        h=0
+        return
+    endif
     if(arg=='auto')then
         h=-1
+        return
+    endif
+    inquire(file=arg,exist=ex)
+    if(ex)then
+        h=-2
         return
     endif
     read(arg,*,iostat=io) rdum
     if((io==0).and.(rdum>0.0d0)) h = nint(rdum)
     return
 end subroutine pka_argparse
+
+subroutine pka_argparse2(env,str1,str2,h)
+    use iso_fortran_env, only: wp => real64
+    use crest_data
+    implicit none
+    type(systemdata) :: env
+    character(len=*) :: str1,str2
+    integer :: h,io
+    real(wp) :: rdum
+    logical :: ex,ex2
+    h=0
+    inquire(file=trim(str1),exist=ex)
+    inquire(file=trim(str2),exist=ex2)
+    if(ex.and.ex2)then
+        h=1
+        env%ptb%pka_acidensemble = trim(str1)
+        env%ptb%pka_baseensemble = trim(str2)
+    endif
+    return
+end subroutine pka_argparse2
+
+!========================================================!
+! compute Boltzmann populations p for given
+! T, level energies e(), and 
+! level degeneracies g()  
+!========================================================!
+subroutine pka_boltz(n,t,e,g,p)
+      use iso_fortran_env, wp => real64
+      implicit none
+      integer n
+      real(wp) :: e(n),p(n),g(n)          
+      real(wp) :: t,f,esum
+      integer :: i
+      real(wp),allocatable :: erel(:)
+      real(wp) :: emin
+      real(wp),parameter :: R = 8.31446261815324_wp/4.184_wp
+      real(wp),parameter :: kcal =  627.5095_wp
+      !-- first convert into relative kcal/mol energies 
+      allocate(erel(n))
+      emin=minval(e,1)
+      do i=1,n
+      erel(i) = e(i) - emin
+      erel(i) = erel(i) * kcal
+      enddo
+      f = 1.0d0 / (T * R * 0.001d0)
+      esum=0
+      do i=1,n
+         esum=esum+g(i)*exp(-erel(i)*f)
+      enddo
+      do i=1,n
+         p(i)=g(i)*exp(-erel(i)*f)/esum
+      enddo
+      deallocate(erel)
+      if(abs(1.0d0-sum(p)).gt.1.d-6) stop 'error in pka_boltz()'
+      return
+end subroutine pka_boltz
+
 
 !============================================================================!
 ! Calculate the pKa value via the linear free Energy relationship (LFER)
