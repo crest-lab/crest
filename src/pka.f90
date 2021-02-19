@@ -359,8 +359,8 @@ subroutine pkaquick(env,tim)
       endif
       write(*,*)
 
-      if(env%extLFER)then
-
+      if(env%ptb%rdCFER)then
+         pkaparam = 'external'
       else    
          !pkaparam ='none'
          pkaparam = env%gfnver
@@ -374,10 +374,7 @@ subroutine pkaquick(env,tim)
           c3=-0.11103   !           and checked outlier HClO4
           c4= 0.0001835
         case( 'external' )
-          c1 = 1.0d0  !placeholder
-          c2 = 1.0d0  !placeholder 
-          c3 = 1.0d0  !placeholder
-          c3 = 1.0d0  !placeholder
+          call pka_rdparam(env%ptb%cferfile,c1,c2,c3,c4)
         case default  !do nothing with the values  
           c1 = 0.0d0
           c2 = 1.0d0
@@ -497,6 +494,49 @@ subroutine pka_argparse2(env,str1,str2,h)
     endif
     return
 end subroutine pka_argparse2
+
+subroutine pka_rdparam(fname,c1,c2,c3,c4)
+    use iso_fortran_env, only: wp => real64
+    use filemod
+    implicit none
+    character(len=*) :: fname
+    real(wp),intent(out) :: c1,c2,c3,c4
+    character(len=:),allocatable :: line,param
+    type(filetype) :: f
+    real(wp) :: dum
+    logical :: ex
+    integer :: io
+
+    c1 = 0.0_wp
+    c2 = 1.0_wp
+    c3 = 0.0_wp
+    c4 = 0.0_wp
+
+    inquire(file=fname,exist=ex)
+    if(.not.ex)return
+
+    call f%open(fname)
+    line=f%line(1)
+    call f%close()
+
+    param=getlarg(line,1)
+    read(param,*,iostat=io) dum
+    if(io==0) c1=dum
+
+    param=getlarg(line,2)
+    read(param,*,iostat=io) dum
+    if(io==0) c2=dum
+
+    param=getlarg(line,3)
+    read(param,*,iostat=io) dum
+    if(io==0) c3=dum               
+
+    param=getlarg(line,4)
+    read(param,*,iostat=io) dum
+    if(io==0) c4=dum               
+
+    return
+end subroutine pka_rdparam
 
 !========================================================!
 ! compute Boltzmann populations p for given

@@ -1363,6 +1363,14 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 env%ptb%ABcorrection = .true.
             case( '-pkaensemble' )
                call  pka_argparse2(env,arg(i+1),arg(i+2),env%ptb%pka_mode)
+            case( '-pkaparam' )   
+                env%ptb%rdcfer = .true.
+                if(i+1 .le. nra )then
+                    ctmp=trim(arg(i+1))
+                    if(ctmp(1:1).ne.'-')then
+                        env%ptb%cferfile=ctmp
+                    endif
+                endif
 !======================================================================================================!
            case( '-entropy','-entropic' )    !new, specialized calculation of molecular entropies
                 write(*,'(2x,a,'' : enhanced ensemble entropy calculation'')')trim(arg(i))

@@ -57,8 +57,13 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       real(wp) :: ebtb,gsb,grrhob
       real(wp) :: detb
       logical :: ldum
-      integer :: X,atX                  !the reactive atom and its element
+      integer :: X,atX,xH               !the reactive atom and its element
       real(wp) :: qh
+      real(wp) :: dgrrho,edft
+      real(wp) :: wbosuma,wbosumb
+      integer :: ich2
+      logical :: ex
+
       integer :: nqh
       character(len=512) :: thispath
       character(len=8),parameter :: adir = 'ACIDcalc'
@@ -137,6 +142,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
           if(acid%at(j)==1)then
              nqh=nqh+1
              qh = qh + qa(j)
+             xH=j
           endif
         enddo
         qh = qh/float(nqh)
@@ -144,6 +150,10 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
         atX = 0
         qh = 0.0_wp
      endif
+
+      open(unit=ich2,file='.ATOM')
+      write(ich2,*) xH
+      close(ich2)
      
 !--- calculate dE
      detb=ebtb-eatb
@@ -151,10 +161,27 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
         write(*,*) 'Gsolv(xtb) A / B    :',gsa,gsb
         write(*,*) 'dE(xtb,uncorr.)     :',detb
         if(bhess)then
+        dgrrho=(grrhob-grrhoa)
         write(*,*) 'dG(xtb,uncorr.)     :',detb+(grrhob-grrhoa)
         endif
      endif
      call acidbasepot(dE,X,atX,nata,natb,qh,qa,qb,wboa,wbob)
+
+!--- printout for fit     
+    wbosuma = sum(wboa(:,X))
+    wbosumb = sum(wbob(:,X))
+    inquire(file='.edft',exist=ex)
+    if(ex)then
+        open(newunit=ich2,file='.edft')
+        read(ich2,*) edft
+        close(ich2)
+    else
+        edft=0.0_wp
+    endif
+    open(newunit=ich,file='.data')
+    write(ich,'(2f16.8,4f10.6,f16.8)')edft,detb,(wbosuma-wbosumb),qa(X),qb(X),qh,dgrrho
+    close(ich)
+
      if(verbose)then
         write(*,'(1x,a)')'Energy correction for acid/base reaction:'
         write(*,'(1x,a,f16.10,a)') 'Ecorr =',dE,' Eh'

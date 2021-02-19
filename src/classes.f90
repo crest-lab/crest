@@ -148,6 +148,8 @@ module crest_data
       character(len=:),allocatable :: pka_baseinp  !if a base file is read in instead
       character(len=:),allocatable :: pka_acidensemble  !
       character(len=:),allocatable :: pka_baseensemble  !
+      logical :: rdCFER =.false.
+      character(len=:),allocatable :: cferfile
 
       integer :: divers = 1    !number of structures red from given ensemble for extended taut. mode
       logical :: alldivers = .false.  !use all structures of given ensemble for extended taut mode
