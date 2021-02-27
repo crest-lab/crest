@@ -359,6 +359,7 @@ subroutine pkaquick(env,tim)
       endif
       write(*,*)
 
+
       if(env%ptb%rdCFER)then
          pkaparam = 'external'
       else    
@@ -369,6 +370,11 @@ subroutine pkaquick(env,tim)
         case( '--gfn1' )
           error stop 'GFN1-xTB not available for pKa calculation via CFER.'   
         case( '--gfn2' )
+          c1=-1477.65246638
+          c2=   20.41582869
+          c3=   -0.09691495
+          c4=    0.00015989
+        case( 'oldparam' )
           c1=-1656.7    ! SD = 2.87, NO isorad, 19normal, my COSMOTHERM (out.ccf), adjust for Fabian's out.cosmo, ie -1656.45
           c2= 23.185    !    = 2.47 without two extreme outliers (CH3NN+, cycnoform)
           c3=-0.11103   !           and checked outlier HClO4
@@ -633,6 +639,9 @@ function pKaCFER(dG,c1,c2,c3,c4,T) result(pka)
     pka = 0.0d0
     !logk = kcal*dG/0.592452/2.302585
     logk =kcal*dG/(log(10.0d0)*R*T)
+    !open(unit=102030, file='.kdiss')
+    !write(102030,'(1x,f16.8)') logk
+    !close(102030)
     logkfix=kcal*dG/(log(10.0d0)*R*298.15_wp)
     pka = c1 + c2*logk + c3*(logkfix**2) + c4*(logkfix**3)
     return

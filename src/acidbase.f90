@@ -387,6 +387,10 @@ subroutine rewrite_AB_ensemble(env,acensemble,baensemble)
       bchrg=env%chrg-1
       bhess=.true.
 
+      if(env%autothreads)then
+            call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
+      endif
+
 !-- first, read the acid ensemble and calculate the free energies
       write(*,*) 'Acid ensemble: ',trim(acensemble)
       call ACIDENSEMBLE%open(acensemble)
@@ -442,10 +446,6 @@ subroutine rewrite_AB_ensemble(env,acensemble,baensemble)
       call rmrf('acid_ref.xyz')
       call rmrf('btmp.xyz')
       write(*,'(1x,a,a)')'written to: ','G_'//trim(baensemble)
-
-
-
-
 
       return
 end subroutine rewrite_AB_ensemble
