@@ -42,6 +42,7 @@ list(APPEND srcs
   "${dir}/ensemblecomp.f90"
   "${dir}/entropic.f90"
   "${dir}/entropy.f90"
+  "${dir}/eval_timer.f90"
   "${dir}/filemod.f90"
   "${dir}/flexi.f90"
   "${dir}/floydwarshall.f90"

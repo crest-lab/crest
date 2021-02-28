@@ -40,6 +40,7 @@ srcs += files(
   'ensemblecomp.f90',
   'entropic.f90',
   'entropy.f90',
+  'eval_timer.f90',
   'filemod.f90',
   'flexi.f90',
   'floydwarshall.f90',

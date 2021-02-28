@@ -18,7 +18,7 @@ project(
   'crest',
   'fortran', 'c',
   version: '2.11.0',
-  meson_version: '>=0.53',
+  meson_version: '>=0.55',
   default_options: [
     'buildtype=debugoptimized',
   ],
@@ -41,8 +41,13 @@ crest_exe = executable(
   link_language: 'fortran',
 )
 
-# install_data(
-#   files('combi-scripts/crest_combi'),
-#   install_dir: get_option('bindir'),
-#   install_mode: 'rwxr--r--',
-# )
+#declare dependencies
+crest_inc = []
+crest_dep = declare_dependency(
+  include_directories: crest_inc,
+  dependencies: exe_deps,
+)
+
+
+# add the testsuite separate meson.build 
+#subdir('testsuite') #has to be filled with tests, not availabel yet
