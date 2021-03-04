@@ -171,8 +171,19 @@ subroutine pkaquick(env,tim)
               real(wp) :: pka
               real(wp) :: c1,c2,c3,c4
           end function pKaCFER
+          function pKaPolyFER(dG,nc,c,T) result(pka)
+              import :: wp
+              implicit none
+              real(wp) :: dG         !in Eh
+              real(wp),optional :: T !in K
+              integer :: nc
+              real(wp) :: c(nc)
+              real(wp) :: pka
+          end function pKaPolyFER
       end interface
       real(wp) :: c0,c1,c2,c3,c4
+      integer :: nc
+      real(wp),allocatable :: c(:)
       integer :: i,j,k,l,h,ich,io
       integer :: refnat,refchrg,basechrg
       logical :: bhess,ex
@@ -189,6 +200,8 @@ subroutine pkaquick(env,tim)
       refchrg = env%chrg
       basechrg = env%chrg-1
       bhess = .true.
+      nc=5
+      allocate(c(5), source=0.0_wp)
 
    select case(env%ptb%pka_mode)  
    case( 0 )  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!  
@@ -369,35 +382,40 @@ subroutine pkaquick(env,tim)
       select case( pkaparam )
         case( '--gfn1' )
           error stop 'GFN1-xTB not available for pKa calculation via CFER.'   
-        case( '--gfn2' )
-          c1=-1477.65246638
-          c2=   20.41582869
-          c3=   -0.09691495
-          c4=    0.00015989
+        case( 'quartic' )
+          c(1)= -14501.33156900
+          c(2)=    276.23925454
+          c(3)=     -1.97288872
+          c(4)=      0.00624684 
+          c(5)=     -0.00000737
+        case('--gfn2' )  
+          c(1)= -1656.74953643 !-1645.21695955
+          c(2)=    23.18527638 ! 23.06345883
+          c(3)=    -0.11102517 !-0.11064255
+          c(4)=     0.00018350 ! 0.00018327
         case( 'oldparam' )
-          c1=-1656.7    ! SD = 2.87, NO isorad, 19normal, my COSMOTHERM (out.ccf), adjust for Fabian's out.cosmo, ie -1656.45
-          c2= 23.185    !    = 2.47 without two extreme outliers (CH3NN+, cycnoform)
-          c3=-0.11103   !           and checked outlier HClO4
-          c4= 0.0001835
+          c(1)=-1656.7    ! SD = 2.87, NO isorad, 19normal, my COSMOTHERM (out.ccf), adjust for Fabian's out.cosmo, ie -1656.45
+          c(2)= 23.185    !    = 2.47 without two extreme outliers (CH3NN+, cycnoform)
+          c(3)=-0.11103   !           and checked outlier HClO4
+          c(4)= 0.0001835
         case( 'external' )
-          call pka_rdparam(env%ptb%cferfile,c1,c2,c3,c4)
+          call pka_rdparam(env%ptb%cferfile,nc,c)
         case default  !do nothing with the values  
-          c1 = 0.0d0
-          c2 = 1.0d0
-          c3 = 0.0d0
-          c4 = 0.0d0
+          c = 0.0d0
+          c(2) = 1.0d0
      end select  
 
-      write(*,'(1x,a)') 'cubic free energy relationship (CFER):'
-      write(*,'(2x,a)') 'pKa   = c1 + c2*kdiss + c3*kdiss² + c4*kdiss³'
+      write(*,'(1x,a)') 'polynomial free energy relationship (CFER):'
+      write(*,'(2x,a)') 'pKa   = c1 + c2*kdiss + c3*kdiss² + ... + c_n*kdiss^(n-1)'
       write(*,'(2x,a)') 'with kdiss = ΔG(aq)/ln(10)RT'
       write(*,'(7x,a,f8.2,a)') 'ΔG(aq)=',dG*kcal,' kcal/mol'
-      write(*,'(7x,a,f16.8)') 'c1 =',c1
-      write(*,'(7x,a,f16.8)') 'c2 =',c2
-      write(*,'(7x,a,f16.8)') 'c3 =',c3
-      write(*,'(7x,a,f16.8)') 'c4 =',c4
+      do i=1,nc
+        if(c(i)==0.0_wp) cycle
+        write(*,'(7x,a,i0,a,f16.8)') 'c',i,' =',c(i)
+      enddo
 
-      pka = pKaCFER(dG,c1,c2,c3,c4,T)
+      !pka = pKaCFER(dG,c1,c2,c3,c4,T)
+      pka = pKaPolyFER(dG,nc,c,T)
 
       write(*,*)
       write(*,'(3x,a)') ' ___________________________________ '
@@ -420,6 +438,7 @@ subroutine pkaquick(env,tim)
 !--- cleanup
       call ACID%deallocate()
       call BASE%deallocate()
+      deallocate(c)
 
 !--- turn off other property modes via env%npq
       env%npq = 0
@@ -501,22 +520,25 @@ subroutine pka_argparse2(env,str1,str2,h)
     return
 end subroutine pka_argparse2
 
-subroutine pka_rdparam(fname,c1,c2,c3,c4)
+subroutine pka_rdparam(fname,nc,c) !c1,c2,c3,c4)
     use iso_fortran_env, only: wp => real64
     use filemod
     implicit none
     character(len=*) :: fname
-    real(wp),intent(out) :: c1,c2,c3,c4
+    integer :: nc
+    real(wp) :: c(nc)
+    !real(wp),intent(out) :: c1,c2,c3,c4
     character(len=:),allocatable :: line,param
     type(filetype) :: f
     real(wp) :: dum
     logical :: ex
-    integer :: io
+    integer :: io,i
 
-    c1 = 0.0_wp
-    c2 = 1.0_wp
-    c3 = 0.0_wp
-    c4 = 0.0_wp
+    !c1 = 0.0_wp
+    !c2 = 1.0_wp
+    !c3 = 0.0_wp
+    !c4 = 0.0_wp
+    c=0.0_wp
 
     inquire(file=fname,exist=ex)
     if(.not.ex)return
@@ -525,21 +547,15 @@ subroutine pka_rdparam(fname,c1,c2,c3,c4)
     line=f%line(1)
     call f%close()
 
-    param=getlarg(line,1)
+    do i=1,nc
+    param=getlarg(line,i)
     read(param,*,iostat=io) dum
-    if(io==0) c1=dum
-
-    param=getlarg(line,2)
-    read(param,*,iostat=io) dum
-    if(io==0) c2=dum
-
-    param=getlarg(line,3)
-    read(param,*,iostat=io) dum
-    if(io==0) c3=dum               
-
-    param=getlarg(line,4)
-    read(param,*,iostat=io) dum
-    if(io==0) c4=dum               
+    if(io==0)then
+        c(i)=dum
+    else
+        c(i)=0.0_wp
+    endif
+    enddo
 
     return
 end subroutine pka_rdparam
@@ -646,3 +662,45 @@ function pKaCFER(dG,c1,c2,c3,c4,T) result(pka)
     pka = c1 + c2*logk + c3*(logkfix**2) + c4*(logkfix**3)
     return
 end function pKaCFER
+!============================================================================!
+! Calculate the pKa value via a general polynominal free Energy relationship (FER)
+!
+! For the reaction   AH + H₂O --->  A⁻ + H₃O⁺
+!
+! GA = free energy of species AH 
+! GB = free energy of species A⁻
+! dG = GB - GA
+! kdiss = dG/ln(10)RT
+! 
+! Polynomial FER:
+! pKa = c1 + c2*kdiss + c3(kdiss)^2 + ... + c_n(kdiss)^(n-1)
+!
+!============================================================================!
+function pKaPolyFER(dG,nc,c,T) result(pka)
+    use iso_fortran_env, wp => real64
+    implicit none
+    real(wp) :: GA,GB
+    real(wp) :: dG         !in Eh
+    real(wp),optional :: T !in K
+    real(wp) :: pka
+    real(wp),parameter :: kcal =627.5095d0
+    real(wp),parameter :: R = 0.00198720425  !in kcal/K mol
+    real(wp) :: logk,logkfix
+    integer :: nc,i,j
+    real(wp) :: c(nc)
+    if(.not.present(T))then
+    T=298.15_wp 
+    endif
+    pka = 0.0d0
+    logk =kcal*dG/(log(10.0d0)*R*T)
+    !open(unit=102030, file='.kdiss')
+    !write(102030,'(1x,f16.8)') logk
+    !close(102030)
+    logkfix=kcal*dG/(log(10.0d0)*R*298.15_wp)
+    pka = c(1) + c(2)*logk
+    do i=3,nc
+       j=i-1
+       pka=pka + c(i)*(logkfix**j)
+    enddo
+    return
+end function pKaPolyFER

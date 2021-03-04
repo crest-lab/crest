@@ -51,6 +51,7 @@ OBJS3 += ccegen.o
 OBJS3 += deprotonate.o
 OBJS3 += dft_propcalc.o
 OBJS3 += ensemblecomp.o
+OBJS3 += eval_timer.o
 OBJS3 += freqmasses.o
 OBJS3 += identifiers.o
 OBJS3 += intmodes.o
