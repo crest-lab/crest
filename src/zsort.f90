@@ -342,16 +342,17 @@ end subroutine zmatsort
 
 !------------------------------------------------------------------------
 subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
+      use iso_fortran_env, only: wp => real64
       use strucrd, only: i2e
+      use crest_data, only: bohr
       implicit none
       integer :: nat,na(nat),nb(nat),nc(nat),at(nat)
-      real*8 :: geo(3,nat)
+      real(wp) :: geo(3,nat)
       character(len=20) ::  filename
-      logical ex
-      integer i,l,m,n,molnum
-      real*8 bl,ang,dihed,pi,au2ang
+      logical :: ex
+      integer :: i,l,m,n,molnum
+      real(wp) :: bl,ang,dihed,pi
       parameter (pi =  3.14159265358979D0)
-      parameter (au2ang = 0.529177210920d0 )
          do  i=1,nat             
             l=1                  
             m=1                  
@@ -366,12 +367,10 @@ subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
                n=0               
             endif                
             if(i.eq.3)n=0        
-         bl=geo(1,i)*au2ang
+         bl=geo(1,i)*bohr
          ang=geo(2,i)*180./pi        
          dihed=geo(3,i)*180./pi          
          if(dihed.gt.180.0d0)dihed=dihed-360.0d0                       
-!        write(*,'(2x,a2,f14.8,i4,f14.8,i5,f14.8,i5,i6,2i5)') &
-!        & i2e(at(i)),bl,l,ang,m,dihed,n,na(i),nb(i),nc(i)                                                      
          write(*,'(i4,2x,a2,f12.6,2x,f10.4,2x,f10.4,i6,2i5)') &
          &   i,i2e(at(i)),bl,ang,dihed,na(i),nb(i),nc(i)   
          enddo
@@ -381,15 +380,15 @@ subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
 
          write(42,'(a2)') i2e(at(1))
          if(nat.gt.1)then
-         write(42,'(a2,x,i0,x,f8.3)') i2e(at(2)), na(2), geo(1,2)*au2ang
+         write(42,'(a2,x,i0,x,f8.3)') i2e(at(2)), na(2), geo(1,2)*bohr
          endif
          if(nat.gt.2)then
          write(42,'(a2,x,i0,x,f8.3,x,i0,x,f8.3)') i2e(at(3)), na(3) &
-         &                  ,geo(1,3)*au2ang,nb(3), geo(2,3)*180./pi     
+         &                  ,geo(1,3)*bohr,nb(3), geo(2,3)*180./pi     
          endif
  
          do i=4,nat
-            bl=geo(1,i)*au2ang
+            bl=geo(1,i)*bohr
             ang=geo(2,i)*180./pi         
             dihed=geo(3,i)*180./pi         
             if(dihed.gt.180.0d0)dihed=dihed-360.0d0
