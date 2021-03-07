@@ -349,8 +349,9 @@ subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
       character(len=20) ::  filename
       logical ex
       integer i,l,m,n,molnum
-      real*8 bl,ang,dihed,pi
+      real*8 bl,ang,dihed,pi,au2ang
       parameter (pi =  3.14159265358979D0)
+      parameter (au2ang = 0.529177210920d0 )
          do  i=1,nat             
             l=1                  
             m=1                  
@@ -365,7 +366,7 @@ subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
                n=0               
             endif                
             if(i.eq.3)n=0        
-         bl=geo(1,i)
+         bl=geo(1,i)*au2ang
          ang=geo(2,i)*180./pi        
          dihed=geo(3,i)*180./pi          
          if(dihed.gt.180.0d0)dihed=dihed-360.0d0                       
@@ -380,15 +381,15 @@ subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
 
          write(42,'(a2)') i2e(at(1))
          if(nat.gt.1)then
-         write(42,'(a2,x,i0,x,f8.3)') i2e(at(2)), na(2), geo(1,2)
+         write(42,'(a2,x,i0,x,f8.3)') i2e(at(2)), na(2), geo(1,2)*au2ang
          endif
          if(nat.gt.2)then
          write(42,'(a2,x,i0,x,f8.3,x,i0,x,f8.3)') i2e(at(3)), na(3) &
-         &                  ,geo(1,3),nb(3), geo(2,3)*180./pi     
+         &                  ,geo(1,3)*au2ang,nb(3), geo(2,3)*180./pi     
          endif
  
          do i=4,nat
-            bl=geo(1,i)
+            bl=geo(1,i)*au2ang
             ang=geo(2,i)*180./pi         
             dihed=geo(3,i)*180./pi         
             if(dihed.gt.180.0d0)dihed=dihed-360.0d0
