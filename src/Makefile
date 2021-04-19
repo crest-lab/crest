@@ -51,6 +51,7 @@ OBJS3 += ccegen.o
 OBJS3 += deprotonate.o
 OBJS3 += dft_propcalc.o
 OBJS3 += ensemblecomp.o
+OBJS3 += eval_timer.o
 OBJS3 += freqmasses.o
 OBJS3 += identifiers.o
 OBJS3 += intmodes.o
@@ -91,6 +92,7 @@ OBJS4 += compress.o
 OBJS4 += relaxensemble.o
 OBJS4 += acidbase.o
 OBJS4 += biasmerge.o
+OBJS4 += solvtool.o
 
 #mainfile for crest binary
 MAINFILES += confscript1.o

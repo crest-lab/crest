@@ -761,3 +761,55 @@ subroutine thermo_mini(env)
     deallocate(stot,gt,ht,et,temps)
     return
 end subroutine thermo_mini
+
+
+
+!===============================================================================!
+! resort all structures of a given ensemblefile
+!===============================================================================!
+subroutine resort_ensemble(fname)
+    use iso_fortran_env, only: wp=>real64,error_unit
+    use strucrd
+    use crest_data
+    implicit none
+    character(len=*) :: fname
+    integer :: nat,nall
+    real(wp),allocatable :: xyz(:,:,:)
+    integer,allocatable :: at(:)
+    character(len=128), allocatable :: comm(:)
+    logical :: ex
+    integer :: i,j,k,ich
+
+    integer,allocatable :: atorder(:)
+
+
+    inquire(file='.atorder',exist=ex)
+    if(.not.ex) error stop 'file .atorder does not exist'
+
+    call rdensembleparam(fname,nat,nall)
+    !--- allocate space and read in the ensemble
+    allocate(at(nat),xyz(3,nat,nall),comm(nall))
+    call rdensemble(fname,nat,nall,at,xyz,comm)
+
+    allocate(atorder(nat))
+    open(newunit=ich,file='.atorder')
+    do i=1,nat
+      read(ich,*) j,k
+      atorder(j) = k
+    enddo
+    close(ich)
+
+
+    open(newunit=ich, file='ensemble_tmp.xyz')
+    do i=1,nall
+     write(ich,'(2x,i0)')nat
+     write(ich,'(a)') trim(comm(i))
+     do j=1,nat
+      k = atorder(j) 
+      write(ich,'(1x,a2,1x,3f20.10)')i2e(at(k),'nc'),xyz(1:3,k,i)
+     enddo
+    enddo
+    close(ich)
+
+    return
+end subroutine resort_ensemble
