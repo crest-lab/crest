@@ -1253,6 +1253,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 env%doNMR=.true. !option for the very last confg call
              case( '-zsort' )
                 env%onlyZsort=.true.                                 !perform only the zsort subroutine
+                env%autozsort=.true.                                 ! CB: needs to be set to run zsort
                 write(*,'(2x,a,1x,a)')trim(arg(i)),' : only using the ZSORT subroutine.'
              case( '-metac' )                                        !automatic complete of mag. and chem. methyl equivalencies
                 env%methautocorr=.true.                              
