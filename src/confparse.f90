@@ -371,8 +371,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%solv='--alpb h2o'
                env%ptb%h_acidic=0
                call pka_argparse(arg(i+1),env%ptb%h_acidic)
-               !read(arg(i+1),*,iostat=io) rdum
-               !if((io==0).and.(rdum>0.0d0)) env%ptb%h_acidic = nint(rdum)
+               if(env%ptb%h_acidic==-2)env%ptb%pka_baseinp=trim(arg(i+1)) 
           case( '-compare' )                                         !flag for comparing two ensembles, analysis tool
                env%compareens=.true.
                env%crestver = 5
@@ -448,6 +447,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%preopt=.false.
                env%crestver = crest_nano               
                exit
+           case( '-solvtool','-qcg' )
+               env%preopt=.false.
+               env%crestver = crest_solv
+               exit
            case( '-compress' )
                env%crestver = crest_compr
                env%runver = 77
@@ -519,6 +522,13 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                if(ex)then
                 call testtopo(ctmp,env,dtmp)
                endif
+            case( '-resortensemble' )
+               ctmp=trim(arg(i+1))
+               inquire(file=ctmp,exist=ex)
+               if(ex)then
+                call resort_ensemble(ctmp)
+               endif
+               stop
             case( '-thermo','-thermotool' )
                env%properties = p_thermo
                ctmp = trim(arg(1))  !either first argument
@@ -567,20 +577,24 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 !  call exchangeligands(ctmp,dtmp,k,l)
                 !endif
                 !stop
-            case( "-acidbase","-ab" )  !-- acid base correction
+            case( "-acidbase","-ab",'-abprep','-pkaprep','-gdissprep' )  !-- acid base correction
                 ! crest --ab <acid.xyz> <base.xyz> --chrg <acidchrg>
                 env%properties = p_acidbase
-                ctmp=trim(arg(i+1))
-                inquire(file=ctmp,exist=ex)
-                if(ex)then
-                  env%ensemblename=trim(ctmp)
-                  write(*,'(1x,a,a)') 'File used for the acid: ',trim(ctmp)
-                endif
-                ctmp=trim(arg(i+2))
-                inquire(file=ctmp,exist=ex)
-                if(ex)then
-                  env%ensemblename2=trim(ctmp)
-                  write(*,'(1x,a,a)') 'File used for the base: ',trim(ctmp)
+                if(index(arg(i),'prep').ne.0)then
+                call  pka_argparse2(env,arg(i+1),arg(i+2),env%ptb%pka_mode)    
+                else
+                  ctmp=trim(arg(i+1))
+                  inquire(file=ctmp,exist=ex)
+                  if(ex)then
+                    env%ptb%pka_acidensemble=trim(ctmp)
+                    write(*,'(1x,a,a)') 'File used for the acid: ',trim(ctmp)
+                  endif
+                  ctmp=trim(arg(i+2))
+                  inquire(file=ctmp,exist=ex)
+                  if(ex)then
+                    env%ptb%pka_baseensemble=trim(ctmp)
+                    write(*,'(1x,a,a)') 'File used for the base: ',trim(ctmp)
+                  endif
                 endif
                 env%solv='--alpb h2o'
                 env%gfnver='--gfn2'
@@ -755,12 +769,12 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                    env%gcmultiopt=.false.
                 case( '-qmdff' )                           !use QMDFF for the MDs in V2?
                    env%useqmdff=.true.
-                case( '-qcg' )                             !QCG special mode
-                    write(*,'(2x,a,1x,a)')trim(arg(i)),' : Special QCG mode that is work in progress and deactivated for the time being.'
-                    env%QCG=.true.
-                    env%runver = 3
-                    env%performCross=.false.
-                    if(env%iterativeV2) env%iterativeV2   = .false. 
+                !case( '-qcg' )                             !QCG special mode
+                !    write(*,'(2x,a,1x,a)')trim(arg(i)),' : Special QCG mode that is work in progress and deactivated for the time being.'
+                !    env%QCG=.true.
+                !    env%runver = 3
+                !    env%performCross=.false.
+                !    if(env%iterativeV2) env%iterativeV2   = .false. 
                 case( '-nci' )                             !NCI special mode
                     write(*,'(2x,a,1x,a)')trim(arg(i)),' : Special NCI mode for non-covalently bound complexes or clusters.'
                     env%NCI=.true.
@@ -1359,6 +1373,18 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 env%ptb%strictPDT = .true.
                 env%ptb%fixPDT = .true.
                 env%ptb%ABcorrection = .true.
+            case( '-pkaensemble' )
+                env%preopt=.false.
+                env%presp =.false.
+               call  pka_argparse2(env,arg(i+1),arg(i+2),env%ptb%pka_mode)
+            case( '-pkaparam' )   
+                env%ptb%rdcfer = .true.
+                if(i+1 .le. nra )then
+                    ctmp=trim(arg(i+1))
+                    if(ctmp(1:1).ne.'-')then
+                        env%ptb%cferfile=ctmp
+                    endif
+                endif
 !======================================================================================================!
            case( '-entropy','-entropic' )    !new, specialized calculation of molecular entropies
                 write(*,'(2x,a,'' : enhanced ensemble entropy calculation'')')trim(arg(i))

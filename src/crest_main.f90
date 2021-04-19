@@ -213,8 +213,12 @@ program CREST
   !---- calculate potential correction for acid/base reaction
        case( p_acidbase )
          call tim%start(4,'acid/base')
-         call acidbase(env,env%ensemblename,env%ensemblename2,env%chrg,.true., &
+         if(env%ptb%pka_mode==0)then
+         call acidbase(env,env%ptb%pka_acidensemble,env%ptb%pka_baseensemble,env%chrg,.true., &
              & .false.,dumfloat,.false.,d3,d4,d5,d6,d7,d8)
+         else
+         call rewrite_AB_ensemble(env,env%ptb%pka_acidensemble,env%ptb%pka_baseensemble)
+         endif
          call tim%stop(4)
          call propquit(tim)  
   !---- calculate potential correction for acid/base reaction
@@ -268,6 +272,8 @@ program CREST
            call msreact_handler(env,tim) !MSREACT sub-program   
         case( crest_pka )
            call pkaquick(env,tim)   
+        case( crest_solv )  !microsolvation tools   
+           call crest_solvtool(env, tim) 
         case default
            continue
       end select
@@ -325,83 +331,3 @@ end program CREST
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !===================================================================================================!
-
-!===================================================================================================!
-!c evaluate timings   
-!===================================================================================================!
-!c  Transform a time in seconds to a sting in the format hh:mm:ss
-subroutine eval_time(time,printout)
-      use iso_fortran_env, dp => int64, wp => real64
-      implicit none
-      real(wp) :: time
-      character(len=*) :: printout
-      integer(dp) :: days,hours,minutes,seconds
-
-      hours = floor(time / 3600.0d0)
-      time = time - (real(hours)*3600.0d0)
-      minutes = floor(time / 60.0d0)
-      time = time - (real(minutes)*60.0d0)
-      seconds = floor(time)
-
-      write(printout,'(i0,''h :'',i2,''m :'',i2,''s'')') &
-      &     hours,minutes,seconds
-end subroutine eval_time
-
-subroutine eval_sub_timer(tim)
-      use iso_fortran_env, wp => real64, dp => int64
-      use crest_data
-      implicit none
-      type(timer) :: tim
-      character(len=64) :: ftime
-      integer(dp) ::  t1,ttot1
-      real(wp) :: t2,ttot2
-      integer :: i,j
-      j=tim%times
-      if(j .lt. 1 )return
-      do i=1,j
-         t1=tim%t(i,3)
-         if(t1.ne.0)then
-           t2= real(t1) / real( tim%rate )
-           call eval_time(t2,ftime)
-           if(trim(tim%names(i)).ne.'')then
-           write(*,'(a20,'' wall time : '',a20)') trim(tim%names(i)),trim(ftime)
-           endif
-         else
-           cycle
-         endif
-      enddo
-      return
-end subroutine eval_sub_timer
-
-subroutine eval_timer(tim)
-      use iso_fortran_env, wp => real64, dp => int64
-      use crest_data
-      implicit none
-      type(timer) :: tim
-      character(len=64) :: ftime
-      integer(dp) ::  t1,ttot1
-      real(wp) :: t2,ttot2
-      integer :: j
-      write(*,*)
-      call smallhead('Wall Time Summary')
-      call eval_sub_timer(tim)
-      j=tim%times
-      ttot1=sum(tim%t(1:j,3))
-      ttot2=real(ttot1) / real( tim%rate )
-      call eval_time(ttot2,ftime)
-      write(*,'(''--------------------'')')
-      write(*,'(''Overall wall time  : '',a)')trim(ftime)
-
-      call tim%clear     
-end subroutine eval_timer
-
-subroutine propquit(tim)
-      use crest_data 
-      implicit none
-      type(timer) :: tim
-      call eval_timer(tim)
-      write(*,*)
-      write(*,*)'CREST terminated normally.'
-      stop
-end subroutine propquit
-

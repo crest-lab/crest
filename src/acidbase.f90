@@ -57,8 +57,13 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       real(wp) :: ebtb,gsb,grrhob
       real(wp) :: detb
       logical :: ldum
-      integer :: X,atX                  !the reactive atom and its element
+      integer :: X,atX,xH               !the reactive atom and its element
       real(wp) :: qh
+      real(wp) :: dgrrho,edft
+      real(wp) :: wbosuma,wbosumb
+      integer :: ich2
+      logical :: ex
+
       integer :: nqh
       character(len=512) :: thispath
       character(len=8),parameter :: adir = 'ACIDcalc'
@@ -84,14 +89,14 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       call chdir(adir)
       call mola%write('coord')
       call wrshort('.CHRG',acidchrg)
-      call singlepoint('coord',env,bhess)
+      call ab_singlepoint('coord',env,bhess)
       !-- read energies
       call grepval('xtb.out',"| TOTAL ENERGY",ldum,eatb)  !includes gsa
       call grepval('xtb.out',":: -> Gsolv",ldum,gsa)
       call grepval('xtb.out',":: G(RRHO) contrib.",ldum,grrhoa)
       allocate(wboa(nata,nata),qa(nata), source = 0.0_wp)
       call readwbo("wbo",nata, wboa)
-      call rdcharges(nata,qa)
+      call ab_rdcharges(nata,qa)
       call chdir(thispath)
       if(.not.keepdir) call rmrf(adir)
 
@@ -104,19 +109,19 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       call chdir(bdir)
       call molb%write('coord')
       call wrshort('.CHRG',basechrg)
-      call singlepoint('coord',env,bhess)
+      call ab_singlepoint('coord',env,bhess)
       !-- read energies
       call grepval('xtb.out',"| TOTAL ENERGY",ldum,ebtb) !includes gsb
       call grepval('xtb.out',":: -> Gsolv",ldum,gsb)
       call grepval('xtb.out',":: G(RRHO) contrib.",ldum,grrhob)
       allocate(wbob(natb,natb),qb(natb), source = 0.0_wp)
       call readwbo("wbo",natb,wbob)
-      call rdcharges(natb,qb)
+      call ab_rdcharges(natb,qb)
       call chdir(thispath)
       if(.not.keepdir) call rmrf(bdir)
 
 !--- identify reactive atom X      
-     call reactivecenter(acid,base,X)
+     call ab_reactivecenter(acid,base,X)
      if(verbose)then
          if(X > 0)then
          write(*,'(1x,a,i0,3a)')'Atom ',X,' (',i2e(acid%at(X),'nc'), &
@@ -137,6 +142,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
           if(acid%at(j)==1)then
              nqh=nqh+1
              qh = qh + qa(j)
+             xH=j
           endif
         enddo
         qh = qh/float(nqh)
@@ -144,6 +150,10 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
         atX = 0
         qh = 0.0_wp
      endif
+
+      open(unit=ich2,file='.ATOM')
+      write(ich2,*) xH
+      close(ich2)
      
 !--- calculate dE
      detb=ebtb-eatb
@@ -151,10 +161,27 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
         write(*,*) 'Gsolv(xtb) A / B    :',gsa,gsb
         write(*,*) 'dE(xtb,uncorr.)     :',detb
         if(bhess)then
+        dgrrho=(grrhob-grrhoa)
         write(*,*) 'dG(xtb,uncorr.)     :',detb+(grrhob-grrhoa)
         endif
      endif
      call acidbasepot(dE,X,atX,nata,natb,qh,qa,qb,wboa,wbob)
+
+!--- printout for fit     
+    wbosuma = sum(wboa(:,X))
+    wbosumb = sum(wbob(:,X))
+    inquire(file='.edft',exist=ex)
+    if(ex)then
+        open(newunit=ich2,file='.edft')
+        read(ich2,*) edft
+        close(ich2)
+    else
+        edft=0.0_wp
+    endif
+    open(newunit=ich,file='.data')
+    write(ich,'(2f16.8,4f10.6,f16.8)')edft,detb,(wbosuma-wbosumb),qa(X),qb(X),qh,dgrrho
+    close(ich)
+
      if(verbose)then
         write(*,'(1x,a)')'Energy correction for acid/base reaction:'
         write(*,'(1x,a,f16.10,a)') 'Ecorr =',dE,' Eh'
@@ -169,8 +196,8 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
      call mola%deallocate()
      call molb%deallocate()
      return
-contains
-subroutine singlepoint(fname,env,bhess)
+end subroutine acidbase
+subroutine ab_singlepoint(fname,env,bhess)
      use crest_data
      implicit none
      !type(options) :: opt
@@ -189,8 +216,8 @@ subroutine singlepoint(fname,env,bhess)
      endif
      call execute_command_line(trim(jobcall), exitstat=io)
      return
-end subroutine singlepoint
-subroutine reactivecenter(zmola,zmolb,X)
+end subroutine ab_singlepoint
+subroutine ab_reactivecenter(zmola,zmolb,X)
     use zdata
     implicit none
     type(zmolecule) :: zmola  !topology of the acid
@@ -221,8 +248,8 @@ subroutine reactivecenter(zmola,zmolb,X)
       endif
     enddo
     return
-end subroutine reactivecenter
-subroutine rdcharges(nat,q)
+end subroutine ab_reactivecenter
+subroutine ab_rdcharges(nat,q)
     use iso_fortran_env, only : wp=>real64
     implicit none
     integer,intent(in) :: nat
@@ -240,8 +267,8 @@ subroutine rdcharges(nat,q)
     enddo
     close(ich)
     return
-end subroutine rdcharges
-end subroutine acidbase
+end subroutine ab_rdcharges
+
 
 !--------------------------------------------------------------!
 ! Implementation of the potential correction
@@ -322,5 +349,103 @@ function abparam(i,j) result(val)
 end function abparam    
 end subroutine acidbasepot
 
+!---------------------------------------------------------!
+! A helper routine to generate ensemble files at the
+! GFN level containing free energies including the
+! acid/base energy correction as comment.
+! E_corr will be added to the Base ensemble and 
+! reference the lowest Acid structure (w.r.t. WBO and q(X))
+!---------------------------------------------------------!
+subroutine rewrite_AB_ensemble(env,acensemble,baensemble)
+      use iso_fortran_env, wp => real64
+      use crest_data
+      use strucrd
+      use iomod
+      implicit none
+
+      type(systemdata) :: env
+      character(len=*) :: acensemble
+      character(len=*) :: baensemble
+      type(ensemble) :: ACIDENSEMBLE
+      type(ensemble) :: BASEENSEMBLE
+      real(wp) :: t
+      real(wp) :: GA,GB,dG
+      real(wp) :: eatb,gsa,grrhoa,ebtb,gsb,grrhob,dE
+      integer :: i,j,k,l,h,ich,io
+      logical :: bhess,ex,ldum
+      integer :: nalla
+      real(wp),allocatable :: ae(:)
+      integer :: nallb
+      integer :: achrg,bchrg
+      real(wp),allocatable :: be(:)
+      character(len=512) :: thispath
+      character(len=128) :: tmppath
+      real(wp),parameter :: kcal =627.5095d0
+
+      T=env%tboltz
+      achrg=env%chrg
+      bchrg=env%chrg-1
+      bhess=.true.
+
+      if(env%autothreads)then
+            call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
+      endif
+
+!-- first, read the acid ensemble and calculate the free energies
+      write(*,*) 'Acid ensemble: ',trim(acensemble)
+      call ACIDENSEMBLE%open(acensemble)
+      nalla = ACIDENSEMBLE%nall
+      allocate(ae(nalla),source=0.0_wp)
+      call getcwd(thispath)
+      write(*,'(1x,a9,a16,a16,a16,a16)')'structure','E_read','E_calc','E_corr','G_calc'
+      do i=1,nalla
+      write(tmppath,'(a,i0)')'AC',i
+      l = makedir(trim(tmppath))
+      call chdir(tmppath)
+      call env%wrtCHRG('')
+      call wrcoord('coord',ACIDENSEMBLE%nat,ACIDENSEMBLE%at,ACIDENSEMBLE%xyz(:,:,i)/bohr)
+      call ab_singlepoint('coord',env,bhess)
+      !-- read energies
+      call grepval('xtb.out',"| TOTAL ENERGY",ldum,eatb)  !includes gsa
+      call grepval('xtb.out',":: -> Gsolv",ldum,gsa)
+      call grepval('xtb.out',":: G(RRHO) contrib.",ldum,grrhoa)
+      call chdir(thispath)
+      call rmrf(trim(tmppath))
+      ae(i) = eatb + grrhoa
+      write(*,'(1x,i9,2f16.8,a16,f16.8)') i,ACIDENSEMBLE%er(i),eatb,'---',ae(i)
+      enddo
+      ACIDENSEMBLE%er = ae  
+      call ACIDENSEMBLE%write('G_'//trim(acensemble))
+      write(*,'(1x,a,a)')'written to: ','G_'//trim(acensemble)
 
 
+!-- write a reference acid structure (with the lowest energy)
+      j=minloc(ae,1)
+      write(tmppath,'(f18.8)')ae(j)
+      call wrxyz('acid_ref.xyz',ACIDENSEMBLE%nat,ACIDENSEMBLE%at,ACIDENSEMBLE%xyz(:,:,j),tmppath)
+      call ACIDENSEMBLE%deallocate()
+
+!--- loop over Base ensemble and calculate G including Ecorr
+      write(*,*)
+      write(*,*) 'Base ensemble: ',trim(baensemble)
+      call BASEENSEMBLE%open(baensemble)
+      nallb = BASEENSEMBLE%nall
+      allocate(be(nallb),source=0.0_wp)
+      call getcwd(thispath)
+      write(*,'(1x,a9,a16,a16,a16,a16)')'structure','E_read','E_calc','E_corr','G_calc'
+      do i=1,nallb
+      call wrxyz('btmp.xyz',BASEENSEMBLE%nat,BASEENSEMBLE%at,BASEENSEMBLE%xyz(:,:,i))
+      call acidbase(env,'acid_ref.xyz','btmp.xyz',achrg,.false.,.false.,dE, &
+        &  bhess,eatb,gsa,grrhoa,ebtb,gsb,grrhob)
+      be(i) = ebtb + grrhob + dE
+      write(*,'(1x,i9,4f16.8)') i,BASEENSEMBLE%er(i),ebtb,dE,be(i)
+      enddo
+      BASEENSEMBLE%er = be
+      call BASEENSEMBLE%write('G_'//trim(baensemble))
+      call BASEENSEMBLE%deallocate()
+      call rmrf('acid_ref.xyz')
+      call rmrf('btmp.xyz')
+      write(*,'(1x,a,a)')'written to: ','G_'//trim(baensemble)
+
+      return
+end subroutine rewrite_AB_ensemble

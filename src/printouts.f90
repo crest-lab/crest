@@ -22,7 +22,7 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date='Tue 9. Feb 11:37:45 CEST 2021'
+      character(len=40),parameter:: date='Mon 19. Apr 11:43:20 CEST 2021'
       character(len=10),parameter:: version='2.11'
       logical :: niceprint
       
@@ -46,7 +46,8 @@ subroutine confscript_head
       write(*,*)
 
       write(*,'(3x,a)')'with help from:'
-      write(*,'(3x,a)')'F.Bohle, S.Ehlert, S.Grimme, P.Pracht'
+      write(*,'(3x,a)')'C.Bannwarth, F.Bohle, S.Ehlert, S.Grimme,'
+      write(*,'(3x,a)')'P.Pracht, S. Spicher'
       write(*,*)
 
       call disclaimer()
@@ -258,7 +259,8 @@ subroutine crestcite
      write(*,'(/,7x,''P. Pracht, F. Bohle, S. Grimme,'')')
      write(*,'(  7x,''PCCP, 2020, 22, 7169-7192.'')')
      write(*,'(/,7x,''S. Grimme, JCTC, 2019, 15, 2847-2862.'')')
-
+     write(*,'(/7x,''P. Pracht, S. Grimme, Chem. Sci., 2021,'')')
+     write(*,'(7x,''DOI: 10.1039/d1sc00621e'')')
      write(*,'(/,/)')
      write(*,'(4x,''GFNn-xTB references:'')')
      write(*,'(6x,''GFN1-xTB'')')
@@ -375,6 +377,21 @@ subroutine zsortwarning2(env)
       env%autozsort=.false.
       endif
 end subroutine zsortwarning2
+
+!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+subroutine qcg_head()
+  implicit none
+  write(*,*)
+  write(*,'(2x,''========================================'')')
+  write(*,'(2x,''|           ----------------           |'')')
+  write(*,'(2x,''|                 Q C G                |'')')
+  write(*,'(2x,''|           ----------------           |'')')
+  write(*,'(2x,''|        Quantum Cluster Growth        |'')')
+  write(*,'(2x,''|       University of Bonn, MCTC       |'')')
+  write(*,'(2x,''========================================'')')
+  write(*,'(2x,'' S. Grimme, S. Spicher, unpublished.'')')
+  write(*,*)
+end subroutine qcg_head
 
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 !convert a string in a small header printout
