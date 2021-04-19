@@ -272,6 +272,8 @@ program CREST
            call msreact_handler(env,tim) !MSREACT sub-program   
         case( crest_pka )
            call pkaquick(env,tim)   
+        case( crest_solv )  !microsolvation tools   
+           call crest_solvtool(env, tim) 
         case default
            continue
       end select

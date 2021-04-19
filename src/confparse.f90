@@ -447,6 +447,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%preopt=.false.
                env%crestver = crest_nano               
                exit
+           case( '-solvtool','-qcg' )
+               env%preopt=.false.
+               env%crestver = crest_solv
+               exit
            case( '-compress' )
                env%crestver = crest_compr
                env%runver = 77
@@ -518,6 +522,13 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                if(ex)then
                 call testtopo(ctmp,env,dtmp)
                endif
+            case( '-resortensemble' )
+               ctmp=trim(arg(i+1))
+               inquire(file=ctmp,exist=ex)
+               if(ex)then
+                call resort_ensemble(ctmp)
+               endif
+               stop
             case( '-thermo','-thermotool' )
                env%properties = p_thermo
                ctmp = trim(arg(1))  !either first argument
@@ -758,12 +769,12 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                    env%gcmultiopt=.false.
                 case( '-qmdff' )                           !use QMDFF for the MDs in V2?
                    env%useqmdff=.true.
-                case( '-qcg' )                             !QCG special mode
-                    write(*,'(2x,a,1x,a)')trim(arg(i)),' : Special QCG mode that is work in progress and deactivated for the time being.'
-                    env%QCG=.true.
-                    env%runver = 3
-                    env%performCross=.false.
-                    if(env%iterativeV2) env%iterativeV2   = .false. 
+                !case( '-qcg' )                             !QCG special mode
+                !    write(*,'(2x,a,1x,a)')trim(arg(i)),' : Special QCG mode that is work in progress and deactivated for the time being.'
+                !    env%QCG=.true.
+                !    env%runver = 3
+                !    env%performCross=.false.
+                !    if(env%iterativeV2) env%iterativeV2   = .false. 
                 case( '-nci' )                             !NCI special mode
                     write(*,'(2x,a,1x,a)')trim(arg(i)),' : Special NCI mode for non-covalently bound complexes or clusters.'
                     env%NCI=.true.
@@ -1362,6 +1373,8 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 env%ptb%fixPDT = .true.
                 env%ptb%ABcorrection = .true.
             case( '-pkaensemble' )
+                env%preopt=.false.
+                env%presp =.false.
                call  pka_argparse2(env,arg(i+1),arg(i+2),env%ptb%pka_mode)
             case( '-pkaparam' )   
                 env%ptb%rdcfer = .true.

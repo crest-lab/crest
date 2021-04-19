@@ -56,6 +56,7 @@ module crest_data
    integer,parameter,public :: crest_compr  = 77
    integer,parameter,public :: crest_msreac = 9
    integer,parameter,public :: crest_pka    = 14
+   integer,parameter,public :: crest_solv   = 15
 !---- tools
    integer,parameter,public :: p_cregen      = -1
    integer,parameter,public :: p_compare     = -2

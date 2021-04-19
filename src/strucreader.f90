@@ -31,6 +31,7 @@
 !   .xyz (Xmol) files and trajectories (read and write)
 !   coord (turbomole) files (read and write)
 !   .sdf/.mol files (V2000, read only)
+!   .pdb files (in development)
 !
 !=====================================================================================================!
 module strucrd
@@ -53,7 +54,7 @@ module strucrd
        integer,parameter :: sdf     = 3  !currently unused
        integer,parameter :: sdfV2000 = 31
        integer,parameter :: sdfV3000 = 32
-       integer,parameter :: pdb     = 4  !currently unused
+       integer,parameter :: pdbfile     = 4  !currently unused
        ! [...]
 
     !--- private utility subroutines 
@@ -115,9 +116,32 @@ module strucrd
        module procedure wrensemble_conf_energy_comment
        end interface wrensemble
 
-
+      public :: pdbdata
       public :: coord
       public :: ensemble  
+
+!=========================================================================================!
+   !coord class. contains a single structure in the PDB format.
+   !coordinates by definition are in Angstroem.
+   type :: pdbdata
+
+   !--- data
+       integer :: nat = 0
+       integer :: frag = 0
+   !--- arrays
+       integer,allocatable  :: athet(:) !ATOM (1) or HETATM (2)
+       character(len=4),allocatable :: pdbat(:) !PDB atom specifier
+       character(len=3),allocatable :: pdbas(:) !PDB amino acid specifier
+       integer,allocatable :: pdbfrag(:) !PDB fragment specifier
+       character(len=1),allocatable :: pdbgrp(:)  !PDB group specifier
+       real(wp),allocatable :: pdbocc(:) !PDB occupancy
+       real(wp),allocatable :: pdbtf(:)  !PDB temperature factor
+
+       contains
+           procedure :: deallocate => deallocate_pdb !clear memory space
+           procedure :: allocate => allocate_pdb  
+
+   end type pdbdata
 !=========================================================================================!
    !coord class. contains a single structure
    !by convention coordinates are in Bohr for a single structure!
@@ -129,6 +153,9 @@ module strucrd
    !--- arrays    
        integer,allocatable  :: at(:)    !atom types as integer, dimension will be at(nat)
        real(wp),allocatable :: xyz(:,:) !coordinates, dimension will be xyz(3,nat)
+
+   !--- (optional) PDB data
+       type(pdbdata) :: pdb   
 
        contains
            procedure :: deallocate => deallocate_coord !clear memory space
@@ -157,6 +184,7 @@ module strucrd
 
    end type ensemble
 !=========================================================================================!
+
 
 contains
 !=====================================================================================================!
@@ -633,7 +661,7 @@ subroutine checkcoordtype(fname,typint)
        typint=sdfV3000
        endif
       case( '.pdb','.PDB' )
-       typint=pdb
+       typint=pdbfile
       case default
        typint=0
      end select
@@ -721,15 +749,23 @@ subroutine rdnat(fname,nat,ftype)
          endif
         enddo
     !--- pdb file    
-      case( pdb )
-         write(*,*) 'PDB file format not supported yet.'
+      case( pdbfile )
+         !write(*,*) 'PDB file format not supported yet.'
+         nat=0 
+         do
+          read(ich,'(a)',iostat=io) atmp
+          if(io < 0) exit
+          if((index(atmp,'ATOM').eq.1) .or. &
+          &  (index(atmp,'HETATM').eq.1)) then
+           nat=nat+1
+          endif
+         enddo
       case default
         continue
     end select
     close(ich)
     return
 end subroutine rdnat
-
 
 !============================================================!
 ! subroutine rdcoord
@@ -752,6 +788,7 @@ subroutine rdcoord(fname,nat,at,xyz,energy)
     real(wp),optional :: energy
     character(len=256) :: atmp
     integer :: ftype
+    type(pdbdata) :: pdbdummy
 
     !--- determine the file type
     call checkcoordtype(fname,ftype)
@@ -773,8 +810,11 @@ subroutine rdcoord(fname,nat,at,xyz,energy)
      case( sdfV3000 )     !-- SDF V3000 file, Angström
        call rdsdfV3000(fname,nat,at,xyz)
        xyz=xyz/bohr
-     case( pdb )
-       error stop 'PDB file format not supported yet.'
+     case( pdbfile )  !-- PDB file, Angström
+       !error stop 'PDB file format not supported yet.'
+       call rdPDB(fname,nat,at,xyz,pdbdummy)
+       xyz=xyz/bohr
+       call pdbdummy%deallocate()  
      case default
       continue
     end select
@@ -967,6 +1007,60 @@ subroutine rdsdfV3000(fname,nat,at,xyz,comment)
      return                                        
 end subroutine rdsdfV3000
 
+!============================================================!
+! subroutine rdPDB
+! read a struncture in the .PDB style.
+!
+! On Input: fname  - name of the coord file
+!           nat    - number of atoms
+!
+! On Output: at   - atom number as integer
+!            xyz  - coordinates (in Angström)
+!            pdb  - pdbdata object
+!============================================================!
+subroutine rdPDB(fname,nat,at,xyz,pdb)
+     implicit none
+     character(len=*),intent(in) :: fname
+     integer,intent(in) :: nat
+     integer,intent(inout)  :: at(nat)
+     real(wp),intent(inout) :: xyz(3,nat)
+     type(pdbdata) :: pdb
+     character(len=2) :: sym
+     integer :: ich,io,i,j,k,l
+     integer :: dum
+     character(len=256) :: atmp
+     character(len=32) :: btmp
+     character(len=6) :: dum1
+     character(len=1) :: dum2,dum3,pdbgp
+     character(len=3) :: pdbas
+     character(len=2) :: dum4
+     character(len=4) :: pdbat
+     real(wp) :: r1,r2
+     call pdb%allocate(nat)
+     open(newunit=ich,file=fname)
+     k=0
+     do
+       read(ich,'(a)',iostat=io) atmp
+       if(io < 0) exit
+       if((index(atmp,'ATOM').eq.1) .or. &
+       &  (index(atmp,'HETATM').eq.1)) then
+        k=k+1
+        read(atmp,'(A6,I5,1X,A4,A1,A3,1X,A1,I4,A1,3X,3F8.3,2F6.2,10X,A2,A2)') &
+        &  dum1,i,pdbat,dum2,pdbas,pdbgp,j,dum3,xyz(1:3,k),r1,r2,sym,dum4     
+        at(k)=e2i(sym)
+        pdb%pdbat(k) = pdbat
+        pdb%pdbas(k) = pdbas
+        pdb%pdbgrp(k) = pdbgp
+        pdb%pdbfrag(k) = j
+        pdb%pdbocc(k) = r1
+        pdb%pdbtf(k) = r2
+        endif
+       enddo
+     close(ich)
+     return
+end subroutine rdPDB     
+
+
 !==================================================================!
 ! subroutine deallocate_coord
 ! is used to clear memory for the coord type
@@ -977,8 +1071,48 @@ subroutine deallocate_coord(self)
       self%nat = 0
       if(allocated(self%at))deallocate(self%at)
       if(allocated(self%xyz))deallocate(self%xyz)
+      call self%pdb%deallocate()
       return
 end subroutine deallocate_coord
+
+!==================================================================!
+! subroutine deallocate_pdb
+! is used to clear memory for the pdbdata type
+!==================================================================!
+subroutine deallocate_pdb(self)
+      implicit none
+      class(pdbdata) :: self
+      self%nat = 0
+      self%frag = 0
+      if(allocated(self%athet))  deallocate(self%athet) 
+      if(allocated(self%pdbat))  deallocate(self%pdbat) 
+      if(allocated(self%pdbas))  deallocate(self%pdbas) 
+      if(allocated(self%pdbfrag))deallocate(self%pdbfrag)
+      if(allocated(self%pdbgrp)) deallocate(self%pdbgrp) 
+      if(allocated(self%pdbocc)) deallocate(self%pdbocc) 
+      if(allocated(self%pdbtf))  deallocate(self%pdbtf)  
+      return
+end subroutine deallocate_pdb
+
+!==================================================================!
+! subroutine allocate_pdb
+! is used to clear memory for the pdbdata type
+!==================================================================!
+subroutine allocate_pdb(self,nat)
+      implicit none
+      class(pdbdata) :: self
+      integer :: nat
+      call deallocate_pdb(self)
+      self%nat = nat
+      allocate(self%athet(nat)) 
+      allocate(self%pdbat(nat)) 
+      allocate(self%pdbas(nat)) 
+      allocate(self%pdbfrag(nat))
+      allocate(self%pdbgrp(nat)) 
+      allocate(self%pdbocc(nat)) 
+      allocate(self%pdbtf(nat))  
+      return
+end subroutine allocate_pdb
 
 !==================================================================!
 ! subroutine opencoord
@@ -988,11 +1122,12 @@ subroutine opencoord(self,fname)
       implicit none
       class(coord) :: self
       character(len=*),intent(in) :: fname
-      integer :: nat
+      integer :: nat,i
       integer,allocatable :: at(:)
       real(wp),allocatable :: xyz(:,:)
       integer :: nall
       logical :: conform
+      integer :: ftype
 
       inquire(file=fname,exist=ex)
       if(.not.ex)then
@@ -1001,11 +1136,17 @@ subroutine opencoord(self,fname)
 
       call self%deallocate()
 
+      call checkcoordtype(fname,ftype)
       call rdnat(fname,nat)
 
       if(nat>0)then
           allocate(at(nat),xyz(3,nat))
+          if(ftype==pdbfile)then
+          call rdPDB(fname,nat,at,xyz,self%pdb)
+          xyz=xyz/bohr
+          else
           call rdcoord(fname,nat,at,xyz)
+          endif
 
           self%nat=nat
           call move_alloc(at,self%at)

@@ -82,6 +82,7 @@ srcs += files(
   'signal.c',
   'sigterm.f90',
   'solve.f',
+  'solvtool.f90',
   'sortens.f90',
   'spline.f90',
   'stereoisomers.f90',

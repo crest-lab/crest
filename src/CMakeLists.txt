@@ -84,6 +84,7 @@ list(APPEND srcs
   "${dir}/signal.c"
   "${dir}/sigterm.f90"
   "${dir}/solve.f"
+  "${dir}/solvtool.f"
   "${dir}/sortens.f90"
   "${dir}/spline.f90"
   "${dir}/stereoisomers.f90"
