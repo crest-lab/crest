@@ -170,7 +170,7 @@ subroutine xtbopt(env)
          call write_cts(ich,env%cts)
          call write_cts_biasext(ich,env%cts)
          write(ich,'(a)') '$end'
-
+         close(ich)
 
 !---- jobcall
          write(jobcall,'(a,1x,a,1x,a,'' --opt '',a,1x,a,a)') &
