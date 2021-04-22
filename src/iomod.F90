@@ -333,9 +333,11 @@ subroutine minigrep(fil,str,bool)
         if(io < 0)exit
         if(index(tmp,str).ne.0)then
           bool=.true.
+          close(ich)
           exit
         endif
       enddo
+      close(ich)
       !minigrep = bool
       return
 end subroutine minigrep
@@ -365,6 +367,7 @@ subroutine grepval(fil,str,bool,val)
           tmp=adjustl(tmp(io+1:))
           read(tmp,*) val
           bool=.true.
+          close(ich)
           exit
         endif
       enddo
