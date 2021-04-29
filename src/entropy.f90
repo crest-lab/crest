@@ -275,6 +275,18 @@ subroutine newentropyextrapol(env)
     rt = minloc(adum,1)  !temperature closest to 298.15 is the ref.
     deallocate(adum)
 
+    !--- fallback for diatomics
+    if(env%nat.le.2)then
+      T = temps(rt)
+      allocate(cpfinal(nt),sfinal(nt),hfinal(nt),srrho(nt), source = 0.0d0)
+      write(*,*) 'Note: di- or monoatomic molecules have no conformational entropy'
+      call entropyprintout(T,srrho(rt),sfinal(rt),cpfinal(rt),hfinal(rt))
+      deallocate(srrho,hfinal,sfinal,cpfinal)
+      deallocate(hlist,slist,cplist,nconflist)
+      deallocate(env%emtd%hoft,env%emtd%cpoft,env%emtd%soft,temps)
+      return
+    endif
+
     T = 298.15d0
     wrdegen=.false.
     open(unit=111,file='.data')
@@ -285,13 +297,6 @@ subroutine newentropyextrapol(env)
      l=i-1  !ITER INCLUDES ZEROTH ITERATATION!
      write(*,'(a)')'======================================================' 
      write(btmp,'(a,i0,a)') 'crest_entropy_rotamer_',l,'.xyz'
-     !env%ensemblename = trim(btmp)
- 
-     !write(*,'(1x,a,1x,a)') 'Analyzing file',trim(btmp)    
-     !env%confgo = .true.
-     !call newcregen(env,3)
-     !call rmrf(trim(btmp)//'.sorted')
-     !call rdensembleparam('crest_ensemble.xyz',k,nall)
 
      !-- new read .dataX files
      write(btmp2,'(a,i0)')'Sdata',l
@@ -307,12 +312,6 @@ subroutine newentropyextrapol(env)
      write(*,'(1x,a,i0,a)')'Containing ',nall,' conformers :'
      env%confgo = .false.    
      nconflist(i) = float(nall)
-    
-     !if(i==iter)wrdegen=.true.
-     !call entropic(env,.false.,.true.,wrdegen,trim(btmp),T,S,Cp)
-     !cplist(i,:)    = env%emtd%Cpoft(:)
-     !slist(i,:)     = env%emtd%soft(:)
-     !hlist(i,:)     = env%emtd%hoft(:)
 
      write(nmbr,'(f16.2)') T
      write(prnt,'(a,a,a)') 'H(',trim(adjustl(nmbr)),'K)-H(0) (conf)'
