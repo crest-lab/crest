@@ -514,7 +514,7 @@ subroutine CCEGEN(env,pr,fname)
           write(*,*)
           write(*,'(1x,a)') 'DBI = Davies-Bouldin index'
           write(*,'(1x,a)') 'pSF = pseudo F-statistic'
-          write(*,'(1x,a)') 'SST/SST = ratio of explained and unexplained variation'
+          write(*,'(1x,a)') 'SSR/SST = ratio of explained and unexplained variation'
           write(*,*)
           write(*,'(1x,a8,4x,a14,4x,a14,4x,a14)') 'Nclust','DBI','pSF','SSR/SST'
           write(*,'(1x,a8,4x,a14,4x,a14,4x,a14)') '------','-------------','-------------','-------------'
