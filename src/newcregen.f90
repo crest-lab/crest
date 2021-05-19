@@ -1266,10 +1266,10 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
            de=(er(i)-er(j))*autokcal
            if(de.lt.ethr)then
                 call maskedxyz2(nat,nat0,xyz(:,:,j),c1,includeRMSD)
-                call rmsd(nat,c0,c1,0,Udum,xdum,ydum,rdum,.false.,gdum) ! all atoms
+                call rmsd(nat0,c0,c1,0,Udum,xdum,ydum,rdum,.false.,gdum) ! all atoms
                 if(enantio)then  !also check for enantiomer by inverting a coordinate
                 c1(1,:)= -c1(1,:)
-                call rmsd(nat,c0,c1,0,Udum,xdum,ydum,rdum2,.false.,gdum) ! all atoms
+                call rmsd(nat0,c0,c1,0,Udum,xdum,ydum,rdum2,.false.,gdum) ! all atoms
                 else
                  rdum2=rdum
                 endif
