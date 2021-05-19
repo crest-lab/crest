@@ -376,3 +376,103 @@ subroutine ligandtool(env,infile,newligand,center,oldligand,isatom)
 
     return
 end subroutine ligandtool
+
+!====================================================================!
+! A hack to 'flip' hydrogens at OH (technically also SH, NH, etc.)
+! currently not used.
+!====================================================================!
+subroutine ohflip(env,infile)
+    use iso_fortran_env, only: wp=>real64
+    use crest_data
+    use strucrd
+    use zdata
+    implicit none
+    type(systemdata) :: env
+    character(len=*) :: infile
+    type(coord) :: mol,new
+    type(zmolecule) :: zmol
+    logical,allocatable :: ohmap(:)
+    integer :: i,noh,j
+    integer :: theh
+    real(wp) :: hpos(3),opos(3),xpos(3)
+    real(wp) :: kvec(3),theta,hnew(3)
+    real(wp) :: ohlen,ohlen2
+    real(wp) :: eucdist !this is a function
+    real(wp),parameter :: pi = 3.14159265359_wp
+    character(len=10) :: atmp
+
+    !-- get topology
+    call mol%open(infile)
+    call simpletopo_mol(mol,zmol,.false.)
+    allocate(ohmap(zmol%nat), source = .false.)
+
+    !-- identify OH groups
+    do i=1,zmol%nat
+    ohmap(i) = isoh(zmol%zat(i))
+    enddo
+    noh = count(ohmap,1)
+
+    !-- loop over all OH
+    do i=1,zmol%nat
+       if(ohmap(i))then
+           new = mol
+           theh = ohpos(zmol,i,hpos,opos,xpos)
+           !ohlen = eucdist(3,opos,hpos)
+           hpos = hpos - opos
+           kvec = xpos - opos
+           !-- rotate
+           theta = pi
+           call rodrot(hpos,kvec,theta)
+           !-- shift back
+           hnew = hpos + opos 
+           new%xyz(:,theh) = hnew
+           write(atmp,'(i0)') i
+           call new%write('test'//trim(atmp)//'.xyz')
+       endif    
+    enddo
+
+    deallocate(ohmap)
+    call zmol%deallocate()
+    call mol%deallocate()
+    return
+contains
+function isoh(zatm) result(bool)
+    use zdata
+    implicit none
+    type(zatom) :: zatm
+    logical :: bool
+    integer :: i,k
+    bool =.false.
+    k=0
+    if(zatm%nei == 2)then
+      do i=1,2 
+        if(zatm%ngt(i)==1) k=k+1
+      enddo  
+      if(k==1) bool=.true.
+    endif
+    return
+end function isoh    
+function ohpos(zmol,k,hpos,opos,xpos) result(thehatom)
+    use iso_fortran_env, only: wp=>real64
+    use zdata
+    implicit none
+    type(zmolecule) :: zmol
+    integer :: i,k,j,thehatom
+    real(wp) :: hpos(3),opos(3),xpos(3)
+    opos = zmol%zat(k)%cart
+    do i=1,2
+      j=zmol%zat(k)%ngh(i)
+      !write(*,*) j,zmol%zat(k)%ngt(i)
+      if(zmol%zat(j)%atype==1)then
+       hpos = zmol%zat(j)%cart
+       thehatom=j
+      else
+       xpos = zmol%zat(j)%cart
+      endif
+    enddo
+    return
+end function ohpos
+end subroutine ohflip
+
+
+

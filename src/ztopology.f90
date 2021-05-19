@@ -432,7 +432,10 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec,topomat)
         enddo
         zmol%zat(i)%nei = inei
         call quicksort(inei,zmol%zat(i)%ngh)
-        call quicksort(inei,zmol%zat(i)%ngt)
+        !call quicksort(inei,zmol%zat(i)%ngt)
+        do j=1,inei
+          zmol%zat(i)%ngt(j)=at(zmol%zat(i)%ngh(j))
+        enddo
       enddo
 
       return
@@ -579,7 +582,10 @@ subroutine wboneighbours(i,nat,at,xyz,wbo,wbothr,zat)
           endif
       enddo
       call quicksort(icn,zat%ngh)
-      call quicksort(icn,zat%ngt)
+      !call quicksort(icn,zat%ngt)
+      do j=1,icn
+         zat%ngt(j)=at(zat%ngh(j))
+      enddo
 
       return
 end subroutine wboneighbours 

@@ -583,7 +583,7 @@ subroutine CCEGEN(env,pr,fname)
       write(*,*)
       if(env%nclust == 0)then
          if(pr)then 
-         write(*,'(1x,a,i0,a)') 'Ensemble checked up to a partitioning into ',nclust,' clsuters.'
+         write(*,'(1x,a,i0,a)') 'Ensemble checked up to a partitioning into ',nclust,' clusters.'
          write(*,'(1x,a)') 'Local MINIMA of the DBI indicate adequate cluster counts.'
          write(*,'(1x,a)') 'Local MAXIMA of the pSF indicate adequate cluster counts.'
          write(*,'(1x,a)') 'Higher SSR/SST vaules indicate more distinct clusters.'
