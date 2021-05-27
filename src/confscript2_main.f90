@@ -202,6 +202,24 @@ subroutine confscript2i(env,tim)
        call remaining_in(atmp,ewin,nallout) !--- remaining number of structures
        write(*,*)
 !====================================================================!
+!---- (Optional) sampling of additional XH positions
+      if(env%doOHflip)then
+          call XHorient(env,conformerfile)
+          inquire(file='oh_ensemble.xyz',exist=ex)
+          if(ex)then
+            call checkname_xyz(crefile,atmp,btmp)
+            call appendto('oh_ensemble.xyz',atmp)       
+            call remove('oh_ensemble.xyz')
+            if(.not.env%entropic .and. env%crestver.ne.22)then
+              call newcregen(env,0)
+            else
+              call newcregen(env,2)
+            endif
+            call remaining_in(btmp,ewin,nallout)
+            write(*,*)
+          endif
+      endif
+!====================================================================!
 !---- Perform additional MDs on the lowest conformers
       if(env%rotamermds)then
           call tim%start(4,'MD ')

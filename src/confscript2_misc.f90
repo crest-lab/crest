@@ -1437,3 +1437,34 @@ subroutine emtdcheckempty(env,empty,nbias)
     endif
     return
 end subroutine emtdcheckempty
+
+!========================================================================!
+! Sample additional OH orientations
+!========================================================================!
+subroutine XHorient(env,infile)
+    use iso_fortran_env, only: wp=>real64
+    use crest_data
+    use strucrd
+    use zdata
+    use iomod
+    implicit none
+    type(systemdata) :: env
+    character(len=*) :: infile
+    integer :: nat,nall
+    character(len=:),allocatable :: newfile
+    newfile='oh_ensemble.xyz'
+    !--- shouldn't cost much
+      call ohflip_ensemble(env,infile,env%maxflip)
+      call rdensembleparam(newfile,nat,nall)
+    !--- only proceed if there are potential new structures
+      if(nall>0)then
+        call smallhead('Additional orientation sampling')
+        call MDopt_para(env,newfile,0)
+      !---- printout and copy
+        call rename('OPTIM'//'/'//'opt.xyz',trim(newfile))
+        call rmrf('OPTIM')
+      else
+        call remove(newfile)  
+      endif
+    return
+end subroutine XHorient

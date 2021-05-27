@@ -1183,6 +1183,15 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 read(arg(i+1),*,iostat=io) rdum
                 if(io==0) env%kshift = rdum   
                 env%kshiftnum = 1
+             case( '-hflip' )
+                env%doOHflip = .true.
+             case( '-noflip' )
+                env%doOHflip = .false.
+             case( '-maxflip' )
+                read(arg(i+1),*,iostat=io) rdum
+                if(io==0 .and. (index(arg(i+1),'-').eq.0))then
+                  env%maxflip = nint(rdum)
+                endif
 !======================================================================================================!
 !------ flags for parallelization / disk space
 !======================================================================================================!

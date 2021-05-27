@@ -22,7 +22,7 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date='Mon 19. Apr 11:43:20 CEST 2021'
+      character(len=40),parameter:: date='Thu 27. May 12:26:20 CEST 2021'
       character(len=10),parameter:: version='2.11'
       logical :: niceprint
       
@@ -169,6 +169,10 @@ subroutine confscript_help()
       write(*,'(5x,''                     [default: 400 K]'')')
       write(*,'(5x,''-norotmd           : don´t do the regular MDs after the '')')
       write(*,'(5x,''                     second multilevel optimization step'')')
+      write(*,'(5x,''-hflip/-noflip     : turn on/off a small enhancement routine to'')')
+      write(*,'(5x,''                     rotate OH groups after MTD. [default: on]'')')
+      write(*,'(5x,''-maxflip <int>     : max. number of new structures by the above'')')
+      write(*,'(5x,''                     enhancement routine. [default: 1000]'')')
       write(*,'(5x,''-quick             : perform a search with reduced settings'')')
       write(*,'(5x,''                     for a crude ensemble.'')')
       write(*,'(5x,''-squick            : perform a even further reduced search'')')

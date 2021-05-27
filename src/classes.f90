@@ -386,6 +386,10 @@ module crest_data
       character(len=:),allocatable :: pcmeasure
       integer :: clustlev = 0    ! clustering level
 
+    !--- additional structure generation settings
+      logical :: doOHflip = .true.
+      integer :: maxflip = 1000  
+
     !--- external RMSD bias to optimizations
       character(len=:),allocatable :: biasfile
       real(wp) :: rthr2 = 0.3_wp    ! Discard all structures with a bias smaller than this

@@ -153,6 +153,7 @@ module strucrd
    !--- arrays    
        integer,allocatable  :: at(:)    !atom types as integer, dimension will be at(nat)
        real(wp),allocatable :: xyz(:,:) !coordinates, dimension will be xyz(3,nat)
+       character(len=:),allocatable :: comment !a comment line
 
    !--- (optional) PDB data
        type(pdbdata) :: pdb   
@@ -161,6 +162,8 @@ module strucrd
            procedure :: deallocate => deallocate_coord !clear memory space
            procedure :: open => opencoord !read an coord file
            procedure :: write => writecoord !write
+           procedure :: append => appendcoord !append
+           procedure :: get => getcoord !allocate & fill with data
 
    end type coord
 !=========================================================================================!
@@ -1157,6 +1160,27 @@ subroutine opencoord(self,fname)
 
       return
 end subroutine opencoord
+!==================================================================!
+! subroutine getcoord
+! allocate "coord" class and fill with data
+!==================================================================!
+subroutine getcoord(self,convfac,nat,at,xyz)
+      implicit none
+      class(coord) :: self
+      real(wp),intent(in) :: convfac          
+      integer,intent(in)  :: nat
+      integer,intent(in)  :: at(nat)
+      real(wp),intent(in) :: xyz(3,nat)
+      call self%deallocate()
+      allocate(self%at(nat))
+      allocate(self%xyz(3,nat))
+      self%nat=nat
+      self%at=at
+      self%xyz=xyz/convfac
+      return
+end subroutine getcoord
+
+
 
 !=====================================================================================================!
 !=====================================================================================================!
@@ -1404,8 +1428,8 @@ subroutine coord2xyz(iname,oname)
 end subroutine coord2xyz
 
 !==================================================================!
-! subroutine opencoord
-! is the open procedure for the "coord" class.
+! subroutine writecoord
+! is the write procedure for the "coord" class.
 !==================================================================!
 subroutine writecoord(self,fname)
       implicit none
@@ -1423,6 +1447,25 @@ subroutine writecoord(self,fname)
       endif
       return
 end subroutine writecoord
+
+!==================================================================!
+! subroutine appendcoord
+! is the write procedure for the "coord" class.
+! coords will be written out in XYZ format!
+!==================================================================!
+subroutine appendcoord(self,io)
+      implicit none
+      class(coord) :: self
+      integer :: io
+        self%xyz=self%xyz*bohr !to Angström
+        if(allocated(self%comment))then
+            call wrxyz(io,self%nat,self%at,self%xyz,trim(self%comment))
+        else
+            call wrxyz(io,self%nat,self%at,self%xyz)
+        endif
+        self%xyz = self%xyz/bohr !back
+      return
+end subroutine appendcoord
 
 !=====================================================================================================!
 !=====================================================================================================!

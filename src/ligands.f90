@@ -381,28 +381,31 @@ end subroutine ligandtool
 ! A hack to 'flip' hydrogens at OH (technically also SH, NH, etc.)
 ! currently not used.
 !====================================================================!
-subroutine ohflip(env,infile)
+subroutine ohflip(env,mol,numstruc)
     use iso_fortran_env, only: wp=>real64
     use crest_data
     use strucrd
     use zdata
     implicit none
     type(systemdata) :: env
-    character(len=*) :: infile
+    !character(len=*) :: infile
     type(coord) :: mol,new
     type(zmolecule) :: zmol
+    integer :: numstruc
     logical,allocatable :: ohmap(:)
-    integer :: i,noh,j
+    integer :: i,noh,j,io
     integer :: theh
     real(wp) :: hpos(3),opos(3),xpos(3)
     real(wp) :: kvec(3),theta,hnew(3)
     real(wp) :: ohlen,ohlen2
     real(wp) :: eucdist !this is a function
     real(wp),parameter :: pi = 3.14159265359_wp
-    character(len=10) :: atmp
+    character(len=50) :: atmp
+
+    write(atmp,'(15x,a)') '!hor'
 
     !-- get topology
-    call mol%open(infile)
+    !call mol%open(infile)
     call simpletopo_mol(mol,zmol,.false.)
     allocate(ohmap(zmol%nat), source = .false.)
 
@@ -412,10 +415,15 @@ subroutine ohflip(env,infile)
     enddo
     noh = count(ohmap,1)
 
+    !-- only if there are OH groups
+    if(noh > 0)then
+     numstruc=noh
+    open(newunit=io,file='oh_tmp.xyz')
     !-- loop over all OH
     do i=1,zmol%nat
        if(ohmap(i))then
            new = mol
+           new%comment = trim(atmp)
            theh = ohpos(zmol,i,hpos,opos,xpos)
            !ohlen = eucdist(3,opos,hpos)
            hpos = hpos - opos
@@ -426,14 +434,19 @@ subroutine ohflip(env,infile)
            !-- shift back
            hnew = hpos + opos 
            new%xyz(:,theh) = hnew
-           write(atmp,'(i0)') i
-           call new%write('test'//trim(atmp)//'.xyz')
+           !write(atmp,'(i0)') i
+           !call new%write('test'//trim(atmp)//'.xyz')
+           call new%append(io)
        endif    
     enddo
-
+    close(io)
+    else
+        numstruc=0
+    endif
     deallocate(ohmap)
     call zmol%deallocate()
-    call mol%deallocate()
+    call new%deallocate()
+    !call mol%deallocate()
     return
 contains
 function isoh(zatm) result(bool)
@@ -473,6 +486,76 @@ function ohpos(zmol,k,hpos,opos,xpos) result(thehatom)
     return
 end function ohpos
 end subroutine ohflip
+!====================================================================!
+! file wrapper for the ohflip routine
+!====================================================================!
+subroutine ohflip_file(env,infile)
+    use iso_fortran_env, only: wp=>real64
+    use crest_data
+    use strucrd
+    use zdata
+    implicit none
+    type(systemdata) :: env
+    character(len=*) :: infile
+    type(coord) :: mol
+    integer :: k
+    call mol%open(infile)
+    call ohflip(env,mol,k)
+    call mol%deallocate()
+    write(*,*) k,'XH groups in the molecule'
+    return
+end subroutine ohflip_file
 
+subroutine ohflip_ensemble(env,infile,maxnew)
+    use iso_fortran_env, only: wp=>real64
+    use crest_data
+    use strucrd
+    use zdata
+    use iomod
+    implicit none
+    type(systemdata) :: env
+    character(len=*) :: infile
+    type(coord) :: mol
+    integer,intent(in) :: maxnew
+    integer :: limit,counter,xout
+    integer :: nat,nall
+    integer :: i,j,k,l
+    real(wp),allocatable :: xyz(:,:,:)
+    real(wp),allocatable :: er(:)
+    integer,allocatable  :: at(:)
+    character(len=:),allocatable :: collection
 
+    !--- read in the ensemble parameters
+      call rdensembleparam(infile,nat,nall)
+    !--- allocate space and read in the ensemble
+      allocate(at(nat),er(nall),xyz(3,nat,nall))
+      call rdensemble(infile,nat,nall,at,xyz,er)
+
+    !-- loop over ensemble
+    limit = maxnew
+    collection='oh_ensemble.xyz'
+    call remove(collection) 
+    k=0
+    counter = 0
+    do
+    k=k+1
+    call mol%get(bohr,nat,at,xyz(:,:,k))
+    !call mol%open(infile)
+    call ohflip(env,mol,xout)
+    call mol%deallocate()
+    if(xout==0) then
+        exit
+    else
+     counter = counter + xout   
+     call appendto('oh_tmp.xyz',collection)
+     call remove('oh_tmp.xyz')
+    endif
+    if((counter>=limit).or.(k==nall))then
+        exit
+    endif
+    enddo
+
+    deallocate(collection,xyz,er,at)
+    return
+end subroutine ohflip_ensemble
 
