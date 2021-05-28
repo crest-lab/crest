@@ -218,15 +218,19 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
      endif
 
 !--- identify rings
+     if(zmol%nfrag==1)then !temporary exclusion, TODO
      call countrings(zmol,nrings)
+     endif
      if(verbose)then
        write(*,'(1x,a,i0,/)')'Total number of rings in the system: ',nrings
      endif
      if(nrings.ge.1)then
        allocate(zmol%zri(nrings))
      endif
+     if(zmol%nfrag==1)then !temporary exclusion, TODO
      call newgetrings(zmol,.false.)
      if(verbose) call zmol%prrings(6)
+     endif
 
 !--- deallocation of memory
      if(allocated(wbo))deallocate(wbo)

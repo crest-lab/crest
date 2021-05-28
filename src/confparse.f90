@@ -607,7 +607,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 call redo_extrapol(env,ctmp,0)    
                 endif
                 stop
-           case('-SANDBOX' )
+              case('-SANDBOX' )
             !--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
 
             !-----
@@ -985,6 +985,18 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                  else
                  write(*,'(2x,a,a)') argument,' : energy reweighting'
                  endif    
+             case('-charges') !read charges from file for GFN-FF calcs.
+                ctmp=trim(arg(i+1))
+                if((len_trim(ctmp)<1).or.(ctmp(1:1)=='-'))then
+                    ctmp='charges'
+                endif
+                inquire(file=ctmp,exist=ex)
+                if(ex)then
+                    env%chargesfilename=ctmp
+                    env%chargesfile=.true.
+                    write(*,'(1x,a,a)') 'File used for the atomic charges: ',trim(ctmp)
+                    call env%ref%rdcharges(env%chargesfilename)
+                endif
              case( '-dscal','-dispscal','-dscal_global','-dispscal_global' )
                  env%cts%dispscal_md = .true.
                  if(index(argument,'_global').ne.0)then

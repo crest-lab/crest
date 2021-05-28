@@ -243,6 +243,9 @@ module crest_data
        real(wp),allocatable :: xyz(:,:)
        integer :: ntopo
        integer,allocatable :: topo(:)
+       real(wp),allocatable :: charges(:)
+    contains
+      procedure :: rdcharges => read_charges
    end type refdata
   
 !-----------------------------------------------------------------------------------------------------
@@ -321,7 +324,8 @@ module crest_data
       character(len=:),allocatable :: inputcoords
       character(len=:),allocatable :: wbofile
       character(len=:),allocatable :: atlist
-
+      character(len=:),allocatable :: chargesfilename
+      
      !--- METADYN data
       real(wp) :: hmass
       real(wp) :: mdtemp
@@ -423,6 +427,7 @@ module crest_data
       logical :: cluster = .false. ! perform a clustering analysis        
       logical :: checktopo = .true.  !perform topolgy check in CREGEN
       logical :: checkiso  = .false. !perform E/Z isomerization check in CREGEN
+      logical :: chargesfile = .false. !use a given charges file for gfnff
       logical :: compareens        ! try to correlate 2 given Ensemble files
       logical :: confgo            ! perform only the CREGEN routine ?
       logical :: doNMR             ! determine NMR equivalencies in CREGEN ?
@@ -709,7 +714,7 @@ subroutine wrtCHRG(self,dir)
     class(systemdata) :: self
     character(len=*) :: dir    
     character(len=:),allocatable :: path
-    integer :: ich,k
+    integer :: ich,k,i
     k = len_trim(dir)
     if(self%chrg.ne.0)then
        if(k>0)then 
@@ -731,8 +736,43 @@ subroutine wrtCHRG(self,dir)
        write(ich,*) self%uhf
        close(ich)
     endif  
+    if(self%chargesfile .and. allocated(self%ref%charges))then
+       if(k>0)then 
+       path=trim(dir)//'/'//'charges'
+       else
+       path='charges'
+       endif
+       open(newunit=ich,file=path)
+       do i=1,self%ref%nat
+       write(ich,*) self%ref%charges(i)
+       enddo
+       close(ich)
+    endif
     return
-end subroutine wrtCHRG    
+end subroutine wrtCHRG 
+!------------------------------------------------------------------------------------------------------
+! read atomic charges from a file (one line per atom)
+subroutine read_charges(self,chargesfilename)
+    implicit none
+    class(refdata) :: self
+    character(len=*) :: chargesfilename
+    integer :: ich,io,i
+    real(wp) :: dum
+    if(allocated(self%charges))deallocate(self%charges)
+    if(self%nat>0)then
+        allocate(self%charges(self%nat),source=0.0_wp)
+        open(newunit=ich,file=chargesfilename)
+        do i=1,self%nat
+         read(ich,*,iostat=io) dum
+         if(io==0)then
+           self%charges(i) = dum
+         endif
+        enddo
+        close(io)
+    endif
+    return
+end subroutine read_charges
+
 
 !------------------------------------------------------------------------------------------------------
 function optlevflag(optlev) result(flag)
