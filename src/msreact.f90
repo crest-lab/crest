@@ -274,10 +274,10 @@ subroutine msreact_topowrap(mol,pair,paths,wboname)
       inquire(file=wboname,exist=ex)
     endif  
     if(ex)then
-      call simpletopo(mol%nat,mol%at,mol%xyz,zmol,.false.,wboname)
+      call simpletopo(mol%nat,mol%at,mol%xyz,zmol,.false.,.false.,wboname)
     else   
        mol%xyz = mol%xyz / bohr !CN based topo requires Bohrs 
-       call simpletopo(mol%nat,mol%at,mol%xyz,zmol,.false.,'')
+       call simpletopo(mol%nat,mol%at,mol%xyz,zmol,.false.,.false.,'')
        mol%xyz = mol%xyz * bohr
     endif 
 

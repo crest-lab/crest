@@ -439,10 +439,10 @@ subroutine testtopo(fname,env,tmode)
     select case( tmode )
       case( 'wbo','flexi','all' )
         call xtbsp2(fname,env)  
-        call simpletopo_file(fname,zmol,.true.,'wbo')
+        call simpletopo_file(fname,zmol,.true.,.true.,'wbo')
       case default
         wbofile = 'none'
-        call  simpletopo_file(fname,zmol,.true.,wbofile)
+        call  simpletopo_file(fname,zmol,.true.,.true.,wbofile)
     end select    
     allocate(xyz(3,zmol%nat))
     call zmol%getxyz(xyz)

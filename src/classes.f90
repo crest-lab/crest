@@ -744,7 +744,7 @@ subroutine wrtCHRG(self,dir)
        endif
        open(newunit=ich,file=path)
        do i=1,self%ref%nat
-       write(ich,*) self%ref%charges(i)
+       write(ich,'(1x,f16.8)') self%ref%charges(i)
        enddo
        close(ich)
     endif
@@ -752,12 +752,13 @@ subroutine wrtCHRG(self,dir)
 end subroutine wrtCHRG 
 !------------------------------------------------------------------------------------------------------
 ! read atomic charges from a file (one line per atom)
-subroutine read_charges(self,chargesfilename)
+subroutine read_charges(self,chargesfilename,totchrg)
     implicit none
     class(refdata) :: self
     character(len=*) :: chargesfilename
     integer :: ich,io,i
-    real(wp) :: dum
+    real(wp) :: dum,tot
+    integer :: totchrg
     if(allocated(self%charges))deallocate(self%charges)
     if(self%nat>0)then
         allocate(self%charges(self%nat),source=0.0_wp)
@@ -770,6 +771,11 @@ subroutine read_charges(self,chargesfilename)
         enddo
         close(io)
     endif
+    tot=0.0_wp
+    do i=1,self%nat
+      tot=tot+self%charges(i)
+    enddo
+    totchrg = nint(tot)
     return
 end subroutine read_charges
 

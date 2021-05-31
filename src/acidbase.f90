@@ -84,7 +84,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       eatb=0.0_wp
       gsa=0.0_wp
       grrhoa=0.0_wp
-      call simpletopo_mol(mola,acid,.false.)
+      call simpletopo_mol(mola,acid,.false.,.false.)
       r = makedir(adir)
       call chdir(adir)
       call mola%write('coord')
@@ -104,7 +104,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       ebtb=0.0_wp
       gsb=0.0_wp
       grrhob=0.0_wp
-      call simpletopo_mol(molb,base,.false.)
+      call simpletopo_mol(molb,base,.false.,.false.)
       r = makedir(bdir)
       call chdir(bdir)
       call molb%write('coord')

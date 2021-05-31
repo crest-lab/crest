@@ -37,7 +37,7 @@
 !  simpeltopo_file version is a file wrapper
 !  simpeltopo_mol version is a wrapper for a coord object
 !================================================================================!
-subroutine simpletopo_file(fname,zmol,verbose,wbofile)
+subroutine simpletopo_file(fname,zmol,verbose,getrings,wbofile)
      use iso_fortran_env, wp => real64
      use zdata
      use strucrd, only: rdnat,rdcoord
@@ -45,17 +45,19 @@ subroutine simpletopo_file(fname,zmol,verbose,wbofile)
      character(len=*) :: fname
      type(zmolecule)  :: zmol
      logical          :: verbose
+     logical          :: getrings
      character(len=*),optional :: wbofile
      integer :: n
      integer,allocatable :: at(:)
      real(wp),allocatable :: xyz(:,:)
      logical :: ex
      interface
-         subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
+         subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
              import :: zmolecule, wp
              implicit none
              type(zmolecule)  :: zmol       
              logical          :: verbose
+             logical          :: getrings
              integer,intent(in)  :: n
              integer,intent(in)  :: at(n)
              real(wp),intent(in) :: xyz(3,n) !in Bohrs
@@ -72,16 +74,16 @@ subroutine simpletopo_file(fname,zmol,verbose,wbofile)
       inquire(file=wbofile,exist=ex)
      endif
      if(.not.ex)then
-        call simpletopo(n,at,xyz,zmol,verbose,'')    
+        call simpletopo(n,at,xyz,zmol,verbose,getrings,'')    
      else
-        call simpletopo(n,at,xyz,zmol,verbose,wbofile)
+        call simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
      endif
      
      deallocate(xyz,at)
      return
 end subroutine simpletopo_file
 
-subroutine simpletopo_mol(mol,zmol,verbose)
+subroutine simpletopo_mol(mol,zmol,verbose,getrings)
      use iso_fortran_env, wp => real64
      use zdata
      use strucrd
@@ -89,19 +91,21 @@ subroutine simpletopo_mol(mol,zmol,verbose)
      type(coord)      :: mol    !in 
      type(zmolecule)  :: zmol   !out
      logical          :: verbose
+     logical          :: getrings
      interface
-         subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
+         subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
              import :: zmolecule, wp
              implicit none
              type(zmolecule)  :: zmol       
              logical          :: verbose
+             logical          :: getrings
              integer,intent(in)  :: n
              integer,intent(in)  :: at(n)
              real(wp),intent(in) :: xyz(3,n) !in Bohrs
              character(len=*),intent(in),optional :: wbofile
          end subroutine simpletopo
      end interface
-     call simpletopo(mol%nat,mol%at,mol%xyz,zmol,verbose,'')
+     call simpletopo(mol%nat,mol%at,mol%xyz,zmol,verbose,getrings,'')
      return
 end subroutine simpletopo_mol
 
@@ -114,12 +118,15 @@ end subroutine simpletopo_mol
 !  verbose - boolean to activate printouts
 !  wbofile - (optional) name of the file containing WBOs
 !================================================================================!
-subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
+subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
      use iso_fortran_env, wp => real64
      use zdata
      implicit none
      type(zmolecule)  :: zmol       
+     type(zmolecule)  :: zfrag
+     type(zring)      :: newring
      logical          :: verbose
+     logical          :: getrings
      integer,intent(in)  :: n
      integer,intent(in)  :: at(n)
      real(wp),intent(in) :: xyz(3,n) !in Bohrs
@@ -135,6 +142,7 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
      integer,allocatable :: topomat(:,:)
      integer,allocatable :: topovec(:)
      integer :: nrings
+     character(len=10) :: numchar
 
      logical :: ex,useWBO
 
@@ -218,18 +226,39 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
      endif
 
 !--- identify rings
-     if(zmol%nfrag==1)then !temporary exclusion, TODO
-     call countrings(zmol,nrings)
-     endif
-     if(verbose)then
-       write(*,'(1x,a,i0,/)')'Total number of rings in the system: ',nrings
-     endif
-     if(nrings.ge.1)then
-       allocate(zmol%zri(nrings))
-     endif
-     if(zmol%nfrag==1)then !temporary exclusion, TODO
-     call newgetrings(zmol,.false.)
-     if(verbose) call zmol%prrings(6)
+     if(getrings)then
+       do i=1,zmol%nfrag
+         call zmol%fragment(i,zfrag)
+         zfrag%maxring = maxringident !maxringident is a global variable from zdata.f90
+         call countrings(zfrag,nrings)
+         if(verbose.and.nrings>0)then
+             if(zmol%nfrag>1)then
+             write(*,'(1x,a,i0)')'Fragment ',i
+             write(*,'(1x,a,i0,/)')'Total number of rings in the fragment: ',nrings
+             else
+             write(*,'(1x,a,i0,/)')'Total number of rings in the system: ',nrings
+             endif
+         endif
+         if(nrings.ge.1)then
+          allocate(zfrag%zri(nrings))
+          call newgetrings(zfrag,.false.)
+          do j=1,zfrag%nri
+             newring=zfrag%zri(j)
+             do k=1,newring%rs
+                newring%rlist(k) = zfrag%revmap(newring%rlist(k))
+             enddo
+             call zmol%addring(newring)
+             call newring%deallocate()
+          enddo
+         endif
+         call zfrag%deallocate()
+       enddo
+       if(verbose)then
+         call zmol%prrings(6)
+         if(zmol%nri>0)then
+         write(*,'(/,1x,a,i0,/)')'Total number of rings in the system: ',zmol%nri
+         endif
+       endif
      endif
 
 !--- deallocation of memory

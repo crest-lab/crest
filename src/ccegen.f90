@@ -153,14 +153,13 @@ subroutine CCEGEN(env,pr,fname)
        fraclimit = 0.25d0 !if autolimit=true, 1/4 of the ensemble is taken
 
    !--- 1. topology for reference strucuture
-      !call simpletopo_file('coord',zmol,pr)
       if(env%wbotopo)then
          env%wbofile='wbo'
       else   
          env%wbofile='none given' 
       endif
       zens%xyz = zens%xyz/bohr  !ANG to Bohr for topo
-      call simpletopo(zens%nat,zens%at,zens%xyz,zmol,pr,env%wbofile)
+      call simpletopo(zens%nat,zens%at,zens%xyz,zmol,pr,.false.,env%wbofile)
       zens%xyz = zens%xyz*bohr  !Bohr to ANG
       allocate(inc(zmol%nat), source = 0)
 

@@ -245,12 +245,14 @@ subroutine nciflexi(env,flexval)
          call remove('xtb.out')
          call remove('energy')
          call remove('charges')
+         if(env%chargesfile)then
+             call env%wrtCHRG('')
+         endif
          call remove('xtbrestart')
          call remove('xtbtopo.mol')
 
          return
 end subroutine nciflexi
-
 
 subroutine minringsizes(nat,at,xyz,sring)
     use iso_fortran_env, only: wp=>real64
@@ -260,13 +262,11 @@ subroutine minringsizes(nat,at,xyz,sring)
     integer :: at(nat)
     real(wp) :: xyz(3,nat)
     integer :: sring(nat)
-
     character(len=:),allocatable :: dum
     type(zmolecule) :: zmol
     integer :: i,j,k
 
-    call simpletopo(nat,at,xyz,zmol,.false.,'')
-
+    call simpletopo(nat,at,xyz,zmol,.false.,.true.,'')
     do i=1,zmol%nat
        sring(i) = 0
        do j=1,zmol%nri

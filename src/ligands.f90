@@ -37,7 +37,7 @@ subroutine extractligands(infile,centeratom)
     integer,allocatable :: at(:)
     character(len=128) :: atmp,btmp
     call mol%open(infile)
-    call simpletopo_mol(mol,zmol,.false.)
+    call simpletopo_mol(mol,zmol,.false.,.false.)
     allocate(path(zmol%nat), source=0)
     k=centeratom
     do nb=1,zmol%zat(k)%nei
@@ -107,7 +107,7 @@ subroutine exchangeligands(infile,infile2,centeratom,ligandnr)
     type(coord) :: newligand
     type(coord) :: newcomplex
     call mol%open(infile)
-    call simpletopo_mol(mol,zmol,.false.)
+    call simpletopo_mol(mol,zmol,.false.,.false.)
     call newligand%open(infile2)
 
     allocate(path(zmol%nat), source=0)
@@ -226,8 +226,8 @@ subroutine matchligands(mol1,mol2,metal)
     enddo
 
 !--- identify atoms to base rotation on (from topology)
-    call simpletopo_mol(mol1,zmol1,.false.)
-    call simpletopo_mol(mol2,zmol2,.false.)
+    call simpletopo_mol(mol1,zmol1,.false.,.false.)
+    call simpletopo_mol(mol2,zmol2,.false.,.false.)
     nr = zmol1%zat(1)%nei  !#neighbours of coordination atom in old ligand
     nl = zmol2%zat(1)%nei  !#neighbours of coordination atom in new ligand
     if((nl == 0).or.((nr==0).and.(.not.centered)))then
@@ -405,8 +405,7 @@ subroutine ohflip(env,mol,numstruc)
     write(atmp,'(15x,a)') '!hor'
 
     !-- get topology
-    !call mol%open(infile)
-    call simpletopo_mol(mol,zmol,.false.)
+    call simpletopo_mol(mol,zmol,.false.,.false.)
     allocate(ohmap(zmol%nat), source = .false.)
 
     !-- identify OH groups
@@ -425,7 +424,6 @@ subroutine ohflip(env,mol,numstruc)
            new = mol
            new%comment = trim(atmp)
            theh = ohpos(zmol,i,hpos,opos,xpos)
-           !ohlen = eucdist(3,opos,hpos)
            hpos = hpos - opos
            kvec = xpos - opos
            !-- rotate
@@ -434,8 +432,6 @@ subroutine ohflip(env,mol,numstruc)
            !-- shift back
            hnew = hpos + opos 
            new%xyz(:,theh) = hnew
-           !write(atmp,'(i0)') i
-           !call new%write('test'//trim(atmp)//'.xyz')
            call new%append(io)
        endif    
     enddo
@@ -446,7 +442,6 @@ subroutine ohflip(env,mol,numstruc)
     deallocate(ohmap)
     call zmol%deallocate()
     call new%deallocate()
-    !call mol%deallocate()
     return
 contains
 function isoh(zatm) result(bool)
@@ -475,7 +470,6 @@ function ohpos(zmol,k,hpos,opos,xpos) result(thehatom)
     opos = zmol%zat(k)%cart
     do i=1,2
       j=zmol%zat(k)%ngh(i)
-      !write(*,*) j,zmol%zat(k)%ngt(i)
       if(zmol%zat(j)%atype==1)then
        hpos = zmol%zat(j)%cart
        thehatom=j
@@ -540,7 +534,6 @@ subroutine ohflip_ensemble(env,infile,maxnew)
     do
     k=k+1
     call mol%get(bohr,nat,at,xyz(:,:,k))
-    !call mol%open(infile)
     call ohflip(env,mol,xout)
     call mol%deallocate()
     if(xout==0) then
