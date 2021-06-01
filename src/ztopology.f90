@@ -139,7 +139,7 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
      real(wp) :: dummy
      integer :: i,j,k,l
      integer :: ntopo
-     integer,allocatable :: topomat(:,:)
+     logical,allocatable :: neighmat(:,:)
      integer,allocatable :: topovec(:)
      integer :: nrings
      character(len=10) :: numchar
@@ -176,11 +176,11 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
      if(.not.useWBO)then
 !--- get individual neighbour lists and set up molecule object "zat"
        ntopo = n*(n+1)/2
-       allocate(topomat(n,ntopo),topovec(ntopo))
-       topomat=0
-       call bondtotopo(n,at,bond,cn,ntopo,topovec,topomat)
-       call neighbourset(zmol,n,at,xyz,cn,ntopo,topovec,topomat)
-       deallocate(topovec,topomat)
+       allocate(neighmat(n,n), source=.false.)
+       allocate(topovec(ntopo))
+       call bondtotopo(n,at,bond,cn,ntopo,topovec,neighmat)
+       call neighbourset(zmol,n,at,xyz,cn,ntopo,topovec)
+       deallocate(topovec,neighmat)
      else
 !--- neighbour list could also be set up from WBOs, which is not necessarily better
         do i=1,n
@@ -316,7 +316,7 @@ end subroutine xcoord2
 !===================================================!
 ! generate the topo array for a given structure
 !===================================================!
-subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,topomat)
+subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
        use iso_fortran_env, only : wp=>real64
        integer,intent(in)  :: nat
        integer,intent(in) :: at(nat)
@@ -324,14 +324,14 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,topomat)
        real(wp),intent(in) :: cn(nat)
        integer,intent(in)  :: ntopo
        integer,intent(out) :: topo(ntopo)
-       integer,intent(inout) :: topomat(nat,ntopo) !dummy for crosscheck
        real(wp),allocatable :: cn2(:)
+       logical,intent(inout) :: neighbourmat(nat,nat)
        integer :: i,j,k,l
        integer :: icn,rcn
        integer :: lin
        allocate(cn2(nat),source=0.0_wp)
        topo = 0
-       topomat = 0
+       neighbourmat=.false.
        !--- some heuristic rules and CN array setup
        do i=1,nat
           cn2(i) = cn(i) 
@@ -360,8 +360,7 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,topomat)
             j=maxloc(bond(:,i),1)
             bond(j,i)=0.0d0
             if (i .eq. j) cycle
-            l = lin(i,j)
-            topomat(i,l) = 1
+            neighbourmat(i,j)=.true. !--important: not automatically (i,j)=(j,i)
           enddo
        enddo
        do i=1,nat
@@ -369,15 +368,15 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,topomat)
          if(i==j) cycle
          l = lin(i,j)
          !-- only save matching topology --> prevent high CN failures
-         if(topomat(i,l)==topomat(j,l))then
-            topo(l) = topomat(i,l)
+         if(neighbourmat(i,j).and.neighbourmat(j,i))then
+            topo(l) = 1
          else
             ! special case for carbon (because the carbon CN is typically correct)
             ! this helps, e.g. with eta-coordination in ferrocene
             ! (used, except if both are carbon)
             if(.not.(at(i)==6 .and. at(j)==6))then
-             if(at(i)==6 .and.topomat(i,l)==1) topo(l)=1
-             if(at(j)==6 .and.topomat(j,l)==1) topo(l)=1
+             if(at(i)==6 .and.neighbourmat(i,j)) topo(l)=1
+             if(at(j)==6 .and.neighbourmat(j,i)) topo(l)=1
             endif
          endif
          enddo
@@ -395,22 +394,22 @@ subroutine quicktopo(nat,at,xyz,ntopo,topovec)
     integer :: ntopo
     integer :: topovec(ntopo)
     real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
-    integer,allocatable :: topomat(:,:)
+    logical,allocatable :: neighmat(:,:)
     allocate(rcov(94))
     call setrcov(rcov)
     allocate(bond(nat,nat),cn(nat), source=0.0_wp)
-    allocate(topomat(nat,ntopo))
+    allocate(neighmat(nat,nat), source=.false.)
     cn=0.0d0
     bond=0.0d0
     call xcoord2(nat,at,xyz,rcov,cn,900.0_wp,bond)
-    call bondtotopo(nat,at,bond,cn,ntopo,topovec,topomat)
-    deallocate(topomat,cn,bond,rcov)
+    call bondtotopo(nat,at,bond,cn,ntopo,topovec,neighmat)
+    deallocate(neighmat,cn,bond,rcov)
     return
 end subroutine quicktopo
 
 
 !-- transfer topology data to the zmol object
-subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec,topomat)
+subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec)
       use iso_fortran_env, only : wp => real64
       use zdata
       use strucrd, only: i2e
@@ -421,7 +420,6 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec,topomat)
       integer,intent(in)  :: at(nat)
       real(wp),intent(in) :: cn(nat)
       integer,intent(in)     :: ntopo
-      integer,intent(inout)  :: topomat(nat,ntopo)
       integer,intent(in) :: topovec(ntopo)
       type(zatom)         :: zat    !--- "zat" is the complex datatype object for atom i
       integer :: lin
@@ -441,11 +439,6 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec,topomat)
         do j=1,nat
          if(i==j) cycle
          l = lin(i,j)
-         !if(topomat(i,l)==topomat(j,l))then
-         !  if(topomat(i,l)>0)then
-         !      inei=inei+1
-         !  endif
-         !endif
          if(topovec(l)==1) inei=inei+1
         enddo
         allocate(zmol%zat(i)%ngh(inei))
@@ -454,14 +447,11 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec,topomat)
         do j=1,nat
          if(i==j)cycle
          l = lin(i,j)
-         !if(topomat(i,l)==topomat(j,l))then
-         !  if(topomat(i,l)>0)then
            if(topovec(l)==1)then 
               k=k+1
               zmol%zat(i)%ngh(k)=j      ! the k-th neighbour of atom i is atom j
               zmol%zat(i)%ngt(k)=at(j)  ! atom j has this atom type
            endif
-         !endif
         enddo
         zmol%zat(i)%nei = inei
         call quicksort(inei,zmol%zat(i)%ngh)
@@ -1101,6 +1091,7 @@ recursive subroutine recurring2(zmol,k,j,taken,path,path2,ntak,tref)
       if(any(path(:)==j)) return !if we already passed the atom, return (i.e., no walking back)
 
       if(ntak+1 .ge. tref) return !don't go longer paths as the already known ones
+      if(ntak+1 .ge. zmol%nonterm) return
 
       !--- the atom passed the checks, so we consider it for now
       ntak=ntak+1
