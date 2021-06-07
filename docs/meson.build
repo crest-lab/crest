@@ -14,22 +14,4 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-option(
-  'la_backend',
-  type: 'combo',
-  value: 'mkl-static',
-  choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom'],
-  description: 'Linear algebra backend for program.',
-)
-option(
-  'custom_libraries',
-  type: 'array',
-  value: [],
-  description: 'libraries to load for custom linear algebra backend',
-)
-option(
-  'man_pages',
-  type: 'boolean',
-  value: 'true',
-  description: 'whether to generate man page(s) (requires asciidoctor)',
-)
+subdir('man')

@@ -28,6 +28,9 @@ project(
 exe_deps = []
 subdir('config')
 
+# Documentation
+subdir('docs')
+
 # Collect source of the project
 prog = []
 srcs = []

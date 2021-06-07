@@ -14,22 +14,24 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-option(
-  'la_backend',
-  type: 'combo',
-  value: 'mkl-static',
-  choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom'],
-  description: 'Linear algebra backend for program.',
-)
-option(
-  'custom_libraries',
-  type: 'array',
-  value: [],
-  description: 'libraries to load for custom linear algebra backend',
-)
-option(
-  'man_pages',
-  type: 'boolean',
-  value: 'true',
-  description: 'whether to generate man page(s) (requires asciidoctor)',
-)
+if get_option('man_pages')
+  asciidoctor = find_program('asciidoctor', required: false)
+  if not asciidoctor.found()
+    error('Could not find asciidoctor.')
+  endif
+  foreach man_name : ['crest']
+    man_page = custom_target(
+      'man_@0@'.format(man_name),
+      input: '@0@.adoc'.format(man_name),
+      output: '@0@.1'.format(man_name),
+      command: [
+        asciidoctor,
+	'--attribute=release-version=@0@'.format(meson.project_version()),
+	'--backend=manpage',
+	'--doctype=manpage',
+	'--out-file=@OUTPUT@',
+	'@INPUT@',
+      ],
+    )
+  endforeach
+endif

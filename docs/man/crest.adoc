@@ -1,0 +1,338 @@
+// This file is part of crest.
+// SPDX-Identifier: LGPL-3.0-or-later
+//
+// crest is free software: you can redistribute it and/or modify it under
+// the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// crest is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with crest.  If not, see <https://www.gnu.org/licenses/>.
+= crest(1)
+P.Pracht; S.Grimme; Universitaet Bonn, MCTC
+:doctype: manpage
+// This attribute should be set from the build system:
+:release-version: 
+:man manual: User Commands
+:man source: Crest {release-version}
+:page-layout: base
+
+== NAME
+
+crest - Conformer-Rotamer Ensemble Sampling Tool based on the GFN methods
+
+== SYNOPSIS
+
+*crest* [_INPUT_] [_OPTION_]...
+
+== DESCRIPTION
+
+Conformer-Rotamer Ensemble Sampling Tool based on the GFN methods.
+
+Using the xTB program. Compatible with xTB version 6.4.0.
+
+.Cite work conducted with this code as
+[quote]
+----
+ P. Pracht, F. Bohle, S. Grimme, PCCP, 2020, 22, 7169-7192.
+ 
+ and  S. Grimme, JCTC, 2019, 15, 2847-2862.
+ 
+ with help from:
+ F.Bohle, S.Ehlert, S.Grimme, P.Pracht
+----
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+== OPTIONS
+
+The FIRST argument CAN be a coordinate file in the TM **(coord, Bohr)** or Xmol **(*.xyz, Ang.)** format.
+If no such file is present as the first argument **crest** will automatically search for a file called "`**coord**`" in the TM format.
+
+=== General and technical options
+
+*-v1*::
+  Use the MF-MD-GC workflow.
+  (_OUTDATED_)
+
+*-v2*::
+  Use the MTD-GC workflow.
+  (_OUTDATED_)
+
+*-v3* (or *-v2i*)::
+  Use the iMTD-GC workflow.
+  [_default_]
+
+*-v4*::
+  Use the iMTD-sMTD workflow.
+
+*-entropy*::
+  The same workflow as with "`**-v4**`", specialized for the calculation of conformational entropy.
+
+*-xnam* _bin_::
+  Specify name of the **xtb**(1) binary that should be used.
+
+*-niceprint*::
+  Progress bar printout for optimizations.
+
+*-dry*::
+  Perform a "`dry run`".
+  Only prints the settings that would be applied with the CMD input and stops the run before any calculations
+
+*-T* _int_::
+  Set total number of CPUs (threads) to be used.
+  Parallel settings are then determined automatically for each step.
+  If not set by "`**-T**`", this number is read from the **OMP_NUM_THREADS** global variable.
+
+=== Calculation options
+
+*-g* _string_::
+  Use GBSA implicit solvent for solvent _string_.
+
+*-alpb* _string_::
+  Use ALPB implicit solvent for solvent _string_.
+
+*-chrg* _int_::
+  Set the molecules`' charge.
+
+*-uhf* _int_::
+  Set _int_=**N alpha - N beta** electrons
+
+*-nozs*::
+  Do not perform z-mat sorting.
+  [_default_]
+
+*-opt* _lev_::
+  Set optimization level for **ALL** GFN-xTB optimizations.
+  [_default_: **vtight**]
+
+  * _lev_ = **vloose**, **loose**, **normal**, **tight**, **vtight**
+
+*-gfn1*::
+  Use GFN1-xTB.
+
+*-gfn2*::
+  Use GFN2-xTB.
+  [_default_]
+
+*-gff*, *-gfnff*::
+  Use GFN-FF (requires **xtb**(1) 6.3 or newer).
+  (For GFN-FF searches bond constraints are applied automatically.)
+
+*-gfn2//gfnff*::
+  GFN2-xTB//GFN-FF composite mode.
+
+*Adding additional constraints to the calculations:*
+
+The user is able to include additional constraints to **ALL** xtb**(1)** calculations that are conducted by CREST.
+
+*-cinp* _file_::
+  Read in a file containing the constraints.
+  Constraints have to be in the same format as in xtb**(1)**.
+  (This was done previously via the "`**.constrains**`" file.)
+
+*-cbonds*::
+  Define automatic bond constraints (set up from topology).
+
+*-nocbonds*::
+  Turn off **-cbonds**. (For GFN-FF, mainly. See above.)
+
+*-fc* _float_::
+  Define force constant for defined constraints (**-cbonds**).
+
+=== Options for ensemble comparisons
+
+*-cregen* _file_::
+  Use **ONLY** the CREGEN subroutine to sort a given ensemble file.
+
+*-ewin* _real_::
+  Set energy window in kcal/mol.
+  [_default_: **6.0** kcal/mol]
+
+*-rthr* _real_::
+  Set RMSD threshold in Ang.
+  [_default_: **0.125** Ang]
+
+*-ethr* _real_::
+  Set E threshold in kcal/mol.
+  [_default_: **0.05** kcal/mol]
+
+*-bthr* _real_::
+  Set Rot. const. threshold.
+  [_default_: **0.01** (= 1%)]
+
+*-pthr* _real_::
+  Boltzmann population threshold.
+  [_default_: **0.05** (= 5%)]
+
+*-temp* _real_::
+  Set temperature in **CREGEN**.
+  [_default_: **298.15** K]
+
+*-prsc*::
+  Create a **scoord.*** file for each conformer.
+
+*-nowr*::
+  Don't write new ensemble files.
+
+*-eqv*,*-nmr*,*-entropy*::
+  Compare nuclear equivalences (requires rotamers).
+
+*-cluster* _int_::
+  PCA and k-Means clustering of sorted ensemble.
+  Works as extenstion to the **CREGEN** sorting.
+  _int_ is the number of clusters to be formed.
+
+*-notopo*::
+  Turn off any topology checks in **CREGEN**.
+
+=== Options for the iMTD-GC workflows
+
+*-cross*::
+  Do the GC part.
+  [_default_]
+
+*-nocross*::
+  Don't do the GC part.
+
+*-shake* _int_::
+  Set SHAKE mode for MD.
+  (**0**=off, **1**=H-only, **2**=all bonds)
+  [_default_: **2**]
+
+*-tstep* _int_::
+  Set MD time step in fs.
+  [_default_: **5** fs]
+
+*-mdlen/-len* _real_::
+  Set MD length (all MTDs) in ps.
+  Also possible are multiplicative factors for the default MD length with "`**x**_real_`".
+
+*-mddump* _int_::
+  xyz dumpstep to Trajectory in fs.
+  [_default_: **100** fs]
+
+*-vbdump* _real_::
+  Set Vbias dump frequency in ps.
+  [_default_: 1.0 ps]
+
+*-tnmd* _real_::
+  Set temperature for additional normal MDs.
+  [_default_: 400 K]
+
+*-norotmd*::
+  Don't do the regular MDs after the second multilevel optimization step.
+
+*-quick*::
+  Perform a search with reduced settings for a crude ensemble.
+
+*-squick*::
+  Perform a even further reduced search.
+
+*-mquick*::
+  Perform a search with maximum reduced settings.
+  (Do not reduce the settings more than that.)
+
+*-origin*::
+  Track the step of generation for each conformer/rotamer.
+  [_default_]
+
+*-keepdir*::
+  Keep sub-directories of the conformer generation step.
+
+*-nci*::
+  Generate an ellipsoide potential around the input structure and add it to the MTD simulation.
+  This can be used to find aggregates of NCI complexes.
+
+*-pscal* _real_::
+  Scale the ellipsoide potential axes by factor _real_.
+
+=== Thermostatistical options (used in entropy mode)
+
+*-trange* _lower_ _upper_ _step_::
+  Entropies are calculated for different temperatures.
+  These are calculated in a temperature range from _lower_ to _upper_ with _step_ in between.
+  [_default_: **280**K-**380**K in **10**K steps]
+
+*-fscal* _float_::
+  Frequency scaling factor.
+  [_default_: 1.0]
+
+*-sthr* _float_::
+  Vibrational/rotational entropy interpolation threshold (tau).
+  [_default_: **25.0** cm^-1]
+
+*-ithr* _float_::
+  Imaginary mode inversion cutoff.
+  [_default_: **-50.0** cm^-1]
+
+*-ptot* _float_::
+  Sum of population for structures considered in msRRHO average.
+  [_default_: **0.9** (= 90%)]
+
+=== Other tools for standalone use
+
+*-zsort*::
+  Use only the **zsort** subroutine to sort the z-matrix of the input coordinate file.
+
+*-mdopt* _file_::
+  Optimize along trajectory or ensemble file in the XYZ format.
+  Each point on the file is optimized.
+
+*-screen* _file_::
+  Optimize along ensemble file in the XYZ format.
+  A multilevel optimization is performed with continiously increasing thresholds.
+  After each step the ensemble file is sorted.
+
+*-protonate*::
+  Find a molecule's protomes by using a LMO pi- or LP-center approach.
+
+*-deprotonate*::
+  Find a molecule's deprotomers.
+
+*-tautomerize*::
+  Combine the protonation and deprotonation to find prototropic tautomers.
+
+  *-trev*:::
+    Do first the deprotonation and then the protonation in the *-tautomerize* mode, i.e., reverse of the default procedure.
+
+  *-iter* _int_:::
+    Set number of protonation/deprotonation cycles in the tautomerization script.
+    [_default_: 2]
+
+*-compare* _f1_ _f2_::
+  Compare two ensembles _f1_ and _f2_.
+  Both ensembles must have the same order of atoms of the molecule and should contain rotamers.
+
+  *-maxcomp* _int_:::
+    Select the lowest _int_ conformers out of each ensemble to be compared with "`*-compare*`".
+    [_default_: 10]
+
+*-testtopo* _file_::
+  Analyze some stuctural info (topology) for a given file.
+
+*-constrain* _atoms_::
+  Write example file "`*.xcontrol.sample*`" for constraints in crest.
+  (See *-cinp* option above.)
+
+*-thermo* _file_::
+  Calculate thermo data for given structure.
+  Also requires vibrational frequencies in the TM format, saved as file called "`*vibspectrum*`".
+
+*-rmsd*,*-rmsdheavy* _file1_ _file2_::
+  Calculate RMSD or heavy atom RMSD between two structures.
+  Input coords are automatically transformed to Angstroem.
+
+*-splitfile* _file_ [*from*] [*to*]::
+  Split an ensemble from _file_ into seperate directories for each structure.
+  *from* and *to* can be used to select specific structures from the file.
+  The new directories are collected in the *SPLIT* directory.
+
+== NOTES
+
+View literature references with **--cite**.
