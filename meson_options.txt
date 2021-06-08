@@ -27,9 +27,3 @@ option(
   value: [],
   description: 'libraries to load for custom linear algebra backend',
 )
-option(
-  'man_pages',
-  type: 'boolean',
-  value: 'true',
-  description: 'whether to generate man page(s) (requires asciidoctor)',
-)
