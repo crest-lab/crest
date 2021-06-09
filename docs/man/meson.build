@@ -14,43 +14,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-project(
-  'crest',
-  'fortran', 'c',
-  version: '2.11.0',
-  meson_version: '>=0.55',
-  default_options: [
-    'buildtype=debugoptimized',
-  ],
-)
-
-# General configuration information
-exe_deps = []
-subdir('config')
-
-# Documentation
-subdir('docs')
-
-# Collect source of the project
-prog = []
-srcs = []
-subdir('src')
-
-crest_exe = executable(
-  meson.project_name(),
-  sources: srcs + prog,
-  dependencies: exe_deps,
-  install: true,
-  link_language: 'fortran',
-)
-
-#declare dependencies
-crest_inc = []
-crest_dep = declare_dependency(
-  include_directories: crest_inc,
-  dependencies: exe_deps,
-)
-
-
-# add the testsuite separate meson.build 
-#subdir('testsuite') #has to be filled with tests, not availabel yet
+asciidoctor = find_program('asciidoctor', required: false)
+if asciidoctor.found()
+  foreach man_name : ['crest.adoc']
+    install_man(
+      configure_file(
+        input: files(man_name),
+        output: '@BASENAME@.1',
+        command: [
+          asciidoctor,
+          '--attribute=release-version=@0@'.format(meson.project_version()),
+          '--backend=manpage',
+          '--out-file=@OUTPUT@',
+          '@INPUT@',
+        ],
+      )
+    )
+  endforeach
+endif
