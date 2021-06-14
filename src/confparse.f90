@@ -896,6 +896,8 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                    env%preactormtd=.true.
                 case( '-fragopt' ) 
                    env%restartopt=.true.
+                case( '-iso' )
+                   env%riso=.true.   
                 case default
                     continue
                end select RCTR

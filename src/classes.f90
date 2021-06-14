@@ -473,6 +473,7 @@ module crest_data
       logical :: relax =.false.    ! was the --relax function used for protonation site search?
       logical :: restartopt        ! restart in the second step of the multilevel opt (V2) ?
       logical :: reweight=.false.  ! reweight structures on the fly after optimizations (i.e. do SPs)?
+      logical :: riso=.false.      ! take only isomers in reactor mode
       logical :: rotamermds        ! do additional MDs after second  multilevel OPT step in V2 ?
       logical :: scallen           ! scale the automatically determined MD length by some factor?
       logical :: scratch           ! use scratch directory
