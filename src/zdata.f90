@@ -160,6 +160,23 @@ module zdata
       integer,allocatable :: inverter(:,:)  !book keeping of inverting atoms at the resp. stereocenter
       integer,allocatable :: invector(:,:) !inversion vector 
 
+   !--- QCG information
+      integer              :: nmol          !number of molecules
+      real(wp)             :: cma(3)        !center of mass
+      real(wp)             :: aniso         !anisotropy factor
+      real(wp)             :: ell_abc(3)    !ellipsoid axis
+      real(wp)             :: atot          !surface area
+      real(wp)             :: vtot          !volume
+      real(wp)             :: rtot          !radius
+      real(wp)             :: mass          !mass
+      real(wp),allocatable :: xyz(:,:)      !coordinates
+      real(wp)             :: gt            !gibbs free energy
+      real(wp)             :: ht            !enthalpy
+      real(wp)             :: svib          !vibrational entropy
+      real(wp)             :: srot          !rotational entropy
+      real(wp)             :: stra          !translational entropy
+
+
    !--- procedures to be used with the zmol type
       contains
          procedure :: wrtable => wrtable !write CNs and neighbours     
@@ -233,6 +250,7 @@ subroutine deallocate_zmol(self)
    class(zmolecule) :: self
    integer :: i
    if(allocated(self%at))deallocate(self%at)
+   if(allocated(self%xyz))deallocate(self%xyz)
    if(allocated(self%distmat))deallocate(self%distmat)
    if(allocated(self%wbo))deallocate(self%wbo)
    if(allocated(self%stereotrac))deallocate(self%stereotrac)
@@ -686,8 +704,8 @@ subroutine count_bonds(self)
         enddo
       enddo
      return
-end subroutine count_bonds
 
+end subroutine count_bonds
 
 !==========================================================================================================!
 !==========================================================================================================!

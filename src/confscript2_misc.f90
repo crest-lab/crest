@@ -237,7 +237,7 @@ end subroutine xtbopt
 
 
 !--------------------------------------------------------------------------------------------
-! A single METADYN run (bzw. its setup)
+! A single METADYN run (resp. its setup)
 !--------------------------------------------------------------------------------------------
 subroutine MetaMD(env,nr,mdtime,fac,expo,dumplist)
          use iso_c_binding
@@ -696,8 +696,11 @@ subroutine multilevel_opt(env,modus)
         call MDopt_para(env,trim(inpnam),0) !optlev is set from the module variable
         filename=trim(thispath)//'/'//trim(outnam)
         call rename('OPTIM'//'/'//'opt.xyz',trim(filename))
-        call sort_and_check(env,trim(filename))
-        call rmoptim()
+!        if (env%crestver .ne. crest_solv) then
+        if(.not. env%QCG) then
+            call sort_and_check(env,trim(filename))
+            call rmoptim()
+        end if
         write(*,*)
       end select
 
@@ -952,14 +955,23 @@ subroutine confg_chk3(env)
          if(.not.env%newcregen)then
              call cregen2(env)
          else
-             call newcregen(env,0)
+             !--- Special handling qcg, no RMSD, because a CMA transformed structure would cause wrong wall pot.
+             if(env%crestver .eq. crest_solv) then
+                call newcregen(env,6)
+             else
+                call newcregen(env,0)
+             end if
          endif
          call ompautoset(th,5,omp,MX,0) !mode=5 --> Program intern Threads min
       else
          if(.not.env%newcregen)then
              call cregen2(env)
          else
-             call newcregen(env,0)
+             if(env%crestver .eq. crest_solv) then
+                call newcregen(env,6)
+             else
+                call newcregen(env,0)
+            end if
          endif
       endif
       end associate

@@ -191,6 +191,11 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
               end select
               call write_cts(ich,env%cts)
               call write_cts_biasext(ich,env%cts)
+              if (env%crestver .EQ. crest_solv) then
+                call write_cts_NCI(ich,env%cts)
+                write(ich,'(''$end'')')
+              end if
+
           close(ich)
 
           if(index(env%fixfile,'none selected').eq.0)then
@@ -239,7 +244,7 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
            eread(vz) = 1.0d0 
         endif
         !-- clean up
-        call rmrf(trim(tmppath))
+        if(env%crestver .ne. crest_solv) call rmrf(trim(tmppath))
         k=k+1
         if(niceprint)then
           percent=float(k)/float(TMPCONF)*100

@@ -46,7 +46,12 @@ subroutine scrdir(env)
 
       io = makedir(trim(env%scratchdir))
 
-      call copy('coord',trim(env%scratchdir)//'/'//'coord')
+      if (env%crestver .eq. crest_solv) then
+         call copy('solute',trim(env%scratchdir)//'/'//'solute')
+         call copy('solvent',trim(env%scratchdir)//'/'//'solvent')
+      else
+         call copy('coord',trim(env%scratchdir)//'/'//'coord')
+      end if
       call copy('.CHRG',trim(env%scratchdir)//'/'//'.CHRG')
       call copy('.UHF',trim(env%scratchdir)//'/'//'.UHF')
       call copy(env%fixfile,trim(env%scratchdir)//'/'//trim(env%fixfile))

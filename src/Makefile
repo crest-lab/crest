@@ -92,7 +92,9 @@ OBJS4 += compress.o
 OBJS4 += relaxensemble.o
 OBJS4 += acidbase.o
 OBJS4 += biasmerge.o
+OBJS4 += arvo.o
 OBJS4 += solvtool.o
+OBJS4 += solvtool_misc.o
 
 #mainfile for crest binary
 MAINFILES += confscript1.o

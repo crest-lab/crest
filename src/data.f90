@@ -225,3 +225,37 @@ subroutine setr2r4(r2r4)
 
 end subroutine setr2r4
 
+function asym(i)
+      CHARACTER(len=2) :: ASYM
+      CHARACTER(len=2) :: ELEMNT(107), AS
+      DATA ELEMNT/'h ','he', &
+     & 'li','be','b ','c ','n ','o ','f ','ne', &
+     & 'na','mg','al','si','p ','s ','cl','ar', &
+     & 'k ','ca','sc','ti','v ','cr','mn','fe','co','ni','cu', &
+     & 'zn','ga','ge','as','se','br','kr', &
+     & 'rb','sr','y ','zr','nb','mo','tc','ru','rh','pd','ag', &
+     & 'cd','in','sn','sb','te','i ','xe', &
+     & 'cs','ba','la','ce','pr','nd','pm','sm','eu','gd','tb','dy', &
+     & 'ho','er','tm','yb','lu','hf','ta','w ','re','os','ir','pt', &
+     & 'au','hg','tl','pb','bi','po','at','rn', &
+     & 'fr','ra','ac','th','pa','u ','np','pu','am','cm','bk','cf','xx', &
+     & 'fm','md','cb','xx','xx','xx','xx','xx'/
+      AS=ELEMNT(I)
+      CALL UPPER(AS)
+      ASYM=AS
+      if(i.eq.103) asym='XX'
+      RETURN
+end function asym
+
+SUBROUTINE UPPER(AS)
+      CHARACTER(len=2) :: AS
+      NSP=ICHAR(' ')
+      ND=ICHAR('A')-ICHAR('a')
+      DO I=1,2
+         J=ICHAR(AS(I:I))
+         IF(J.NE.NSP)J=J+ND
+         AS(I:I)=CHAR(J)
+      enddo
+      RETURN
+END SUBROUTINE UPPER
+
