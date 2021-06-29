@@ -37,9 +37,16 @@ module zdata
 
      public :: readwbo
 
+     public :: maxringident
+
    private
 
 !==========================================================================================================!
+!==========================================================================================================!
+
+   integer :: maxringident = 100  !limit for ring sizes identified in the topology routines
+                                 !this is necessary for large intertwined systems, e.g. proteins    
+
 !==========================================================================================================!
 
    ! a single atom and all the data involved
@@ -159,6 +166,10 @@ module zdata
       integer,allocatable :: stereotrac(:)  !track the order of stereocenters
       integer,allocatable :: inverter(:,:)  !book keeping of inverting atoms at the resp. stereocenter
       integer,allocatable :: invector(:,:) !inversion vector 
+   
+   !--- atom maps (required if the object is a fragment)
+      integer,allocatable :: map(:)
+      integer,allocatable :: revmap(:)
 
    !--- procedures to be used with the zmol type
       contains
@@ -172,6 +183,8 @@ module zdata
          procedure :: hydrogen => count_hydrogen !function to retun number of hydrogen atoms
          procedure :: countbonds => count_bonds  !cound bonds and track which atoms from them
          procedure :: methyl => is_methyl  !check if a given atom is a methyl C
+         procedure :: fragment => get_fragment !create a new zmolecule object for the i-th fragment
+         procedure :: addring => zmol_add_ring !add a ring to the object
 
    end type zmolecule
 
@@ -238,6 +251,8 @@ subroutine deallocate_zmol(self)
    if(allocated(self%stereotrac))deallocate(self%stereotrac)
    if(allocated(self%inverter))deallocate(self%inverter)
    if(allocated(self%invector))deallocate(self%invector)
+   if(allocated(self%map))deallocate(self%map)
+   if(allocated(self%revmap))deallocate(self%revmap)
 
    if(allocated(self%zat))then
      do i=1,self%nat
@@ -390,6 +405,81 @@ subroutine printrings_zmol(self,ch)
    endif
    return
 end subroutine printrings_zmol
+!==========================================================================================================!
+!create a new zmolecule object for the i-th fragment
+subroutine get_fragment(self,i,znew)
+   implicit none
+   class(zmolecule) :: self
+   type(zmolecule) :: znew    
+   integer :: i,natnew
+   integer :: j,k,l,m,p,q
+   integer,allocatable :: map(:)
+   real(wp),allocatable :: xyz(:,:)
+   if(i>self%nfrag)return
+   call znew%deallocate()
+   allocate(map(self%nat),source=0)
+   natnew=0
+   k=0
+   do j=1,self%nat
+     if(self%molvec(j)==i)then
+         k=k+1
+         map(j)=k
+         natnew=natnew+1
+     endif
+   enddo
+   znew%nat = natnew
+   allocate(znew%zat(znew%nat),znew%at(znew%nat))
+   allocate(znew%map(self%nat),znew%revmap(znew%nat))
+   znew%map = map
+   do j=1,self%nat
+     if(map(j)>0) znew%revmap(map(j)) = j
+   enddo
+   k=0
+   do j=1,self%nat
+     if(self%molvec(j)==i)then 
+         k=k+1
+         znew%zat(k) = self%zat(j)
+         znew%at(k) = self%at(j)
+         do l=1,znew%zat(k)%nei
+            m = znew%zat(k)%ngh(l)
+            znew%zat(k)%ngh(l) = map(m)
+         enddo
+     endif
+   enddo
+   allocate(znew%distmat(znew%nat,znew%nat),source=0.0_wp)
+   allocate(xyz(3,znew%nat))
+   call znew%getxyz(xyz)
+   do j=1,znew%nat
+     do k=1,znew%nat-1
+          znew%distmat(j,k)=(xyz(1,j)-xyz(1,k))**2 + &
+        &                   (xyz(2,j)-xyz(2,k))**2 + &
+        &                   (xyz(3,j)-xyz(3,k))**2
+          znew%distmat(j,k)=sqrt(znew%distmat(j,k))
+          znew%distmat(k,j)=znew%distmat(j,k)
+     enddo
+   enddo
+   deallocate(xyz)
+   deallocate(map)
+   return
+end subroutine get_fragment
+!==========================================================================================================!
+subroutine zmol_add_ring(self,ring)
+   implicit none
+   class(zmolecule) :: self
+   type(zring) :: ring
+   type(zring),allocatable :: rnew(:)
+   integer :: i,k
+   k=self%nri+1
+   allocate(rnew(k))
+   do i=1,self%nri
+      rnew(i) = self%zri(i)
+   enddo
+   rnew(k) = ring
+   if(ring%rs>self%maxring) self%maxring=ring%rs
+   call move_alloc(rnew,self%zri)
+   self%nri = k
+   return
+end subroutine zmol_add_ring
 !==========================================================================================================!
 !==========================================================================================================!
 subroutine deallocate_zring(self)

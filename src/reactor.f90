@@ -219,7 +219,7 @@ subroutine reactor(env, tim)
   !--- 4. optimize the fragments
   if(env%restartopt)then
     call reactorreopt(env,nat,iat,snapCount,file_xyz,taken,zequals,ndirs)
-    call collectproducts('OPTIM','TMPFRG',ndirs,'crest_products.xyz')
+    call collectproducts('OPTIM','TMPFRG',ndirs,'crest_products.xyz',env%riso)
   endif
 
   deallocate(nghref,ngh,bonds)
@@ -748,7 +748,7 @@ subroutine reactorreopt(env,nat,at,nall,xyz,taken,frags,ndirs)
 end subroutine reactorreopt
 
 
-subroutine collectproducts(optdir,base,ndirs,oname)
+subroutine collectproducts(optdir,base,ndirs,oname,iso)
     use iso_fortran_env, wp => real64
     use crest_data, only: bohr
     use iomod
@@ -759,12 +759,14 @@ subroutine collectproducts(optdir,base,ndirs,oname)
     integer,intent(in) :: ndirs
     character(len=*),intent(in) :: oname
     character(len=:),allocatable :: path
+    logical :: iso
 
     logical :: ex
     integer :: i,j,k,l
     integer :: ndtrack
     integer :: idum
     integer :: ich,ich2
+    integer :: natiso
     character(len=256) :: atmp
     character(len=6) :: btmp
 
@@ -796,6 +798,7 @@ subroutine collectproducts(optdir,base,ndirs,oname)
        inquire(file=path,exist=ex)
        if(.not.ex) cycle !maybe some optimizations failed. they are cycled through.
        call rdnat(path,nats(i))
+       if(i==1)natiso=nats(i)
        allocate(xyz(3,nats(i)),at(nats(i)))
        call rdcoord(path,nats(i),at,xyz,energies(i))
 
@@ -813,6 +816,11 @@ subroutine collectproducts(optdir,base,ndirs,oname)
             cycle
           endif
        enddo
+       !--- exclude non-isomers?
+       if(iso)then
+           if(nats(i).ne.natiso) taken(i)=.false. 
+       endif
+
        !--- if the structure was taken, write it to the collective ensemble
        if(taken(i))then
         call wrxyz(ich,nats(i),at,xyz*bohr,energies(i))

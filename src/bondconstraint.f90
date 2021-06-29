@@ -33,7 +33,7 @@ subroutine autoBondConstraint(filename,forceconstant,wbofile)
      real(wp) :: forceconstant
      type(zmolecule) :: zmol    
    !--- get topology
-     call simpletopo_file(filename,zmol,.false.,wbofile)
+     call simpletopo_file(filename,zmol,.false.,.false.,wbofile)
    !--- get bond matrix and write "bondlengths" file
      call getbmat(zmol,1,forceconstant)
      call zmol%deallocate()
@@ -49,7 +49,7 @@ subroutine autoBondConstraint_withEZ(filename,forceconstant,wbofile)
      real(wp) :: forceconstant
      type(zmolecule) :: zmol    
    !--- get topology
-     call simpletopo_file(filename,zmol,.false.,wbofile)
+     call simpletopo_file(filename,zmol,.false.,.false.,wbofile)
    !--- get bond matrix and write "bondlengths" file
      call getbmat(zmol,5,forceconstant)
      call zmol%deallocate()
@@ -73,7 +73,7 @@ subroutine autoMetalConstraint(filename,forceconstant,wbofile)
      real(wp) :: forceconstant
      type(zmolecule) :: zmol
    !--- get topology
-     call simpletopo_file(filename,zmol,.false.,wbofile)
+     call simpletopo_file(filename,zmol,.false.,.false.,wbofile)
    !--- get bond matrix and write "bondlengths" file
      call getbmat(zmol,2,forceconstant)
      call zmol%deallocate()
@@ -97,7 +97,7 @@ subroutine autoHeavyConstraint(filename,forceconstant,wbofile)
      real(wp) :: forceconstant
      type(zmolecule) :: zmol
    !--- get topology
-     call simpletopo_file(filename,zmol,.false.,'')
+     call simpletopo_file(filename,zmol,.false.,.false.,'')
    !--- get bond matrix and write "bondlengths" file
      call getbmat(zmol,3,forceconstant)
      call zmol%deallocate()
@@ -122,7 +122,7 @@ subroutine autoHydrogenConstraint(filename,forceconstant,wbofile)
      real(wp) :: forceconstant
      type(zmolecule) :: zmol
    !--- get topology
-     call simpletopo_file(filename,zmol,.false.,'')
+     call simpletopo_file(filename,zmol,.false.,.false.,'')
    !--- get bond matrix and write "bondlengths" file
      call getbmat(zmol,4,forceconstant)
      call zmol%deallocate()

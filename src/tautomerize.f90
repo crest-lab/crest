@@ -944,7 +944,7 @@ subroutine PDT_constraints(env)
         write(*,*) 'Very strict mode active. Heavy atom positions will be constrained.'
         write(*,'(1x,a,f8.4,a)') 'Selected force constant:',env%forceconst,' Eh'
 
-        call simpletopo_file('coord',zmol,.false.,'')
+        call simpletopo_file('coord',zmol,.false.,.false.,'')
         h = zmol%hydrogen() !-- count hydrogen
         nh = zmol%nat - h
         call fix_first_X_atoms(nh,env%forceconst,'fixpositions')

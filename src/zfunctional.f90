@@ -26,7 +26,7 @@ subroutine topofunctional(env,fname)
 
     character(len=*) :: fname
     type(zmolecule) :: zmol
-    call  simpletopo_file(fname,zmol,.true.,'none')
+    call  simpletopo_file(fname,zmol,.true.,.true.,'none')
 
     !--- do a xtb SP calculation to get a wbo file
     call xtbsp(env)

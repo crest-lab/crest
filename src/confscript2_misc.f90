@@ -35,7 +35,7 @@ subroutine xtbsp(env,xtblevel)
          pipe=' > xtb.out 2>/dev/null'
          call remove('gfnff_topo')
          call remove('energy')
-         call remove('charges')
+         if(.not.env%chargesfile)call remove('charges')
          call remove('xtbrestart')
 !---- (OPTIONAL) select xtb level and set flag
          if(present(xtblevel))then
@@ -71,7 +71,7 @@ subroutine xtbsp(env,xtblevel)
          call remove(fname)
          call remove('xtb.out')
          call remove('energy')
-         call remove('charges')
+         if(.not.env%chargesfile)call remove('charges')
          call remove('xtbrestart')
          call remove('xtbtopo.mol')
          call remove('gfnff_topo')
@@ -93,7 +93,7 @@ subroutine xtbsp2(fname,env)
          integer :: io
          call remove('gfnff_topo')
          call remove('energy')
-         call remove('charges')
+         if(.not.env%chargesfile)call remove('charges')
          call remove('xtbrestart')
 !---- setting threads
          if(env%autothreads)then
@@ -107,7 +107,7 @@ subroutine xtbsp2(fname,env)
 !---- cleanup
          call remove('xtbcalc.out')
          call remove('energy')
-         call remove('charges')
+         if(.not.env%chargesfile)call remove('charges')
          call remove('xtbrestart')
          call remove('xtbtopo.mol')
          call remove('gfnff_topo')
@@ -140,7 +140,7 @@ subroutine xtbopt(env)
 !---- some options
          pipe=' > xtb.out 2>/dev/null'
          call remove('gfnff_topo')
-         call remove('charges')
+         if(.not.env%chargesfile)call remove('charges')
          call remove('grad')
          call remove('mos')
          call remove('xtbopt.log')
@@ -227,7 +227,7 @@ subroutine xtbopt(env)
          call remove(fname)
          call remove('xtb.out')
          call remove('energy')
-         call remove('charges')
+         if(.not.env%chargesfile)call remove('charges')
          call remove('grad')
          call remove('mos')
          call remove('xtbopt.log')
@@ -1437,3 +1437,34 @@ subroutine emtdcheckempty(env,empty,nbias)
     endif
     return
 end subroutine emtdcheckempty
+
+!========================================================================!
+! Sample additional OH orientations
+!========================================================================!
+subroutine XHorient(env,infile)
+    use iso_fortran_env, only: wp=>real64
+    use crest_data
+    use strucrd
+    use zdata
+    use iomod
+    implicit none
+    type(systemdata) :: env
+    character(len=*) :: infile
+    integer :: nat,nall
+    character(len=:),allocatable :: newfile
+    newfile='oh_ensemble.xyz'
+    !--- shouldn't cost much
+      call ohflip_ensemble(env,infile,env%maxflip)
+      call rdensembleparam(newfile,nat,nall)
+    !--- only proceed if there are potential new structures
+      if(nall>0)then
+        call smallhead('Additional orientation sampling')
+        call MDopt_para(env,newfile,0)
+      !---- printout and copy
+        call rename('OPTIM'//'/'//'opt.xyz',trim(newfile))
+        call rmrf('OPTIM')
+      else
+        call remove(newfile)  
+      endif
+    return
+end subroutine XHorient

@@ -37,7 +37,7 @@
 !  simpeltopo_file version is a file wrapper
 !  simpeltopo_mol version is a wrapper for a coord object
 !================================================================================!
-subroutine simpletopo_file(fname,zmol,verbose,wbofile)
+subroutine simpletopo_file(fname,zmol,verbose,getrings,wbofile)
      use iso_fortran_env, wp => real64
      use zdata
      use strucrd, only: rdnat,rdcoord
@@ -45,17 +45,19 @@ subroutine simpletopo_file(fname,zmol,verbose,wbofile)
      character(len=*) :: fname
      type(zmolecule)  :: zmol
      logical          :: verbose
+     logical          :: getrings
      character(len=*),optional :: wbofile
      integer :: n
      integer,allocatable :: at(:)
      real(wp),allocatable :: xyz(:,:)
      logical :: ex
      interface
-         subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
+         subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
              import :: zmolecule, wp
              implicit none
              type(zmolecule)  :: zmol       
              logical          :: verbose
+             logical          :: getrings
              integer,intent(in)  :: n
              integer,intent(in)  :: at(n)
              real(wp),intent(in) :: xyz(3,n) !in Bohrs
@@ -72,16 +74,16 @@ subroutine simpletopo_file(fname,zmol,verbose,wbofile)
       inquire(file=wbofile,exist=ex)
      endif
      if(.not.ex)then
-        call simpletopo(n,at,xyz,zmol,verbose,'')    
+        call simpletopo(n,at,xyz,zmol,verbose,getrings,'')    
      else
-        call simpletopo(n,at,xyz,zmol,verbose,wbofile)
+        call simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
      endif
      
      deallocate(xyz,at)
      return
 end subroutine simpletopo_file
 
-subroutine simpletopo_mol(mol,zmol,verbose)
+subroutine simpletopo_mol(mol,zmol,verbose,getrings)
      use iso_fortran_env, wp => real64
      use zdata
      use strucrd
@@ -89,19 +91,21 @@ subroutine simpletopo_mol(mol,zmol,verbose)
      type(coord)      :: mol    !in 
      type(zmolecule)  :: zmol   !out
      logical          :: verbose
+     logical          :: getrings
      interface
-         subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
+         subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
              import :: zmolecule, wp
              implicit none
              type(zmolecule)  :: zmol       
              logical          :: verbose
+             logical          :: getrings
              integer,intent(in)  :: n
              integer,intent(in)  :: at(n)
              real(wp),intent(in) :: xyz(3,n) !in Bohrs
              character(len=*),intent(in),optional :: wbofile
          end subroutine simpletopo
      end interface
-     call simpletopo(mol%nat,mol%at,mol%xyz,zmol,verbose,'')
+     call simpletopo(mol%nat,mol%at,mol%xyz,zmol,verbose,getrings,'')
      return
 end subroutine simpletopo_mol
 
@@ -114,12 +118,15 @@ end subroutine simpletopo_mol
 !  verbose - boolean to activate printouts
 !  wbofile - (optional) name of the file containing WBOs
 !================================================================================!
-subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
+subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
      use iso_fortran_env, wp => real64
      use zdata
      implicit none
      type(zmolecule)  :: zmol       
+     type(zmolecule)  :: zfrag
+     type(zring)      :: newring
      logical          :: verbose
+     logical          :: getrings
      integer,intent(in)  :: n
      integer,intent(in)  :: at(n)
      real(wp),intent(in) :: xyz(3,n) !in Bohrs
@@ -132,9 +139,10 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
      real(wp) :: dummy
      integer :: i,j,k,l
      integer :: ntopo
-     integer,allocatable :: topomat(:,:)
+     logical,allocatable :: neighmat(:,:)
      integer,allocatable :: topovec(:)
      integer :: nrings
+     character(len=10) :: numchar
 
      logical :: ex,useWBO
 
@@ -168,11 +176,11 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
      if(.not.useWBO)then
 !--- get individual neighbour lists and set up molecule object "zat"
        ntopo = n*(n+1)/2
-       allocate(topomat(n,ntopo),topovec(ntopo))
-       topomat=0
-       call bondtotopo(n,at,bond,cn,ntopo,topovec,topomat)
-       call neighbourset(zmol,n,at,xyz,cn,ntopo,topovec,topomat)
-       deallocate(topovec,topomat)
+       allocate(neighmat(n,n), source=.false.)
+       allocate(topovec(ntopo))
+       call bondtotopo(n,at,bond,cn,ntopo,topovec,neighmat)
+       call neighbourset(zmol,n,at,xyz,cn,ntopo,topovec)
+       deallocate(topovec,neighmat)
      else
 !--- neighbour list could also be set up from WBOs, which is not necessarily better
         do i=1,n
@@ -218,15 +226,40 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,wbofile)
      endif
 
 !--- identify rings
-     call countrings(zmol,nrings)
-     if(verbose)then
-       write(*,'(1x,a,i0,/)')'Total number of rings in the system: ',nrings
+     if(getrings)then
+       do i=1,zmol%nfrag
+         call zmol%fragment(i,zfrag)
+         zfrag%maxring = maxringident !maxringident is a global variable from zdata.f90
+         call countrings(zfrag,nrings)
+         if(verbose.and.nrings>0)then
+             if(zmol%nfrag>1)then
+             write(*,'(1x,a,i0)')'Fragment ',i
+             write(*,'(1x,a,i0,/)')'Total number of rings in the fragment: ',nrings
+             else
+             write(*,'(1x,a,i0,/)')'Total number of rings in the system: ',nrings
+             endif
+         endif
+         if(nrings.ge.1)then
+          allocate(zfrag%zri(nrings))
+          call newgetrings(zfrag,.false.)
+          do j=1,zfrag%nri
+             newring=zfrag%zri(j)
+             do k=1,newring%rs
+                newring%rlist(k) = zfrag%revmap(newring%rlist(k))
+             enddo
+             call zmol%addring(newring)
+             call newring%deallocate()
+          enddo
+         endif
+         call zfrag%deallocate()
+       enddo
+       if(verbose)then
+         call zmol%prrings(6)
+         if(zmol%nri>0)then
+         write(*,'(/,1x,a,i0,/)')'Total number of rings in the system: ',zmol%nri
+         endif
+       endif
      endif
-     if(nrings.ge.1)then
-       allocate(zmol%zri(nrings))
-     endif
-     call newgetrings(zmol,.false.)
-     if(verbose) call zmol%prrings(6)
 
 !--- deallocation of memory
      if(allocated(wbo))deallocate(wbo)
@@ -283,7 +316,7 @@ end subroutine xcoord2
 !===================================================!
 ! generate the topo array for a given structure
 !===================================================!
-subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,topomat)
+subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
        use iso_fortran_env, only : wp=>real64
        integer,intent(in)  :: nat
        integer,intent(in) :: at(nat)
@@ -291,14 +324,14 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,topomat)
        real(wp),intent(in) :: cn(nat)
        integer,intent(in)  :: ntopo
        integer,intent(out) :: topo(ntopo)
-       integer,intent(inout) :: topomat(nat,ntopo) !dummy for crosscheck
        real(wp),allocatable :: cn2(:)
+       logical,intent(inout) :: neighbourmat(nat,nat)
        integer :: i,j,k,l
        integer :: icn,rcn
        integer :: lin
        allocate(cn2(nat),source=0.0_wp)
        topo = 0
-       topomat = 0
+       neighbourmat=.false.
        !--- some heuristic rules and CN array setup
        do i=1,nat
           cn2(i) = cn(i) 
@@ -327,8 +360,7 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,topomat)
             j=maxloc(bond(:,i),1)
             bond(j,i)=0.0d0
             if (i .eq. j) cycle
-            l = lin(i,j)
-            topomat(i,l) = 1
+            neighbourmat(i,j)=.true. !--important: not automatically (i,j)=(j,i)
           enddo
        enddo
        do i=1,nat
@@ -336,15 +368,15 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,topomat)
          if(i==j) cycle
          l = lin(i,j)
          !-- only save matching topology --> prevent high CN failures
-         if(topomat(i,l)==topomat(j,l))then
-            topo(l) = topomat(i,l)
+         if(neighbourmat(i,j).and.neighbourmat(j,i))then
+            topo(l) = 1
          else
             ! special case for carbon (because the carbon CN is typically correct)
             ! this helps, e.g. with eta-coordination in ferrocene
             ! (used, except if both are carbon)
             if(.not.(at(i)==6 .and. at(j)==6))then
-             if(at(i)==6 .and.topomat(i,l)==1) topo(l)=1
-             if(at(j)==6 .and.topomat(j,l)==1) topo(l)=1
+             if(at(i)==6 .and.neighbourmat(i,j)) topo(l)=1
+             if(at(j)==6 .and.neighbourmat(j,i)) topo(l)=1
             endif
          endif
          enddo
@@ -362,22 +394,22 @@ subroutine quicktopo(nat,at,xyz,ntopo,topovec)
     integer :: ntopo
     integer :: topovec(ntopo)
     real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
-    integer,allocatable :: topomat(:,:)
+    logical,allocatable :: neighmat(:,:)
     allocate(rcov(94))
     call setrcov(rcov)
     allocate(bond(nat,nat),cn(nat), source=0.0_wp)
-    allocate(topomat(nat,ntopo))
+    allocate(neighmat(nat,nat), source=.false.)
     cn=0.0d0
     bond=0.0d0
     call xcoord2(nat,at,xyz,rcov,cn,900.0_wp,bond)
-    call bondtotopo(nat,at,bond,cn,ntopo,topovec,topomat)
-    deallocate(topomat,cn,bond,rcov)
+    call bondtotopo(nat,at,bond,cn,ntopo,topovec,neighmat)
+    deallocate(neighmat,cn,bond,rcov)
     return
 end subroutine quicktopo
 
 
 !-- transfer topology data to the zmol object
-subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec,topomat)
+subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec)
       use iso_fortran_env, only : wp => real64
       use zdata
       use strucrd, only: i2e
@@ -388,7 +420,6 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec,topomat)
       integer,intent(in)  :: at(nat)
       real(wp),intent(in) :: cn(nat)
       integer,intent(in)     :: ntopo
-      integer,intent(inout)  :: topomat(nat,ntopo)
       integer,intent(in) :: topovec(ntopo)
       type(zatom)         :: zat    !--- "zat" is the complex datatype object for atom i
       integer :: lin
@@ -408,11 +439,6 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec,topomat)
         do j=1,nat
          if(i==j) cycle
          l = lin(i,j)
-         !if(topomat(i,l)==topomat(j,l))then
-         !  if(topomat(i,l)>0)then
-         !      inei=inei+1
-         !  endif
-         !endif
          if(topovec(l)==1) inei=inei+1
         enddo
         allocate(zmol%zat(i)%ngh(inei))
@@ -421,14 +447,11 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec,topomat)
         do j=1,nat
          if(i==j)cycle
          l = lin(i,j)
-         !if(topomat(i,l)==topomat(j,l))then
-         !  if(topomat(i,l)>0)then
            if(topovec(l)==1)then 
               k=k+1
               zmol%zat(i)%ngh(k)=j      ! the k-th neighbour of atom i is atom j
               zmol%zat(i)%ngt(k)=at(j)  ! atom j has this atom type
            endif
-         !endif
         enddo
         zmol%zat(i)%nei = inei
         call quicksort(inei,zmol%zat(i)%ngh)
@@ -1068,6 +1091,7 @@ recursive subroutine recurring2(zmol,k,j,taken,path,path2,ntak,tref)
       if(any(path(:)==j)) return !if we already passed the atom, return (i.e., no walking back)
 
       if(ntak+1 .ge. tref) return !don't go longer paths as the already known ones
+      if(ntak+1 .ge. zmol%nonterm) return
 
       !--- the atom passed the checks, so we consider it for now
       ntak=ntak+1

@@ -102,7 +102,7 @@ subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
          env%wbofile='none given'
       endif
       zens%xyz = zens%xyz/bohr
-      call simpletopo(zens%nat,zens%at,zens%xyz,zmol,pr,env%wbofile)
+      call simpletopo(zens%nat,zens%at,zens%xyz,zmol,pr,.true.,env%wbofile)
       zens%xyz = zens%xyz*bohr
       allocate(inc(zmol%nat), source = 0)
 

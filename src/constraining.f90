@@ -658,7 +658,7 @@ subroutine mtdatoms(filname,env)
     character(len=256) :: atstr
     integer :: r,rs
     call mol%open(trim(filname))
-    call simpletopo(mol%nat,mol%at,mol%xyz,zmol,.false.,'')
+    call simpletopo(mol%nat,mol%at,mol%xyz,zmol,.false.,.true.,'')
     allocate(inc(env%nat), source=0)
     !-- exclude H atoms
     do i=1,env%nat
@@ -674,7 +674,6 @@ subroutine mtdatoms(filname,env)
      do r=1,zmol%nri
         rs = zmol%zri(r)%rs 
         if(rs <= env%emtd%rmax)then
-         !write(*,*)'ring',zmol%zri(r)%rlist(1:rs)   
          do i=1,rs
             j =  zmol%zri(r)%rlist(i)
             inc(j) = 0
@@ -682,7 +681,6 @@ subroutine mtdatoms(filname,env)
         endif
      enddo
     endif
-    !write(*,*) inc
     if(sum(inc)>0)then
     call build_atlist(atstr,env%nat,inc,.false.)
     env%emtd%atomlist=trim(atstr)
@@ -696,7 +694,6 @@ subroutine mtdatoms(filname,env)
     call mol%deallocate()
     return
 end subroutine mtdatoms
-
 
 !-----------------------------------------------------------------------------
 ! read file with REACTOR-settings into memory

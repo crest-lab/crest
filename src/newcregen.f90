@@ -677,7 +677,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
     real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
     integer,allocatable :: toporef(:)
     integer,allocatable :: topo(:)
-    integer,allocatable :: topomat(:,:)
+    logical,allocatable :: neighmat(:,:)
     integer :: nbonds
     integer :: frag,frag0
     integer :: i,j,k,l
@@ -697,7 +697,8 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
     call rdcoord('coord',nat,atdum,cref)
     !--- get the reference topology matrix (bonds)
     ntopo = nat*(nat+1)/2
-    allocate(toporef(ntopo),topo(ntopo),topomat(nat,ntopo))
+    allocate(toporef(ntopo),topo(ntopo))
+    allocate(neighmat(nat,nat), source=.false.)
     allocate(bond(nat,nat),cn(nat), source=0.0_wp)
     cn=0.0d0
     bond=0.0d0
@@ -705,7 +706,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
     !do i=1,nat
     !   write(*,*) i,i2e(at(i),'nc'),nint(cn(i))
     !enddo
-    call bondtotopo(nat,at,bond,cn,ntopo,toporef,topomat)
+    call bondtotopo(nat,at,bond,cn,ntopo,toporef,neighmat)
 
     nbonds = sum(toporef)
     write(ch,'('' # bonds in reference structure :'',i6)')nbonds
@@ -738,7 +739,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
        cn=0.0d0
        bond=0.0d0
        call xcoord2(nat,at,c1,rcov,cn,400.0_wp,bond)
-       call bondtotopo(nat,at,bond,cn,ntopo,topo,topomat)
+       call bondtotopo(nat,at,bond,cn,ntopo,topo,neighmat)
        do l=1,ntopo
           if(toporef(l).ne.topo(l))then
               !call revlin(int(l,kind=8),k,i)
@@ -797,7 +798,8 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
     if(allocated(ezdihed))deallocate(ezdihed)
     if(allocated(ezat))deallocate(ezat)
     deallocate(cn,bond)
-    deallocate(topomat,topo,toporef)
+    deallocate(neighmat)
+    deallocate(topo,toporef)
     deallocate(atdum)
     deallocate(cref,rcov)    
     return

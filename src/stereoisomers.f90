@@ -65,7 +65,7 @@ subroutine identify_stereocenters(fname,zmol)
      type(zmolecule) :: zmol
      logical,parameter :: verbose = .true.
 
-     call simpletopo_file(fname,zmol,.true.,'')
+     call simpletopo_file(fname,zmol,.true.,.true.,'')
 
      !---- identify stereocenters
      call isstereo(zmol)

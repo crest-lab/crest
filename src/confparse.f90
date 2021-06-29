@@ -41,7 +41,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
 
       character(len=512) :: atmp,btmp
       character(len=:),allocatable :: ctmp,dtmp
-      integer :: i,j,k,l,io,ich
+      integer :: i,j,k,l,io,ich,idum
       integer*8 :: w,v
       real(wp) :: rdum
 
@@ -340,6 +340,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
           case( '-mdopt','-purge' )                                           ! MDOPT
                env%crestver = crest_mdopt
                atmp=''
+               env%preopt=.false.
                env%ensemblename='none selected'
                if(nra.ge.(i+1))atmp=adjustl(arg(i+1))
                if((atmp(1:1)/='-').and.(len_trim(atmp).ge.1))then
@@ -607,7 +608,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 call redo_extrapol(env,ctmp,0)    
                 endif
                 stop
-           case('-SANDBOX' )
+              case('-SANDBOX' )
             !--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
 
             !-----
@@ -895,6 +896,8 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                    env%preactormtd=.true.
                 case( '-fragopt' ) 
                    env%restartopt=.true.
+                case( '-iso' )
+                   env%riso=.true.   
                 case default
                     continue
                end select RCTR
@@ -985,6 +988,22 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                  else
                  write(*,'(2x,a,a)') argument,' : energy reweighting'
                  endif    
+             case('-charges') !read charges from file for GFN-FF calcs.
+                ctmp=trim(arg(i+1))
+                if((len_trim(ctmp)<1).or.(ctmp(1:1)=='-'))then
+                    ctmp='charges'
+                endif
+                inquire(file=ctmp,exist=ex)
+                if(ex)then
+                    env%chargesfilename=ctmp
+                    env%chargesfile=.true.
+                    write(*,'(2x,a,a,a)') '-charges: file <',trim(ctmp),'> used for atomic charges'
+                    call env%ref%rdcharges(env%chargesfilename,idum)
+                    if(idum.ne.env%chrg)then
+                    write(*,'(12x,a,i0)') 'with total summed up molecular charge: ',idum
+                    env%chrg = idum
+                    endif
+                endif
              case( '-dscal','-dispscal','-dscal_global','-dispscal_global' )
                  env%cts%dispscal_md = .true.
                  if(index(argument,'_global').ne.0)then
@@ -1183,6 +1202,15 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 read(arg(i+1),*,iostat=io) rdum
                 if(io==0) env%kshift = rdum   
                 env%kshiftnum = 1
+             case( '-hflip' )
+                env%doOHflip = .true.
+             case( '-noflip' )
+                env%doOHflip = .false.
+             case( '-maxflip' )
+                read(arg(i+1),*,iostat=io) rdum
+                if(io==0 .and. (index(arg(i+1),'-').eq.0))then
+                  env%maxflip = nint(rdum)
+                endif
 !======================================================================================================!
 !------ flags for parallelization / disk space
 !======================================================================================================!
@@ -1797,7 +1825,7 @@ subroutine parseRC2(env,bondconst)
       endif
 
       if(ex1)then
-         write(*,'(1x,a,a,a)') '"',trim(env%constraints),'" file present.'
+         write(*,'(/,1x,a,a,a)') '<',trim(env%constraints),'> file present.'
          cts%used=.true.
       else
          cts%used=.false.
@@ -1981,7 +2009,7 @@ subroutine inputcoords(env,arg)
 
     !--- for protonation/deprotonation applications get ref. number of fragments
     !--- also get some other structure based info
-    call simpletopo_file('coord',zmol,.false.,'')
+    call simpletopo_file('coord',zmol,.false.,.false.,'')
     env%ptb%nfrag = zmol%nfrag
     call zmol%deallocate()
 

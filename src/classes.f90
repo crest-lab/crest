@@ -243,6 +243,9 @@ module crest_data
        real(wp),allocatable :: xyz(:,:)
        integer :: ntopo
        integer,allocatable :: topo(:)
+       real(wp),allocatable :: charges(:)
+    contains
+      procedure :: rdcharges => read_charges
    end type refdata
   
 !-----------------------------------------------------------------------------------------------------
@@ -321,7 +324,8 @@ module crest_data
       character(len=:),allocatable :: inputcoords
       character(len=:),allocatable :: wbofile
       character(len=:),allocatable :: atlist
-
+      character(len=:),allocatable :: chargesfilename
+      
      !--- METADYN data
       real(wp) :: hmass
       real(wp) :: mdtemp
@@ -386,6 +390,10 @@ module crest_data
       character(len=:),allocatable :: pcmeasure
       integer :: clustlev = 0    ! clustering level
 
+    !--- additional structure generation settings
+      logical :: doOHflip = .false.
+      integer :: maxflip = 1000  
+
     !--- external RMSD bias to optimizations
       character(len=:),allocatable :: biasfile
       real(wp) :: rthr2 = 0.3_wp    ! Discard all structures with a bias smaller than this
@@ -419,6 +427,7 @@ module crest_data
       logical :: cluster = .false. ! perform a clustering analysis        
       logical :: checktopo = .true.  !perform topolgy check in CREGEN
       logical :: checkiso  = .false. !perform E/Z isomerization check in CREGEN
+      logical :: chargesfile = .false. !use a given charges file for gfnff
       logical :: compareens        ! try to correlate 2 given Ensemble files
       logical :: confgo            ! perform only the CREGEN routine ?
       logical :: doNMR             ! determine NMR equivalencies in CREGEN ?
@@ -464,6 +473,7 @@ module crest_data
       logical :: relax =.false.    ! was the --relax function used for protonation site search?
       logical :: restartopt        ! restart in the second step of the multilevel opt (V2) ?
       logical :: reweight=.false.  ! reweight structures on the fly after optimizations (i.e. do SPs)?
+      logical :: riso=.false.      ! take only isomers in reactor mode
       logical :: rotamermds        ! do additional MDs after second  multilevel OPT step in V2 ?
       logical :: scallen           ! scale the automatically determined MD length by some factor?
       logical :: scratch           ! use scratch directory
@@ -705,7 +715,7 @@ subroutine wrtCHRG(self,dir)
     class(systemdata) :: self
     character(len=*) :: dir    
     character(len=:),allocatable :: path
-    integer :: ich,k
+    integer :: ich,k,i
     k = len_trim(dir)
     if(self%chrg.ne.0)then
        if(k>0)then 
@@ -727,8 +737,49 @@ subroutine wrtCHRG(self,dir)
        write(ich,*) self%uhf
        close(ich)
     endif  
+    if(self%chargesfile .and. allocated(self%ref%charges))then
+       if(k>0)then 
+       path=trim(dir)//'/'//'charges'
+       else
+       path='charges'
+       endif
+       open(newunit=ich,file=path)
+       do i=1,self%ref%nat
+       write(ich,'(1x,f16.8)') self%ref%charges(i)
+       enddo
+       close(ich)
+    endif
     return
-end subroutine wrtCHRG    
+end subroutine wrtCHRG 
+!------------------------------------------------------------------------------------------------------
+! read atomic charges from a file (one line per atom)
+subroutine read_charges(self,chargesfilename,totchrg)
+    implicit none
+    class(refdata) :: self
+    character(len=*) :: chargesfilename
+    integer :: ich,io,i
+    real(wp) :: dum,tot
+    integer :: totchrg
+    if(allocated(self%charges))deallocate(self%charges)
+    if(self%nat>0)then
+        allocate(self%charges(self%nat),source=0.0_wp)
+        open(newunit=ich,file=chargesfilename)
+        do i=1,self%nat
+         read(ich,*,iostat=io) dum
+         if(io==0)then
+           self%charges(i) = dum
+         endif
+        enddo
+        close(io)
+    endif
+    tot=0.0_wp
+    do i=1,self%nat
+      tot=tot+self%charges(i)
+    enddo
+    totchrg = nint(tot)
+    return
+end subroutine read_charges
+
 
 !------------------------------------------------------------------------------------------------------
 function optlevflag(optlev) result(flag)
