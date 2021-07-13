@@ -1105,8 +1105,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 !call autoBondConstraint('coord',env%forceconst,env%wbofile)
                 ctype = 1
                 bondconst =.true.
+                env%cts%cbonds_global=.true.
                 if( index(argument,'_md').ne.0)then !if the bond constraint shall be present only in the MDs/MTDs
                     env%cts%cbonds_md = .true.
+                    env%cts%cbonds_global=.false.
                 endif
                 if( index(argument,'_ez').ne.0)then !if the bond constraint shall be present only in the MDs/MTDs
                     ctype = 5                 
@@ -1120,8 +1122,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 !call autoMetalConstraint('coord',env%forceconst,env%wbofile)
                 ctype = 2
                 bondconst =.true.
+                env%cts%cbonds_global=.true.
                 if( index(argument,'_md').ne.0)then
                    env%cts%cbonds_md = .true.
+                   env%cts%cbonds_global=.false.                
                 endif
              case( '-cheavy','-fixheavy','-cheavy_md' )    !constrain all heavy atom bonds
                 ctmp=trim(arg(i+1))
@@ -1132,8 +1136,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 !call autoHeavyConstraint('coord',env%forceconst,env%wbofile)
                 ctype = 3
                 bondconst =.true.
+                env%cts%cbonds_global=.true.
                 if( index(argument,'_md').ne.0)then
                    env%cts%cbonds_md = .true.
+                   env%cts%cbonds_global=.false.                
                 endif
              case( '-clight','-fixhyd','-clight_md' )  !constraint all X-H bonds
                 ctmp=trim(arg(i+1))
@@ -1144,8 +1150,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 !call autoHydrogenConstraint('coord',env%forceconst,env%wbofile)
                 ctype = 4
                 bondconst =.true.   
+                env%cts%cbonds_global=.true.               
                 if( index(argument,'_md').ne.0)then
                    env%cts%cbonds_md = .true.
+                   env%cts%cbonds_global=.false.                
                 endif
              case( '-cfile','-cinp' )                                 !specify the constrain file
                 ctmp=trim(arg(i+1))
