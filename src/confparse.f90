@@ -759,6 +759,8 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                    env%autozsort=.false.
                 case( '-norotmd' )                         !don't do the regular mds after step 2 in multilevel optimization of V2
                    env%rotamermds=.false.
+                case( '-rotmd')
+                   env%rotamermds=.true.   
                 case( '-tnmd' )                            !temperature for additional normal MDs
                    call readl(arg(i+1),xx,j)
                    env%nmdtemp=xx(1)
@@ -1171,6 +1173,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
              case( '-nomlo' )   !turn off multilevel optimization
                 env%multilevelopt = .false.   
              case( '-normmd' )             !set number of normMDs
+                 env%rotamermds=.true.
                if(i+1 .le. nra)then  
                 call readl(arg(i+1),xx,j)
                 env%nrotammds=nint(xx(1))  !how many lowest conformers?
