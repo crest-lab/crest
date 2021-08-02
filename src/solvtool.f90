@@ -50,6 +50,7 @@ subroutine crest_solvtool(env, tim)
   progress = 0
   call getcwd(thispath)
 
+  write(*,*) 'MTDUMP',env%mddumpxyz
 
   !>-----------------------------------
   call qcg_head()
@@ -64,6 +65,7 @@ subroutine crest_solvtool(env, tim)
   call read_qcg_input(env,solute,solvent) !Reading mol. data and determining r,V,A
   call qcg_setup(env,solute,solvent)
   call qcg_restart(env,progress,solute,solvent,cluster,full_ensemble,solvent_ensemble,cluster_backup)
+
 
 !-----------------------------------------------------------------------------
 !   Grow
@@ -156,8 +158,9 @@ subroutine qcg_setup(env,solu,solv)
 
   integer :: io, f, r, v
   character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
-  logical :: e_there, tmp
+  logical :: e_there, tmp, used_tmp
   character(len=512) :: thispath, tmp_grow, printout
+  character(len=40)  :: solv_tmp
 
   call getcwd(thispath)
 
@@ -204,6 +207,9 @@ subroutine qcg_setup(env,solu,solv)
      write(*,'(2x,''========================================='')')
   end if
 
+  solv_tmp = env%solv
+  env%solv = ''
+
 !---- Properties solute
   call chdir('solute_properties')
   env%ref%nat = solu%nat
@@ -212,6 +218,10 @@ subroutine qcg_setup(env,solu,solv)
 
 !---- Geometry preoptimization solute
   if (.not. env%nopreopt) then
+    call wrc0('coord',solu%nat,solu%at,solu%xyz) !write coord for xtbopt routine
+    if(env%cts%used .eq. .true.) then
+        call wrc0('coord.ref',solu%nat,solu%at,solu%xyz) !write coord for xtbopt routine
+    end if
     call wrc0('coord',solu%nat,solu%at,solu%xyz) !write coord for xtbopt routine
     call xtbopt(env)
     call rdcoord('coord',solu%nat,solu%at,solu%xyz)
@@ -232,6 +242,11 @@ subroutine qcg_setup(env,solu,solv)
   call copysub('solute.lmo',tmp_grow)
 
   call chdir(thispath)
+
+! No constraints for solvent possible
+  used_tmp = env%cts%used
+  env%cts%used = .false.
+
 
 !---- Properties solvent
   call chdir(env%scratchdir)
@@ -266,6 +281,9 @@ subroutine qcg_setup(env,solu,solv)
 !---- Overwriting solute and solvent in original folder  
   call wrc0('solute',solu%nat,solu%at,solu%xyz)
   call wrc0('solvent',solv%nat,solv%at,solv%xyz)
+
+  env%solv = solv_tmp
+  env%cts%used = used_tmp
 
 end subroutine qcg_setup
 
@@ -567,11 +585,13 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
 
   integer                    :: i,j,k
   integer                    :: io,f,r,ich
+  integer                    :: minpos
   character(len=512)         :: thispath,resultspath,tmppath,tmppath2
   character(len=512)         :: scratchdir_tmp
   character(len=512)         :: jobcall
   character(len=256)         :: inpnam, outnam
   character(len=80)          :: fname,pipe,to, fname_results
+  character(len=64)          :: comment
   character(len=20)          :: gfnver_tmp
   character(len=LEN(env%solv)) :: solv_tmp
   logical                    :: gbsa_tmp
@@ -647,6 +667,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   call inputcoords(env,'crest_input')
   call iV2defaultGF(env)         !Setting MTD parameter
 
+
 !--- Special constraints for gff to safeguard stability
   if(env%ensemble_opt .eq. '--gff') then
     checkiso_tmp = env%checkiso
@@ -669,7 +690,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
     case(0) !Crrest runtype
       env%iterativeV2 = .true.  !Safeguards more precise ensemble search
       write(*,*) 'Starting ensemble cluster generation by CREST routine'
-      env%QCG = .false.
+      env%QCG = .false. !For newcregen: If env%crestver .eq. crest_solv .and. .not. env%QCG then conffile .eq. .true.
       call confscript2i(env,tim) !Calling ensemble search
       env%QCG = .true.
       call copy('crest_rotamers.xyz','crest_rotamers_0.xyz')
@@ -807,7 +828,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
 !--- MTD
 
      if(env%ensemble_method .EQ. 2)then
-        call MetaMD(env,1,env%mdtime,env%metadfac(1),env%metadexp(1), &
+        call MetaMD(env,1,newmdtime,env%metadfac(1),env%metadexp(1), &
            &               env%metadlist(1))
         write(*,'(a,i4,a)') 'Starting Meta-MD with the settings:'
         write(*,'(''     MTD time /ps       :'',f8.1)')newmdtime
@@ -937,6 +958,25 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
 
   env%gfnver = gfnver_tmp
   call ens%write ('full_ensemble.xyz')
+
+
+!--- crest_best structure
+  minpos=minloc(ens%er,dim=1)
+  write(to,'("TMPSP",i0)') minpos
+  call chdir(to)
+!  call clus%deallocate
+!  call rdnat('final_cluster.coord',clus%nat)
+!  allocate(clus%at(clus%nat),clus%xyz(3,clus%nat))
+  call rdxmol('cluster.xyz',clus%nat,clus%at,clus%xyz)
+!  clus%xyz = clus%xyz * bohr
+  call chdir(tmppath2)
+  write(comment,'(F20.8)') ens%er(minpos)
+  inquire(file='crest_best.xyz',exist=ex)
+  if (ex .eq. .true.) then
+     call rmrf('crest_best.xyz') !remove crest_best from 
+  end if
+  call wrxyz('crest_best.xyz',clus%nat,clus%at,clus%xyz,comment)
+
 
 !-------------------------------------------------------------
 !      Processing results

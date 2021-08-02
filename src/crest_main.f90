@@ -60,6 +60,9 @@ program CREST
          call getarg(i,arg(i))
       enddo
       call parseflags(env,arg,args)
+  write(*,*) 'MTDUMP',env%mddumpxyz
+
+
       deallocate(arg)
 
 !===================================================================================================!

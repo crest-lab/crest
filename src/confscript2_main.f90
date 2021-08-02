@@ -354,7 +354,7 @@ subroutine V2mdlength(env)
        write(*,'(''Generating MTD length from a flexibility measure'')')
        write(*,'(''------------------------------------------------'')')
 
-       if(.not.QCG .and. .not.NCI)then
+       if((env%crestver .ne. crest_solv) .and. .not.NCI)then
          write(*,'(1x,a)',advance='no')'Calculating WBOs...'
          call xtbsp(env,0)       !xtb singlepoint to get WBOs (always GFN0)
          write(*,'(1x,a)') 'done.'

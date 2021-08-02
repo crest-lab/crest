@@ -860,6 +860,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
              !-----
                endif
             endif
+
 !======================================================================================================!
 !------- Settings for MDOPT and SCREEN
 !======================================================================================================!
@@ -924,6 +925,32 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                QCG : select case( argument )
                 case( '-keepdir','-keeptmp' )
                     env%keepModef=.true.
+                case( '-tstep' )                           !set MD timestep in fs
+                   call readl(arg(i+1),xx,j)
+                   env%mdstep=xx(1)
+                   env%user_mdstep = .true.
+                case( '-vbdump' )                          !Vbias dump in ps
+                   call readl(arg(i+1),xx,j)
+                   xx(2)=xx(1)*1000
+                   env%mddump=nint(xx(2))
+                case( '-mdskip' )                          !set skipping structures in -mdopt
+                   call readl(arg(i+1),xx,j)
+                   env%mdskip=nint(xx(1))
+                case( '-mddump' )                          !set dumpstep for writing structures out of the md
+               write(*,*) 'HALLO'
+
+                   call readl(arg(i+1),xx,j)
+                   env%mddumpxyz=nint(xx(1))
+                case( '-nomtd' )                           !Don't do the MTD in V2
+                   env%performMTD=.false.
+                case( '-restartopt' )                      !go to step 2 of multilevel optimization immideatly
+                   env%restartopt=.true.
+                   env%autozsort=.false.
+                case( '-norotmd' )                         !don't do the regular mds after step 2 in multilevel optimization of V2
+                   env%rotamermds=.false.
+                case( '-tnmd' )                            !temperature for additional normal MDs
+                   call readl(arg(i+1),xx,j)
+                   env%nmdtemp=xx(1)
                 end select QCG
             end if
 !======================================================================================================!
@@ -1586,6 +1613,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                       env%ensemble_opt='--gff'
                       write(*,'(2x, a)') 'Use of GFN-FF for ensemble search requested.'
                   end select
+
            case( '-freqlvl')
                ctmp=arg(i+1)
                env%qcg_flag = .true.
@@ -1607,9 +1635,6 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                       env%freqver='--gff'
                       write(*,'(2x, a)') 'Use of GFN-FF for frequency computation requested.'
                   end select
-
-
-
 
 !==================================================================!
 !-------- PRINCIPAL COMPONENT analysis and CLUSTERING flags
@@ -1828,7 +1853,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
            endif
       endif
 
-      !-- defaults for QCG gfnff ensemble search
+   !-- defaults for QCG gfnff ensemble search
       if(env%ensemble_opt .EQ. '--gff') then
         env%mdstep = 1.5d0
         env%hmass = 5.0d0 
@@ -1846,13 +1871,24 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
          env%lmover = env%gfnver
      end if
 
-      if(env%useqmdff)then
-         env%autozsort=.false.
-      endif
+     if(env%useqmdff)then
+        env%autozsort=.false.
+     endif
 
-      if(.not.env%preopt)then
-         if(allocated(env%ref%topo))deallocate(env%ref%topo)
-      endif
+     if(.not.env%preopt)then
+        if(allocated(env%ref%topo))deallocate(env%ref%topo)
+     endif
+
+     do i=1, env%cts%ndim
+        if(env%cts%sett(i) .eq. '  reference=coord.ref') then
+            do j=i, env%cts%ndim
+                env%cts%sett(j) = env%cts%sett(j+1)
+            end do
+            env%cts%sett(env%cts%ndim) = ''
+            env%cts%ndim = env%cts%ndim - 1
+        end if
+     end do
+
 
       !driver for optimization along trajectory, additional settings
       if( .not.any((/crest_mfmdgc,crest_imtd,crest_imtd2,crest_compr/)==env%crestver) &
