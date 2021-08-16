@@ -117,7 +117,7 @@ subroutine trialMD(env)
       !call copysub('.CHRG',trim(dirnam))
       !call copysub('.UHF',trim(dirnam))
       call env%wrtCHRG(trim(dirnam))   
-      call copysub(fixfile,trim(dirnam))
+      call copysub(env%fixfile,trim(dirnam))
       !call copysub(constraints,trim(dirnam))
       if(useqmdff)then
         call copysub('solvent',trim(dirnam))
