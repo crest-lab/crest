@@ -391,7 +391,7 @@ module crest_data
       integer :: clustlev = 0    ! clustering level
 
     !--- additional structure generation settings
-      logical :: doOHflip = .false.
+      logical :: doOHflip = .true.
       integer :: maxflip = 1000  
 
     !--- external RMSD bias to optimizations

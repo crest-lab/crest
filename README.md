@@ -88,7 +88,8 @@ The `crest` documentation is hosted at [read-the-docs](https://xtb-docs.readthed
 2. S. Grimme, *J. Chem. Theory Comput.*, **2019**, 155, 2847-2862.
   DOI: [10.1021/acs.jctc.9b00143](https://dx.doi.org/10.1021/acs.jctc.9b00143)
 
-3. P. Pracht, S. Grimme, *Chem. Sci.*, **2021**, DOI: [10.1039/d1sc00621e](https://dx.doi.org/10.1039/d1sc00621e)
+3. P. Pracht, S. Grimme, *Chem. Sci.*, **2021**, 12, 6551-6568.
+  DOI: [10.1039/d1sc00621e](https://dx.doi.org/10.1039/d1sc00621e)
 
 ## License
 
