@@ -337,7 +337,6 @@ program CREST
 
 !===================================================================================================!
 !c Evaluate and print timings
-
       call eval_timer(tim)
       write(*,*)
       write(*,*)'CREST terminated normally.'

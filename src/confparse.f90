@@ -937,8 +937,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                    call readl(arg(i+1),xx,j)
                    env%mdskip=nint(xx(1))
                 case( '-mddump' )                          !set dumpstep for writing structures out of the md
-               write(*,*) 'HALLO'
-
+                   env%user_dumxyz = .true.
                    call readl(arg(i+1),xx,j)
                    env%mddumpxyz=nint(xx(1))
                 case( '-nomtd' )                           !Don't do the MTD in V2

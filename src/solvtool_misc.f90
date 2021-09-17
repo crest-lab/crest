@@ -160,7 +160,7 @@ subroutine opt_cluster(env,solu,clus,fname)
          endif
 
 !--- Jobcall optimization
-  write(jobcall,'(a,1x,a,1x,a,'' --opt '',f4.2,'' --input xcontrol > xtb.out'',a)') &
+  write(jobcall,'(a,1x,a,1x,a,'' --opt '',f4.2,'' --input xcontrol > xtb_opt.out'',a)') &
   &     trim(env%ProgName),trim(fname),trim(env%gfnver),env%optlev,trim(pipe)
   call system(trim(jobcall))
 
@@ -168,7 +168,6 @@ subroutine opt_cluster(env,solu,clus,fname)
   call remove('wbo')
   call remove('charges')
   call remove('xtbrestart')
-  call remove ('xtb.out')
 
 
 !--- Jobcall SP for gbsa model 

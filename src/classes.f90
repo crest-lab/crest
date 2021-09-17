@@ -505,6 +505,7 @@ module crest_data
       logical :: user_mdtime = .false. ! true if mdtime set by user
       logical :: user_mdstep = .false. ! true if mdstep is set by user
       logical :: user_nclust = .false. ! true if number of cluster is set by user (only QCG)
+      logical :: user_dumxyz =.false. !true if dumpxyz is set by user
       logical :: useqmdff          ! use QMDFF in V2?
       logical :: wbotopo =.false.  ! set up topo with WBOs   
 

@@ -687,7 +687,17 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
     !----------------------------------------------------------------
 
   select case(env%ensemble_method)
-    case(0) !Crrest runtype
+    case(0) !Crest runtype
+
+      !Defaults
+      if(env%user_dumxyz .eq. .false.) then
+          env%mddumpxyz = 200
+      end if
+      if(env%user_mdtime .eq. .false.)then
+        env%mdtime = 10.0
+      end if
+
+
       env%iterativeV2 = .true.  !Safeguards more precise ensemble search
       write(*,*) 'Starting ensemble cluster generation by CREST routine'
       env%QCG = .false. !For newcregen: If env%crestver .eq. crest_solv .and. .not. env%QCG then conffile .eq. .true.
@@ -712,9 +722,13 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
       endif
              
       if(env%user_mdtime .eq. .false.)then
-        newmdtime = 10.0 !100.0
+        newmdtime = 100.0 !100.0
       else
         newmdtime = env%mdtime
+      end if
+
+      if(env%user_dumxyz .eq. .false.) then
+          env%mddumpxyz = 1000
       end if
 
       if(env%user_mdstep .eq. .false.) then
@@ -1036,6 +1050,9 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
      end do
      if((k .eq. 0) .or. (k .gt. 10)) then
          k=10 !If too many structures are relevant, set it 10
+     end if
+     if(k .lt. 4) then
+         k=4 !If too less structures are relevant, set it 4
      end if
      write(*,'(2x,a,1x,i0)') 'Conformers taken:',k
      env%nqcgclust = k
@@ -2810,7 +2827,6 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
          write(counter,'(''No   '',i0)') i 
          write(*,*) 'Counter', counter
          call grepval('cluster_energy.dat',counter,ex,solv_ens%er(i))
-         write(*,*) 'Ex?', ex
          write(*,*) 'Energy der cluster',solv_ens%er
       end do
     end if
