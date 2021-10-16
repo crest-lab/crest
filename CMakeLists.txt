@@ -35,8 +35,6 @@ if(NOT TARGET OpenMP::OpenMP_Fortran)
   )
 endif()
 
-# FIXME: We currently only support MKL here:
-set(BLA_VENDOR "Intel10_64lp" CACHE STRING "Search for BLAS only from the specified vendor." FORCE)
 if(NOT TARGET BLAS::BLAS)
   find_package(BLAS REQUIRED)
   if(NOT TARGET BLAS::BLAS AND BLAS_FOUND)
