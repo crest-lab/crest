@@ -716,7 +716,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
       if(env%mdtemp.lt.0.0d0)then
         newtemp=400.00d0 
       else if(env%user_temp .eq. .false.) then
-        newtemp=149.0
+        newtemp=298.0
       else
         newtemp=env%mdtemp
       endif
@@ -1598,7 +1598,6 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
   optlev_tmp=env%optlev 
   env%optlev = 1.0d0    !Increaseing percision for ensemble search to minimze scattering
   gfnver_tmp = env%gfnver
-  write(*,*) 'Method for CFF: GFN-FF'
   env%gfnver = env%freqver  !Setting method
 
 !--- Folder management
@@ -1983,7 +1982,7 @@ subroutine write_qcg_setup(env)
   end if
   write(*,'(2x,''xtb opt level          : '',a)') trim(optlevflag(env%optlev))
   if(env%user_temp .eq. .false.)then
-    write(*,'(2x,''System temperature [K] : ''a)') '149.0'
+    write(*,'(2x,''System temperature [K] : ''a)') '298.0'
   else
     write(*,'(2x,''System temperature [K] : '',F5.1)') env%mdtemps(1)
   end if
