@@ -72,9 +72,11 @@ module strucrd
       public :: grepenergy
       public :: checkcoordtype
 
-      public :: rdnat      !-- procedure to read number of atoms Nat
-      public :: rdcoord    !-- read an input file, determine format automatically
-      public :: rdxmol     !-- read a file in the Xmol (.xyz) format specifically
+      public :: rdnat       !-- procedure to read number of atoms Nat
+      public :: rdcoord     !-- read an input file, determine format automatically
+      public :: rdxmol      !-- read a file in the Xmol (.xyz) format specifically
+      public :: rdxmolselec !-- read only a certain structure in Xmol file
+      public :: rdxtbiffE   !-- read energies from a xtbiff output file
 
       public :: wrc0  !-- write a TM coord file
         interface wrc0
@@ -119,6 +121,7 @@ module strucrd
       public :: pdbdata
       public :: coord
       public :: ensemble  
+      public :: wr_cluster_cut
 
 !=========================================================================================!
    !coord class. contains a single structure in the PDB format.
@@ -172,13 +175,23 @@ module strucrd
    type :: ensemble
 
    !--- data
-       integer :: nat  = 0
-       integer :: nall = 0
+       integer :: nat  = 0             !number of total atoms
+       integer :: nall = 0             !number of structures
        integer,allocatable :: vnat(:)     !used instead of nat if not all structures have the same      number of atoms, in which case nat will be  =maxval(vnat,1)
 
        integer,allocatable  :: at(:)      !atom types as integer, dimension will be at(nat)
        real(wp),allocatable :: xyz(:,:,:) !coordinates, dimension will be xyz(3,nat,nall)
        real(wp),allocatable :: er(:)   !energy of each structure, dimension will be eread(nall)
+
+       real(wp)            :: g         !gibbs free energy
+       real(wp)            :: s         !entropy
+       real(wp),allocatable :: gt(:)    !gibbs free energy of each member
+       real(wp),allocatable :: ht(:)    !enthalpy of each member
+       real(wp),allocatable :: svib(:)  !vibrational entropy of each member
+       real(wp),allocatable :: srot(:)  !rotational entropy of each member
+       real(wp),allocatable :: stra(:)  !translational entropy of each member
+
+
 
        contains
            procedure :: deallocate => deallocate_ensembletype !clear memory space
@@ -586,6 +599,12 @@ subroutine deallocate_ensembletype(self)
       if(allocated(self%at))deallocate(self%at)
       if(allocated(self%xyz))deallocate(self%xyz)
       if(allocated(self%er))deallocate(self%er)
+      if(allocated(self%gt))deallocate(self%gt)
+      if(allocated(self%ht))deallocate(self%ht)
+      if(allocated(self%svib))deallocate(self%svib)
+      if(allocated(self%srot))deallocate(self%srot)
+      if(allocated(self%stra))deallocate(self%stra)
+
       return
 end subroutine deallocate_ensembletype
 
@@ -1063,6 +1082,87 @@ subroutine rdPDB(fname,nat,at,xyz,pdb)
      return
 end subroutine rdPDB     
 
+!============================================================!
+! subroutine rdxmolselec
+! Read a file with multiple structures in the *.xyz (Xmol) style.
+! Picks one structure.
+! The commentary (second) line is ignored
+!
+! On Input: fname  - name of the coord file
+!           m      - position of the desired structure
+!           nat    - number of atoms
+!
+! On Output: at   - atom number as integer
+!            xyz  - coordinates (in Angström)
+!============================================================!
+
+subroutine rdxmolselec(fname,m,nat,at,xyz,comment)
+     implicit none
+     character(len=*),intent(in) :: fname
+     integer,intent(in) :: nat, m
+     integer,intent(inout)  :: at(nat)
+     real(wp),intent(inout) :: xyz(3,nat)
+     character(len=*),optional :: comment
+     character(len=6) :: sym
+     integer :: ich,io,i,j
+     integer :: dum
+     character(len=256) :: atmp  
+
+     open(newunit=ich,file=fname)
+
+     do j=1,m
+       read(ich,*,iostat=io) dum
+       if( nat .ne. dum)then
+           error stop 'error while reading input coordinates'
+       endif
+       read(ich,'(a)') atmp !--commentary line
+       if(present(comment)) comment=trim(adjustl(atmp))
+       do i=1,nat
+         read(ich,'(a)',iostat=io) atmp
+         if(io < 0) exit
+         atmp = adjustl(atmp) 
+         call coordline(atmp,sym,xyz(1:3,i))
+         at(i) = e2i(sym)
+       enddo
+     end do
+     close(ich)
+     xyz = xyz/bohr
+     return
+end subroutine rdxmolselec
+
+!============================================================!
+! Read the Energies from a xtbiff output
+!============================================================!
+
+    subroutine rdxtbiffE(fname,m,n,e)
+    implicit none
+    integer :: m,n
+    character*(*) :: fname
+    real*8 :: e(*)
+
+    character*128 :: line
+    real*8 :: xx(10)
+    integer :: ich,i,j,nn
+    integer :: get_file_unit
+
+!    ich= get_file_unit(160)
+    open(newunit=ich,file=fname)
+
+    j=1
+ 10 continue 
+    read(ich,'(a)',end=999)line
+    read(ich,'(a)')line
+    call readl(line,xx,nn)
+    e(j)=xx(1)
+    do i=1,n
+       read(ich,'(a)')line
+    enddo
+    j=j+1
+    goto 10
+
+999 close(ich)
+    m=j-1
+    end
 
 !==================================================================!
 ! subroutine deallocate_coord
@@ -1384,6 +1484,61 @@ subroutine wrxyz_channel_energy(ch,nat,at,xyz,er)
      enddo
      return
 end subroutine wrxyz_channel_energy
+
+!============================================================!
+! subroutine wr_cluster_cut
+! Cuts a cluster file and and writes the parts 
+!
+! On Input: fname          - name of the coord file
+!           n1             - number of atoms fragment1
+!           n2             - number of atmos fragment2
+!           iter           - number of solvent molecules
+!           fname_solu_cut - name of outputfile fragment1
+!           fname_solv_cut - name of outputfile fragment2
+!
+! On Output: 
+!============================================================!
+
+subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut)
+  use iso_fortran_env, only : wp => real64
+  implicit none
+  integer, intent(in)         :: n1,n2,iter
+  real(wp)                    :: xyz1(3,n1)
+  real(wp)                    :: xyz2(3,n2*iter)
+  integer                     :: at1(n1),at2(n2*iter)
+  character(len=*),intent(in) :: fname_cluster, fname_solu_cut,fname_solv_cut
+  character (len=256)         :: atmp
+  character (len=2)           :: a2   
+  integer                     :: ich,i,j,k,stat,io
+
+  
+  ich=142
+  open(unit=ich,file=fname_cluster, iostat=stat)
+  read(ich,'(a)') atmp
+  k=1
+  do i=1,n1
+     read(ich,'(a)',iostat=io) atmp
+     if(io < 0) exit
+       atmp = adjustl(atmp) 
+       call coordline(atmp,a2,xyz1(1:3,k))
+       at1(k) = e2i(a2)
+     k=k+1
+  end do
+  k=1
+  do i=1,n2*iter
+     read(ich,'(a)',iostat=io) atmp
+     if(io < 0) exit
+       atmp = adjustl(atmp) 
+       call coordline(atmp,a2,xyz2(1:3,k))
+       at2(k) = e2i(a2)
+     k=k+1
+  end do
+  
+  call wrc0(fname_solu_cut,n1,at1,xyz1)
+  call wrc0(fname_solv_cut,n2*iter,at2,xyz2)
+  close(ich)
+end subroutine wr_cluster_cut 
+
 
 
 !============================================================!

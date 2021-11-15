@@ -359,7 +359,7 @@ subroutine cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
     if(simpleset == 6)then
         pr1 = .false.
         pr2 = .false.
-        pr3 = .true.
+        if(env%crestver .ne. crest_solv) pr3 = .true.
     endif
 
     if(simpleset == 9)then
@@ -431,7 +431,11 @@ subroutine cregen_director(env,simpleset,checkbroken,sorte,sortRMSD,sortRMSD2, &
         sortRMSD = .false.
         repairord = .false.
         newfile = .true.
-        conffile = .false.
+        if((env%crestver .eq. crest_solv) .and. (.not. env%QCG)) then
+            conffile = .true. !Conffile is needed for confscript in QCG
+        else
+            conffile = .false.
+        end if
         topocheck = .false.
         checkez = .false.
         bonusfiles= .false.
@@ -695,6 +699,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
     !--- read the reference structure
     allocate(cref(3,nat),atdum(nat))
     call rdcoord('coord',nat,atdum,cref)
+
     !--- get the reference topology matrix (bonds)
     ntopo = nat*(nat+1)/2
     allocate(toporef(ntopo),topo(ntopo))
@@ -2841,9 +2846,15 @@ subroutine cregen_pr2(ch,env,nat,nall,comments,ng,degen,er)
       if(.not.env%confgo)then
       write(*  ,'(1x,''E lowest :'',f12.5)')eref
       endif
-      write(ch,'(''ensemble average energy (kcal)        :'', F9.3)')eav
-      write(ch,'(''ensemble entropy (J/mol K, cal/mol K) :'',2F9.3)')s,ss
-      write(ch,'(''ensemble free energy (kcal/mol)       : '',F8.3)')g
+      if(env%QCG)then
+        write(ch,'(''ensemble average energy (kcal)        :'', F14.8)')eav
+        write(ch,'(''ensemble entropy (cal/mol K)          :'',F14.8)')ss
+        write(ch,'(''ensemble free energy (kcal/mol)       : '',F14.8)')g
+      else
+        write(ch,'(''ensemble average energy (kcal)        :'', F9.3)')eav
+        write(ch,'(''ensemble entropy (J/mol K, cal/mol K) :'',2F9.3)')s,ss
+        write(ch,'(''ensemble free energy (kcal/mol)       : '',F8.3)')g
+      end if
       write(ch,'(''population of lowest in %             : '',F8.3)')pg(1)*100.d0
 
     !-- some ensemble data, entropy and G (including only unique conformers)

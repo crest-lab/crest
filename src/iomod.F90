@@ -231,7 +231,7 @@ subroutine inquiresub(f,sub,bool)
 end subroutine inquiresub
 
 !-------------------------------------------------------------------------
-! append content of test file "from" into text file "to", similar to "cat A >> B"
+! append content of text file "from" into text file "to", similar to "cat A >> B"
 !-------------------------------------------------------------------------
 subroutine appendto(from,to)
       implicit none
@@ -499,6 +499,38 @@ subroutine glinex(line,x,string)
       enddo
       return
 end subroutine glinex
+
+
+!----------------------------------------------------------------------------
+! write a wall potential in a file used as xtb input
+
+subroutine write_wall(env,n1,rabc1,rabc12)
+  use iso_fortran_env, only : wp => real64
+  use crest_data
+
+  implicit none
+
+  type(systemdata)     :: env 
+  integer, intent(in)  :: n1
+  real(wp),intent(in)  :: rabc1(3),rabc12(3)
+  character (len=8)    :: flag
+  
+  open(unit=31,file='xcontrol')
+  flag='$'
+  write(31,'(a,"wall")') trim(flag)
+  write(31,'(3x,"potential=polynomial")')
+  write(31,'(3x,"ellipsoid:",1x,3(g0,",",1x),"all")') rabc12
+  write(31,'(3x,"ellipsoid:",1x,3(g0,",",1x),"1-",i0)') rabc1,n1
+  call write_cts(31,env%cts)
+  call write_cts_biasext(31,env%cts)
+  if(env%cts%used .eq. .true.) then !Only, if user set constrians is an $end written
+     write(31,'(a)') '$end'
+  end if
+
+  close(31)
+
+end subroutine write_wall
+
 
 !----------------------------------------------------------------------------
 ! cut the leading x words (seperated by blanks) of a string, and overwrite it

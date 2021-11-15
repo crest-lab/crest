@@ -75,6 +75,8 @@ module crest_data
    integer,parameter,public :: p_gesc1       = -9224
    integer,parameter,public :: p_gesc2       = -9225
    integer,parameter,public :: p_thermo      = -3654
+   integer,parameter,public :: p_qcg         = 37
+
 !===========================================================================!
 
    private
@@ -316,12 +318,14 @@ module crest_data
       character(len=20)  :: solvent !the solvent
       character(len=:),allocatable :: solv !the entrie gbsa flag including solvent
       character(len=20)  :: gfnver  !GFN version
-      character(len=20)  :: gfnver2  !GFN version (multilevel)
+      character(len=20)  :: gfnver2 !GFN version (multilevel)
+      character(len=20)  :: lmover  !GFN version for LMO computation in xtb_lmo subroutine
       character(len=512) :: ProgName!name of the executable, and enough space for a specified path
+      character(len=512) :: ProgIFF !name of xtbiff for QCG-mode
       character(len=512) :: scratchdir !path to the scratch directory
       character(len=1)   :: seperator !file-path seperator 
       character(len=20)  :: devnull  !/dev/null or NUL
-      character(len=:),allocatable :: inputcoords
+      character(len=:),allocatable :: inputcoords, inputcoords_solv, inputcoords_solu
       character(len=:),allocatable :: wbofile
       character(len=:),allocatable :: atlist
       character(len=:),allocatable :: chargesfilename
@@ -356,6 +360,9 @@ module crest_data
 
     !--- property data objects
       type(protobj) :: ptb
+      type(protobj) :: ptb_solvent
+      type(protobj) :: ptb_solute
+
 
     !--- saved constraints
       type(constra) :: cts
@@ -379,6 +386,18 @@ module crest_data
 
     !--- thermo data
       type(refdata) :: ref
+      type(refdata) :: qcg_solvent
+      type(refdata) :: qcg_solute
+      
+    !--- QCG data
+      integer                      :: qcg_runtype = 0      !Default is grow, 1= ensemble & opt, 2= e_solv, 3= g_solv
+      integer                      :: nsolv = 0            !Number of solventmolecules
+      integer                      :: nqcgclust = 0        !Number of cluster to be taken
+      character(len=:),allocatable :: solu_file, solv_file !solute  and solvent input file
+      integer                      :: ensemble_method = 0  !Default 0 for crest, 1= standard MD, 2= MTD
+      character(len=20)            :: ensemble_opt         !Method for ensemble optimization in qcg mode
+      character(len=20)            :: freqver              !Method for frequency computation in qcg mode
+      real(wp)                     :: freq_scal            !Frequency scaling factor
 
     !--- clustering data
       integer :: maxcluster = 0  ! maximum number of clusters to be generated
@@ -424,6 +443,7 @@ module crest_data
       logical :: autozsort         ! do the ZSORT in the beginning ?
       logical :: allowrestart = .true. !allow restart in crest algos?
       logical :: better            ! found a better conformer and restart in V1
+      logical :: cff               ! CFF used in QCG-energy calculation
       logical :: cluster = .false. ! perform a clustering analysis        
       logical :: checktopo = .true.  !perform topolgy check in CREGEN
       logical :: checkiso  = .false. !perform E/Z isomerization check in CREGEN
@@ -467,6 +487,9 @@ module crest_data
       logical :: presp =.false.    ! do a Sp calculation before starting a job?
       logical :: printscoords      ! write scoord.* files in CREGEN ?
       logical :: QCG               ! QCG special usage
+      logical :: qcg_flag = .false. ! QCG-parsing logical, only true, if qcg exclusive flags used
+      logical :: qcg_restart = .false. ! QCG, only true, if results from previous run are found
+      logical :: nopreopt = .false. ! Switch off preoptimization for QCG
       logical :: quick             ! quick-run option (mainly for testing)
       logical :: readbias = .false. ! read MTD parameters from file
       logical :: reftopo = .true.    !use a reference topology from the given input structure
@@ -475,16 +498,24 @@ module crest_data
       logical :: reweight=.false.  ! reweight structures on the fly after optimizations (i.e. do SPs)?
       logical :: riso=.false.      ! take only isomers in reactor mode
       logical :: rotamermds        ! do additional MDs after second  multilevel OPT step in V2 ?
+      logical :: sameRandomNumber =.false. !QCG related, choose same random number for iff
       logical :: scallen           ! scale the automatically determined MD length by some factor?
       logical :: scratch           ! use scratch directory
       logical :: setgcmax = .false.! adjust the maxmimum number of structures taken into account for GC?
       logical :: sdfformat         ! was the SDF format used as input file?
       logical :: slow              ! slowmode (counterpart to quick mode)
+      logical :: solv_md = .false. !switches on QCG-ensemblerun instead of CFF
       logical :: staticmtd = .false. ! do a static MTD instead of normal MDs
       logical :: subRMSD           ! include only the selected substructure into the CREGEN RMSD
       logical :: superquick        ! very crude quick-run option
       logical :: threadssetmanual  ! are #CPUs set with the '-T' flag ? 
       logical :: trackorigin       ! track the origin of a conformation?
+      logical :: user_enslvl = .false. !true if user set qcg enslvl
+      logical :: user_temp = .false. !true if user set the MD temp
+      logical :: user_mdtime = .false. ! true if mdtime set by user
+      logical :: user_mdstep = .false. ! true if mdstep is set by user
+      logical :: user_nclust = .false. ! true if number of cluster is set by user (only QCG)
+      logical :: user_dumxyz =.false. !true if dumpxyz is set by user
       logical :: useqmdff          ! use QMDFF in V2?
       logical :: wbotopo =.false.  ! set up topo with WBOs   
 

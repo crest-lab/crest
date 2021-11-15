@@ -18,6 +18,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/acidbase.f90"
+  "${dir}/arvo.f"
   "${dir}/atmasses.f90"
   "${dir}/axis3.f"
   "${dir}/biasmerge.f90"
@@ -85,6 +86,7 @@ list(APPEND srcs
   "${dir}/sigterm.f90"
   "${dir}/solve.f"
   "${dir}/solvtool.f90"
+  "${dir}/solvtool_misc.f90"
   "${dir}/sortens.f90"
   "${dir}/spline.f90"
   "${dir}/stereoisomers.f90"
