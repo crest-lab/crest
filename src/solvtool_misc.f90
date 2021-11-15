@@ -1,3 +1,21 @@
+!================================================================================!
+! This file is part of crest.
+!
+! Copyright (C) 2021 Christoph Plett, Sebastian Spicher, Philipp Pracht
+!
+! crest is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! crest is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with crest.  If not, see <https://www.gnu.org/licenses/>.
+!================================================================================!
 
 !--------------------------------------------------------------------------------------------
 ! A quick single point xtb calculation without wbo
@@ -354,6 +372,7 @@ subroutine cff_opt(postopt,env,fname,n12,NTMP,TMPdir,conv,nothing_added)
   logical,intent(in)              :: nothing_added(env%nqcgclust)
   integer                         :: i,j,k,l,m,n,n12
   integer                         :: vz
+  integer                         :: ich31
   character(len=20)               :: optl,pipe
   character(len=256)              :: tmpname,oname         
   character(len=512)              :: thispath,tmppath 
@@ -388,13 +407,13 @@ subroutine cff_opt(postopt,env,fname,n12,NTMP,TMPdir,conv,nothing_added)
   do i=1,NTMP
      write(tmppath,'(a,i0)')trim(TMPdir),conv(i)
      call chdir(trim(tmppath))
-     open(unit=31,file='xcontrol')
+     open(newunit=ich31,file='xcontrol')
      if(n12 .ne. 0) then
         flag='$'
-        write(31,'(a,"fix")') trim(flag)
-        write(31,'(3x,"atoms: 1-",i0)') n12 !Initial number of atoms (starting solvent shell)
+        write(ich31,'(a,"fix")') trim(flag)
+        write(ich31,'(3x,"atoms: 1-",i0)') n12 !Initial number of atoms (starting solvent shell)
      end if
-     close(31)
+     close(ich31)
      if(postopt .and. nothing_added(i)) call remove('xcontrol')
      call chdir(trim(thispath))
   end do   

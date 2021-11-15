@@ -378,6 +378,7 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
   character(len=512)         :: thispath, resultspath
   character(len=20)          :: gfnver_tmp
+  integer                    :: ich99,ich15,ich88
 
   call tim%start(3,'Grow')
 
@@ -388,11 +389,11 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   call chdir('grow') !Results directory
 
 !--- Output Files
-  open(unit=99,file='qcg_energy.dat')
-  write(99,'(i0,2F20.8)') 0,solu%energy,solv%energy
-  open(unit=15,file='qcg_grow.xyz')  ! for molden movie
-  open(unit=88,file='qcg_conv.dat')  ! for convergence check
-  write(88,'(''   #   Energy       Run. Aver.   Diff / au.'')')
+  open(newunit=ich99,file='qcg_energy.dat')
+  write(ich99,'(i0,2F20.8)') 0,solu%energy,solv%energy
+  open(newunit=ich15,file='qcg_grow.xyz')  ! for molden movie
+  open(newunit=ich88,file='qcg_conv.dat')  ! for convergence check
+  write(ich88,'(''   #   Energy       Run. Aver.   Diff / au.'')')
 
   call getcwd(resultspath)
   call chdir(thispath)
@@ -481,10 +482,10 @@ do iter=1, env%nsolv
   dens=0.001*(solu%mass+iter*solv%mass)/(1.0d-30*clus%vtot*bohr**3)
 
 !--- Movie file
-  write(15,*) clus%nat
-  write(15,'('' SCF done '',2F16.8)') eh*(e_each_cycle(iter)-solv%energy-dum) 
+  write(ich15,*) clus%nat
+  write(ich15,'('' SCF done '',2F16.8)') eh*(e_each_cycle(iter)-solv%energy-dum) 
   do j=1,clus%nat
-    write(15,'(a2,3F24.10)')asym(clus%at(j)),clus%xyz(1:3,j)*bohr 
+    write(ich15,'(a,1x,3F24.10)')i2e(clus%at(j)),clus%xyz(1:3,j)*bohr 
   enddo
 
 !--- Output
@@ -493,7 +494,7 @@ do iter=1, env%nsolv
   write(*,'(x,i4,F13.6,1x,f7.2,3x,f7.2,5x,f6.3,3x,f8.3,3x,2f6.1,2x,f8.1,3x,a,x)') &
         & iter,e_each_cycle(iter),eh*(e_each_cycle(iter)-solv%energy-dum),e_diff,dens,efix,shr_av,shr,&
         & clus%vtot,trim(optlevflag(env%optlev))
-  write(99,'(i4,F20.10,3x,f8.1)') iter,e_each_cycle(iter),clus%vtot
+  write(ich99,'(i4,F20.10,3x,f8.1)') iter,e_each_cycle(iter),clus%vtot
 
 !--- Calculate mean energy difference between current and last cycle         
 !     do i=0,iter-1
@@ -504,7 +505,7 @@ do iter=1, env%nsolv
   mean = mean / iter
   mean_diff = mean - mean_old
   mean_old = mean
-  write(88,'(i5,1x,3F13.8)') iter,E_inter(iter)*eh,mean,mean_diff
+  write(ich88,'(i5,1x,3F13.8)') iter,E_inter(iter)*eh,mean,mean_diff
 
 !--- Check if converged when no nsolv was given
   if(env%nsolv .eq. 0) then
@@ -547,9 +548,9 @@ enddo
   write(*,'(2x,''Final geometry after grow in <cluster.coord>'')')
   write(*,'(2x,''Potentials and geometry written in <cluster_cavity.coord> and <twopot_cavity.coord>'')')
 
-  close(99)
-  close(88)
-  close(15)
+  close(ich99)
+  close(ich88)
+  close(ich15)
 
 !--- Saving results and cleanup
   call rename('optimized_cluster.coord','cluster.coord')
@@ -607,6 +608,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   real(wp)                   :: e0
   real(wp), allocatable      :: de(:)
   real(wp), allocatable      :: p(:)
+  integer                    :: ich98,ich65,ich48
 
 
   if(.not.env%solv_md) then
@@ -1001,8 +1003,8 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
 
   call pr_ensemble_energy()
 
-  open(unit=98,file='cluster_energy.dat')
-  write(98,'(3x,''#'',9x,''Energy [Eh]'',6x,''SASA'')')
+  open(newunit=ich98,file='cluster_energy.dat')
+  write(ich98,'(3x,''#'',9x,''Energy [Eh]'',6x,''SASA'')')
 
 !--- Fixation energy of optimization
   do i=1, ens%nall
@@ -1020,12 +1022,12 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
      else
         call analyze_cluster(env%nsolv,clus%nat,solu%nat,solv%nat,clus%xyz,clus%at,shr_av,shr) 
      end if
-     write(98,'(i4,F20.10,3x,f8.1)') env%nsolv,ens%er(i),clus%atot
+     write(ich98,'(i4,F20.10,3x,f8.1)') env%nsolv,ens%er(i),clus%atot
      write(*,'(x,i4,4x,F13.6,2x,f6.3,1x,f8.3,2x,2f6.1,3x,f8.1,3x,a)') &
            & i,ens%er(i),dens,e_fix(i),shr_av,shr,clus%atot,trim(optlevflag(env%optlev))
      e_fix(i) = e_fix(i)*eh/sqrt(float(clus%nat))
   end do
-  close(98)
+  close(ich98)
   call copysub ('cluster_energy.dat',resultspath)
 
 !--- Checking Boltzmann weighting
@@ -1068,24 +1070,24 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
      end if
   end if
 
-  open(unit=65,file='final_ensemble.xyz')
+  open(newunit=ich65,file='final_ensemble.xyz')
   do i=1,k
-     open(unit=48,file='full_population.dat')
-     write(48,'(2x, ''cluster'',2x,''E_norm [Eh]'',2x, ''De [kcal]'', 4x, ''p'')')
+     open(newunit=ich48,file='full_population.dat')
+     write(ich48,'(2x, ''cluster'',2x,''E_norm [Eh]'',2x, ''De [kcal]'', 4x, ''p'')')
      do j=1,ens%nall
         if(j.lt.10) then
-           write(48,'(5x,i0,3x,f11.6,5x,f6.4,3x,f6.4)')j,e_clus(j)/eh, de(j), p(j)
+           write(ich48,'(5x,i0,3x,f11.6,5x,f6.4,3x,f6.4)')j,e_clus(j)/eh, de(j), p(j)
         else
-           write(48,'(5x,i0,2x,f11.6,5x,f6.4,3x,f6.4)')j, e_clus(j)/eh, de(j), p(j)
+           write(ich48,'(5x,i0,2x,f11.6,5x,f6.4,3x,f6.4)')j, e_clus(j)/eh, de(j), p(j)
         end if
      end do
-     close(48)
+     close(ich48)
 
 !--- Take k energetic least structures (written at beginning of file)
      call rdxmolselec('full_ensemble.xyz',i,clus%nat,clus%at,clus%xyz)
-     call wrxyz(65,clus%nat,clus%at,clus%xyz*bohr,ens%er(i))
+     call wrxyz(ich65,clus%nat,clus%at,clus%xyz*bohr,ens%er(i))
   end do
-  close(65)
+  close(ich65)
 
   call ens%deallocate()
   call ens%open('final_ensemble.xyz')
@@ -1197,6 +1199,7 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
 
   character(len=20)          :: gfnver_tmp
   real(wp)                   :: optlev_tmp
+  integer                    :: ich98,ich31
 
   call tim%start(6,'CFF')
 
@@ -1448,9 +1451,9 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   solv_ens%nat = nat_tot
 
 !--- Getting results--------------------------------------------------------------
-  open(unit=31,file='crest_rotamers_0.xyz')
-  open(unit=98,file='cluster_energy.dat')
-  write(98,'(3x,''#'',11x,''Energy [Eh]'',6x,''SASA'')')
+  open(newunit=ich31,file='crest_rotamers_0.xyz')
+  open(newunit=ich98,file='cluster_energy.dat')
+  write(ich98,'(3x,''#'',11x,''Energy [Eh]'',6x,''SASA'')')
 
   do i=1, env%nqcgclust
     write(to,'("TMPCFF",i0)') i
@@ -1479,13 +1482,13 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
     atotS = clus%atot * env%nsolv / (clus%nat/solv%nat)
 
 !--- Writing outputfiles
-    write(31,'(2x,i0)') clus%nat
-    write(31,'(2x,f18.8,2x,a)') e_cluster(i)
+    write(ich31,'(2x,i0)') clus%nat
+    write(ich31,'(2x,f18.8,2x,a)') e_cluster(i)
     do j=1,clus%nat
-      write(31,'(1x,a2,1x,3f20.10)')i2e(clus%at(j),'nc'),clus%xyz(1:3,j)*bohr
+      write(ich31,'(1x,a2,1x,3f20.10)')i2e(clus%at(j),'nc'),clus%xyz(1:3,j)*bohr
     end do
 
-    write(98,'(''No'',i4,F20.10,3x,f8.1)') i,e_norm(i),atotS
+    write(ich98,'(''No'',i4,F20.10,3x,f8.1)') i,e_norm(i),atotS
 
 !--- Print to screen
     write(*,'(x,i4,4x,F13.6,2x,f6.3,1x,f8.3,2x,2f6.1,3x,f8.1,3x,a)') &
@@ -1494,8 +1497,8 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
     call chdir(tmppath2)
   end do
 
-  close(98)
-  close(31)
+  close(ich98)
+  close(ich31)
 
   call solv_ens%deallocate()
   call solv_ens%open('crest_rotamers_0.xyz')
@@ -1588,6 +1591,7 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
   real(wp)                   :: svib(3)
   real(wp)                   :: srot(3)
   real(wp)                   :: stra(3)
+  integer                    :: ich65,ich56,ich33,ich81
 
 
   call tim%start(7,'Frequencies')
@@ -1659,9 +1663,9 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
      call copysub('.UHF',to)
      call copysub('.CHRG',to)
      call chdir(to)
-     open(unit=65,file='cluster.xyz')
-     call wrxyz(65,clus%nat,clus%at,clus%xyz*bohr)
-     close(65)
+     open(newunit=ich65,file='cluster.xyz')
+     call wrxyz(ich65,clus%nat,clus%at,clus%xyz*bohr)
+     close(ich65)
 
      call chdir(tmppath2)
 
@@ -1706,9 +1710,9 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
      call copysub('.UHF',to)
      call copysub('.CHRG',to)
      call chdir(to)
-     open(unit=65,file='solv_cluster.xyz') 
-     call wrxyz(65,solv_ens%nat,solv_ens%at,solv_ens%xyz(:,:,i))
-     close(65)
+     open(newunit=ich65,file='solv_cluster.xyz') 
+     call wrxyz(ich65,solv_ens%nat,solv_ens%at,solv_ens%xyz(:,:,i))
+     close(ich65)
      call chdir(tmppath2)
      call chdir('tmp_solv')
   end do
@@ -1725,16 +1729,16 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
   write(*,*)
   write(*,*) '  Solute Gas properties'
   call pr_freq_energy()
-  open(unit=56,file='solute.dat')
+  open(newunit=ich56,file='solute.dat')
   call pr_freq_file(56)
   write(*,'(2x,5f10.2)') ht(3),svib(3),srot(3),stra(3),gt(3)
-  write(56,'(2x,5f10.2)') ht(3),svib(3),srot(3),stra(3),gt(3)
-  close(56)
+  write(ich56,'(2x,5f10.2)') ht(3),svib(3),srot(3),stra(3),gt(3)
+  close(ich56)
 
 !--- Solute cluster
   write(*,*)
   write(*,*) '  Solute cluster properties'
-  open(unit=33,file='solute_cluster.dat')
+  open(newunit=ich33,file='solute_cluster.dat')
 
   call chdir('tmp_solu')
 
@@ -1745,14 +1749,14 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
   allocate(solu_ens%stra(solu_ens%nall))
 
   call pr_freq_energy()
-  call pr_freq_file(33)
+  call pr_freq_file(ich33)
 
   do i=1,solu_ens%nall 
      write(to,'("TMPFREQ",i0)') i
      call chdir(to)
      call rdtherm('xtb_freq.out',ht(1),svib(1),srot(1),stra(1),gt(1))
      write(*,'(2x,i0,2x,5f10.2)') i,ht(1),svib(1),srot(1),stra(1),gt(1)
-     write(33,'(2x,i0,2x,5f10.2)') i,ht(1),svib(1),srot(1),stra(1),gt(1)
+     write(ich33,'(2x,i0,2x,5f10.2)') i,ht(1),svib(1),srot(1),stra(1),gt(1)
      solu_ens%gt(i) = gt(1)
      solu_ens%ht(i) = ht(1)
      solu_ens%svib(i) = svib(1)
@@ -1762,13 +1766,13 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
      call chdir(tmppath2)
      call chdir('tmp_solu')
   end do
-  close(33)
+  close(ich33)
 
 !--- Solvent cluster
   write(*,*)
   write(*,*) '  Solvent cluster properties'
   call chdir(tmppath2)
-  open(unit=81,file='solvent_cluster.dat')
+  open(newunit=ich81,file='solvent_cluster.dat')
 
   call chdir('tmp_solv')
 
@@ -1779,14 +1783,14 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
   allocate(solv_ens%stra(solv_ens%nall))
 
   call pr_freq_energy()
-  call pr_freq_file(81)
+  call pr_freq_file(ich81)
 
   do i=1,solv_ens%nall 
      write(to,'("TMPFREQ",i0)') i
      call chdir(to)
      call rdtherm('xtb_freq.out',ht(2),svib(2),srot(2),stra(2),gt(2))
      write(*,'(2x,i0,2x,5f10.2)') i,ht(2),svib(2),srot(2),stra(2),gt(2)
-     write(81,'(2x,i0,2x,5f10.2)') i,ht(2),svib(2),srot(2),stra(2),gt(2)
+     write(ich81,'(2x,i0,2x,5f10.2)') i,ht(2),svib(2),srot(2),stra(2),gt(2)
      solv_ens%gt(i) = gt(2)
      solv_ens%ht(i) = ht(2)
      solv_ens%svib(i) = svib(2)
@@ -1795,7 +1799,7 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
      call chdir(tmppath2)
      call chdir('tmp_solv')
   end do
-  close(81)
+  close(ich81)
 
 !--- Saving results
   call chdir(tmppath2)
@@ -1852,6 +1856,7 @@ subroutine qcg_eval(env,solu,solu_ens,solv_ens)
   real(wp)                   :: e_solute(solu_ens%nall)
   real(wp)                   :: e_solvent(solv_ens%nall)
   real(wp)                   :: scal(20)
+  integer                    :: ich23
   real(wp),parameter         :: eh     = 627.509541d0
 
   call pr_eval_eval()
@@ -1915,10 +1920,10 @@ subroutine qcg_eval(env,solu,solu_ens,solv_ens)
   call pr_eval_3(srange,freqscal,env%freq_scal,Gsolv)
 
 ! Save Result
-  open(unit=26,file='frequencies/result.dat')
-  write(26,'("Solvation Free Energy [kcal/mol] :")')
-  write(26,'(f8.2)') Gsolv(freqscal)
-  close(26)
+  open(newunit=ich23,file='frequencies/result.dat')
+  write(ich23,'("Solvation Free Energy [kcal/mol] :")')
+  write(ich23,'(f8.2)') Gsolv(freqscal)
+  close(ich23)
 
 
 end subroutine qcg_eval
@@ -2228,6 +2233,7 @@ end subroutine getmaxrad
 
 subroutine ellipsout(fname,n,at,xyz,r1)
   use iso_fortran_env, only : wp => real64
+  use strucrd, only: i2e
   implicit none
 
   integer            :: i,j
@@ -2237,13 +2243,13 @@ subroutine ellipsout(fname,n,at,xyz,r1)
   real(wp)           :: xyz(3,n),r1(3)
   real               :: x,y,z,f,rr
   character(len=*)   :: fname
-  character(len=2)   :: asym
+  integer            :: ich11
   
 
-  open(unit=11,file=fname)
-  write(11,'(a)')'$coord'
+  open(newunit=ich11,file=fname)
+  write(ich11,'(a)')'$coord'
   do i=1,n
-     write(11,'(3F24.14,6x,a2)') xyz(1,i),xyz(2,i),xyz(3,i),asym(at(i))
+     write(ich11,'(3F24.14,6x,a)') xyz(1,i),xyz(2,i),xyz(3,i),i2e(at(i))
   enddo
   do i=1,500
      call random_number(x)
@@ -2259,16 +2265,17 @@ subroutine ellipsout(fname,n,at,xyz,r1)
      x=x*r1(1)/rr
      y=y*r1(2)/rr
      z=z*r1(3)/rr
-     write(11,'(3F24.14,6x,a2)') x,y,z,asym(2)
+     write(ich11,'(3F24.14,6x,a2)') x,y,z,'he'
   enddo
-  write(11,'(a)')'$end'
-  close(11)
+  write(ich11,'(a)')'$end'
+  close(ich11)
 
 end subroutine ellipsout
 
 
 subroutine both_ellipsout(fname,n,at,xyz,r1,r2)
   use iso_fortran_env, only : wp => real64
+  use strucrd, only: i2e
   implicit none
 
   integer            :: i,j
@@ -2279,12 +2286,12 @@ subroutine both_ellipsout(fname,n,at,xyz,r1,r2)
   real(wp), optional :: r2(3)
   real               :: x,y,z,f,rr
   character(len=*)   :: fname
-  character(len=2)   :: asym
+  integer            :: ich11  
   
-  open(unit=11,file=fname)
-  write(11,'(a)')'$coord'
+  open(newunit=ich11,file=fname)
+  write(ich11,'(a)')'$coord'
   do i=1,n
-     write(11,'(3F24.14,6x,a2)') xyz(1,i),xyz(2,i),xyz(3,i),asym(at(i))
+     write(ich11,'(3F24.14,6x,a)') xyz(1,i),xyz(2,i),xyz(3,i),i2e(at(i))
   enddo
   do i=1,500
      call random_number(x)
@@ -2300,7 +2307,7 @@ subroutine both_ellipsout(fname,n,at,xyz,r1,r2)
      x=x*r1(1)/rr
      y=y*r1(2)/rr
      z=z*r1(3)/rr
-     write(11,'(3F24.14,6x,a2)') x,y,z,asym(2)
+     write(ich11,'(3F24.14,6x,a2)') x,y,z,'he'
   enddo
   if (present(r2)) then
      do i=1,100
@@ -2317,11 +2324,11 @@ subroutine both_ellipsout(fname,n,at,xyz,r1,r2)
      x=x*r2(1)/rr
      y=y*r2(2)/rr
      z=z*r2(3)/rr
-     write(11,'(3F24.14,6x,a2)')x,y,z,asym(5)
+     write(ich11,'(3F24.14,6x,a2)')x,y,z,'b'
      enddo
   end if
-  write(11,'(a)')'$end'
-  close(11)
+  write(ich11,'(a)')'$end'
+  close(ich11)
 
 end subroutine both_ellipsout
 
@@ -2430,6 +2437,7 @@ subroutine aver(pr,env,runs,e_tot,S,H,G,sasa,a_present,a_tot)
   real(wp)                        :: area
   real(wp)                        :: beta
   real(wp)                        :: temp
+  integer                         :: ich48
   real(wp),parameter              :: eh  = 627.509541d0
   dimension e_tot(runs)
   dimension a_tot(runs)
@@ -2444,13 +2452,13 @@ subroutine aver(pr,env,runs,e_tot,S,H,G,sasa,a_present,a_tot)
   call qcg_boltz(env,runs,de,p)
 
   if(pr)then
-  open(unit=48,file='population.dat')
-  write(48,'(2x, ''cluster'',2x,''E_norm [Eh]'',2x, ''De [kcal]'', 4x, ''p'')')
+  open(newunit=ich48,file='population.dat')
+  write(ich48,'(2x, ''cluster'',2x,''E_norm [Eh]'',2x, ''De [kcal]'', 4x, ''p'')')
     do j=1,runs
        if(j.lt.10) then
-          write(48,'(5x,i0,3x,f11.6,5x,f6.4,3x,f6.4)')j,e_tot(j)/eh, de(j), p(j)
+          write(ich48,'(5x,i0,3x,f11.6,5x,f6.4,3x,f6.4)')j,e_tot(j)/eh, de(j), p(j)
        else
-          write(48,'(5x,i0,2x,f11.6,5x,f6.4,3x,f6.4)')j, e_tot(j)/eh, de(j), p(j)
+          write(ich48,'(5x,i0,2x,f11.6,5x,f6.4,3x,f6.4)')j, e_tot(j)/eh, de(j), p(j)
        end if
     end do
   end if
@@ -2471,9 +2479,9 @@ subroutine aver(pr,env,runs,e_tot,S,H,G,sasa,a_present,a_tot)
   S=(1./beta)*A
   H=eav
   G=eav+S
-  write(48,*)
-  write(48,'(''Ensemble free energy [Eh]:'', f20.10)') G/eh
-  close(48)
+  write(ich48,*)
+  write(ich48,'(''Ensemble free energy [Eh]:'', f20.10)') G/eh
+  close(ich48)
  
   deallocate(de,p)
  
@@ -2596,19 +2604,19 @@ subroutine sort_ensemble(ens,e_ens,fname)
   type(ensemble)       :: ens
   real(wp)             :: e_ens(ens%nall),dum(ens%nall)
   character(len=30)    :: fname
-
+  integer              :: ich
   integer              :: i,e_min
 
   dum = e_ens
   
-  open(unit=65,file=fname) 
+  open(newunit=ich,file=fname) 
 
   do i=1,ens%nall
     e_min=minloc(dum,dim=1)
-    call wrxyz(65,ens%nat,ens%at,ens%xyz(:,:,e_min),e_ens(e_min))
+    call wrxyz(ich,ens%nat,ens%at,ens%xyz(:,:,e_min),e_ens(e_min))
     dum(e_min)=0.0d0
   end do
-  close(65)
+  close(ich)
 
 end subroutine sort_ensemble
 
@@ -2635,15 +2643,16 @@ subroutine rdtherm(fname,ht,svib,srot,stra,gt)
   character(len=*)       :: fname
   character(len=128)     :: a
   real(wp),parameter     :: eh = 627.509541d0
+  integer                :: ich
 
 
   ende = .false.
   counter = 0
   hg_line = 0
 
-  open(unit=1,file=fname)
+  open(newunit=ich,file=fname)
   do while (ende == .false.)
-     read(1,'(a)',iostat=io) a
+     read(ich,'(a)',iostat=io) a
      if(io.lt.0)then
        ende = .true.
        cycle
@@ -2674,7 +2683,7 @@ subroutine rdtherm(fname,ht,svib,srot,stra,gt)
      end if
      counter = counter + 1
   end do
-  close(1)
+  close(ich)
 end subroutine rdtherm
 
 
