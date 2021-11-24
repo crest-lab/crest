@@ -214,7 +214,7 @@ subroutine confscript_help()
       write(*,'(5x,''-nsolv <int>       : number of solvent molecules added'')')
       write(*,'(5x,''-grow              : cluster generation'')')
       write(*,'(5x,''-ensemble          : ensemble generation and optimization'')')
-      write(*,'(5x,''-standard          : standard CREST ensemble search and optimization (Default)'')')
+      write(*,'(5x,''-ncimtd            : standard CREST ensemble search and optimization (Default)'')')
       write(*,'(5x,''-mtd               : special MTD of for some cluster structures'')')
       write(*,'(5x,''-md                : nomral MD for qcg ensemble search'')')
       write(*,'(5x,''-enslvl [method]   : define a method for ensemble search. All gfn methods are supported'')')
@@ -867,7 +867,6 @@ end subroutine pr_qcg_freq
 
 subroutine pr_eval_solute()
   implicit none
-  write(*,*)
   write(*,*)
   write(*,'(2x,''________________________________________________________________________'')')
   write(*,*)

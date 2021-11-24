@@ -466,6 +466,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%optlev = 0 !If QCG is invoked, optlevel default is normal
                env%properties = p_qcg
                env%ewin = 3.0d0
+               env%doOHflip = .false. !Switch off OH-flip
                if(env%iterativeV2) env%iterativeV2   = .false. 
            case( '-compress' )
                env%crestver = crest_compr
@@ -1608,7 +1609,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%qcg_flag = .true.
                call readl(arg(i+1),xx,j)
                env%freq_scal = (xx(1))
-           case( '-standard' )
+           case( '-ncimtd' )
                env%ensemble_method = 0
                env%qcg_flag = .true.
            case( '-md' )
@@ -2325,6 +2326,7 @@ subroutine inputcoords_qcg(env,arg1,arg2)
       write(*,*) 'An error occured during solvent-file processing'
     endif
 
+
     !--- if the input was a SDF file, special handling
     env%sdfformat = .false.
     call checkcoordtype(inputfile,i)
@@ -2340,6 +2342,7 @@ subroutine inputcoords_qcg(env,arg1,arg2)
     if(.not.allocated(env%inputcoords_solv))env%inputcoords_solv='solvent'
 
     call mol%open('solute')
+
     env%nat=mol%nat
     !--- solute geo
     env%qcg_solute%nat = mol%nat
@@ -2355,6 +2358,7 @@ subroutine inputcoords_qcg(env,arg1,arg2)
     call mol%deallocate()
 
     call mol%open('solvent')
+
     env%nat=mol%nat
     env%rednat=env%nat        !get the number of atoms and the reduced number of atoms if some of them are     excluded from the RMSD calc in V2
     !--- solvent geo
@@ -2372,11 +2376,11 @@ subroutine inputcoords_qcg(env,arg1,arg2)
 
     !--- for protonation/deprotonation applications get ref. number of fragments
     !--- also get some other structure based info
-    call simpletopo_file('solute',zmol,.false.,'')
+    call simpletopo_file('solute',zmol,.false.,.false.,'')
     env%ptb_solute%nfrag = zmol%nfrag
     call zmol%deallocate()
 
-    call simpletopo_file('solvent',zmol1,.false.,'')
+    call simpletopo_file('solvent',zmol1,.false.,.false.,'')
     env%ptb_solvent%nfrag = zmol1%nfrag
     call zmol1%deallocate()
 

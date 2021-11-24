@@ -50,8 +50,6 @@ subroutine crest_solvtool(env, tim)
   progress = 0
   call getcwd(thispath)
 
-  write(*,*) 'MTDUMP',env%mddumpxyz
-
   !>-----------------------------------
   call qcg_head()
 !  call tim%start(2,'QCG') !start a timer
@@ -156,11 +154,12 @@ subroutine qcg_setup(env,solu,solv)
   type(systemdata):: env 
   type(zmolecule) :: solv, solu 
 
-  integer :: io, f, r, v
+  integer :: io, f, r, v, ich
   character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
   logical :: e_there, tmp, used_tmp
   character(len=512) :: thispath, tmp_grow, printout
   character(len=40)  :: solv_tmp
+  character(len=80) :: atmp
 
   call getcwd(thispath)
 
@@ -222,7 +221,24 @@ subroutine qcg_setup(env,solu,solv)
     if(env%cts%used .eq. .true.) then
         call wrc0('coord.ref',solu%nat,solu%at,solu%xyz) !write coord for xtbopt routine
     end if
-    call wrc0('coord',solu%nat,solu%at,solu%xyz) !write coord for xtbopt routine
+!    call wrc0('coord',solu%nat,solu%at,solu%xyz) !write coord for xtbopt routine
+!---- coord setup section
+         open(newunit=ich,file='coord')
+         do
+              read(ich,'(a)',iostat=io)atmp
+              if(io < 0)exit
+              if(index(atmp,'$coord').ne.0) cycle
+              if(index(atmp(1:1),'$').ne.0)then
+                !write(ich,'(a)')'$end'
+                exit
+              endif
+         enddo
+         !add constraints (only if given, else the routine returns)
+         call write_cts(ich,env%cts)
+         call write_cts_biasext(ich,env%cts)
+         write(ich,'(a)') '$end'
+         close(ich)
+
     call xtbopt(env)
     call rdcoord('coord',solu%nat,solu%at,solu%xyz)
     call remove('coord')
@@ -308,10 +324,10 @@ subroutine read_qcg_input(env,solu,solv)
   pr = .true.
 
 !--- Read in nat, at, xyz
-  call simpletopo_file('solute',solu,.false.,'')
+  call simpletopo_file('solute',solu,.false.,.false.,'')
   allocate(solu%xyz(3,solu%nat))
   call rdcoord('solute',solu%nat,solu%at,solu%xyz)
-  call simpletopo_file('solvent',solv,.false.,'')
+  call simpletopo_file('solvent',solv,.false.,.false.,'')
   allocate(solv%xyz(3,solv%nat))
   call rdcoord('solvent',solv%nat,solv%at,solv%xyz)
 
@@ -388,6 +404,8 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   io = makedir('grow')
   call chdir('grow') !Results directory
 
+
+
 !--- Output Files
   open(newunit=ich99,file='qcg_energy.dat')
   write(ich99,'(i0,2F20.8)') 0,solu%energy,solv%energy
@@ -413,7 +431,6 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
 !--------------------------------------------------------
 ! Start Loop
 !--------------------------------------------------------
-
 do iter=1, env%nsolv
 
 !---- LMO-Computation
@@ -530,6 +547,7 @@ enddo
     call rdcoord('xtbopt.coord',clus%nat,clus%at,clus%xyz)
     call grepval('xtb.out','| TOTAL ENERGY',e_there,clus%energy)
     call wrc0 ('optimized_cluster.coord',clus%nat,clus%at,clus%xyz)
+
     if (e_there .eq. .false.) then
       write(*,'(1x,a)') 'Total Energy of cluster not found.'
     else
@@ -539,13 +557,15 @@ enddo
   end if
 
 !--- output and files
+  call wrxyz ('cluster.xyz',clus%nat,clus%at,clus%xyz*bohr)
+
   write(*,*)
   write(*,'(2x,''Growth finished after '',i0,'' solvents added'')') env%nsolv 
   write(*,'(2x,''Results can be found in grow directory'')')
   write(*,'(2x,''Energy list on file <qcg_energy.dat>'')')
   write(*,'(2x,''Interaction energy on file <qcg_conv.dat>'')')
   write(*,'(2x,''Growing process on <qcg_grow.xyz>'')')
-  write(*,'(2x,''Final geometry after grow in <cluster.coord>'')')
+  write(*,'(2x,''Final geometry after grow in <cluster.coord> and <cluster.xyz>'')')
   write(*,'(2x,''Potentials and geometry written in <cluster_cavity.coord> and <twopot_cavity.coord>'')')
 
   close(ich99)
@@ -555,6 +575,7 @@ enddo
 !--- Saving results and cleanup
   call rename('optimized_cluster.coord','cluster.coord')
   call copysub ('cluster.coord', resultspath)
+  call copysub ('cluster.xyz', resultspath)
   call copysub ('twopot_cavity.coord', resultspath)
   call copysub ('cluster_cavity.coord', resultspath)
   call copysub ('solute_cavity.coord', resultspath)
@@ -891,7 +912,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
         if(mdfail)then
            write(*,*) '        It was unstable'
         else
-           write(*,*)'        The M(T)D time step might be too large'
+           write(*,*)'        The M(T)D time step might be too large or the M(T)D time too short.'
         end if
         call copysub('xtb.out',resultspath)
         error stop '         Please check the xtb.out file in the ensemble folder'
@@ -2719,10 +2740,6 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
   real(wp),allocatable       :: xyz (:,:)
   real(wp),parameter         :: eh = 627.509541d0
 
-  write(*,*) 
-  write(*,*)
-  write(*,*)
-
   grow = .false.
   solu_ensemble = .false.
   solv_ensemble = .false.
@@ -2818,7 +2835,7 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
     write(*,'("  Taking all ", i0, " structures")') env%nqcgclust
     call grepval('population.dat','Ensemble free energy [Eh]:',ex,solu_ens%G)
     solu_ens%G = solu_ens%G*eh
-    write(*,*) 'solute ensmeble free E [kcal/mol]', solu_ens%G
+    write(*,*) 'Solute Ensmeble Free E [kcal/mol]', solu_ens%G
     call chdir(thispath)
     progress = 2
   end if
@@ -2835,7 +2852,7 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
          write(counter,'(''No   '',i0)') i 
          write(*,*) 'Counter', counter
          call grepval('cluster_energy.dat',counter,ex,solv_ens%er(i))
-         write(*,*) 'Energy der cluster',solv_ens%er
+         write(*,*) 'Energy of cluster',solv_ens%er
       end do
     end if
 

@@ -1145,7 +1145,6 @@ end subroutine rdxmolselec
     integer :: ich,i,j,nn
     integer :: get_file_unit
 
-!    ich= get_file_unit(160)
     open(newunit=ich,file=fname)
 
     j=1
