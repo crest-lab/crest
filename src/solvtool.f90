@@ -2736,6 +2736,8 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
   character(len=512)         :: thispath,resultspath,tmppath,tmppath2
   character(len=80)          :: to
   character(len=6)           :: counter
+  character(len=7)           :: counter2
+  character(len=8)           :: counter3
   logical                    :: grow, solu_ensemble, solv_ensemble, solv_cff, solv_present, freq, tmp, ex
   real(wp),allocatable       :: xyz (:,:)
   real(wp),parameter         :: eh = 627.509541d0
@@ -2762,15 +2764,15 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
 !        Check, if everything needed is present
 !---------------------------------------------------------------------------------
 
-  if(freq .and. ((.not. grow) .or. (.not. solu_ensemble) .or. (.not. solv_present))) then
+  if(freq .and. ((.not. grow) .or. (.not. solu_ensemble) .or. (.not. solv_ensemble))) then
     progress = 0
-    call rmrf('freq')
+    call rmrf('frequencies')
     freq = .false.
   end if
 
   if(solv_present .and. ((.not. grow) .or. (.not. solu_ensemble))) then
     progress = 0
-    call rmrf('solv_ensemble')
+    call rmrf('solvent_ensemble')
     solv_present = .false.
     solv_cff = .false.
     solv_ensemble = .false.
@@ -2845,14 +2847,22 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
     call chdir('solvent_ensemble')
     write(*,'("  Ensemble of solvent-cluster found.")')
 
-  !--- Case CFF
+    !--- Case CFF
     if (solv_cff) then
       call solv_ens%open('crest_ensemble.xyz')
       do i=1, solv_ens%nall
-         write(counter,'(''No   '',i0)') i 
-         write(*,*) 'Counter', counter
-         call grepval('cluster_energy.dat',counter,ex,solv_ens%er(i))
-         write(*,*) 'Energy of cluster',solv_ens%er
+         write(*,*) 'i', i
+         if(i .le. 9) then
+            write(counter,'(''No   '',i1)') i 
+            call grepval('cluster_energy.dat',counter,ex,solv_ens%er(i))
+         else if(i .le. 99) then
+            write(counter2,'(''No   '',i2)') i 
+            call grepval('cluster_energy.dat',counter2,ex,solv_ens%er(i))
+         else
+            write(counter3,'(''No   '',i3)') i 
+            call grepval('cluster_energy.dat',counter3,ex,solv_ens%er(i))
+         end if
+         write(*,*) 'Energy of cluster',solv_ens%er(i)
       end do
     end if
 

@@ -76,7 +76,6 @@ module strucrd
       public :: rdcoord     !-- read an input file, determine format automatically
       public :: rdxmol      !-- read a file in the Xmol (.xyz) format specifically
       public :: rdxmolselec !-- read only a certain structure in Xmol file
-      public :: rdxtbiffE   !-- read energies from a xtbiff output file
 
       public :: wrc0  !-- write a TM coord file
         interface wrc0
@@ -121,7 +120,7 @@ module strucrd
       public :: pdbdata
       public :: coord
       public :: ensemble  
-      public :: wr_cluster_cut
+      public :: coordline
 
 !=========================================================================================!
    !coord class. contains a single structure in the PDB format.
@@ -1130,39 +1129,6 @@ subroutine rdxmolselec(fname,m,nat,at,xyz,comment)
      return
 end subroutine rdxmolselec
 
-!============================================================!
-! Read the Energies from a xtbiff output
-!============================================================!
-
-    subroutine rdxtbiffE(fname,m,n,e)
-    implicit none
-    integer :: m,n
-    character*(*) :: fname
-    real*8 :: e(*)
-
-    character*128 :: line
-    real*8 :: xx(10)
-    integer :: ich,i,j,nn
-    integer :: get_file_unit
-
-    open(newunit=ich,file=fname)
-
-    j=1
- 10 continue 
-    read(ich,'(a)',end=999)line
-    read(ich,'(a)')line
-    call readl(line,xx,nn)
-    e(j)=xx(1)
-    do i=1,n
-       read(ich,'(a)')line
-    enddo
-    j=j+1
-    goto 10
-
-999 close(ich)
-    m=j-1
-    end
-
 !==================================================================!
 ! subroutine deallocate_coord
 ! is used to clear memory for the coord type
@@ -1483,62 +1449,6 @@ subroutine wrxyz_channel_energy(ch,nat,at,xyz,er)
      enddo
      return
 end subroutine wrxyz_channel_energy
-
-!============================================================!
-! subroutine wr_cluster_cut
-! Cuts a cluster file and and writes the parts 
-!
-! On Input: fname          - name of the coord file
-!           n1             - number of atoms fragment1
-!           n2             - number of atmos fragment2
-!           iter           - number of solvent molecules
-!           fname_solu_cut - name of outputfile fragment1
-!           fname_solv_cut - name of outputfile fragment2
-!
-! On Output: 
-!============================================================!
-
-subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut)
-  use iso_fortran_env, only : wp => real64
-  implicit none
-  integer, intent(in)         :: n1,n2,iter
-  real(wp)                    :: xyz1(3,n1)
-  real(wp)                    :: xyz2(3,n2*iter)
-  integer                     :: at1(n1),at2(n2*iter)
-  character(len=*),intent(in) :: fname_cluster, fname_solu_cut,fname_solv_cut
-  character (len=256)         :: atmp
-  character (len=2)           :: a2   
-  integer                     :: ich,i,j,k,stat,io
-
-  
-  ich=142
-  open(unit=ich,file=fname_cluster, iostat=stat)
-  read(ich,'(a)') atmp
-  k=1
-  do i=1,n1
-     read(ich,'(a)',iostat=io) atmp
-     if(io < 0) exit
-       atmp = adjustl(atmp) 
-       call coordline(atmp,a2,xyz1(1:3,k))
-       at1(k) = e2i(a2)
-     k=k+1
-  end do
-  k=1
-  do i=1,n2*iter
-     read(ich,'(a)',iostat=io) atmp
-     if(io < 0) exit
-       atmp = adjustl(atmp) 
-       call coordline(atmp,a2,xyz2(1:3,k))
-       at2(k) = e2i(a2)
-     k=k+1
-  end do
-  
-  call wrc0(fname_solu_cut,n1,at1,xyz1)
-  call wrc0(fname_solv_cut,n2*iter,at2,xyz2)
-  close(ich)
-end subroutine wr_cluster_cut 
-
-
 
 !============================================================!
 ! subroutine xyz2coord
