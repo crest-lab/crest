@@ -16,7 +16,7 @@
 
 srcs += files(
   'acidbase.f90',
-  'arvo.f',
+  'arvo.f90',
   'atmasses.f90',
   'axis3.f',
   'biasmerge.f90',

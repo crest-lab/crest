@@ -945,7 +945,6 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
      call rmrf('OPTIM')
      call multilevel_opt(env,99)
   end if
-  error stop 'Test'
 
 !--- Final optimization without potentials
   call rmrf('OPTIM')
