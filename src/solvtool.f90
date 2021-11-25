@@ -405,7 +405,6 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   call chdir('grow') !Results directory
 
 
-
 !--- Output Files
   open(newunit=ich99,file='qcg_energy.dat')
   write(ich99,'(i0,2F20.8)') 0,solu%energy,solv%energy
@@ -946,6 +945,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
      call rmrf('OPTIM')
      call multilevel_opt(env,99)
   end if
+  error stop 'Test'
 
 !--- Final optimization without potentials
   call rmrf('OPTIM')
@@ -954,6 +954,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   env%cts%pots=''
   deallocate(env%cts%pots)
   call multilevel_opt(env,99)
+
 
 !--- Energy sorting
   env%gbsa = gbsa_tmp
