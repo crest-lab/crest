@@ -14,6 +14,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
+subdir('dynamics')
+subdir('calculator')
+
 srcs += files(
   'acidbase.f90',
   'atmasses.f90',

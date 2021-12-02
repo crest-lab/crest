@@ -28,6 +28,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
       use crest_data
       use iomod
       use strucrd
+      use calc_module
       implicit none
 
       type(systemdata),intent(inout) :: env
@@ -610,7 +611,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 stop
               case('-SANDBOX' )
             !--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
-
+                 call test_engrad(trim(arg(1)))
             !-----
               stop
           case default

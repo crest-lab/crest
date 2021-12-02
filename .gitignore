@@ -6,3 +6,4 @@ build_majestix
 build_commands
 _build*
 src/crest
+bin/

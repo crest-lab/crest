@@ -64,10 +64,11 @@ The chain of commands to build `crest` with meson is:
 
 ```bash
 export FC=ifort CC=icc
-meson setup _build_intel --prefix=$PWD/_dist
-meson install -C _build_intel
+meson setup _build --prefix=$PWD/
+meson install -C _build
 ```
 
+The `meson setup` step might additionally require the option `-Dfortran_link_args=-qopenmp` when some of the required libraries are not found.
 When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Tested with version 10.2 of the GNU compilers.
 
 ## Examples

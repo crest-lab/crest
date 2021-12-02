@@ -18,6 +18,10 @@ MODULES += strucreader.o
 MODULES += msmod.o
 MODULES += thermo.o
 
+SUBMOD += dynamics_module.o
+SUBMOD += lj.o
+SUBMOD += calc_module.o
+
 CFILES += symmetry2.o
 CFILES += symmetry_i.o
 CFILES += signal.o
@@ -38,7 +42,6 @@ OBJS2 += readl.o
 OBJS2 += scratch.o
 OBJS2 += sdfio.o
 OBJS2 += shortpath.o
-OBJS2 += solve.o
 
 OBJS3 += axis3.o
 OBJS3 += cleanup.o
@@ -103,10 +106,12 @@ MAINFILES += msreact.o
 MAINFILES += pka.o
 MAINFILES += crest_main.o 
 
-OBJS := $(MODULES) $(CFILES) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(MAINFILES)
+OBJS := $(MODULES) $(SUBMOD) $(CFILES) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(MAINFILES)
 #--------------------------------------------------------------------------
 
-vpath % .
+SUBDIRS = . dynamics calculator
+
+vpath % $(SUBDIRS)
 OBJS := $(addprefix $(OBJDIR)/, $(OBJS))
 #--------------------------------------------------------------------------
 
