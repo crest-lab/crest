@@ -19,105 +19,171 @@
 
 module calc_module
 
-   use iso_fortran_env, only: wp => real64
-   use strucrd
-   use lj
+  use iso_fortran_env,only:wp => real64
+  use strucrd
+  use calc_type
+  use xtb_sc
+  use lj
 
-   implicit none
+  implicit none
 
-   !=========================================================================================!
-   !--- private module variables and parameters
-   private
-     integer :: i,j,k,l,ich,och,io
-     logical :: ex
+  !=========================================================================================!
+  !--- private module variables and parameters
+  private
+  integer :: i,j,k,l,ich,och,io
+  logical :: ex
 
-   !--- some constants and name mappings
-     real(wp),parameter :: bohr  = 0.52917726_wp
-     real(wp),parameter :: autokcal = 627.509541_wp
+  !--- some constants and name mappings
+  real(wp),parameter :: bohr = 0.52917726_wp
+  real(wp),parameter :: autokcal = 627.509541_wp
 
+  public :: engrad
+  interface engrad
+    module procedure :: engrad_mol
+    module procedure :: engrad_xyz
+  end interface engrad
 
-   public :: calcdata
-   !=========================================================================================!
-   !data object that contains settings for a molecular dynamics simulation.
-   type :: calcdata
-
-       integer :: id
-
-       integer  :: molcharge    
-       integer  :: uhf
-
-       character(len=:),allocatable :: path
-       character(len=:),allocatable :: other    
-       character(len=:),allocatable :: systemcall
-
-   end type calcdata
-
-
-   public :: engrad
-   public :: test_engrad
+  public :: test_engrad
 
 contains
 
-subroutine engrad(n,xyz,at,dat,energy,gradient)
-        implicit none
-        integer,intent(in)  :: n
-        real(wp),intent(in) :: xyz(3,n)
-        integer,intent(in)  :: at(n)
-        type(calcdata) :: dat
+  subroutine test_engrad(fname)
+    implicit none
 
-        real(wp),intent(inout) :: energy
-        real(wp),intent(inout) :: gradient(3,n)
-       
-        real(wp) :: dum1,dum2
+    character(len=*) :: fname
 
+    type(coord) :: mol
+    type(coord) :: molo
+    type(calcdata) :: dat
 
-        dum1 = 1.0_wp
-        dum2 = 1.0_wp
+    real(wp) :: energy
+    real(wp),allocatable :: grad(:,:)
 
-        select case (dat%id)
-         case( 99 ) !-- Lennard-Jones dummy calculation
-            call lj_engrad(n,xyz,dum1,dum2,energy,gradient)     
-         case default
-            write(*,*) 'Nothing selected for energy and gradient calculation.'
-        end select
+    logical :: pr
 
+    pr = .false.
 
-        return
-end subroutine engrad        
+    call mol%open(fname)
 
+    allocate (grad(3,mol%nat),source=0.0_wp)
 
-subroutine test_engrad(fname)
-        implicit none
+    !dat%id = 99
+    !dat%other = '15.0   1.5'
+    dat%id = 10
+    dat%calcspace = 'testdir'
+    call engrad(mol,dat,energy,grad,io)
 
-        character(len=*) :: fname
+    write (*,*) 'Energy: ',energy
+    write (*,*) 'Gradient:'
+    do i = 1,mol%nat
+      write (*,'(3f18.8)') grad(1:3,i)
+    end do
 
-        type(coord)    :: mol
-        type(calcdata) :: dat
+    write (*,*)
+    molo = mol
+    if (pr) then
+      call numgrad(molo,dat)
+    end if
+    deallocate (grad)
 
-        real(wp) :: energy
-        real(wp),allocatable :: grad(:,:)
+    return
+  end subroutine test_engrad
 
+!========================================================================================!
+! subroutine engrad
+! main routine to perform some energy and gradient calculation
+  subroutine engrad_mol(mol,dat,energy,gradient,iostatus)
+    implicit none
+    type(coord) :: mol
+    type(calcdata) :: dat
+    real(wp),intent(inout) :: energy
+    real(wp),intent(inout) :: gradient(3,mol%nat)
+    integer,intent(out) :: iostatus
 
-        call mol%open(fname)
+    real(wp) :: dum1,dum2
 
-        allocate(grad(3,mol%nat), source = 0.0_wp)
+    call initsignal()
 
+    iostatus = 0
+    dum1 = 1.0_wp
+    dum2 = 1.0_wp
 
-        dat%id = 99
-        call engrad(mol%nat,mol%xyz,mol%at,dat,energy,grad)
-        
-        write(*,'(3x,a,f10.8)') 'Energy: ',energy
-        write(*,*) 'Gradient:'
-        do i=1,mol%nat
-           write(*,'(3f18.8)') grad(1:3,i)
-        enddo
+    select case (dat%id)
+    case (10) !-- xtb system call
+      call xtb_engrad(mol,dat,energy,gradient,iostatus)
+    case (99) !-- Lennard-Jones dummy calculation
+      if (allocated(dat%other)) then
+        read (dat%other,*) dum1,dum2
+      end if
+      call lj_engrad(mol%nat,mol%xyz,dum1,dum2,energy,gradient)
+    case default
+      write (*,*) 'Nothing selected for energy and gradient calculation.'
+    end select
 
+    return
+  end subroutine engrad_mol
 
-        deallocate(grad)
+  subroutine engrad_xyz(n,xyz,at,dat,energy,gradient,iostatus)
+    implicit none
+    integer,intent(in) :: n
+    real(wp),intent(in) :: xyz(3,n) ! coordinates should be in Bohr (a.u.)
+    integer,intent(in) :: at(n)
+    type(calcdata) :: dat
+    type(coord) :: mol
 
-        return
-end subroutine test_engrad
+    real(wp),intent(inout) :: energy
+    real(wp),intent(inout) :: gradient(3,n)
+    integer,intent(out) :: iostatus
 
+    real(wp) :: dum1,dum2
 
-!==========================================================================================!        
+    mol%nat = n
+    mol%at = at
+    mol%xyz = xyz
+    call engrad_mol(mol,dat,energy,gradient,iostatus)
+
+    return
+  end subroutine engrad_xyz
+
+!========================================================================================!
+! subroutine numgrad
+! routine to perform a numerical gradient calculation
+  subroutine numgrad(mol,dat)
+    implicit none
+
+    type(coord) :: mol
+    type(calcdata) :: dat
+
+    real(wp) :: energy,el,er
+    real(wp),allocatable :: grad(:,:)
+    real(wp),allocatable :: numgrd(:,:)
+    real(wp),parameter :: step = 0.00001_wp,step2 = 0.5_wp / step
+
+    allocate (grad(3,mol%nat),source=0.0_wp)
+    allocate (numgrd(3,mol%nat),source=0.0_wp)
+
+    do i = 1,mol%nat
+      do j = 1,3
+        mol%xyz(j,i) = mol%xyz(j,i) + step
+        call engrad(mol%nat,mol%xyz,mol%at,dat,er,grad,io)
+
+        mol%xyz(j,i) = mol%xyz(j,i) - 2 * step
+        call engrad(mol%nat,mol%xyz,mol%at,dat,el,grad,io)
+
+        mol%xyz(j,i) = mol%xyz(j,i) + step
+        numgrd(j,i) = step2 * (er - el)
+      end do
+    end do
+
+    write (*,*) 'Numerical Gradient:'
+    do i = 1,mol%nat
+      write (*,'(3f18.8)') numgrd(1:3,i)
+    end do
+
+    deallocate (numgrd,grad)
+
+    return
+  end subroutine numgrad
+
+!==========================================================================================!
 end module calc_module
