@@ -22,12 +22,13 @@
 
 module dynamics_module
 
-  use iso_fortran_env,only:wp => real64
+  use iso_fortran_env,only:wp => real64,error_unit
   use calc_type
   use calc_module
   use strucrd
   use atmasses
   use shake_module
+  use metadynamics_module
 
   implicit none
 
@@ -52,6 +53,7 @@ module dynamics_module
   !-- filetypes as integers
   integer,parameter :: type_md = 1
   integer,parameter :: type_mtd = 2
+  integer,parameter :: cv_rmsd = 2
 
   public :: mddata
   !======================================================================================!
@@ -92,6 +94,11 @@ module dynamics_module
     real(wp),allocatable :: blocke(:)
     real(wp),allocatable :: blockt(:)
 
+    !>--- the collection of MTD potentials
+    integer :: npot = 0
+    type(mtdpot),allocatable :: mtd(:)
+    integer,allocatable :: cvtype(:)
+
   end type mddata
 
   public :: dynamics
@@ -113,6 +120,7 @@ contains
     use calc_module
     use strucrd
     use shake_module
+    use metadynamics_module
     implicit none
 
     character(len=*) :: fname
@@ -138,11 +146,11 @@ contains
     !calc%id = 99  !LJ potential
     !calc%other = '3.0  1.0'
     calc%calcspace = 'singlepoints'
-    calc%rdwbo=.true.
+    calc%rdwbo = .true.
     allocate (grad(3,mol%nat),source=0.0_wp)
     call engrad(mol,calc,energy,grad,io)
     deallocate (grad)
-    calc%rdwbo=.false.
+    calc%rdwbo = .false.
 
     shk%shake_mode = 2
     !allocate (shk%wbo(mol%nat,mol%nat),source=0.0_wp)
@@ -151,18 +159,28 @@ contains
     dat%shk = shk
     call init_shake(mol%nat,mol%at,mol%xyz,dat%shk,pr)
     dat%nshake = dat%shk%ncons
-    write (*,*) dat%shk%ncons
 
     dat%length_ps = 20.0_wp
     dat%tstep = 4.0_wp
-    write(*,*) (dat%length_ps*1000.0_wp)/dat%tstep
-    dat%length_steps = 1000
-    dat%dumpstep = 10.0_wp
-    dat%sdump = 10
-    dat%printstep = 10
+    !dat%length_steps = 1000
+    dat%dumpstep = 20.0_wp
+    !dat%sdump = 10
+    !dat%printstep = 10
+    call mdautoset(dat,io)
+
     dat%md_hmass = 4.0_wp
     dat%restart = .true.
     dat%restartfile = 'mdrestart'
+
+    !> test MTD potential
+    dat%simtype = type_mtd
+    dat%npot = 1
+    allocate (dat%mtd(1),dat%cvtype(1))
+    dat%mtd(1)%mtdtype = 2 !> 2=rmsd MTD
+    dat%cvtype = cv_rmsd
+    dat%mtd(1)%cvdump_fs = 1000.0_wp
+    dat%mtd(1)%kpush = 0.002*mol%nat
+
     call dynamics(mol,dat,calc,pr,io)
 
     return
@@ -241,9 +259,10 @@ contains
       write (*,'('' # deg. of freedom  :'',i8  )') nfreedom
       call thermostatprint(dat,pr)
       write (*,'('' SHAKE constraint   :'',6x,l  )') dat%shake
-      if(dat%shake)then
+      if (dat%shake) then
         write (*,'('' # SHAKE bonds      :'',i8 )') dat%nshake
-      endif
+      end if
+      write (*,'('' hydrogen mass      :'',f8.5  )') dat%md_hmass
     end if
 
     !>--- set atom masses
@@ -270,6 +289,11 @@ contains
     call mdinitu(mol,dat,velo,mass,edum,pr)
     call ekinet(mol%nat,velo,mass,ekin)
 
+    !>--- initialize MTDs (if required)
+    if (dat%simtype == type_mtd) then
+      call md_init_mtd(mol,dat,pr)
+    end if
+
     !>--- initialize trajectory file
     write (commentline,'(a,i0,a)') 'crest_',dat%md_index,'.trj'
     trajectory = trim(commentline)
@@ -278,10 +302,10 @@ contains
     !>--- begin printout
     if (pr) then
       if (.not. dat%thermostat) then
-        write (*,'(9x,''time (ps)'',4x,''<Epot>'',6x,''Ekin   <T>   T'',5x, &
+        write (*,'(/,9x,''time (ps)'',4x,''<Epot>'',6x,''Ekin   <T>   T'',5x, &
            &         ''Etot'',7x,''error'','' '')')
       else
-        write (*,'(9x,''time (ps)'',4x,''<Epot>'',6x,''Ekin   <T>   T'',5x, &
+        write (*,'(/,9x,''time (ps)'',4x,''<Epot>'',6x,''Ekin   <T>   T'',5x, &
            &              ''Etot'')')
       end if
     end if
@@ -312,7 +336,9 @@ contains
 
       !>>-- STEP 1.5: calculate metadynamics bias
       if (dat%simtype == type_mtd) then
-        !TODO
+        !> MTD energy and gradient are added to epot and grd, respectively.
+        call md_calc_mtd(mol,dat,epot,grd,pr)
+        call md_update_mtd(mol,dat,calc,pr)
       end if
 
       !>--- block data printouts
@@ -364,7 +390,8 @@ contains
 
       !>>-- STEAP 3: velocity and position update
       !>--- update velocities to t
-      vel = thermoscal * (velo + acc * tstep_au)
+      ! I think the factor of 1/2 for the acc is missing in the xtb version
+      vel = thermoscal * (velo + 0.5_wp * acc * tstep_au)
       !>--- update positions to t+dt
       mol%xyz = molo%xyz + vel * tstep_au
 
@@ -422,7 +449,7 @@ contains
       case (0)
         write (*,*) 'normal MD termination'
       case (1)
-        write (6,*) 'error in MD calculation'
+        write (error_unit,*) 'error in MD calculation'
       case (2)
         write (*,*) 'MD terminated, but still taking as converged.'
       end select
@@ -436,6 +463,39 @@ contains
 
     return
   end subroutine dynamics
+
+!========================================================================================!
+! subroutine mdautoset
+! convert real-time settings (ps,fs) to steps
+! and other fallbacks
+
+  subroutine mdautoset(dat,iostatus)
+    implicit none
+    type(mddata) :: dat
+    integer,intent(out) :: iostatus
+    real(wp) :: dum
+    integer :: idum
+
+    iostatus = 0
+
+    if (dat%length_ps .le. 0.0_wp .or. &
+    &  dat%tstep .le. 0.0_wp) then
+      write (error_unit,*) 'need valid simulation length and time step!'
+      write (error_unit,*) 'abort MD.'
+      iostatus = -1
+      return
+    end if
+
+    !>--- MD length to steps
+    dum = (dat%length_ps * 1000.0_wp) / dat%tstep
+    dat%length_steps = nint(dum)
+
+    !>--- adjust structure dump to trajectory file
+    dum = max(1.0_wp, (dat%dumpstep / dat%tstep))
+    dat%sdump = nint(dum)
+
+    return
+  end subroutine mdautoset
 
 !========================================================================================!
 ! subroutine ekinet
@@ -624,12 +684,16 @@ contains
     integer :: i
 
     newvelos = .true.
+
+    !>--- from restart file
     if (dat%restart) then
       call rdmdrestart(mol,dat,velo,newvelos)
       if (pr .and. (.not. newvelos)) then
-        write (*,'(1x,a,6x,l)') 'read restart file  :',.not.newvelos
+        write (*,'(1x,a,6x,l)') 'read restart file  :',.not. newvelos
       end if
     end if
+
+    !>--- newly initialized
     if (newvelos) then
       if (dat%samerand) then
         call random_seed(size=n)
@@ -910,6 +974,76 @@ contains
       return
     end subroutine dmatinv
   end subroutine rmrottr
+
+!========================================================================================!
+  subroutine md_init_mtd(mol,dat,pr)
+    implicit none
+    type(coord) :: mol
+    type(mddata) :: dat
+    logical :: pr
+    integer :: i
+
+    if (dat%simtype .ne. type_mtd) return
+    if (dat%npot < 1) return
+
+    do i = 1,dat%npot
+      call mtd_ini(mol,dat%mtd(i),dat%tstep,dat%length_ps,pr)
+    end do
+
+    return
+  end subroutine md_init_mtd
+
+!========================================================================================!
+  subroutine md_update_mtd(mol,dat,calc,pr)
+    implicit none
+    type(coord) :: mol
+    type(mddata) :: dat
+    type(calcdata) :: calc
+    logical :: pr
+    integer :: i
+
+    if (dat%simtype .ne. type_mtd) return
+    if (dat%npot < 1) return
+
+    do i = 1,dat%npot
+      select case(dat%cvtype(i)) 
+      case( cv_rmsd )
+       call cv_dump(mol,dat%mtd(i),0.0_wp,pr)  
+      case default
+       cycle
+      end select       
+    end do
+
+    return
+  end subroutine md_update_mtd
+
+!========================================================================================!
+  subroutine md_calc_mtd(mol,dat,epot,grd,pr)
+    implicit none
+    type(coord) :: mol
+    type(mddata) :: dat
+    real(wp),intent(inout) :: epot
+    real(wp),intent(inout) :: grd(3,mol%nat)
+    logical :: pr
+    integer :: i
+    real(wp) :: emtd
+    real(wp),allocatable :: grdmtd(:,:)
+
+
+    if (dat%simtype .ne. type_mtd) return
+    if (dat%npot < 1) return
+
+    allocate(grdmtd(3,mol%nat),source=0.0_wp)
+    do i = 1,dat%npot
+         call calc_mtd(mol,dat%mtd(i),emtd,grdmtd)
+         epot = epot + emtd
+         grd = grd + grdmtd
+    end do
+    deallocate(grdmtd)
+
+    return
+  end subroutine md_calc_mtd
+
 
 !========================================================================================!
 end module dynamics_module

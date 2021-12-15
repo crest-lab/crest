@@ -31,6 +31,7 @@ SUBMOD += lj.o
 SUBMOD += xtb_sc.o
 SUBMOD += shake_module.o
 SUBMOD += calc_module.o
+SUBMOD += metadynamics_module.o
 SUBMOD += dynamics_module.o
 
 OBJS1 += data.o
@@ -133,7 +134,7 @@ ifeq ($(OSTYPE),LINUXI)
 #  FFLAGS := -g -O0 -qopenmp -align array64byte -module $(OBJDIR)
 #  FLAGS := -g -O
 #  FFLAGS := -O -axAVX -qopenmp -align array64byte 
-  FFLAGS += -check all -g -debug all -traceback -fpe0
+#  FFLAGS += -check all -g -debug all -traceback -fpe0
   CCFLAGS += -D_Float128=__float128
   CCFLAGS := -O -DLINUX
 endif

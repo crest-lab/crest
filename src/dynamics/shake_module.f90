@@ -266,7 +266,7 @@ contains
       shk%dro(1:3,i) = xyzo(1:3,iat) - xyzo(1:3,jat)
     end do
 
-!100 continue
+    !>--- iterative SHAKE loop
     do
       maxdev = 0.d0
 
@@ -301,7 +301,7 @@ contains
         end do
       end if
       icyc = icyc + 1
-      if (.not. conv .and. icyc .le. shk%maxcyc) cycle !goto 100
+      if (.not. conv .and. icyc .le. shk%maxcyc) cycle
       exit
     end do
 
@@ -310,9 +310,7 @@ contains
       acc = acc + (xyzt - xyz) * tau2
       xyz = xyzt
     else if (pr) then
-
       write (*,*) 'SHAKE did not converge! maxdev=',maxdev
-      !        if(maxdev.gt.1.d-3) stop 'SHAKE error too large'
     end if
     deallocate (xyzt)
     return
