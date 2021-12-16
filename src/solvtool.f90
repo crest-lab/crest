@@ -492,9 +492,7 @@ do iter=1, env%nsolv
         call check_iff(env, neg_E)
         if(neg_E) then
            success=.true.
-           write(*,*) '  Interaction Energy negative'
         else
-           write(*,*) '  Interaction Energy positive or not successful'
           if(env%potscal .lt. 1.0_wp) then
             write(*,*) '  Wall Potential too small, increasing size by 5 %'
             solv%ell_abc=solv%ell_abc*1.05_wp
@@ -528,9 +526,7 @@ do iter=1, env%nsolv
 
         if(neg_E) then
            success=.true.
-           write(*,*) '  Interaction Energy positive'
         else
-           write(*,*) '  Interaction Energy positive or not successful'
           if(env%potscal .lt. 1.0_wp) then
             write(*,*) '  Wall Potential too small, increasing size by 5 %'
             clus%ell_abc=clus%ell_abc*1.05_wp
