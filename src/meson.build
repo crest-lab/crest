@@ -16,7 +16,6 @@
 
 srcs += files(
   'acidbase.f90',
-  'arvo.f90',
   'atmasses.f90',
   'axis3.f',
   'biasmerge.f90',
@@ -98,6 +97,7 @@ srcs += files(
   'trackorigin.f90',
   'trialmd.f90',
   'utilities.f',
+  'volume.f90',
   'xtbmodef.f90',
   'zdata.f90',
   'zfunctional.f90',

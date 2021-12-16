@@ -18,7 +18,6 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/acidbase.f90"
-  "${dir}/arvo.f90"
   "${dir}/atmasses.f90"
   "${dir}/axis3.f"
   "${dir}/biasmerge.f90"
@@ -100,6 +99,7 @@ list(APPEND srcs
   "${dir}/trackorigin.f90"
   "${dir}/trialmd.f90"
   "${dir}/utilities.f"
+  "${dir}/volume.f90"
   "${dir}/xtbmodef.f90"
   "${dir}/zdata.f90"
   "${dir}/zfunctional.f90"

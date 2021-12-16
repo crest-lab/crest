@@ -450,9 +450,11 @@ module crest_data
       logical :: chargesfile = .false. !use a given charges file for gfnff
       logical :: compareens        ! try to correlate 2 given Ensemble files
       logical :: confgo            ! perform only the CREGEN routine ?
+      logical :: constrain_solu    ! constrain the solute
       logical :: doNMR             ! determine NMR equivalencies in CREGEN ?
       logical :: dryrun =.false.   ! dryrun to print settings
       logical :: ENSO              ! some options for usage of CREST within ENSO
+      logical :: ens_const = .false. ! constrain solute also in Ensemble generation
       logical :: entropic =.false. ! entropy mode
       logical :: entropymd = .false. ! entropy mode static mtds
       logical :: esort = .false.   ! legacy option in old cregen
@@ -473,6 +475,7 @@ module crest_data
       logical :: newcregen = .false. ! use the CREGEN rewrite
       logical :: NCI               ! NCI special usage
       logical :: niceprint         ! make a nice progress-bar printout
+      logical :: noconst=.false.   ! no constrain of solute during QCG Growth
       logical :: onlyZsort         ! do only the ZSORT routine ?
       logical :: optpurge = .false. !MDOPT purge application
       logical :: pcaexclude = .false. ! exclude user set atoms from PCA?
@@ -516,7 +519,9 @@ module crest_data
       logical :: user_mdstep = .false. ! true if mdstep is set by user
       logical :: user_nclust = .false. ! true if number of cluster is set by user (only QCG)
       logical :: user_dumxyz =.false. !true if dumpxyz is set by user
+      logical :: user_wscal =.false. !true if wscal is set by user
       logical :: useqmdff          ! use QMDFF in V2?
+      logical :: water = .false.   ! true if water is used as solvent (only QCG)
       logical :: wbotopo =.false.  ! set up topo with WBOs   
 
     contains

@@ -155,6 +155,7 @@ subroutine qcg_setup(env,solu,solv)
   type(zmolecule) :: solv, solu 
 
   integer :: io, f, r, v, ich
+  integer :: num_O, num_H, i
   character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
   logical :: e_there, tmp, used_tmp
   character(len=512) :: thispath, tmp_grow, printout
@@ -243,7 +244,11 @@ subroutine qcg_setup(env,solu,solv)
     call rdcoord('coord',solu%nat,solu%at,solu%xyz)
     call remove('coord')
   end if
+
+!--- Axistrf
+  call axistrf(solu%nat,solu%nat,solu%at,solu%xyz)
   call wrc0('solute',solu%nat,solu%at,solu%xyz)
+
 
 !---- LMO-Computation solute
   write(*,*) 'Generating LMOs for solute'
@@ -297,6 +302,20 @@ subroutine qcg_setup(env,solu,solv)
 !---- Overwriting solute and solvent in original folder  
   call wrc0('solute',solu%nat,solu%at,solu%xyz)
   call wrc0('solvent',solv%nat,solv%at,solv%xyz)
+
+  num_O =0
+  num_H =0
+!--- Check, if water is solvent
+  if(solv%nat .eq. 3) then
+    do i=1, solv%nat
+      if(solv%at(i) .eq. 8) num_O=num_O+1
+      if(solv%at(i) .eq. 1) num_H=num_H+1
+    end do
+  end if
+  if(num_O .eq. 1 .AND. num_H .eq. 2) then
+    env%water = .true.
+    if( .not. env%noconst) env%constrain_solu = .true.
+  endif
 
   env%solv = solv_tmp
   env%cts%used = used_tmp
@@ -379,7 +398,8 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   integer                    :: minE_pos, m
   integer                    :: iter=1
   integer                    :: i,j,io
-  logical                    :: e_there
+  integer                    :: ich,ios,ios2
+  logical                    :: e_there, high_e, success, neg_E
   real(wp)                   :: etmp(500)
   real(wp)                   :: e_each_cycle(env%nsolv)
   real(wp)                   :: dens,dum,efix
@@ -392,7 +412,7 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   real(wp)                   :: mean_old = 0
   real(wp)                   :: mean_diff = 0
   character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
-  character(len=512)         :: thispath, resultspath
+  character(len=512)         :: thispath, resultspath, tmp
   character(len=20)          :: gfnver_tmp
   integer                    :: ich99,ich15,ich88
 
@@ -415,6 +435,21 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   call getcwd(resultspath)
   call chdir(thispath)
 
+  if(env%water) then
+    if( .not. env%user_wscal) then
+       if(solu%nat .lt. 18) then
+          env%potscal=0.7_wp
+       else
+          env%potscal=0.8_wp
+       end if
+    write(*,*)
+    write(*,'(2x,''Water as solvent recognized, adjusting scaling factor for outer wall pot to '',F4.2)') env%potscal
+    write(*,*)
+    end if
+  end if
+  if (env%constrain_solu)  write(*,'(2x,''Constraining solute during Growth '')')
+
+
   call get_ellipsoid(env, solu, solv, clus,.true.)
   call pr_grow_energy()
 
@@ -432,6 +467,10 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
 !--------------------------------------------------------
 do iter=1, env%nsolv
 
+  e_there=.false.
+  success=.false.
+  high_e=.false.
+  neg_E=.false.
 !---- LMO-Computation
   if (iter .gt. 1) then
   call get_ellipsoid(env, solu, solv, clus,.false.)
@@ -445,11 +484,84 @@ do iter=1, env%nsolv
 
   call both_ellipsout('twopot_1.coord',clus%nat,clus%at,clus%xyz,clus%ell_abc,solu%ell_abc)
 
-  if(iter .eq. 1) then
-    call xtb_iff(env, 'solute.lmo', 'solvent.lmo', solu, solv) !solu for nat of core pot. solv for outer ellips
-  else
-    call xtb_iff(env, 'cluster.lmo', 'solvent.lmo', solu, clus)
-  end if
+  do while (success .eq. .false.) !For restart with larger wall pot
+    if(iter .eq. 1) then
+       call xtb_iff(env, 'solute.lmo', 'solvent.lmo', solu, solv) !solu for nat of core pot. solv for outer ellips
+
+!!! Check if Interaction Energy is negativ and existent, else wall pot. too small and increase
+        call check_iff(env, neg_E)
+        if(neg_E) then
+           success=.true.
+           write(*,*) '  Interaction Energy negative'
+        else
+           write(*,*) '  Interaction Energy positive or not successful'
+          if(env%potscal .lt. 1.0_wp) then
+            write(*,*) '  Wall Potential too small, increasing size by 5 %'
+            solv%ell_abc=solv%ell_abc*1.05_wp
+            env%potscal=env%potscal*1.05_wp
+            if(env%potscal .gt. 1.0_wp) env%potscal=1.0_wp
+            write(*,'(''   New scaling factor '',F4.2)') env%potscal
+         else
+            success=.true.
+          end if
+        end if
+
+!        call minigrep('xtbscreen.xyz', 'SCF done ******************',high_e)
+!        if (.not. high_e) call grepval('xtbscreen.xyz','SCF done',e_there,dum)
+
+!        if(dum .lt. 0 .AND. e_there .eq. .true.) then
+!           success=.true.
+!        else
+!         if(env%potscal .lt. 1.0_wp) then
+!          write(*,*) '  Wall Potential too small, increasing size by 5 %'
+!          solv%ell_abc=solv%ell_abc*1.05_wp
+!          env%potscal=env%potscal*1.05_wp
+!          if(env%potscal .gt. 1.0_wp) env%potscal=1.0_wp
+!          write(*,'('' New scaling factor '',F4.2)') env%potscal
+!         else
+!          success = .true.
+!         end if
+!        end if
+   else
+       call xtb_iff(env, 'cluster.lmo', 'solvent.lmo', solu, clus)
+        call check_iff(env, neg_E)
+
+        if(neg_E) then
+           success=.true.
+           write(*,*) '  Interaction Energy positive'
+        else
+           write(*,*) '  Interaction Energy positive or not successful'
+          if(env%potscal .lt. 1.0_wp) then
+            write(*,*) '  Wall Potential too small, increasing size by 5 %'
+            clus%ell_abc=clus%ell_abc*1.05_wp
+            env%potscal=env%potscal*1.05_wp
+            if(env%potscal .gt. 1.0_wp) env%potscal=1.0_wp
+            write(*,'(''   New scaling factor '',F4.2)') env%potscal
+         else
+            success=.true.
+          end if
+        end if
+
+
+!        call minigrep('xtbscreen.xyz', 'SCF done ******************',high_e)
+!        if (.not. high_e) call grepval('xtbscreen.xyz','SCF done',e_there,dum)
+        !!! If energy is largly positiv, the system is too unphysical
+!        if(dum .lt. 0 .AND. e_there .eq. .true.) then
+!           success=.true.
+!        else
+!         if(env%potscal .lt. 1.0_wp) then
+!          write(*,*) '  Wall Potential too small, increasing size by 5 %'
+!          clus%ell_abc=clus%ell_abc*1.05_wp
+!          env%potscal=env%potscal*1.05_wp
+!          if(env%potscal .gt. 1.0_wp) env%potscal=1.0_wp
+!          write(*,'('' New scaling factor '',F4.2)') env%potscal
+!         else
+!          success = .true.
+!         end if
+!        end if
+    end if
+  end do
+  
 
 !--- Increase cluster size
   call clus%deallocate
@@ -467,15 +579,35 @@ do iter=1, env%nsolv
 
   call both_ellipsout('twopot_2.coord',clus%nat,clus%at,clus%xyz,clus%ell_abc,solu%ell_abc)
 
-!--- Cluster optimization  
+  success=.false.
+
+!--- Cluster restart, if interaction energy not negativ (wall pot. too small)
+  do while (success .eq. .false.)
+!--- Cluster optimization
   call opt_cluster(env,solu,clus,'cluster.coord')
   call rdcoord('xtbopt.coord',clus%nat,clus%at,clus%xyz)
 
-!--- Interaction energy and Output
+!--- Interaction energy
   gfnver_tmp = env%gfnver
   env%gfnver = env%lmover
   call get_interaction_E (env,solu,solv,clus,iter,E_inter)
+  if(E_inter(iter) .lt. 0) then
+     success=.true.
+  else
+     if(env%potscal .lt. 1.0_wp) then
+     write(*,*) '  Interaction Energy positiv, increasing outer wall pot by 5 %'
+     clus%ell_abc=clus%ell_abc*1.05_wp
+     env%potscal=env%potscal*1.05_wp
+     if(env%potscal .gt. 1.0_wp) env%potscal=1.0_wp
+     write(*,'('' New scaling factor '',F4.2)') env%potscal
+     else
+        success = .true.
+     end if
+  end if
+  end do
   env%gfnver = gfnver_tmp
+
+!--- For output
   call grepval('xtb.out','| TOTAL ENERGY',e_there,clus%energy)
   call wrc0 ('optimized_cluster.coord',clus%nat,clus%at,clus%xyz)
   e_each_cycle(iter) = clus%energy
@@ -489,7 +621,6 @@ do iter=1, env%nsolv
   dum=solu%energy
   if(iter.gt.1) dum=e_each_cycle(iter-1)
   e_diff = e_diff + eh*(e_each_cycle(iter)-solv%energy-dum)
-
   call ellipsout('cluster_cavity.coord',clus%nat,clus%at,clus%xyz,clus%ell_abc)
   call both_ellipsout('twopot_cavity.coord',clus%nat,clus%at,clus%xyz,clus%ell_abc,solu%ell_abc)
 
@@ -504,10 +635,12 @@ do iter=1, env%nsolv
     write(ich15,'(a,1x,3F24.10)')i2e(clus%at(j)),clus%xyz(1:3,j)*bohr 
   enddo
 
+
 !--- Output
   call analyze_cluster(iter,clus%nat,solu%nat,solv%nat,clus%xyz,clus%at,shr_av,shr)   ! dist of new mol from solute for output
 
-  write(*,'(x,i4,F13.6,1x,f7.2,3x,f7.2,5x,f6.3,3x,f8.3,3x,2f6.1,2x,f8.1,3x,a,x)') &
+
+  write(*,'(x,i4,F13.6,1x,f7.2,3x,f8.2,6x,f6.3,3x,f8.3,3x,2f6.1,2x,f8.1,3x,a,x)') &
         & iter,e_each_cycle(iter),eh*(e_each_cycle(iter)-solv%energy-dum),e_diff,dens,efix,shr_av,shr,&
         & clus%vtot,trim(optlevflag(env%optlev))
   write(ich99,'(i4,F20.10,3x,f8.1)') iter,e_each_cycle(iter),clus%vtot
@@ -561,9 +694,9 @@ enddo
   write(*,*)
   write(*,'(2x,''Growth finished after '',i0,'' solvents added'')') env%nsolv 
   write(*,'(2x,''Results can be found in grow directory'')')
-  write(*,'(2x,''Energy list on file <qcg_energy.dat>'')')
-  write(*,'(2x,''Interaction energy on file <qcg_conv.dat>'')')
-  write(*,'(2x,''Growing process on <qcg_grow.xyz>'')')
+  write(*,'(2x,''Energy list in file <qcg_energy.dat>'')')
+  write(*,'(2x,''Interaction energy in file <qcg_conv.dat>'')')
+  write(*,'(2x,''Growing process in <qcg_grow.xyz>'')')
   write(*,'(2x,''Final geometry after grow in <cluster.coord> and <cluster.xyz>'')')
   write(*,'(2x,''Potentials and geometry written in <cluster_cavity.coord> and <twopot_cavity.coord>'')')
 
@@ -578,7 +711,9 @@ enddo
   call copysub ('twopot_cavity.coord', resultspath)
   call copysub ('cluster_cavity.coord', resultspath)
   call copysub ('solute_cavity.coord', resultspath)
-  call rename('xcontrol','wall_potential')
+!  call rename('xcontrol','wall_potential')
+  env%constrain_solu=.false.
+  call write_wall(env,solu%nat,solu%ell_abc,clus%ell_abc,'wall_potential')
   call copysub ('wall_potential', resultspath)
 
   call chdir(thispath)
@@ -660,6 +795,10 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   write(env%cts%pots(2),'(2x,"potential=polynomial")')
   write(env%cts%pots(3),'(2x,"ellipsoid:",1x,3(g0,",",1x),"all")') clus%ell_abc  
   if(.not.env%solv_md) write(env%cts%pots(4),'(2x,"ellipsoid:",1x,3(g0,",",1x),"1-",i0)') solu%ell_abc, solu%nat
+!  if(env%ens_const) then
+!    write(env%cts%pots(5),'("$fix")')
+!    write(env%cts%pots(6),'(2x,"atoms: 1-",i0)') solu%nat
+!  endif
 
   call chdir(env%scratchdir)
   scratchdir_tmp = env%scratchdir
@@ -701,7 +840,8 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   end if
 
   gfnver_tmp = env%gfnver
-  write(*,*) 'Method for ensemble search:', env%ensemble_opt
+  write(*,*) '  Method for ensemble search:', env%ensemble_opt
+!  if (env%ens_const) write(*,*) '  Solute fixed during ensemble generation'
   env%gfnver = env%ensemble_opt  !Setting method for ensemble search
 
     !----------------------------------------------------------------
@@ -1147,12 +1287,12 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   write(*,*)
   write(*,'(2x,''Ensemble generation finished.'')') 
   write(*,'(2x,''Results can be found in ensemble directory'')')
-  write(*,'(2x,''Lowest energy conformer on file <crest_best.xyz>'')')
-  write(*,'(2x,''List of full ensemble on file <full_ensemble.xyz>'')')
-  write(*,'(2x,''List of used ensemble on file <final_ensemble.xyz>'')')
-  write(*,'(2x,''Thermodynamical data on file <thermo_data>'')')
-  write(*,'(2x,''Population of full ensemble on file <full_population.dat>'')')
-  write(*,'(2x,''Population on file <population.dat>'')')
+  write(*,'(2x,''Lowest energy conformer in file <crest_best.xyz>'')')
+  write(*,'(2x,''List of full ensemble in file <full_ensemble.xyz>'')')
+  write(*,'(2x,''List of used ensemble in file <final_ensemble.xyz>'')')
+  write(*,'(2x,''Thermodynamical data in file <thermo_data>'')')
+  write(*,'(2x,''Population of full ensemble in file <full_population.dat>'')')
+  write(*,'(2x,''Population in file <population.dat>'')')
 
   env%gfnver = gfnver_tmp
   env%optlev = optlev_tmp
@@ -1569,9 +1709,9 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   write(*,*)
   write(*,'(2x,''Solvent cluster generation finished.'')') 
   write(*,'(2x,''Results can be found in solvent_cluster directory'')')
-  write(*,'(2x,''Structures on file <crest_ensemble.xyz>'')')
-  write(*,'(2x,''Energies on file <cluster_energy.dat>'')')
-  write(*,'(2x,''Population on file <population.dat>'')')
+  write(*,'(2x,''Structures in file <crest_ensemble.xyz>'')')
+  write(*,'(2x,''Energies in file <cluster_energy.dat>'')')
+  write(*,'(2x,''Population in file <population.dat>'')')
 
 
   env%gfnver = gfnver_tmp
@@ -2023,6 +2163,7 @@ subroutine get_sphere(pr,zmol,r_logical)
 
   implicit none
   type(zmolecule), intent(inout) :: zmol
+  type(zmolecule) :: dum
   logical        :: pr
   logical        :: r_logical !Determines wether r is overwritten or not 
   real(wp),parameter :: pi43   = 3.1415926540d0*4.0d0/3.0d0
@@ -2061,10 +2202,13 @@ subroutine get_sphere(pr,zmol,r_logical)
     xyz_tmp(1:3,i)=bohr*zmol%xyz(1:3,i)
   enddo
 
-  call arvo(zmol%nat,xyz_tmp,rad,zmol%atot,zmol%vtot)  ! does the job, see arvo.f
+  dum=zmol
+  dum%xyz=xyz_tmp
 
-  zmol%atot = zmol%atot / bohr**2
-  zmol%vtot = zmol%vtot / bohr**3
+  call get_volume(dum,rad)
+
+  zmol%atot = dum%atot / bohr**2
+  zmol%vtot = dum%vtot / bohr**3
 
   if(r_logical) then
     zmol%rtot = zmol%vtot*3.0 / 4.d0 / pi
@@ -2184,22 +2328,24 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   dummy_solu%ell_abc(3) = eax_solu(3)**2/sum((eax_solu(1:3))**2)
   rabc_solu = dummy_solu%ell_abc * r
 
-  if(pr1) then
-     write(*,'(2x,''solvent anisotropy  :'',4f10.3)') aniso
-     write(*,'(2x,''solute anisotropy   :'',4f10.3)') sola
-     write(*,'(2x,''roff inner wall     :'',4f10.3)') roff
-     write(*,'(2x,''solute max dist     :'',4f10.3)') rmax_solu
-     write(*,'(2x,''solvent max dist    :'',4f10.3)') rmax_solv
-     write(*,'(2x,''inner unit axis     :'',3f10.3)') dummy_solu%ell_abc(1:3)
-     write(*,'(2x,''inner ellipsoid/Bohr:'',3f10.3)') rabc_solu(1:3)
-     write(*,'(2x,''outer ellipsoid/Bohr:'',3f10.3)') rabc_solv(1:3)
-     write(*,*)
-   endif
-
    solu%aniso = sola
    solv%aniso = aniso
    solu%ell_abc = rabc_solu
-   clus%ell_abc = rabc_solv
+   clus%ell_abc = rabc_solv*env%potscal
+
+  if(pr1) then
+     write(*,'(2x,''solvent anisotropy            :'',4f10.3)') aniso
+     write(*,'(2x,''solute anisotropy             :'',4f10.3)') sola
+     write(*,'(2x,''roff inner wall               :'',4f10.3)') roff
+     write(*,'(2x,''solute max dist               :'',4f10.3)') rmax_solu
+     write(*,'(2x,''solvent max dist              :'',4f10.3)') rmax_solv
+     write(*,'(2x,''inner unit axis               :'',3f10.3)') dummy_solu%ell_abc(1:3)
+     write(*,'(2x,''inner ellipsoid/Bohr          :'',3f10.3)') rabc_solu(1:3)
+     write(*,'(2x,''scaling factor outer ellipsoid:'',3f10.3)') env%potscal
+     write(*,'(2x,''outer ellipsoid/Bohr          :'',3f10.3)') clus%ell_abc(1:3)
+     if(env%potscal .gt. 1.0_wp) write(*,'(2x,''!!!WARNING: A SCALING FACTOR LARGER 1.0 IS ONLY FOR MICROSOLVATION RECOMMENDED'')')
+     write(*,*)
+   endif
 
 end subroutine get_ellipsoid
 

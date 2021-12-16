@@ -170,7 +170,7 @@ subroutine opt_cluster(env,solu,clus,fname)
          pipe=' 2>/dev/null'
 
 !---- writing wall pot in xcontrol
-         call write_wall(env,solu%nat,solu%ell_abc,clus%ell_abc)
+         call write_wall(env,solu%nat,solu%ell_abc,clus%ell_abc,'xcontrol')
 
 !--- Setting threads
          if(env%autothreads)then
@@ -783,3 +783,40 @@ subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut
   close(ich)
   
 end subroutine wr_cluster_cut 
+
+
+subroutine check_iff(env,neg_E)
+  use iso_fortran_env, only : wp => real64
+  use crest_data
+
+  implicit none
+  type(systemdata)     :: env
+  integer              :: io, ich
+  real(wp)             :: int_E
+  character(len=50)    :: tmp
+  logical, intent(out) :: neg_E
+
+  neg_E=.false.
+  int_E=0.0_wp
+
+  open(newunit=ich, file='xtbscreen.xyz', action="READ", iostat=io)
+  read(ich,'(a)',iostat=io)
+  read(ich,'(a)',iostat=io) tmp
+  close(ich)
+  tmp=adjustl(tmp(11:))
+  if(io .eq. 0) then !File is not empty
+     if(trim(tmp) .eq. '****************') then !Energy too high
+      neg_E=.false.
+    else
+      read(tmp,*) int_E
+      if(int_E .lt. 0.0_wp) then
+         neg_E = .true.
+      else
+         neg_E = .false.
+      end if
+    end if
+  else
+     neg_E=.false.
+  end if
+
+end subroutine check_iff

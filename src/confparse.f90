@@ -948,6 +948,16 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                    env%mddumpxyz=nint(xx(1))
                 case( '-nomtd' )                           !Don't do the MTD in V2
                    env%performMTD=.false.
+                case( '-wscal' )                           !scale size of wall potential
+                   call readl(arg(i+1),xx,j)
+                   env%potscal=xx(1)
+                   env%user_wscal=.true.
+                case( '-fixsolute' )                       !Fix the solute after CMA trafo
+                   env%constrain_solu = .true.
+                case( '-nofix' )                           !No fixing of the solute after CMA trafo
+                   env%noconst = .true.
+!                case( '-fixens' )                          !Constraining the MTD run
+!                   env%ens_const = .true.
                 case( '-restartopt' )                      !go to step 2 of multilevel optimization immideatly
                    env%restartopt=.true.
                    env%autozsort=.false.
