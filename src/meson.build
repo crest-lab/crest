@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
+subdir('qcg')
+
 srcs += files(
   'acidbase.f90',
   'atmasses.f90',
@@ -81,9 +83,6 @@ srcs += files(
   'shortpath.f90',
   'signal.c',
   'sigterm.f90',
-  'solve.f',
-  'solvtool.f90',
-  'solvtool_misc.f90',
   'sortens.f90',
   'spline.f90',
   'stereoisomers.f90',
@@ -97,7 +96,6 @@ srcs += files(
   'trackorigin.f90',
   'trialmd.f90',
   'utilities.f',
-  'volume.f90',
   'xtbmodef.f90',
   'zdata.f90',
   'zfunctional.f90',

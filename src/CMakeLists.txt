@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
+add_subdirectory("qcg")
+
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
@@ -83,9 +85,6 @@ list(APPEND srcs
   "${dir}/shortpath.f90"
   "${dir}/signal.c"
   "${dir}/sigterm.f90"
-  "${dir}/solve.f"
-  "${dir}/solvtool.f90"
-  "${dir}/solvtool_misc.f90"
   "${dir}/sortens.f90"
   "${dir}/spline.f90"
   "${dir}/stereoisomers.f90"
@@ -99,7 +98,6 @@ list(APPEND srcs
   "${dir}/trackorigin.f90"
   "${dir}/trialmd.f90"
   "${dir}/utilities.f"
-  "${dir}/volume.f90"
   "${dir}/xtbmodef.f90"
   "${dir}/zdata.f90"
   "${dir}/zfunctional.f90"

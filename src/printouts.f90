@@ -22,8 +22,8 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date='Mon 16. Aug 09:59:32 CEST 2021'
-      character(len=10),parameter:: version='2.11.1'
+      character(len=40),parameter:: date='Fr 17. Dec 12:10:44 CEST 2021'
+      character(len=10),parameter:: version='2.11.2'
       logical :: niceprint
       
       niceprint=.true.
@@ -187,7 +187,7 @@ subroutine confscript_help()
       write(*,'(5x,''-nci               : generate an ellipsoide potential around the'')')
       write(*,'(5x,''                     input structure and add it to the MTD simulation.'')')
       write(*,'(5x,''                     This can be used to find aggregates of NCI complexes.'')')
-      write(*,'(5x,''-pscal <real>      : scale the ellipsoide potential axes by factor <real>.'')')
+      write(*,'(5x,''-wscal <real>      : scale the ellipsoide potential axes by factor <real>.'')')
   write(*,*)
   write(*,*)
       write(*,'(1x,''Thermostatistical options (used in entropy mode):'')')
