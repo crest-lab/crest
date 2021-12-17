@@ -23,4 +23,3 @@ list(APPEND srcs
 )
 
 set(srcs ${srcs} PARENT_SCOPE)
-~
