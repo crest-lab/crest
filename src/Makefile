@@ -38,7 +38,6 @@ OBJS2 += readl.o
 OBJS2 += scratch.o
 OBJS2 += sdfio.o
 OBJS2 += shortpath.o
-OBJS2 += solve.o
 
 OBJS3 += axis3.o
 OBJS3 += cleanup.o

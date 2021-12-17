@@ -249,7 +249,7 @@ The user is able to include additional constraints to **ALL** xtb**(1)** calcula
   Generate an ellipsoide potential around the input structure and add it to the MTD simulation.
   This can be used to find aggregates of NCI complexes.
 
-*-pscal* _real_::
+*-wscal* _real_::
   Scale the ellipsoide potential axes by factor _real_.
 
 === Thermostatistical options (used in entropy mode)
