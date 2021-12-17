@@ -46,7 +46,8 @@ module metadynamics_module
 
   integer,parameter :: std_mtd = 1
   integer,parameter :: rmsd_mtd = 2
-  integer,parameter :: damp_heavyside = 3
+  integer,parameter :: damp_heaviside = 3
+  integer,parameter :: damp_heaviside_cv = 4
 
   !======================================================================================!
   !data object that contains settings and trackers for a single MTD potential
@@ -75,6 +76,8 @@ module metadynamics_module
     integer :: damptype = 0
     real(wp) :: ramp = 0.03_wp
     real(wp) :: damp = 1.0_wp
+    real(wp),allocatable :: damping(:)  !input for snapshot-specific damping
+    
 
   contains
     procedure :: deallocate => mtd_deallocate
@@ -204,10 +207,10 @@ contains
 
     select case (pot%mtdtype)
     case (std_mtd)
-      call calc_damp(pot,pot%damptype)
+      call calc_damp(pot,pot%damptype,0.0_wp)
 
     case (rmsd_mtd)
-      call calc_damp(pot,rmsd_mtd)
+      call calc_damp(pot,rmsd_mtd,0.0_wp)
       call calc_rmsd_mtd(mol,pot,emtd,grdmtd)
     case default
       emtd = 0.0_wp
@@ -223,21 +226,46 @@ contains
 ! If/how/where the damping factor is applied
 ! depends on the MTD type
 !-----------------------------------------------!
-  subroutine calc_damp(pot,dt)
+  subroutine calc_damp(pot,dt,x)
     implicit none
     type(mtdpot) :: pot
     integer :: dt
+    real(wp) :: x
 
     select case (dt) !>-- select damping parameter calculation
-    case (rmsd_mtd)
+    case (rmsd_mtd) 
       pot%damp = (2.0_wp / (1.0_wp + &
       &       exp(-pot%ramp * float(pot%cvdump))) - 1.0_wp)
+    case( damp_heaviside ) !> simple heaviside switch
+      pot%damp = sign(0.5_wp,x) + 0.5_wp
     case default
       pot%damp = 1.0_wp
     end select
 
     return
   end subroutine calc_damp
+
+!========================================================================================!
+! subroutine calc_damp2
+! damping routine for snapshot-cv-specific 
+! damping parameter
+!-----------------------------------------------!
+  subroutine calc_damp2(pot,t,damp)
+    implicit none
+    type(mtdpot) :: pot
+    integer :: t !> snapshot
+    real(wp) :: damp
+
+
+    select case (pot%damptype) !>-- select damping parameter calculation
+    case( damp_heaviside_cv ) !> simple heaviside switch
+      damp = sign(0.5_wp,pot%damping(t)) + 0.5_wp
+    case default
+      pot%damp = 1.0_wp
+    end select
+
+    return
+  end subroutine calc_damp2
 
 !========================================================================================!
 ! subroutine calc_rmsd_mtd
@@ -336,6 +364,51 @@ contains
     return
 
   end subroutine calc_rmsd_mtd
+
+!========================================================================================!
+! subroutine calc_std_mtd
+! calculate energy and gradient contribution from the 
+! standard MTD formulation (list of CVs)
+!-----------------------------------------------------------!
+  subroutine calc_std_mtd(mol,pot,cvt,ebias,grdmtd)
+    implicit none
+    type(coord) :: mol
+    type(mtdpot) :: pot
+    real(wp) :: cvt  !> value of the CV at the current timestep
+    real(wp),intent(out) :: ebias
+    real(wp),intent(out) :: grdmtd(3,mol%nat)
+
+    real(wp) :: U(3,3),x_center(3),y_center(3)
+    real(wp) :: rmsdval,E,dEdr,dcv,damp2
+
+    integer :: i,j,k,l
+
+    ebias = 0.0_wp
+    grdmtd = 0.0_wp
+
+    if (pot%ncur < 1) return
+
+      !$omp parallel default(none) &
+      !$omp shared(pot,mol,cvt) &
+      !$omp private(U,x_center,y_center,dcv,damp2,E,dEdr) &
+      !$omp reduction(+:ebias,grdmtd)
+      !$omp do schedule(dynamic)
+      do i = 1,pot%ncur
+        dcv = cvt - pot%cv(i) 
+        E = pot%kpush * exp(-pot%alpha * dcv**2)  !> Gaussian shaped potential
+        E = E * pot%damp
+        call calc_damp2(pot,i,damp2)
+        E = E * damp2
+        ebias = ebias + E
+        dEdr = -2.0_wp * pot%alpha * e * dcv
+        grdmtd = grdmtd + dEdr * pot%cvgrd
+      end do
+      !$omp enddo
+      !$omp end parallel
+
+    return
+
+  end subroutine calc_std_mtd
 
 !========================================================================================!
 end module metadynamics_module
