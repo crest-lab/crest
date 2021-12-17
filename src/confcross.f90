@@ -200,8 +200,13 @@ subroutine confcross(env,maxgen,kk)
             if(cstat(l).eq.0) then
                csave(1:3,1:n,l)=coord(1:3,1:n) ! take it
                call rmsd(n,tmp3,coord,0,Udum,xdum,ydum,dum,.false.,gdum) ! w.r.t. first
-               rms(l)=dum
-               cstat(l)=-1
+               if(dum > 0.0_wp)then
+                 rms(l)=dum
+                 cstat(l)=-1
+               else
+                 rms(l)=1.d+9
+                 cstat(l) = 1 
+               endif
             endif
          enddo
 
