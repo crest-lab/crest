@@ -796,27 +796,23 @@ subroutine check_iff(env,neg_E)
   character(len=50)    :: tmp
   logical, intent(out) :: neg_E
 
+  logical :: ex
+  character(len=*), parameter :: filename = 'xtbscreen.xyz'
+
   neg_E=.false.
   int_E=0.0_wp
 
-  open(newunit=ich, file='xtbscreen.xyz', action="READ", iostat=io)
-  read(ich,'(a)',iostat=io)
-  read(ich,'(a)',iostat=io) tmp
+  inquire(file=filename, exist=ex)
+  if (.not.ex) return
+
+  open(newunit=ich, file=filename, status="old", iostat=io)
+  if (io == 0) read(ich,'(a)',iostat=io)
+  if (io == 0) read(ich,'(a)',iostat=io) tmp
   close(ich)
+  if (io /= 0) return
+
   tmp=adjustl(tmp(11:))
-  if(io .eq. 0) then !File is not empty
-     if(trim(tmp) .eq. '****************') then !Energy too high
-      neg_E=.false.
-    else
-      read(tmp,*) int_E
-      if(int_E .lt. 0.0_wp) then
-         neg_E = .true.
-      else
-         neg_E = .false.
-      end if
-    end if
-  else
-     neg_E=.false.
-  end if
+  read(tmp, *, iostat=io) int_E
+  neg_E = io == 0 .and. int_E < 0.0_wp 
 
 end subroutine check_iff
