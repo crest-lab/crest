@@ -413,7 +413,7 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   character(len=20)          :: gfnver_tmp
   integer                    :: ich99,ich15,ich88
 
-  call tim%start(3,'Grow')
+  call tim%start(5,'Grow')
 
   call pr_eval_solute()
   call print_qcg_grow()
@@ -678,7 +678,7 @@ enddo
   call chdir(env%scratchdir)
   if(env%keepModef .eq. .false.) call rmrf('tmp_grow')
 
-  call tim%stop(3)
+  call tim%stop(5)
 
 end subroutine qcg_grow
 
@@ -725,9 +725,9 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
 
 
   if(.not.env%solv_md) then
-    call tim%start(4,'Solute-Ensemble')
+    call tim%start(6,'Solute-Ensemble')
   else
-    call tim%start(5,'Solvent-Ensemble')
+    call tim%start(7,'Solvent-Ensemble')
   end if
 
 !--- Setting up directories
@@ -1260,9 +1260,9 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   end if
 
   if(.not.env%solv_md) then
-     call tim%stop(4)
+     call tim%stop(6)
   else
-     call tim%stop(5)
+     call tim%stop(7)
   end if
 
 end subroutine qcg_ensemble
@@ -1320,7 +1320,7 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   real(wp)                   :: optlev_tmp
   integer                    :: ich98,ich31
 
-  call tim%start(6,'CFF')
+  call tim%start(8,'CFF')
 
   allocate(e_empty(env%nqcgclust))
   allocate(converged(env%nqcgclust))
@@ -1680,7 +1680,7 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   deallocate(outer_ell_abc)
   deallocate(inner_ell_abc)
 
-  call tim%stop(6)
+  call tim%stop(8)
 
 end subroutine qcg_cff
 
@@ -1713,7 +1713,7 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
   integer                    :: ich65,ich56,ich33,ich81
 
 
-  call tim%start(7,'Frequencies')
+  call tim%start(9,'Frequencies')
 
   call pr_qcg_freq()
 
@@ -1934,7 +1934,7 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
   env%gfnver = gfnver_tmp
   env%optlev = optlev_tmp
 
-  call tim%stop(7)
+  call tim%stop(9)
 
 end subroutine qcg_freq
 
