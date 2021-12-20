@@ -52,7 +52,6 @@ subroutine crest_solvtool(env, tim)
 
   !>-----------------------------------
   call qcg_head()
-!  call tim%start(2,'QCG') !start a timer
   !>-----------------------------------
 
 !------------------------------------------------------------------------------
@@ -178,11 +177,9 @@ subroutine qcg_setup(env,solu,solv)
   call copysub('.UHF',env%scratchdir)
   call chdir(env%scratchdir)
 
-
   f = makedir('solute_properties')
   r = makedir('solvent_properties')
   v = makedir('tmp_grow')
-
 
   call chdir('tmp_grow')
   call getcwd(tmp_grow)
@@ -503,23 +500,6 @@ do iter=1, env%nsolv
             success=.true.
           end if
         end if
-
-!        call minigrep('xtbscreen.xyz', 'SCF done ******************',high_e)
-!        if (.not. high_e) call grepval('xtbscreen.xyz','SCF done',e_there,dum)
-
-!        if(dum .lt. 0 .AND. e_there .eq. .true.) then
-!           success=.true.
-!        else
-!         if(env%potscal .lt. 1.0_wp) then
-!          write(*,*) '  Wall Potential too small, increasing size by 5 %'
-!          solv%ell_abc=solv%ell_abc*1.05_wp
-!          env%potscal=env%potscal*1.05_wp
-!          if(env%potscal .gt. 1.0_wp) env%potscal=1.0_wp
-!          write(*,'('' New scaling factor '',F4.2)') env%potscal
-!         else
-!          success = .true.
-!         end if
-!        end if
    else
        call xtb_iff(env, 'cluster.lmo', 'solvent.lmo', solu, clus)
         call check_iff(env, neg_E)
@@ -537,24 +517,6 @@ do iter=1, env%nsolv
             success=.true.
           end if
         end if
-
-
-!        call minigrep('xtbscreen.xyz', 'SCF done ******************',high_e)
-!        if (.not. high_e) call grepval('xtbscreen.xyz','SCF done',e_there,dum)
-        !!! If energy is largly positiv, the system is too unphysical
-!        if(dum .lt. 0 .AND. e_there .eq. .true.) then
-!           success=.true.
-!        else
-!         if(env%potscal .lt. 1.0_wp) then
-!          write(*,*) '  Wall Potential too small, increasing size by 5 %'
-!          clus%ell_abc=clus%ell_abc*1.05_wp
-!          env%potscal=env%potscal*1.05_wp
-!          if(env%potscal .gt. 1.0_wp) env%potscal=1.0_wp
-!          write(*,'('' New scaling factor '',F4.2)') env%potscal
-!         else
-!          success = .true.
-!         end if
-!        end if
     end if
   end do
   
@@ -3049,3 +3011,26 @@ subroutine qcg_cleanup(env)
   end if
 
 end subroutine qcg_cleanup
+
+
+subroutine prog_path(exe)
+  implicit none
+! Dummy  
+  character(len=*),intent(in)  :: exe
+! Stack
+  character(len=256)           :: prog
+  character(len=256)           :: str
+  character(len=256)           :: path
+  integer                      :: ios
+  integer                      :: error
+
+  prog=exe
+  write(str,'("which ",a," > data/",a,"_path 2>/dev/null")') trim(prog),trim(prog)
+  call system(trim(str))
+  write(str,'("data/",a,"_path")') trim(prog)
+  str=trim(str)
+  open(unit=27, file=str, iostat=ios)
+  read(27,*,iostat=ios) path
+  if(ios .ne. 0) error stop 'No xtb-IFF found'
+
+end subroutine prog_path  
