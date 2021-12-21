@@ -528,7 +528,7 @@ subroutine write_wall(env,n1,rabc1,rabc12,fname)
   end if
   call write_cts(31,env%cts)
   call write_cts_biasext(31,env%cts)
-  if(env%cts%used .eq. .true.) then !Only, if user set constrians is an $end written
+  if(env%cts%used) then !Only, if user set constrians is an $end written
      write(31,'(a)') '$end'
   end if
 
