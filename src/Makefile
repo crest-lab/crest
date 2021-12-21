@@ -26,6 +26,7 @@ CFILES += sigterm.o
 CFILES +=
 
 
+SUBMOD += constraints.o
 SUBMOD += calc_type.o
 SUBMOD += lj.o
 SUBMOD += xtb_sc.o

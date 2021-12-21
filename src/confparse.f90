@@ -613,7 +613,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
               case('-SANDBOX' )
             !--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
                  call test_engrad(trim(arg(1)))
-                 call test_md(trim(arg(1)))
+                 !call test_md(trim(arg(1)))
             !-----
               stop
           case default
