@@ -58,7 +58,7 @@ subroutine rdcontrol(fname,oname,method,freqmode)
      enddo
   !--- get atom masses
      allocate(amv(107),ause(107))  
-     amv=ams
+     amv=ams(1:107)
      call freqmass(amv,method)  !get scaled masses
      ause=.true. !use all new masses since un-fitted elements are scaled anyways
 
@@ -204,7 +204,7 @@ subroutine getatmss(mass,amv,ause)
      integer :: i,j,k,l
      character(len=:),allocatable :: dum
      character(len=:),allocatable :: at
-     amv=ams !from module atmasses
+     amv=ams(1:107) !from module atmasses
      ause=.false.
      
      inquire(file=mass,exist=ex)

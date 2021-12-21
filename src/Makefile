@@ -1,4 +1,5 @@
 PROG = crest
+PROG = ~/bin/crest
 
 OBJDIR = build
 #--------------------------------------------------------------------------
@@ -22,7 +23,17 @@ CFILES += symmetry2.o
 CFILES += symmetry_i.o
 CFILES += signal.o
 CFILES += sigterm.o
-CFILES += 
+CFILES +=
+
+
+SUBMOD += constraints.o
+SUBMOD += calc_type.o
+SUBMOD += lj.o
+SUBMOD += xtb_sc.o
+SUBMOD += shake_module.o
+SUBMOD += calc_module.o
+SUBMOD += metadynamics_module.o
+SUBMOD += dynamics_module.o
 
 OBJS1 += data.o
 OBJS1 += io.o
@@ -104,10 +115,10 @@ MAINFILES += msreact.o
 MAINFILES += pka.o
 MAINFILES += crest_main.o 
 
-OBJS := $(MODULES) $(CFILES) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(MAINFILES)
+OBJS := $(MODULES) $(SUBMOD) $(CFILES) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(MAINFILES)
 #--------------------------------------------------------------------------
 
-SUBDIRS = . qcg
+SUBDIRS = . dynamics calculator qcg
 
 vpath % $(SUBDIRS)
 OBJS := $(addprefix $(OBJDIR)/, $(OBJS))
@@ -123,7 +134,8 @@ ifeq ($(OSTYPE),LINUXI)
   LIBS := -Wl,--start-group $(MKLROOT)/lib/intel64/libmkl_intel_lp64.a $(MKLROOT)/lib/intel64/libmkl_core.a $(MKLROOT)/lib/intel64/libmkl_intel_thread.a -Wl,--end-group 
   PREFLAG := -E -P
   FFLAGS := -g -O -qopenmp -align array64byte -module $(OBJDIR)
-#  FFLAGS := -g -O0
+#  FFLAGS := -g -O0 -qopenmp -align array64byte -module $(OBJDIR)
+#  FLAGS := -g -O
 #  FFLAGS := -O -axAVX -qopenmp -align array64byte 
 #  FFLAGS += -check all -g -debug all -traceback -fpe0
   CCFLAGS += -D_Float128=__float128
@@ -205,4 +217,3 @@ clean:
 	rm -f $(filter %.o,$(OBJS)) $(PROG) 
 	rm -f $(OBJDIR)/*.mod *.mod $(PROG) 
 	rm -f $(patsubst %.F, %.f, $(wildcard *.F))
-

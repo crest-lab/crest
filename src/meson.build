@@ -15,6 +15,8 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 subdir('qcg')
+subdir('dynamics')
+subdir('calculator')
 
 srcs += files(
   'acidbase.f90',

@@ -28,6 +28,8 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
       use crest_data
       use iomod
       use strucrd
+      use calc_module
+      use dynamics_module
       implicit none
 
       type(systemdata),intent(inout) :: env
@@ -626,8 +628,8 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 stop
               case('-SANDBOX' )
             !--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
-
-
+                 call test_engrad(trim(arg(1)))
+                 !call test_md(trim(arg(1)))
             !-----
               stop
           case default
@@ -635,7 +637,6 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
           end select RUNTYPES
           endif
       enddo
-
 
 !=======================================================================================!
 !--- options for the xtb Nano-reactor
