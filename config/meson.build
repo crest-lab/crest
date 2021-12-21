@@ -99,7 +99,7 @@ elif la_backend == 'openblas'
   # some OpenBLAS versions can provide lapack, check if we can find dsygvd
   openblas_provides_lapack = fc.links(
     'external dsygvd; call dsygvd(); end',
-    exe_deps: blas_dep,
+    dependencies: blas_dep,
   )
   # otherwise we fall back to LAPACK
   if not openblas_provides_lapack

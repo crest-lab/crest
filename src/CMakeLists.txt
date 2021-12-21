@@ -64,7 +64,7 @@ list(APPEND srcs
   "${dir}/neighbor.f"
   "${dir}/newcregen.f90"
   "${dir}/normmd.f90"
-  "${dir}/ompmklset.f90"
+  "${dir}/ompmklset.F90"
   "${dir}/optinplace.f90"
   "${dir}/pka.f90"
   "${dir}/printouts.f90"

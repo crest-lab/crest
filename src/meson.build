@@ -62,7 +62,7 @@ srcs += files(
   'neighbor.f',
   'newcregen.f90',
   'normmd.f90',
-  'ompmklset.f90',
+  'ompmklset.F90',
   'optinplace.f90',
   'pka.f90',
   'printouts.f90',
