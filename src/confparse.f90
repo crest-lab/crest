@@ -112,6 +112,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
 
 !--- xtb settings
       env%ProgName='xtb'           !the name of the xtb executable that is going to be used per default
+      env%ProgIFF ='xtbiff'        !name of the IFF that is per default xtbiff, only for  QCG
       env%optlev=2.0d0             !optimization level for the GFN-xTB optimizations in ALL steps
       env%gbsa=.false.             !use gbsa
       env%solv=''                  !if gbsa is used, the entrie flag will be written into here
@@ -119,6 +120,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
       env%uhf=0                    !nα-nβ electrons
       env%gfnver='--gfn2'          !selct the GFN verison as complete flag(!) that is to be added to the system calls
       env%gfnver2=''               !a second level, used for multilevel post-optimization
+      env%ensemble_opt ='--gff'    !qcg specific method for ensemble search and optimization
 
 !--- cregen settings
       env%confgo=.false.           !perform confg (cregen) subroutine only (to sort ensemble independently)
@@ -287,6 +289,12 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
       env%thermo%sthr = 25.0d0  !rotor cutoff
       env%thermo%fscal= 1.0d0   !frequency scaling factor
 
+!--- options for QCG
+      env%cff = .true.
+      env%nqcgclust=0
+      env%freq_scal = 0.75
+      env%freqver = '--gfn2'
+
 !================================================================================================!
 !================================================================================================!
 !================================================================================================!
@@ -449,9 +457,17 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%crestver = crest_nano               
                exit
            case( '-solvtool','-qcg' )
+!               env%mddumpxyz = 1000 
                env%preopt=.false.
                env%crestver = crest_solv
-               exit
+               env%QCG=.true.
+               env%runver = 3
+               env%performCross=.false.
+               env%optlev = 0 !If QCG is invoked, optlevel default is normal
+               env%properties = p_qcg
+               env%ewin = 3.0d0
+               env%doOHflip = .false. !Switch off OH-flip
+               if(env%iterativeV2) env%iterativeV2   = .false. 
            case( '-compress' )
                env%crestver = crest_compr
                env%runver = 77
@@ -611,6 +627,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
               case('-SANDBOX' )
             !--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
 
+
             !-----
               stop
           case default
@@ -618,6 +635,8 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
           end select RUNTYPES
           endif
       enddo
+
+
 !=======================================================================================!
 !--- options for the xtb Nano-reactor
       if(any((/crest_nano,crest_compr/)==env%crestver))then
@@ -647,7 +666,11 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
 ! I N P U T  C O O R D I N A T E S
 !===================================================================================================!
 !===================================================================================================!
-      call inputcoords(env,trim(arg(1)))
+      if (env%crestver == crest_solv) then
+         call inputcoords_qcg(env,trim(arg(1)),trim(arg(3)))
+      else
+         call inputcoords(env,trim(arg(1)))
+      end if
 !===================================================================================================!
 ! after this point there should always be a "coord" file present
 !===================================================================================================!
@@ -730,6 +753,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 case( '-mdtemp' )                          !set MTD temperature (V2 version)
                    call readl(arg(i+1),xx,j)
                    env%mdtemp=xx(1)
+                   env%user_temp = .true.
                 case( '-quick' )                           !performing quick conformational search
                    env%quick=.true.
                    env%runver = 2
@@ -742,6 +766,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 case( '-tstep' )                           !set MD timestep in fs
                    call readl(arg(i+1),xx,j)
                    env%mdstep=xx(1)
+                   env%user_mdstep = .true.
                 case( '-vbdump' )                          !Vbias dump in ps
                    call readl(arg(i+1),xx,j)
                    xx(2)=xx(1)*1000
@@ -772,12 +797,6 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                    env%gcmultiopt=.false.
                 case( '-qmdff' )                           !use QMDFF for the MDs in V2?
                    env%useqmdff=.true.
-                !case( '-qcg' )                             !QCG special mode
-                !    write(*,'(2x,a,1x,a)')trim(arg(i)),' : Special QCG mode that is work in progress and deactivated for the time being.'
-                !    env%QCG=.true.
-                !    env%runver = 3
-                !    env%performCross=.false.
-                !    if(env%iterativeV2) env%iterativeV2   = .false. 
                 case( '-nci' )                             !NCI special mode
                     write(*,'(2x,a,1x,a)')trim(arg(i)),' : Special NCI mode for non-covalently bound complexes or clusters.'
                     env%NCI=.true.
@@ -845,6 +864,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
              !-----
                endif
             endif
+
 !======================================================================================================!
 !------- Settings for MDOPT and SCREEN
 !======================================================================================================!
@@ -904,6 +924,50 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                     continue
                end select RCTR
             endif     
+!======================================================================================================!
+!------- Flags for QCG
+!======================================================================================================!
+            if(env%QCG)then    
+               QCG : select case( argument )
+                case( '-keepdir','-keeptmp' )
+                    env%keepModef=.true.
+                case( '-tstep' )                           !set MD timestep in fs
+                   call readl(arg(i+1),xx,j)
+                   env%mdstep=xx(1)
+                   env%user_mdstep = .true.
+                case( '-vbdump' )                          !Vbias dump in ps
+                   call readl(arg(i+1),xx,j)
+                   xx(2)=xx(1)*1000
+                   env%mddump=nint(xx(2))
+                case( '-mdskip' )                          !set skipping structures in -mdopt
+                   call readl(arg(i+1),xx,j)
+                   env%mdskip=nint(xx(1))
+                case( '-mddump' )                          !set dumpstep for writing structures out of the md
+                   env%user_dumxyz = .true.
+                   call readl(arg(i+1),xx,j)
+                   env%mddumpxyz=nint(xx(1))
+                case( '-nomtd' )                           !Don't do the MTD in V2
+                   env%performMTD=.false.
+                case( '-wscal' )                           !scale size of wall potential
+                   call readl(arg(i+1),xx,j)
+                   env%potscal=xx(1)
+                   env%user_wscal=.true.
+                case( '-fixsolute' )                       !Fix the solute after CMA trafo
+                   env%constrain_solu = .true.
+                case( '-nofix' )                           !No fixing of the solute after CMA trafo
+                   env%noconst = .true.
+!                case( '-fixens' )                          !Constraining the MTD run
+!                   env%ens_const = .true.
+                case( '-restartopt' )                      !go to step 2 of multilevel optimization immideatly
+                   env%restartopt=.true.
+                   env%autozsort=.false.
+                case( '-norotmd' )                         !don't do the regular mds after step 2 in multilevel optimization of V2
+                   env%rotamermds=.false.
+                case( '-tnmd' )                            !temperature for additional normal MDs
+                   call readl(arg(i+1),xx,j)
+                   env%nmdtemp=xx(1)
+                end select QCG
+            end if
 !======================================================================================================!
 !------- other general flags
 !======================================================================================================!
@@ -1061,6 +1125,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                atmp=arg(i+1)
                call to_lower(atmp)
                j=index(atmp,'x')
+               env%user_mdtime = .true.
                if(j.ne.0)then                ! scaling of the md length
                  btmp=atmp(j+1:)
                  env%scallen = .true.
@@ -1522,6 +1587,104 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                if(ex)then
                call env%thermo%read_temps(ctmp)   
                endif
+
+!==================================================================!
+!-------- QCG-Related flags
+!==================================================================!
+           case( '-nopreopt' )
+               env%nopreopt = .true.
+               env%qcg_flag = .true.
+           case( '-grow' )
+               env%qcg_runtype = 0
+               env%qcg_flag = .true.
+           case( '-ensemble' )
+               env%qcg_runtype = 1
+               env%qcg_flag = .true.
+           case( '-esolv' )
+               env%qcg_runtype = 2
+               env%qcg_flag = .true.
+           case( '-gsolv' )
+               env%qcg_runtype = 3
+               env%qcg_flag = .true.
+           case( '-nsolv' )
+               env%qcg_flag = .true.
+               call readl(arg(i+1),xx,j)
+               env%nsolv = NINT(xx(1))
+           case( '-nclus' )
+               env%qcg_flag = .true.
+               call readl(arg(i+1),xx,j)
+               env%nqcgclust = NINT(xx(1))
+               env%user_nclust = .true.
+           case( '-freqscal' )
+               env%qcg_flag = .true.
+               call readl(arg(i+1),xx,j)
+               env%freq_scal = (xx(1))
+           case( '-ncimtd' )
+               env%ensemble_method = 0
+               env%qcg_flag = .true.
+           case( '-md' )
+               env%ensemble_method = 1
+               env%qcg_flag = .true.
+               if( .not. env%user_enslvl) then
+                  env%ensemble_opt = '--gfn2'
+               end if
+           case( '-mtd' )
+               env%ensemble_method = 2
+               env%qcg_flag = .true.
+               if( .not. env%user_enslvl) then
+                  env%ensemble_opt = '--gfn2'
+               end if
+           case( '-samerand' )
+               env%sameRandomNumber = .true.
+               env%qcg_flag = .true.
+           case( '-nocff' )
+               env%cff = .false.
+               env%qcg_flag = .true.
+           case( '-enslvl')
+               ctmp=arg(i+1)
+               env%user_enslvl = .true.
+               env%qcg_flag = .true.
+               if( arg(i+1)=='gfn' )then
+                  dtmp=trim(arg(i+2))
+                  ctmp=trim(ctmp)//dtmp
+               end if
+                   select case( ctmp )
+                   case( 'gfn1' )
+                      env%ensemble_opt='--gfn1'
+                      write(*,'(2x, a)') 'Use of GFN1-xTB for ensemble search requested.'
+                   case( 'gfn2' )
+                      env%ensemble_opt='--gfn2'
+                      write(*,'(2x, a)') 'Use of GFN2-xTB for ensemble search requested.'
+                   case( 'gfn0' )
+                      env%ensemble_opt='--gfn0'
+                      write(*,'(2x, a)') 'Use of GFN0-xTB for ensemble search requested.'
+                   case( 'gff','gfnff' )
+                      env%ensemble_opt='--gff'
+                      write(*,'(2x, a)') 'Use of GFN-FF for ensemble search requested.'
+                  end select
+
+           case( '-freqlvl')
+               ctmp=arg(i+1)
+               env%qcg_flag = .true.
+               if( arg(i+1)=='gfn' )then
+                  dtmp=trim(arg(i+2))
+                  ctmp=trim(ctmp)//dtmp
+               end if
+                   select case( ctmp )
+                   case( 'gfn1' )
+                      env%freqver='--gfn1'
+                      write(*,'(2x, a)') 'Use of GFN1-xTB for frequency computation requested.'
+                   case( 'gfn2' )
+                      env%freqver='--gfn2'
+                      write(*,'(2x, a)') 'Use of GFN2-xTB for frequency computation requested.'
+                   case( 'gfn0' )
+                      env%freqver='--gfn0'
+                      write(*,'(2x, a)') 'Use of GFN0-xTB for frequency computation requested.'
+                   case( 'gff','gfnff' )
+                      env%freqver='--gff'
+                      write(*,'(2x, a)') 'Use of GFN-FF for frequency computation requested.'
+                  end select
+
 !==================================================================!
 !-------- PRINCIPAL COMPONENT analysis and CLUSTERING flags
 !==================================================================!
@@ -1674,6 +1837,20 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
 !------------------------------------------------------------------------------------------------------!
       deallocate(strings,floats,xx)
 !----- additional checks and settings
+      if(env%crestver .eq. crest_solv) bondconst = .false.
+
+      if(env%qcg_flag .eq. .true. .and. env%crestver .ne. crest_solv) then
+         error stop 'At least one flag is only usable for QCG runtype. Exit.'
+      end if
+
+!      if((env%qcg_runtype .GE. 1) .and. (env%ensemble_method .EQ. 0) then
+!          env%NCI = .true.
+!          env%runver=4
+!      end if
+
+      if(env%autozsort .eq. .true. .and. env%crestver.eq. crest_solv) then
+          error stop 'Z sorting of the input is unavailable for -qcg runtyp.'
+      end if
 
       if(env%NCI)then
         call wallpot(env)
@@ -1706,6 +1883,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
 !------------------------------------------------------------------------------------------------------!
 !======================================================================================================!
 
+
       if((any( (/crest_imtd,crest_imtd2,crest_pka,crest_compr,11/)==env%crestver)).and.  &
       &  .not.env%confgo)then
          call iV2defaultGF(env) !set Guiding Force default if none was read
@@ -1724,16 +1902,46 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
            endif
       endif
 
-      if(env%useqmdff)then
-         env%autozsort=.false.
-      endif
+   !-- defaults for QCG gfnff ensemble search
+      if(env%ensemble_opt .EQ. '--gff') then
+        env%mdstep = 1.5d0
+        env%hmass = 5.0d0 
+        ctype = 5 !bond constraint
+        bondconst =.true.
+        env%cts%cbonds_md = .true.
+        env%checkiso = .true.
+        env%lmover = '--gfn2'
+      end if
 
-      if(.not.env%preopt)then
-         if(allocated(env%ref%topo))deallocate(env%ref%topo)
-      endif
+
+     if((env%gfnver .EQ. '--gff').OR.(env%gfnver .EQ. '--gfn0')) then
+         env%lmover = '--gfn2'
+     else
+         env%lmover = env%gfnver
+     end if
+
+     if(env%useqmdff)then
+        env%autozsort=.false.
+     endif
+
+     if(.not.env%preopt)then
+        if(allocated(env%ref%topo))deallocate(env%ref%topo)
+     endif
+
+     do i=1, env%cts%ndim
+        if(env%cts%sett(i) .eq. '  reference=coord.ref') then
+            do j=i, env%cts%ndim
+                env%cts%sett(j) = env%cts%sett(j+1)
+            end do
+            env%cts%sett(env%cts%ndim) = ''
+            env%cts%ndim = env%cts%ndim - 1
+        end if
+     end do
+
 
       !driver for optimization along trajectory, additional settings
-      if( .not.any((/crest_mfmdgc,crest_imtd,crest_imtd2,crest_compr/)==env%crestver))then    
+      if( .not.any((/crest_mfmdgc,crest_imtd,crest_imtd2,crest_compr/)==env%crestver) &
+          & .OR. (env%qcg_runtype .GT. 0 .and. env%ensemble_method .EQ. 0 ))then    
          env%autozsort=.false.
          env%trackorigin=.false.
          env%confgo=.false.
@@ -2026,3 +2234,165 @@ subroutine inputcoords(env,arg)
 
     return
 end subroutine inputcoords
+
+
+!====================================================================!
+! Convert given QCG coordinate files into (TM format)
+! If the input is in SDF format, document the info to convert the 
+! final ensemble back into this format
+!===================================================================!
+subroutine inputcoords_qcg(env,arg1,arg2)
+    use iso_fortran_env, only: wp => real64
+    use crest_data
+    use strucrd
+    use zdata
+    use iomod
+    implicit none
+
+    type(systemdata) :: env
+    character(len=*) :: arg1,arg2
+
+    logical :: ex11,ex12,ex21,ex22,solu,solv
+    character(len=:),allocatable :: inputfile
+    type(coord) :: mol
+    type(zmolecule) :: zmol, zmol1
+
+    integer :: i,j,k,l
+
+!--------------------Checking for input-------------!
+
+    inquire(file='solute',exist=solu)
+    inquire(file=arg1,exist=ex11)
+    inquire(file='coord',exist=ex12)
+
+    inquire(file='solvent',exist=solv)
+    inquire(file=arg2,exist=ex21)
+    if(len(arg2) .eq. 1024) then !Check if the second argument is just empty
+        ex21 = .false.
+    end if
+    inquire(file='coord',exist=ex22)
+
+!---------------Handling solute---------------------!
+
+    if(.not.ex11 .and. .not.ex12 .and. .not.solu)then
+      error stop 'No (valid) solute file! exit.'
+    else if (.not.ex21 .and. .not.ex22 .and. .not.solv) then
+      error stop 'No (valid) solvent file! exit.'
+    endif
+
+    if(ex11 .and. arg1(1:1).ne.'-')then
+      call mol%open(arg1) 
+      call mol%write('solute')
+      call mol%write('solute.xyz')
+      call mol%deallocate()
+      inputfile = trim(arg1)
+      write(*,*)'Solute-file: ', arg1
+      env%solu_file = arg1
+    else if (solu .and. ex11 .eq. .false.) then
+      call copy('solute','solute.old')
+      inputfile = 'solute'
+      write(*,'(/,1x,a)')'Solute-file: solute'
+      env%solu_file = 'solute'
+    else if(ex12 .and. ex11 .eq. .false.)then !-- save coord as reference
+      call copy('coord','coord.old')
+      call copy('coord','solute')
+      write(*,'(/,1x,a)')'Solute-file: coord'
+      inputfile = 'coord'
+      env%solu_file = 'coord'
+    else
+       write(*,*) 'An error occured processing the solute-input file'
+    endif
+
+    !--- if the input was a SDF file, special handling
+    env%sdfformat = .false.
+    call checkcoordtype(inputfile,i)
+    if(i==31 .or. i==32)then  
+!      call inpsdf(env,inputfile)
+      write(*,*) 'QCG currently does not support SDF-files.'
+    endif
+
+!---------------Handling solvent---------------------!
+
+    if(ex21 .and. arg2(1:1).ne.'-' .and. arg2(1:1).ne.' ')then
+      call mol%open(arg2) 
+      call mol%write('solvent')
+      call mol%write('solvent.xyz')
+      call mol%deallocate()
+      inputfile = trim(arg2)
+      write(*,*)'Solvent-file: ', arg2
+      env%solv_file = arg2
+    else if (solv .and. ex21 .eq. .false.) then
+      call copy('solvent','solvent.old')
+      inputfile = 'solvent'
+      write(*,'(/,1x,a)')'Solvent-file: solvent'
+      env%solv_file = 'solvent'
+    else if(ex22 .and. ex21 .eq. .false. )then !-- save coord as reference
+      call copy('coord','coord.old')
+      call copy('coord','solvent')
+      inputfile = 'coord'
+      write(*,'(/,1x,a)')'Solvent-file: coord'
+      env%solv_file = 'coord'
+    else
+      write(*,*) 'An error occured during solvent-file processing'
+    endif
+
+
+    !--- if the input was a SDF file, special handling
+    env%sdfformat = .false.
+    call checkcoordtype(inputfile,i)
+    if(i==31 .or. i==32)then  
+      !call inpsdf(env,inputfile)
+      write(*,*) 'QCG currently does not support SDF-files.'
+    endif
+
+!-------------Checking both files and saving them---------------------------!
+
+    !--- after this point there should always be a solvent and solute file present
+    if(.not.allocated(env%inputcoords_solu))env%inputcoords_solu='solute'
+    if(.not.allocated(env%inputcoords_solv))env%inputcoords_solv='solvent'
+
+    call mol%open('solute')
+
+    env%nat=mol%nat
+    !--- solute geo
+    env%qcg_solute%nat = mol%nat
+    env%qcg_solute%at  = mol%at
+    env%qcg_solute%xyz = mol%xyz
+    if( any((/crest_mfmdgc,crest_imtd,crest_imtd2/)==env%crestver))then
+     if(.not.env%autozsort)then    
+        env%qcg_solute%ntopo = mol%nat*(mol%nat+1)/2
+        allocate(env%qcg_solute%topo(env%qcg_solute%ntopo))
+        call quicktopo(mol%nat,mol%at,mol%xyz,env%qcg_solute%ntopo,env%qcg_solute%topo)
+     endif
+    endif
+    call mol%deallocate()
+
+    call mol%open('solvent')
+
+    env%nat=mol%nat
+    env%rednat=env%nat        !get the number of atoms and the reduced number of atoms if some of them are     excluded from the RMSD calc in V2
+    !--- solvent geo
+    env%qcg_solvent%nat = mol%nat
+    env%qcg_solvent%at  = mol%at
+    env%qcg_solvent%xyz = mol%xyz
+    if( any((/crest_mfmdgc,crest_imtd,crest_imtd2/)==env%crestver))then
+     if(.not.env%autozsort)then    
+        env%qcg_solvent%ntopo = mol%nat*(mol%nat+1)/2
+        allocate(env%qcg_solvent%topo(env%qcg_solvent%ntopo))
+        call quicktopo(mol%nat,mol%at,mol%xyz,env%qcg_solvent%ntopo,env%qcg_solvent%topo)
+     endif
+    endif 
+    call mol%deallocate()
+
+    !--- for protonation/deprotonation applications get ref. number of fragments
+    !--- also get some other structure based info
+    call simpletopo_file('solute',zmol,.false.,.false.,'')
+    env%ptb_solute%nfrag = zmol%nfrag
+    call zmol%deallocate()
+
+    call simpletopo_file('solvent',zmol1,.false.,.false.,'')
+    env%ptb_solvent%nfrag = zmol1%nfrag
+    call zmol1%deallocate()
+
+    return
+end subroutine inputcoords_qcg

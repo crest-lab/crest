@@ -288,6 +288,7 @@ subroutine confscript2i(env,tim)
              call multilevel_opt(env,2)
             endif
             call multilevel_opt(env,99)
+
             call tim%stop(3)
             !--- if in the entropy mode a lower structure was found 
             !    --> cycle, required for extrapolation
@@ -339,7 +340,9 @@ subroutine confscript2i(env,tim)
       endif
 
 !---- print CREGEN results and clean up Directory a bit
+    if(env%crestver .ne. crest_solv) then
       call V2terminating()
+    end if
 
       end associate settingData
       end associate settingLogs
@@ -369,7 +372,7 @@ subroutine V2mdlength(env)
        write(*,'(''Generating MTD length from a flexibility measure'')')
        write(*,'(''------------------------------------------------'')')
 
-       if(.not.QCG .and. .not.NCI)then
+       if((env%crestver .ne. crest_solv) .and. .not.NCI)then
          write(*,'(1x,a)',advance='no')'Calculating WBOs...'
          call xtbsp(env,0)       !xtb singlepoint to get WBOs (always GFN0)
          write(*,'(1x,a)') 'done.'

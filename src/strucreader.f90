@@ -72,9 +72,10 @@ module strucrd
       public :: grepenergy
       public :: checkcoordtype
 
-      public :: rdnat      !-- procedure to read number of atoms Nat
-      public :: rdcoord    !-- read an input file, determine format automatically
-      public :: rdxmol     !-- read a file in the Xmol (.xyz) format specifically
+      public :: rdnat       !-- procedure to read number of atoms Nat
+      public :: rdcoord     !-- read an input file, determine format automatically
+      public :: rdxmol      !-- read a file in the Xmol (.xyz) format specifically
+      public :: rdxmolselec !-- read only a certain structure in Xmol file
 
       public :: wrc0  !-- write a TM coord file
         interface wrc0
@@ -119,6 +120,7 @@ module strucrd
       public :: pdbdata
       public :: coord
       public :: ensemble  
+      public :: coordline
 
 !=========================================================================================!
    !coord class. contains a single structure in the PDB format.
@@ -172,13 +174,23 @@ module strucrd
    type :: ensemble
 
    !--- data
-       integer :: nat  = 0
-       integer :: nall = 0
+       integer :: nat  = 0             !number of total atoms
+       integer :: nall = 0             !number of structures
        integer,allocatable :: vnat(:)     !used instead of nat if not all structures have the same      number of atoms, in which case nat will be  =maxval(vnat,1)
 
        integer,allocatable  :: at(:)      !atom types as integer, dimension will be at(nat)
        real(wp),allocatable :: xyz(:,:,:) !coordinates, dimension will be xyz(3,nat,nall)
        real(wp),allocatable :: er(:)   !energy of each structure, dimension will be eread(nall)
+
+       real(wp)            :: g         !gibbs free energy
+       real(wp)            :: s         !entropy
+       real(wp),allocatable :: gt(:)    !gibbs free energy of each member
+       real(wp),allocatable :: ht(:)    !enthalpy of each member
+       real(wp),allocatable :: svib(:)  !vibrational entropy of each member
+       real(wp),allocatable :: srot(:)  !rotational entropy of each member
+       real(wp),allocatable :: stra(:)  !translational entropy of each member
+
+
 
        contains
            procedure :: deallocate => deallocate_ensembletype !clear memory space
@@ -586,6 +598,12 @@ subroutine deallocate_ensembletype(self)
       if(allocated(self%at))deallocate(self%at)
       if(allocated(self%xyz))deallocate(self%xyz)
       if(allocated(self%er))deallocate(self%er)
+      if(allocated(self%gt))deallocate(self%gt)
+      if(allocated(self%ht))deallocate(self%ht)
+      if(allocated(self%svib))deallocate(self%svib)
+      if(allocated(self%srot))deallocate(self%srot)
+      if(allocated(self%stra))deallocate(self%stra)
+
       return
 end subroutine deallocate_ensembletype
 
@@ -1063,6 +1081,53 @@ subroutine rdPDB(fname,nat,at,xyz,pdb)
      return
 end subroutine rdPDB     
 
+!============================================================!
+! subroutine rdxmolselec
+! Read a file with multiple structures in the *.xyz (Xmol) style.
+! Picks one structure.
+! The commentary (second) line is ignored
+!
+! On Input: fname  - name of the coord file
+!           m      - position of the desired structure
+!           nat    - number of atoms
+!
+! On Output: at   - atom number as integer
+!            xyz  - coordinates (in Angström)
+!============================================================!
+
+subroutine rdxmolselec(fname,m,nat,at,xyz,comment)
+     implicit none
+     character(len=*),intent(in) :: fname
+     integer,intent(in) :: nat, m
+     integer,intent(inout)  :: at(nat)
+     real(wp),intent(inout) :: xyz(3,nat)
+     character(len=*),optional :: comment
+     character(len=6) :: sym
+     integer :: ich,io,i,j
+     integer :: dum
+     character(len=256) :: atmp  
+
+     open(newunit=ich,file=fname)
+
+     do j=1,m
+       read(ich,*,iostat=io) dum
+       if( nat .ne. dum)then
+           error stop 'error while reading input coordinates'
+       endif
+       read(ich,'(a)') atmp !--commentary line
+       if(present(comment)) comment=trim(adjustl(atmp))
+       do i=1,nat
+         read(ich,'(a)',iostat=io) atmp
+         if(io < 0) exit
+         atmp = adjustl(atmp) 
+         call coordline(atmp,sym,xyz(1:3,i))
+         at(i) = e2i(sym)
+       enddo
+     end do
+     close(ich)
+     xyz = xyz/bohr
+     return
+end subroutine rdxmolselec
 
 !==================================================================!
 ! subroutine deallocate_coord
@@ -1384,7 +1449,6 @@ subroutine wrxyz_channel_energy(ch,nat,at,xyz,er)
      enddo
      return
 end subroutine wrxyz_channel_energy
-
 
 !============================================================!
 ! subroutine xyz2coord

@@ -22,8 +22,8 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date='Mon 16. Aug 09:59:32 CEST 2021'
-      character(len=10),parameter:: version='2.11.1'
+      character(len=40),parameter:: date='Fr 17. Dec 12:10:44 CEST 2021'
+      character(len=10),parameter:: version='2.11.2'
       logical :: niceprint
       
       niceprint=.true.
@@ -47,7 +47,7 @@ subroutine confscript_head
 
       write(*,'(3x,a)')'with help from:'
       write(*,'(3x,a)')'C.Bannwarth, F.Bohle, S.Ehlert, S.Grimme,'
-      write(*,'(3x,a)')'P.Pracht, S. Spicher'
+      write(*,'(3x,a)')'C. Plett, P.Pracht, S. Spicher'
       write(*,*)
 
       call disclaimer()
@@ -187,7 +187,7 @@ subroutine confscript_help()
       write(*,'(5x,''-nci               : generate an ellipsoide potential around the'')')
       write(*,'(5x,''                     input structure and add it to the MTD simulation.'')')
       write(*,'(5x,''                     This can be used to find aggregates of NCI complexes.'')')
-      write(*,'(5x,''-pscal <real>      : scale the ellipsoide potential axes by factor <real>.'')')
+      write(*,'(5x,''-wscal <real>      : scale the ellipsoide potential axes by factor <real>.'')')
   write(*,*)
   write(*,*)
       write(*,'(1x,''Thermostatistical options (used in entropy mode):'')')
@@ -201,7 +201,38 @@ subroutine confscript_help()
       write(*,'(5x,''-ithr <float>      : imaginary mode inversion cutoff [default: -50.0 cm^-1]'')')
       write(*,'(5x,''-ptot <float>      : sum of population for structures considered in msRRHO average.'')')
       write(*,'(5x,''                     [default: 0.9 (=90%)]'')')
+    
+
+      write(*,*)
+      write(*,*)
       
+      write(*,'(1x,''Quantum Cluster Growth (QCG)'')')
+      write(*,'(1x,''General usage :'')')
+      write(*,'(5x,''<solute> -qcg <solvent> [options]'')')
+      write(*,'(1x,''options (additionally to the iMTD-GC options above):'')')
+      write(*,'(5x,''-keepdir           : keep the tmp folder'')')
+      write(*,'(5x,''-nopreopt          : do not perform preoptimization (only for qcg).'')')
+      write(*,'(5x,''-grow              : cluster generation'')')
+      write(*,'(5x,''-fixsolute         : fix the solute during the growth (recommended for rigid ones)'')')
+      write(*,'(5x,''                   : done automatically for water'')')
+      write(*,'(5x,''-nofix             : fix the solute not during the growth (needed only for water)'')')
+!      write(*,'(5x,''-fixens            : fix the solute during the ensemble generation'')')
+      write(*,'(5x,''-nsolv <INT>       : number of solvent molecules to add'')')
+      write(*,'(5x,''-wscal <FLOAT>     : Scaling factor for outer wall potential'')')
+      write(*,'(5x,''-samerand          : use same random number for every xtbiff run'')')
+      write(*,'(5x,''-ensemble          : ensemble generation'')')
+      write(*,'(5x,''-ncimtd            : NCI-MTD CREST ensemble generation (Default)'')')
+      write(*,'(5x,''-mtd               : MTD for QCG ensemble generation'')')
+      write(*,'(5x,''-md                : normal MD for QCG ensemble search'')')
+      write(*,'(5x,''-enslvl [method]   : define a method for ensemble search. All gfn methods are supported'')')
+      write(*,'(5x,''-esolv             : reference cluster generation and comp. of solvation energy'')')
+      write(*,'(5x,''-gsolv             : reference cluster generation and comp. of solvation free energy'')')
+      write(*,'(5x,''-nclus             : defines how many clusters are taken for reference cluster generation'')')
+      write(*,'(5x,''                   : default 4'')')
+      write(*,'(5x,''-nocff             : switches off the CFF algorithm'')')
+      write(*,'(5x,''-freqscal          : defines frequency scale factor. Only for outprint'')')
+      write(*,'(5x,''-freqlvl [method]  : define a method for frequency computation. All gfn versions are supported'')')
+
 
   write(*,*)
   write(*,*)
@@ -756,8 +787,230 @@ subroutine checkbinary(env)
         if(r .ne. 0) then
         write(*,'(4x,a)') 'Warning! The xtb binary was not found and hence CREST might crash'
         endif
+
+        if(env%crestver .eq. crest_solv) then
+            call checkprog(trim('xtbiff'),r)
+            if(r .ne. 0)then
+                write(*,'(4x,a)') 'Warning! The xtbiff binary was not found and hence the qcg mode in CREST will probably crash'
+            end if
+        end if
         return
 end subroutine checkbinary
+
+!==============================================================================!
+!  QCG-printouts
+!==============================================================================!
+
+!____________________________________________________________________________
+
+subroutine print_qcg_grow()
+  implicit none
+  write(*,*)
+  write(*,'(2x,''========================================='')')
+  write(*,'(2x,''|   quantum cluster growth: GROW        |'')')
+  write(*,'(2x,''========================================='')')
+  write(*,*)
+end subroutine print_qcg_grow
+
+!____________________________________________________________________________
+
+subroutine pr_qcg_fastgrow()
+  implicit none
+  write(*,*)
+  write(*,'(2x,''========================================='')')
+  write(*,'(2x,''|   quantum cluster growth: FASTGROW    |'')')
+  write(*,'(2x,''========================================='')')
+  write(*,*)
+end subroutine pr_qcg_fastgrow
+
+!____________________________________________________________________________
+
+subroutine print_qcg_ensemble()
+  implicit none
+  write(*,*)
+  write(*,'(2x,''========================================='')')
+  write(*,'(2x,''|   quantum cluster growth: ENSEMBLE    |'')')
+  write(*,'(2x,''========================================='')')
+  write(*,*)
+end subroutine print_qcg_ensemble
+
+!____________________________________________________________________________
+
+subroutine print_qcg_opt()
+  implicit none
+  write(*,*)
+  write(*,'(2x,''========================================='')')
+  write(*,'(2x,''|   quantum cluster growth: OPT         |'')')
+  write(*,'(2x,''========================================='')')
+  write(*,*)
+  write(*,'(2x,''Very tight post optimization of lowest cluster'')')
+end subroutine print_qcg_opt
+
+!____________________________________________________________________________
+
+subroutine pr_qcg_fill()
+  implicit none
+  write(*,*)
+  write(*,'(2x,''========================================='')')
+  write(*,'(2x,''|   quantum cluster growth: CFF         |'')')
+  write(*,'(2x,''========================================='')')
+  write(*,*)
+  write(*,'(2x,''CUT-FREEZE-FILL Algorithm to generate reference solvent cluster'')')
+end subroutine pr_qcg_fill
+
+!____________________________________________________________________________
+
+subroutine pr_qcg_freq()
+  implicit none
+  write(*,*)
+  write(*,'(2x,''========================================='')')
+  write(*,'(2x,''|          Frequency evaluation         |'')')
+  write(*,'(2x,''========================================='')')
+  write(*,*)
+end subroutine pr_qcg_freq
+
+!____________________________________________________________________________
+
+subroutine pr_eval_solute()
+  implicit none
+  write(*,*)
+  write(*,'(2x,''________________________________________________________________________'')')
+  write(*,*)
+  write(*,'(2x,''__________________     Solute Cluster Generation   _____________________'')')
+  write(*,*)
+  write(*,'(2x,''________________________________________________________________________'')')
+  write(*,*)
+end subroutine pr_eval_solute
+
+!____________________________________________________________________________
+
+subroutine pr_eval_solvent()
+  implicit none
+  write(*,*)
+  write(*,*)
+  write(*,'(2x,''________________________________________________________________________'')')
+  write(*,*)
+  write(*,'(2x,''_________________     Solvent Cluster Generation   _____________________'')')
+  write(*,*)
+  write(*,'(2x,''________________________________________________________________________'')')
+  write(*,*)
+end subroutine pr_eval_solvent
+
+!____________________________________________________________________________
+
+subroutine pr_eval_eval()
+  implicit none
+  write(*,*)
+  write(*,*)
+  write(*,'(2x,''________________________________________________________________________'')')
+  write(*,*)
+  write(*,'(2x,''_________________________     Evaluation    ____________________________'')')
+  write(*,*)
+  write(*,'(2x,''________________________________________________________________________'')')
+  write(*,*)
+  write(*,*)
+end subroutine pr_eval_eval
+
+!____________________________________________________________________________
+
+subroutine pr_freq_energy()
+  implicit none
+  write(*,'(2x,"#       H(T)       SVIB      SROT       STRA      G(T)")')
+  write(*,'(2x,"     [kcal/mol]    [      cal/mol/K        ]    [kcal/mol]")')
+  write(*,'(2x,"--------------------------------------------------------")')
+end subroutine pr_freq_energy  
+
+!____________________________________________________________________________
+
+subroutine pr_eval_1(G,H)
+  use iso_fortran_env, only : wp => real64
+  implicit none
+  real(wp),intent(in)       :: G,H
+  write(*,'(2x,"-----------------------------------------------------")')
+  write(*,'(2x,"Gsolv and Hsolv ref. state: [1 M gas/solution] ")')
+  write(*,'(2x,"G_solv (incl.RRHO)      =",F8.2," kcal/mol")') G
+  write(*,'(2x,"H_solv (incl.RRHO)      =",F8.2," kcal/mol")') H
+  write(*,'(2x,"-----------------------------------------------------")')
+  write(*,*)
+end subroutine pr_eval_1  
+
+
+!____________________________________________________________________________
+
+subroutine pr_eval_2(srange,G,scal)
+  use iso_fortran_env, only : wp => real64
+  implicit none
+! Dummy  
+  integer,intent(in)        :: srange
+  real(wp),intent(in)       :: G(srange)
+  real(wp),intent(in)       :: scal(srange)
+! Stack
+  integer                   :: i
+  write(*,'(2x,"-----------------------------------------------------")')
+  write(*,'(2x,"Solvation free energies with scaled translational")')
+  write(*,'(2x,"and rotational degrees of freedom: Gsolv (scaling)")')
+  do i = 1,srange
+    write(*,'(10x,">>",2x,f8.2," (",f4.2,")",4x,"<<")') G(i),scal(i)
+  end do
+  write(*,'(2x,"-----------------------------------------------------")')
+end subroutine pr_eval_2
+
+!____________________________________________________________________________
+
+subroutine pr_eval_3(srange,freqscal,scal,G)
+  use iso_fortran_env, only : wp => real64
+  implicit none
+! Dummy  
+  integer,intent(in)        :: srange
+  integer,intent(in)        :: freqscal
+  real(wp),intent(in)       :: scal
+  real(wp),intent(in)       :: G(srange)
+  write(*,*)
+  write(*,'(2x,"==================================================")')
+  write(*,'(2x,"|  Gsolv with SCALED RRHO contributions: ",f4.2,4x"|")') scal
+  write(*,'(2x,"|  [1 bar gas/ 1 M solution]                     |")')
+  write(*,'(2x,"|                                                |")')
+  write(*,'(2x,"|  G_solv (incl.RRHO)+dV(T)=",F8.2," kcal/mol    |")') G(freqscal)
+  write(*,'(2x,"==================================================")')
+  write(*,*)
+end subroutine pr_eval_3
+
+!____________________________________________________________________________
+
+subroutine pr_fill_energy()
+  implicit none
+  write(*,'(x,'' Size'',2x,''Cluster '',2x,''E /Eh '',7x,''De/kcal'',3x,&
+          &''Detot/kcal'',2x,''Opt'',4x)')
+end subroutine pr_fill_energy 
+
+!____________________________________________________________________________
+
+subroutine pr_ensemble_energy()
+  implicit none
+  write(*,*)
+  write(*,'(x,'' Cluster'',3x,''E /Eh '',7x,&
+           &''Density'',2x,''Efix'',7x,''R   av/act.'',1x,&
+           &''Surface'',3x,''Opt'',4x)')
+end subroutine pr_ensemble_energy
+
+!____________________________________________________________________________
+
+subroutine pr_qcg_esolv()
+  implicit none
+  write(*,*)
+  write(*,'(2x,''========================================='')')
+  write(*,'(2x,''|   quantum cluster growth: ESOLV       |'')')
+  write(*,'(2x,''|                                       |'')')
+end subroutine pr_qcg_esolv
+
+!____________________________________________________________________________
+
+subroutine pr_grow_energy()
+  implicit none
+  write(*,'(x,'' Size'',2x,''E /Eh '',6x,''De/kcal'',3x,''Detot/kcal'',2x,&
+           &''Density'',3x,''Efix'',9x,''R   av/act.'',1x,&
+           &''Surface'',3x,''Opt'',4x)')
+end subroutine pr_grow_energy
 
 
 !==============================================================================!

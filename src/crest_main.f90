@@ -43,7 +43,7 @@ program CREST
       character(len=512) :: str,thisdir
       character(len=1024) :: cmd
       real(wp) :: dumfloat,dumfloat2,d3,d4,d5,d6,d7,d8
-      logical :: ex
+      logical :: ex,ex1,ex2
 
       call initsignal() !SIGTERM catcher
 
@@ -60,6 +60,8 @@ program CREST
          call getarg(i,arg(i))
       enddo
       call parseflags(env,arg,args)
+
+
       deallocate(arg)
 
 !===================================================================================================!
@@ -94,10 +96,21 @@ program CREST
 !c SOME I/O STUFF
 !===================================================================================================!
 !---- check for the coord file in the working directory
-      inquire(file='coord',exist=ex)
-      if(.not.ex)then
-         error stop 'No coord file found. Exit.'
+      if (env%crestver.eq.crest_solv) then
+         inquire(file='solute',exist=ex1)
+         inquire(file='solvent',exist=ex2)
+         if (.not.ex1) then
+            error stop 'No solute file found. Exit.'
+         else if (.not.ex2) then
+            error stop 'No solvent file found. Exit.'
+        end if
+      else
+         inquire(file='coord',exist=ex)
+         if(.not.ex)then
+            error stop 'No coord file found. Exit.'
+         end if
       end if
+
 
 !---- call zsort subroutine?
       if(env%autozsort)then
@@ -240,6 +253,9 @@ program CREST
          call biasmerge(env)
          call tim%stop(9)
         if( env%properties == -9224) call propquit(tim)
+  !---- QCG-runtype
+        case( p_qcg )
+!          env%NCI = .true.
   !---- do nothing here
        case default
          continue
@@ -320,7 +336,6 @@ program CREST
 
 !===================================================================================================!
 !c Evaluate and print timings
-
       call eval_timer(tim)
       write(*,*)
       write(*,*)'CREST terminated normally.'
