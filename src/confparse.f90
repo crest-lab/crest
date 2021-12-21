@@ -1839,7 +1839,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
 !----- additional checks and settings
       if(env%crestver .eq. crest_solv) bondconst = .false.
 
-      if(env%qcg_flag .eq. .true. .and. env%crestver .ne. crest_solv) then
+      if(env%qcg_flag .and. env%crestver .ne. crest_solv) then
          error stop 'At least one flag is only usable for QCG runtype. Exit.'
       end if
 
@@ -1848,7 +1848,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
 !          env%runver=4
 !      end if
 
-      if(env%autozsort .eq. .true. .and. env%crestver.eq. crest_solv) then
+      if(env%autozsort .and. env%crestver.eq. crest_solv) then
           error stop 'Z sorting of the input is unavailable for -qcg runtyp.'
       end if
 
@@ -2288,12 +2288,12 @@ subroutine inputcoords_qcg(env,arg1,arg2)
       inputfile = trim(arg1)
       write(*,*)'Solute-file: ', arg1
       env%solu_file = arg1
-    else if (solu .and. ex11 .eq. .false.) then
+    else if (solu .and. .not.ex11) then
       call copy('solute','solute.old')
       inputfile = 'solute'
       write(*,'(/,1x,a)')'Solute-file: solute'
       env%solu_file = 'solute'
-    else if(ex12 .and. ex11 .eq. .false.)then !-- save coord as reference
+    else if(ex12 .and. .not.ex11)then !-- save coord as reference
       call copy('coord','coord.old')
       call copy('coord','solute')
       write(*,'(/,1x,a)')'Solute-file: coord'
@@ -2321,12 +2321,12 @@ subroutine inputcoords_qcg(env,arg1,arg2)
       inputfile = trim(arg2)
       write(*,*)'Solvent-file: ', arg2
       env%solv_file = arg2
-    else if (solv .and. ex21 .eq. .false.) then
+    else if (solv .and. .not.ex21) then
       call copy('solvent','solvent.old')
       inputfile = 'solvent'
       write(*,'(/,1x,a)')'Solvent-file: solvent'
       env%solv_file = 'solvent'
-    else if(ex22 .and. ex21 .eq. .false. )then !-- save coord as reference
+    else if(ex22 .and. .not.ex21)then !-- save coord as reference
       call copy('coord','coord.old')
       call copy('coord','solvent')
       inputfile = 'coord'
