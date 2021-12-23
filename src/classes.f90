@@ -393,6 +393,7 @@ module crest_data
       integer                      :: qcg_runtype = 0      !Default is grow, 1= ensemble & opt, 2= e_solv, 3= g_solv
       integer                      :: nsolv = 0            !Number of solventmolecules
       integer                      :: nqcgclust = 0        !Number of cluster to be taken
+      integer                      :: max_solv = 0         !Maximal number of solvents added, if none is given
       character(len=:),allocatable :: solu_file, solv_file !solute  and solvent input file
       integer                      :: ensemble_method = 0  !Default 0 for crest, 1= standard MD, 2= MTD
       character(len=20)            :: ensemble_opt         !Method for ensemble optimization in qcg mode
