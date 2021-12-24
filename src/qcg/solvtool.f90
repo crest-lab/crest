@@ -148,6 +148,7 @@ subroutine qcg_setup(env,solu,solv)
   use iomod
   use zdata
   use strucrd
+  use axis_module
   implicit none
 
   type(systemdata):: env 
@@ -2289,6 +2290,7 @@ subroutine cma_shifting(env,solu,solv)
   use iomod
   use zdata
   use strucrd
+  use axis_module, only: cma
   implicit none
 
   type(systemdata)   :: env 
@@ -2315,6 +2317,7 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   use iomod
   use zdata
   use strucrd
+  use axis_module
   implicit none
 
   type(systemdata)   :: env 
@@ -2349,9 +2352,9 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
 
 !--- Getting axis
   if(pr1) write(*,*) 'Solute:'
-  call axis2(pr1,solu%nat,solu%at,solu%xyz,eax_solu)
+  call axis(pr1,solu%nat,solu%at,solu%xyz,eax_solu)
   if(pr1) write(*,*) 'Solvent:'
-  call axis2(pr1,solv%nat,solv%at,solv%xyz,eax_solv)
+  call axis(pr1,solv%nat,solv%at,solv%xyz,eax_solv)
   if(pr1) write(*,*)
 
 !--- Computing anisotropy factor of solute and solvent
@@ -2597,6 +2600,7 @@ end subroutine get_interaction_E
 
 subroutine analyze_cluster(nsolv,n,nS,nM,xyz,at,av,last)
   use iso_fortran_env, only : wp => real64
+  use axis_module, only: cma
   implicit none
   real(wp) xyz(3,n)
   real(wp) av,last
@@ -2740,7 +2744,7 @@ subroutine fill_take(n2,n12,rabc,ipos)
   use iso_fortran_env, only : wp => real64
   use crest_data
   use strucrd
-
+  use axis_module, only: cma
   implicit none
   
   integer, intent(in)   :: n2,n12

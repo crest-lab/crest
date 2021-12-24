@@ -19,7 +19,7 @@ subdir('qcg')
 srcs += files(
   'acidbase.f90',
   'atmasses.f90',
-  'axis3.f',
+  'axis_module.f90',
   'biasmerge.f90',
   'bondconstraint.f90',
   'ccegen.f90',
@@ -38,7 +38,6 @@ srcs += files(
   'data.f90',
   'deprotonate.f90',
   'dft_propcalc.f90',
-  'drsp.f',
   'ensemblecomp.f90',
   'entropic.f90',
   'entropy.f90',

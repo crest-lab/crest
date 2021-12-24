@@ -27,6 +27,7 @@ subroutine prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,symnum,symchar)
     use atmasses,only : molweight
     use iomod, only: to_lower
     use crest_data, only : bohr
+    use axis_module
     implicit none
     integer,intent(in)     :: nat
     integer,intent(in)     :: at(nat)

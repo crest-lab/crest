@@ -1038,9 +1038,9 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
     use crest_data
     use strucrd
     use ls_rmsd
+    use axis_module
     implicit none
     type(systemdata) :: env
-    !type(options) :: opt
     integer,intent(in) :: ch
     integer,intent(in) :: nat
     integer,intent(in) :: nall
@@ -1126,17 +1126,13 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
 
 !--- transform the coordinates to CMA and get rot.constants
     do i=1,nall
-       call axistrf(nat,nat,at,xyz(:,:,i)) !-- all coordinates to CMA
+       call axis(nat,at,xyz(:,:,i)) !-- all coordinates to CMA
        if(substruc)then
          call maskedxyz(nat,nat0,xyz(:,:,i),c1,at,at0,includeRMSD)
        else
          c1(:,:) = xyz(:,:,i)
        endif
-       if(env%allrot)then
            call axis(nat0,at0,c1,rot(1:3,i),bdum)  !-- B0 in MHz
-       else
-          call axis3(0,nat0,at0,c1,c0,rot(1:3,i)) !-- B0 in cm-1
-      endif
     enddo   
 
 !--- Calculate an artificial Coulomb energy used to compare structures
@@ -1502,9 +1498,9 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
     use crest_data
     use strucrd
     use ls_rmsd
+    use axis_module
     implicit none
     type(systemdata) :: env
-    !type(options) :: opt
     integer,intent(in) :: ch
     integer,intent(in) :: nat
     integer,intent(in) :: nall
@@ -1580,13 +1576,9 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
 
 !--- transform the coordinates to CMA and get rot.constants
     do i=1,nall
-       call axistrf(nat,nat,at,xyz(:,:,i)) !-- all coordinates to CMA
+       call axis(nat,at,xyz(:,:,i)) !-- all coordinates to CMA
        c1(:,:) = xyz(:,:,i)
-       if(env%allrot)then
            call axis(nat0,at0,c1,rot(1:3,i),bdum)  !-- B0 in MHz
-       else
-          call axis3(0,nat0,at0,c1,c0,rot(1:3,i)) !-- B0 in cm-1
-      endif
     enddo   
 
 !--- Calculate an artificial Coulomb energy used to compare structures
@@ -2430,7 +2422,6 @@ subroutine cregen_file_wr(env,fname,nat,nall,at,xyz,comments)
     use strucrd
     implicit none
     type(systemdata) :: env
-    !type(options) :: opt
     character(len=*) :: fname
     integer :: nat,nall
     integer :: at(nat)
@@ -2461,9 +2452,6 @@ subroutine cregen_file_wr(env,fname,nat,nall,at,xyz,comments)
     open(newunit=ich,file=fname)
      do i=1,nall
         c0(:,:)=xyz(:,:,i)
-        !call axis3(0,nat,at,xyz(:,:,i),c0,xdum)
-        !!--- try to align all conformers the same way
-        !call xyzalign(nat,c0)
         if(env%trackorigin)then
             write(newcomment,*) er(i),p(i),'!'//trim(origin(i))
         else
