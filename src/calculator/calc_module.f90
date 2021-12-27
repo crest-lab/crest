@@ -80,7 +80,7 @@ contains
     !call constr%print()
     !call constr%sphereconstraint(mol%nat,4.0_wp,1.0_wp,6.0_wp,.true.)
     !call constr%angleconstraint(2,1,3,1387.0_wp,0.02_wp)
-    call constr%dihedralconstraint(1,2,3,9,180.0_wp, 0.02_wp)
+    call constr%dihedralconstraint(1,2,3,9,27.0_wp, 0.02_wp)
     !call constr%print()
     call calc%add(constr)
     call calc%cons(1)%print()

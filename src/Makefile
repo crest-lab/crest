@@ -34,6 +34,7 @@ SUBMOD += shake_module.o
 SUBMOD += calc_module.o
 SUBMOD += metadynamics_module.o
 SUBMOD += dynamics_module.o
+SUBMOD += optimize_module.o
 
 OBJS1 += data.o
 OBJS1 += io.o
@@ -118,7 +119,7 @@ MAINFILES += crest_main.o
 OBJS := $(MODULES) $(SUBMOD) $(CFILES) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(MAINFILES)
 #--------------------------------------------------------------------------
 
-SUBDIRS = . dynamics calculator qcg
+SUBDIRS = . calculator dynamics optimize qcg
 
 vpath % $(SUBDIRS)
 OBJS := $(addprefix $(OBJDIR)/, $(OBJS))

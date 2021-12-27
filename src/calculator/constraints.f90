@@ -470,6 +470,7 @@ contains
     real(wp) :: dinv,dum,x,T,beta
     real(wp) :: dadN1(3),dadN2(3),dad0(3)
     real(wp) :: sig,dDdr(3)
+    real(wp) :: dDdA(3),dDdB(3),dDdC(3),dDdD(3)
 
     energy = 0.0_wp
     grd = 0.0_wp
@@ -494,15 +495,11 @@ contains
     rab = A - B
     rcb = C - B
     rdc = D - C
-    !> for some reason the normalization breaks everything. thanks for nothing.
-    !call norml(rab)
-    !call norml(rcb)
-    !call norml(rdc)
     !> get the two normal vectors N1 and N2 for the two planes
     call cross(rab,rcb,N1)
     call cross(rdc,rcb,N2)
     p = dot(N1,rdc)
-    sig = -sign(1.0_wp,p) 
+    sig = -sign(1.0_wp,p)
     call angle_and_derivatives(N1,Nzero,N2,dangle,dadN1,dad0,dadN2)
     dangle = sig * dangle
 
@@ -516,123 +513,45 @@ contains
       dum = (kb * T * beta * exp(beta * x)) / (exp(beta * x) + 1.0_wp)
     end select
 
-    dDdr(1) = sig * (dadN1(2) * (B(3) - C(3)) + dadN1(3) * (C(2) - B(2)))
-    dDdr(2) = sig * (dadN1(1) * (C(3) - B(3)) + dadN1(3) * (B(1) - C(1)))
-    dDdr(3) = sig * (dadN1(1) * (B(2) - C(2)) + dadN1(2) * (C(1) - B(1)))
-    grd(1,iat) = dum * dDdr(1)
-    grd(2,iat) = dum * dDdr(2)
-    grd(3,iat) = dum * dDdr(3)
-    dDdr(1) = sig * (dadN1(2) * (C(3) - A(3)) + dadN1(3) * (A(2) - C(2)) &
-    &       + dadN2(2) * (C(3) - D(3)) + dadN2(3) * (D(2) - C(2)))
-    dDdr(2) = sig * (dadN1(1) * (A(3) - C(3)) + dadN1(3) * (C(1) - A(1)) &
-    &       + dadN2(1) * (D(3) - C(3)) + dadN2(3) * (C(1) - D(1)))
-    dDdr(3) = sig * (dadN1(1) * (C(2) - A(2)) + dadN1(2) * (A(1) - C(1)) &
-    &       + dadN2(1) * (C(2) - D(2)) + dadN2(2) * (D(1) - C(1)))
-    grd(1,jat) = dum * dDdr(1)
-    grd(2,jat) = dum * dDdr(2)
-    grd(3,jat) = dum * dDdr(3)
-    dDdr(1) = sig * (dadN1(2) * (A(3) - B(3)) + dadN1(3) * (B(2) - A(2)) &
-    &       + dadN2(2) * (D(3) - B(3)) + dadN2(3) * (B(2) - D(2)))
-    dDdr(2) = sig * (dadN1(1) * (B(3) - A(3)) + dadN1(3) * (A(1) - B(1)) &
-    &       + dadN2(1) * (B(3) - D(3)) + dadN2(3) * (D(1) - B(1)))
-    dDdr(3) = sig * (dadN1(1) * (A(2) - B(2)) + dadN1(2) * (B(1) - A(1)) &
-    &       + dadN2(1) * (D(2) - B(2)) + dadN2(2) * (B(1) - D(1)))
-    grd(1,kat) = dum * dDdr(1)
-    grd(2,kat) = dum * dDdr(2)
-    grd(3,kat) = dum * dDdr(3)
-    dDdr(1) = sig * (dadN2(2) * (B(3) - C(3)) + dadN2(3) * (C(2) - B(2)))
-    dDdr(2) = sig * (dadN2(1) * (C(3) - B(3)) + dadN2(3) * (B(1) - C(1)))
-    dDdr(3) = sig * (dadN2(1) * (B(2) - C(2)) + dadN2(2) * (C(1) - B(1)))
-    grd(1,lat) = dum * dDdr(1)
-    grd(2,lat) = dum * dDdr(2)
-    grd(3,lat) = dum * dDdr(3)
+    call dtorsdr(A,B,C,D,dadN1,dadN2,sig,dDdA,dDdB,dDdC,dDdD)
+    grd(1:3,iat) = dum * dDdA(1:3)
+    grd(1:3,jat) = dum * dDdB(1:3)
+    grd(1:3,kat) = dum * dDdC(1:3)
+    grd(1:3,lat) = dum * dDdD(1:3)
 
     return
   contains
-    subroutine norml(r)
-       implicit none
-       real(wp) :: r(3)
-       real(wp) :: dum
-       integer :: i 
-       dum = 0.0_wp
-       do i=1,3
-       dum = dum + r(i)**2
-       enddo
-       r = r/sqrt(dum)
-       return
-    end subroutine norml
-  subroutine dphidr(nat,xyz,i,j,k,l,phi,dphidri,dphidrj,dphidrk,dphidrl)
-   !> the torsion derivatives
-   implicit none
-   !external vecnorm
-   integer :: ic,i,j,k,l,nat
-   real(wp)&
-      &         sinphi,cosphi,onenner,thab,thbc,&
-      &         ra(3),rb(3),rc(3),rab(3),rac(3),rbc(3),rbb(3),&
-      &         raa(3),rba(3),rapba(3),rapbb(3),rbpca(3),rbpcb(3),&
-      &         rapb(3),rbpc(3),na(3),nb(3),nan,nbn,&
-      &         dphidri(3),dphidrj(3),dphidrk(3),dphidrl(3),&
-      &         xyz(3,nat),phi,vecnorm,nenner,eps,vz
+    subroutine dtorsdr(A,B,C,D,dadN1,dadN2,sig,dphidA,dphidB,dphidC,dphidD)
+      implicit none
+      real(wp),intent(in) :: A(3),B(3),C(3),D(3) !>points spanning the torsion A-B-C-D
+      real(wp),intent(in) :: dadN1(3),dadN2(3) !> derivatives of the angle between N1 and N2
+      real(wp),intent(in) :: sig !> sign
+      real(wp),intent(out) :: dphidA(3),dphidB(3),dphidC(3),dphidD(3) !> Cartesian derivatives
 
-   parameter (eps=1.d-14)
+      dphidA(1) = sig * (dadN1(2) * (B(3) - C(3)) + dadN1(3) * (C(2) - B(2)))
+      dphidA(2) = sig * (dadN1(1) * (C(3) - B(3)) + dadN1(3) * (B(1) - C(1)))
+      dphidA(3) = sig * (dadN1(1) * (B(2) - C(2)) + dadN1(2) * (C(1) - B(1)))
 
-   cosphi=cos(phi)
-   sinphi=sin(phi)
-   do ic=1,3
-      ra(ic)=xyz(ic,j)-xyz(ic,i)
-      rb(ic)=xyz(ic,k)-xyz(ic,j)
-      rc(ic)=xyz(ic,l)-xyz(ic,k)
+      dphidB(1) = sig * (dadN1(2) * (C(3) - A(3)) + dadN1(3) * (A(2) - C(2)) &
+      &       + dadN2(2) * (C(3) - D(3)) + dadN2(3) * (D(2) - C(2)))
+      dphidB(2) = sig * (dadN1(1) * (A(3) - C(3)) + dadN1(3) * (C(1) - A(1)) &
+      &       + dadN2(1) * (D(3) - C(3)) + dadN2(3) * (C(1) - D(1)))
+      dphidB(3) = sig * (dadN1(1) * (C(2) - A(2)) + dadN1(2) * (A(1) - C(1)) &
+      &       + dadN2(1) * (C(2) - D(2)) + dadN2(2) * (D(1) - C(1)))
 
-      rapb(ic)=ra(ic)+rb(ic)
-      rbpc(ic)=rb(ic)+rc(ic)
-   end do
+      dphidC(1) = sig * (dadN1(2) * (A(3) - B(3)) + dadN1(3) * (B(2) - A(2)) &
+      &       + dadN2(2) * (D(3) - B(3)) + dadN2(3) * (B(2) - D(2)))
+      dphidC(2) = sig * (dadN1(1) * (B(3) - A(3)) + dadN1(3) * (A(1) - B(1)) &
+      &       + dadN2(1) * (B(3) - D(3)) + dadN2(3) * (D(1) - B(1)))
+      dphidC(3) = sig * (dadN1(1) * (A(2) - B(2)) + dadN1(2) * (B(1) - A(1)) &
+      &       + dadN2(1) * (D(2) - B(2)) + dadN2(2) * (B(1) - D(1)))
 
-   call cross(ra,rb,na)
-   call cross(rb,rc,nb)
-   !nan=vecnorm(na,3,0)
-   nan=sqrt(na(1)**2 + na(2)**2 + na(3)**2)
-   !nbn=vecnorm(nb,3,0)
-   nbn=sqrt(nb(1)**2 + nb(2)**2 + nb(3)**2)
-   nenner=nan*nbn*sinphi
-   if (abs(nenner).lt.eps) then
-      dphidri=0.0_wp
-      dphidrj=0.0_wp
-      dphidrk=0.0_wp
-      dphidrl=0.0_wp
-      onenner=1.0_wp/(nan*nbn)
-   else
-      onenner=1.0_wp/nenner
-   endif
+      dphidD(1) = sig * (dadN2(2) * (B(3) - C(3)) + dadN2(3) * (C(2) - B(2)))
+      dphidD(2) = sig * (dadN2(1) * (C(3) - B(3)) + dadN2(3) * (B(1) - C(1)))
+      dphidD(3) = sig * (dadN2(1) * (B(2) - C(2)) + dadN2(2) * (C(1) - B(1)))
 
-   call cross(na,rb,rab)
-   call cross(nb,ra,rba)
-   call cross(na,rc,rac)
-   call cross(nb,rb,rbb)
-   call cross(nb,rc,rbc)
-   call cross(na,ra,raa)
-
-   call cross(rapb,na,rapba)
-   call cross(rapb,nb,rapbb)
-   call cross(rbpc,na,rbpca)
-   call cross(rbpc,nb,rbpcb)
-
-   ! ... dphidri
-   do ic=1,3
-      dphidri(ic)=onenner*(cosphi*nbn/nan*rab(ic)-rbb(ic))
-
-      ! ... dphidrj
-      dphidrj(ic)=onenner*(cosphi*(nbn/nan*rapba(ic)&
-         &                                +nan/nbn*rbc(ic))&
-         &                        -(rac(ic)+rapbb(ic)))
-      ! ... dphidrk
-      dphidrk(ic)=onenner*(cosphi*(nbn/nan*raa(ic)&
-         &                             +nan/nbn*rbpcb(ic))&
-         &                        -(rba(ic)+rbpca(ic)))
-      ! ... dphidrl
-      dphidrl(ic)=onenner*(cosphi*nan/nbn*rbb(ic)-rab(ic))
-   end do
-
- end subroutine dphidr
+      return
+    end subroutine dtorsdr
 
   end subroutine dihedral_constraint
 
