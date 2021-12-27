@@ -250,6 +250,7 @@ subroutine reactor_setup(env)
   use filemod
   use atmasses
   use strucrd, only: rdnat,rdcoord,wrc0
+  use axis_module 
   implicit none
   type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
   !type(options):: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS

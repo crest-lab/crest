@@ -296,6 +296,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
       env%nqcgclust=0
       env%freq_scal = 0.75
       env%freqver = '--gfn2'
+      env%max_solv = 150
 
 !================================================================================================!
 !================================================================================================!
@@ -1611,6 +1612,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%qcg_flag = .true.
                call readl(arg(i+1),xx,j)
                env%nsolv = NINT(xx(1))
+           case( '-maxsolv' )
+               env%qcg_flag = .true.
+               call readl(arg(i+1),xx,j)
+               env%max_solv = NINT(xx(1))
            case( '-nclus' )
                env%qcg_flag = .true.
                call readl(arg(i+1),xx,j)

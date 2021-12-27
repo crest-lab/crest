@@ -1433,6 +1433,7 @@ end function symfactor
 subroutine nconfRot(zens,rotconst,pr)
       use iso_fortran_env, wp => real64
       use zdata
+      use axis_module
       implicit none
       type(zensemble) :: zens
       real(wp) :: rotconst(3,zens%nconf)

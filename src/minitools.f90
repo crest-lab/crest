@@ -188,6 +188,7 @@ end subroutine prepentropy
 subroutine printaniso(fname,bmin,bmax,bshift)
     use iso_fortran_env, wp => real64
     use strucrd
+    use axis_module
     implicit none
     character(len=*) :: fname
     type(ensemble) :: ens

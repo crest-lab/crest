@@ -14,6 +14,7 @@ MODULES += ls_rmsd.o
 MODULES += iomod.o
 MODULES += filemod.o
 MODULES += syscheck.o
+MODULES += axis_module.o
 MODULES += zdata.o
 MODULES += strucreader.o
 MODULES += msmod.o
@@ -40,7 +41,6 @@ OBJS1 += data.o
 OBJS1 += io.o
 OBJS1 +=
 
-OBJS2 += drsp.o
 OBJS2 += flexi.o
 OBJS2 += trialmd.o
 OBJS2 += neighbor.o
@@ -51,7 +51,6 @@ OBJS2 += scratch.o
 OBJS2 += sdfio.o
 OBJS2 += shortpath.o
 
-OBJS3 += axis3.o
 OBJS3 += cleanup.o
 OBJS3 += confcross.o
 OBJS3 += confopt.o

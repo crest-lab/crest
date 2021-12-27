@@ -148,6 +148,7 @@ subroutine qcg_setup(env,solu,solv)
   use iomod
   use zdata
   use strucrd
+  use axis_module
   implicit none
 
   type(systemdata):: env 
@@ -396,18 +397,19 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   integer                    :: iter=1
   integer                    :: i,j,io
   integer                    :: ich,ios,ios2
+  integer                    :: max_cycle
   logical                    :: e_there, high_e, success, neg_E
   real(wp)                   :: etmp(500)
-  real(wp)                   :: e_each_cycle(env%nsolv)
+  real(wp),allocatable       :: e_each_cycle(:)
   real(wp)                   :: dens,dum,efix
-  real(wp)                   :: e_diff = 0
+  real(wp)                   :: e_diff = 0.0_wp
   real(wp),parameter         :: eh = 627.509541d0
-  real(wp)                   :: E_inter(env%nsolv) 
-  real(wp)                   :: shr = 0
-  real(wp)                   :: shr_av = 0
-  real(wp)                   :: mean = 0
-  real(wp)                   :: mean_old = 0
-  real(wp)                   :: mean_diff = 0
+  real(wp),allocatable       :: E_inter(:) 
+  real(wp)                   :: shr = 0.0_wp
+  real(wp)                   :: shr_av = 0.0_wp
+  real(wp)                   :: mean = 0.0_wp
+  real(wp)                   :: mean_old = 0.0_wp
+  real(wp)                   :: mean_diff = 0.0_wp
   character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
   character(len=512)         :: thispath, resultspath, tmp
   character(len=20)          :: gfnver_tmp
@@ -430,6 +432,15 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
       integer            :: ich11  
     end subroutine both_ellipsout
   end interface
+
+  if(env%nsolv .gt. 0) then
+    allocate(e_each_cycle(env%nsolv))
+    allocate(E_inter(env%nsolv))
+  else
+    allocate(e_each_cycle(env%max_solv))
+    allocate(E_inter(env%max_solv))
+  end if
+
 
   call tim%start(5,'Grow')
 
@@ -477,10 +488,16 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   clus%chrg = solu%chrg
   clus%uhf = solu%uhf
 
+  if(env%nsolv .gt. 0) then
+    max_cycle=env%nsolv !User set number of solvents to add
+  else
+    max_cycle=env%max_solv !No solvent number set
+  end if
+
 !--------------------------------------------------------
 ! Start Loop
 !--------------------------------------------------------
-do iter=1, env%nsolv
+do iter=1, max_cycle
 
   e_there=.false.
   success=.false.
@@ -621,23 +638,26 @@ do iter=1, env%nsolv
         & clus%vtot,trim(optlevflag(env%optlev))
   write(ich99,'(i4,F20.10,3x,f8.1)') iter,e_each_cycle(iter),clus%vtot
 
-!--- Calculate mean energy difference between current and last cycle         
-!     do i=0,iter-1
-!         mean = mean + E_inter(iter-i)
-!     end do
-  if(iter .gt. 1) mean = mean*(iter-1) !Getting the sum of energies back for next step
-  mean = mean + E_inter(iter)
+!--- Calculate moving average         
+  mean_old = mean
+  do i=0,iter-1
+    mean = mean + E_inter(iter-i)
+  end do
   mean = mean / iter
   mean_diff = mean - mean_old
-  mean_old = mean
   write(ich88,'(i5,1x,3F13.8)') iter,E_inter(iter)*eh,mean,mean_diff
 
 !--- Check if converged when no nsolv was given
   if(env%nsolv .eq. 0) then
-    if(abs(mean_diff).lt.1.0d-4.and.iter.gt.10) exit
-    if(iter.gt.150.and.env%nsolv.eq.0) then
-      write(*,*) 'No convergence could be reached upon adding 150 solvent molecules.'
-      write(*,*) 'Continue with further treatment'
+    if(abs(mean_diff).lt.1.0d-4.and.iter.gt.5) then
+      env%nsolv=iter
+      exit
+    end if
+    if(iter.eq.env%max_solv) then
+      write(*,'(1x,''No convergence could be reached upon adding'',1x,i4,1x,''solvent molecules.'')') env%max_solv
+      write(*,*) ' Proceeding.'
+      env%nsolv=env%max_solv
+      exit
     end if
   end if
 !-----------------------------------------------
@@ -695,6 +715,8 @@ enddo
   call chdir(thispath)
   call chdir(env%scratchdir)
   if(.not.env%keepModef) call rmrf('tmp_grow')
+
+  deallocate(e_each_cycle,E_inter)
 
   call tim%stop(5)
 
@@ -2167,7 +2189,7 @@ subroutine write_qcg_setup(env)
   if(env%nsolv.ne.0)then
     write(*,'(2x,''# of solvents to add   : '',i0)') env%nsolv
   else if(env%nsolv.eq.0)then
-    write(*,'(2x,''# of solvents to add   : until convergence'')')
+    write(*,'(2x,''# of solvents to add   : until convergence, but maximal'',1x,i4)') env%max_solv
   end if
   if(env%nqcgclust .ne. 0) then
     write(*,'(2x,''# of cluster generated : '',i0)') env%nqcgclust
@@ -2268,6 +2290,7 @@ subroutine cma_shifting(env,solu,solv)
   use iomod
   use zdata
   use strucrd
+  use axis_module, only: cma
   implicit none
 
   type(systemdata)   :: env 
@@ -2294,6 +2317,7 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   use iomod
   use zdata
   use strucrd
+  use axis_module
   implicit none
 
   type(systemdata)   :: env 
@@ -2328,9 +2352,9 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
 
 !--- Getting axis
   if(pr1) write(*,*) 'Solute:'
-  call axis2(pr1,solu%nat,solu%at,solu%xyz,eax_solu)
+  call axis(pr1,solu%nat,solu%at,solu%xyz,eax_solu)
   if(pr1) write(*,*) 'Solvent:'
-  call axis2(pr1,solv%nat,solv%at,solv%xyz,eax_solv)
+  call axis(pr1,solv%nat,solv%at,solv%xyz,eax_solv)
   if(pr1) write(*,*)
 
 !--- Computing anisotropy factor of solute and solvent
@@ -2576,6 +2600,7 @@ end subroutine get_interaction_E
 
 subroutine analyze_cluster(nsolv,n,nS,nM,xyz,at,av,last)
   use iso_fortran_env, only : wp => real64
+  use axis_module, only: cma
   implicit none
   real(wp) xyz(3,n)
   real(wp) av,last
@@ -2719,7 +2744,7 @@ subroutine fill_take(n2,n12,rabc,ipos)
   use iso_fortran_env, only : wp => real64
   use crest_data
   use strucrd
-
+  use axis_module, only: cma
   implicit none
   
   integer, intent(in)   :: n2,n12
@@ -2992,6 +3017,8 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
     if(clus%nmol-1 .ge. env%nsolv) then
        progress = 1
        env%nsolv = clus%nmol - 1
+       write(*,*)
+       write(*,*)
        write(*,'(''Found cluster with '',i0,'' solvents'')') env%nsolv
        call chdir(thispath)
     else

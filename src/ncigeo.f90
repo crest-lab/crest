@@ -24,6 +24,7 @@ subroutine wallpot(env)
      use iso_fortran_env , wp => real64
      use crest_data
      use strucrd, only: rdnat,rdcoord,wrc0
+     use axis_module
      implicit none
      !type(options) :: opt
      type(systemdata) :: env
@@ -62,7 +63,7 @@ subroutine wallpot(env)
 
 !--- CMA trafo
      call axistrf(nat,nat,at,xyz)
-     call axis2(pr,nat,at,xyz,eaxr)
+     call axis(pr,nat,at,xyz,eaxr)
      sola=sqrt(1.0d0+(eaxr(1)-eaxr(3))/((eaxr(1)+eaxr(2)+eaxr(3))/3.0d0))
 
      call getmaxdist(nat,xyz,at,rmax)
@@ -103,6 +104,7 @@ end subroutine wallpot
 !============================================================================
 subroutine wallpot_calc(nat,at,xyz,rabc)
      use iso_fortran_env , wp => real64
+     use axis_module
      implicit none
      integer,intent(in)     :: nat
      integer,intent(inout)  :: at(nat)
@@ -127,7 +129,7 @@ subroutine wallpot_calc(nat,at,xyz,rabc)
 
 !--- CMA trafo
      call axistrf(nat,nat,at,xyz)
-     call axis2(pr,nat,at,xyz,eaxr)
+     call axis(pr,nat,at,xyz,eaxr)
      sola=sqrt(1.0d0+(eaxr(1)-eaxr(3))/((eaxr(1)+eaxr(2)+eaxr(3))/3.0d0))
      call getmaxdist(nat,xyz,at,rmax)
      vtot = volsum(nat,xyz,at) !--- volume as sum of speherical atoms (crude approximation)
@@ -257,6 +259,7 @@ subroutine quickdock(Aname,Bname,Cname)
      use iso_fortran_env, wp => real64
      use strucrd, only: rdnat,rdcoord,wrc0
      use crest_data, only : bohr
+     use axis_module
      implicit none
 
      character(len=*) :: Aname
@@ -298,8 +301,8 @@ subroutine quickdock(Aname,Bname,Cname)
      call rdcoord(Aname,nA,atA,A)
      call rdcoord(Bname,nB,atB,B)
 !---- Transform to CMA
-     call axis3(0,nA,atA,A,A,dum)
-     call axis3(0,nB,atB,B,B,dum)
+     call axis(nA,atA,A,A,dum)
+     call axis(nB,atB,B,B,dum)
 
      volA = getbox(nA,A,boxA)
      volB = getbox(nB,B,boxB)

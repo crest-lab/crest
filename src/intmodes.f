@@ -147,6 +147,7 @@ C     *****************************************************************
 
       SUBROUTINE makenabc(XYZin,molvec,at,nat,N,n2,nmol,
      .                    fragind,NA,NB,NC)
+      use axis_module, only: cma
       IMPLICIT none                       
       integer n,n2,NA(n2), NB(n2), NC(n2), at(n), nmol, fragind(100)
       integer molvec(n),nat(n2)
@@ -230,6 +231,7 @@ C     *****************************************************************
 
       SUBROUTINE cart2zmat(XYZin,molvec,at,nat,N,n2,nmol,
      .                    fragind,NA,NB,NC,geo)
+      use axis_module, only: cma
       IMPLICIT none                       
       integer n,n2,NA(n2), NB(n2), NC(n2), at(n), nmol, fragind(100)
       integer molvec(n),nat(n2)
@@ -804,29 +806,3 @@ C
       RETURN
       END
 
-      subroutine cma(numat,nat,coord,sum3)   
-
-c atomic masses
-      use atmasses
-
-      implicit double precision (a-h,o-z)                      
-      dimension coord(3,*),nat(*), sum3(3)                     
-                                                                 
-      sumw=0                                                    
-      sumwx=0.d0                                                 
-      sumwy=0.d0                                                  
-      sumwz=0.d0                                                   
-                                                                    
-      do 10 i=1,numat                                                
-         atmass=ams(nat(i))                                      
-         sumw=sumw+atmass                                         
-         sumwx=sumwx+atmass*coord(1,i)                             
-         sumwy=sumwy+atmass*coord(2,i)                              
-         sumwz=sumwz+atmass*coord(3,i)                               
-   10 continue                                                        
-
-      sum3(1)=sumwx/sumw                                           
-      sum3(2)=sumwy/sumw                                            
-      sum3(3)=sumwz/sumw                                             
-
-      end

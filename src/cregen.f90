@@ -28,6 +28,7 @@ subroutine cregen2(env)
       use ls_rmsd
       use iomod
       use strucrd, only: rdnat,rdcoord,wrc0,i2e,e2i
+      use axis_module
    !$ use omp_lib
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
@@ -398,10 +399,7 @@ subroutine cregen2(env)
 !---to CMA
       do i=1,nall
          c1(1:3,1:n)=xyz(1:3,1:n,i)
-         call axis3(0,n,at,c1,c2,rot(1:3,i))   !-- this does the CMA trafo, and gives rot.const. in cm-1       
-         if(env%allrot)then                    !-- use all rotational constants instead of only the mean
-           call axis(n,at,c1,rot(1:3,i),dum)       !-- get rot.const. in MHz
-         endif
+         call axis(n,at,c1,c2,rot(1:3,i))   !-- this does the CMA trafo, and gives rot.const. MHz    
          !write(*,'(i5,2x,3f10.2)') i,rot(1:3,i) !-- rotational constant printout
          xyz(1:3,1:n,i)=c2(1:3,1:n)
       enddo
@@ -409,10 +407,7 @@ subroutine cregen2(env)
          do i=1,nall
             c1(1:3,1:n)=xyz(1:3,1:n,i)
             call cpincluded(n,rednat,c1,c1r,includeRMSD)
-            call axis3(0,rednat,atr,c1r,c2r,rot(1:3,i))
-            if(env%allrot)then
-             call axis(rednat,atr,c1r,rot(1:3,i),dum)
-            endif
+            call axis(rednat,atr,c1r,c2r,rot(1:3,i))
          enddo
       endif
 
@@ -918,7 +913,7 @@ subroutine cregen2(env)
         open(unit=2,file=oname)
         do i=1,nall
            c2(1:3,1:n)=xyz(1:3,1:n,i)
-           call axis3(0,n,at,xyz(1,1,i),c2,xdum)           
+           call axis(n,at,xyz(:,:,i),c2,xdum)           
            !--- try to align all conformers the same way
            call xyzalign(n,c2)
            write(2,*) n
