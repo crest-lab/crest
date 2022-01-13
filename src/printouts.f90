@@ -47,7 +47,7 @@ subroutine confscript_head
 
       write(*,'(3x,a)')'with help from:'
       write(*,'(3x,a)')'C.Bannwarth, F.Bohle, S.Ehlert, S.Grimme,'
-      write(*,'(3x,a)')'C. Plett, P.Pracht, S. Spicher'
+      write(*,'(3x,a)')'C.Plett, P.Pracht, S. Spicher'
       write(*,*)
 
       call disclaimer()

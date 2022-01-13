@@ -24,7 +24,7 @@ module axis_module
   implicit none
 
   real(wp),parameter :: icm2MHz = 2.9979245d+4     !> cm⁻¹ to MHz
-  real(wp),parameter :: MHz2icm = 1.0_wp/icm2MHz   !> MHz to cm⁻¹
+  real(wp),parameter :: MHz2icm = 1.0_wp / icm2MHz   !> MHz to cm⁻¹
   !************************************************************************
   !*   Aamu2icm   = conversion factor from Angstrom-amu to cm⁻¹
   !*              = (planck's constant*n*10**16)/(8*pi*pi*c)
@@ -33,28 +33,27 @@ module axis_module
   !************************************************************************
   real(wp),parameter :: Aamu2icm = 16.8576522_wp
 
-
   public :: axis
   interface axis
-    module procedure axis_0 
-     !> ARGS: nat,at,coord,rot,avmom,evec
-     !> calculate rotational constants (rot) in MHz,
-     !> the av. momentum (avmom in a.u.) and the trafo matrix (evec)
-    module procedure axis_1 
-     !> ARGS: nat,at,coord,rot,avmom
-     !> as axis_0, but omit evec
-    module procedure axis_2 
-     !> ARGS: pr,nat,at,coord,eax
-     !> calculate ellipsoid axes (eax) from rot constats, somehow, idk
-    module procedure axis_3 
-     !> ARGS: nat,at,coord,coordout,rot
-     !> as axis_0, but output only rot and write
-     !> transformed, i.e., CMA shifted and rot-aligned coordinates 
-     !> to the output coordout
-    module procedure axis_4 
-     !> ARGS: nat,at,coord
-     !> as axis_3, but overwirte coord and 
-     !> doesn't output anything else
+    module procedure axis_0
+    !> ARGS: nat,at,coord,rot,avmom,evec
+    !> calculate rotational constants (rot) in MHz,
+    !> the av. momentum (avmom in a.u.) and the trafo matrix (evec)
+    module procedure axis_1
+    !> ARGS: nat,at,coord,rot,avmom
+    !> as axis_0, but omit evec
+    module procedure axis_2
+    !> ARGS: pr,nat,at,coord,eax
+    !> calculate ellipsoid axes (eax) from rot constats, somehow, idk
+    module procedure axis_3
+    !> ARGS: nat,at,coord,coordout,rot
+    !> as axis_0, but output only rot and write
+    !> transformed, i.e., CMA shifted and rot-aligned coordinates
+    !> to the output coordout
+    module procedure axis_4
+    !> ARGS: nat,at,coord
+    !> as axis_3, but overwirte coord and
+    !> doesn't output anything else
   end interface axis
   !> argument types:
   !> nat            -> integer
@@ -63,7 +62,7 @@ module axis_module
   !> rot, eax       -> real(wp),dimension(3)
   !> evec           -> real(wp),dimension(3,3)
   !> pr             -> logical
-  
+
   public :: axistrf
 
   public :: cma
@@ -74,18 +73,18 @@ module axis_module
 
 contains
 !========================================================================================!
-! subroutine axis_0
-! This is the original axis routine for calculating the
-! rotational constants of a molecule
-!
-! Input:    nat - number of atoms
-!            at - atom types
-!         coord - atomic coordinates in ANGSTROEM
-!
-! Output:   rot - rotational constants in MHz
-!         avmom - average momentum in a.u. (10⁻⁴⁷kg m²)
-!          evec - rot. matrix
-!
+!> subroutine axis_0
+!> This is the original axis routine for calculating the
+!> rotational constants of a molecule
+!>
+!> Input:    nat - number of atoms
+!>            at - atom types
+!>         coord - atomic coordinates in ANGSTROEM
+!>
+!> Output:   rot - rotational constants in MHz
+!>         avmom - average momentum in a.u. (10⁻⁴⁷kg m²)
+!>          evec - rot. matrix
+!>
 !========================================================================================!
   subroutine axis_0(nat,at,coord,rot,avmom,evec)
     implicit none
@@ -109,7 +108,7 @@ contains
     !> first we move the molecule to the CMA
     !> this depends on the isotopic masses, and the cartesian geometry.
     !>
-    allocate(x(nat),y(nat),z(nat),source=0.0_wp)
+    allocate (x(nat),y(nat),z(nat),source=0.0_wp)
     call CMA(nat,at,coord,x,y,z)
 
     !************************************************************************
@@ -133,10 +132,16 @@ contains
       t(5) = t(5) - atmass * y(i) * z(i)
       t(6) = t(6) + atmass * (x(i)**2 + y(i)**2)
     end do
-    deallocate(z,y,x)
+    deallocate (z,y,x)
 
+    evec = 0.0_wp
+    eig = 0.0_wp
     call rsp(t,3,3,eig,evec)
+
     do i = 1,3
+      do j = 1,3
+        if (abs(evec(i,j)) .lt. 1d-9) evec(i,j) = 0.0_wp
+      end do
       if (eig(i) .lt. 3.d-4) then
         eig(i) = 0.d0
         rot(i) = 0.d0
@@ -146,12 +151,14 @@ contains
       xyzmom(i) = eig(i) * const1
     end do
     avmom = 1.d-47 * (xyzmom(1) + xyzmom(2) + xyzmom(3)) / 3.0_wp
+
     return
   end subroutine axis_0
 
 !========================================================================================!
-! subroutine axis_1
-! format of axis_0 consistent with the original axis routine
+!> subroutine axis_1
+!> format of axis_0 consistent with the original axis routine
+!>-------------------------------------------
   subroutine axis_1(nat,at,coord,rot,avmom)
     implicit none
     integer,intent(in) :: nat
@@ -163,35 +170,41 @@ contains
     return
   end subroutine axis_1
 
-
 !========================================================================================!
-! subroutine axis_2
-! format of axis consistent with the axis2 routine from the crest code.
-! I'm actually not sure whats going on there
+!> subroutine axis_2
+!> format of axis consistent with the axis2 routine from the crest code.
+!> I'm actually not sure whats going on there
+!>---------------------------------------
   subroutine axis_2(pr,nat,at,coord,eax)
     implicit none
     logical,intent(in) :: pr
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
-    real(wp),intent(in) :: coord(3,nat)
+    real(wp),intent(inout) :: coord(3,nat)
     real(wp),intent(out) :: eax(3)
     real(wp) :: rot(3),avmom,eig(3)
     real(wp) :: dum(3,3),eps
     real(wp) :: sumw
     integer :: i
+    real(wp),allocatable :: xyztmp(:,:)
 
-    call axis_0(nat,at,coord,rot,avmom,dum)
+    !call axis_0(nat,at,coord,rot,avmom,dum)
+    allocate (xyztmp(3,nat))
+    call axis_3(nat,at,coord,xyztmp,rot)
+    coord = xyztmp
+    deallocate (xyztmp)
     !> recover eig(3) from rot(3)
     !> this is needed because axis_0 outputs rot in MHz
-    do i=1,3
-      if(rot(i) < 1.d-5)then
+    do i = 1,3
+      if (rot(i) < 1.d-5) then
         eig(i) = 0.0_wp
       else
         eig(i) = icm2MHz * Aamu2icm / rot(i)
-      endif
-    enddo
+      end if
+    end do
+
     eps = 1.d-9
-    eig = 1.0_wp/(eig + eps)**0.25_wp !> ??? no idea
+    eig = 1.0_wp / (eig + eps)**0.25_wp !> ??? no idea
     sumw = sum(eig)
     eax = eig / sumw
     if (pr) then
@@ -203,15 +216,16 @@ contains
     sumw = sum(eax)
     eax = eax / sumw
     if (pr) write (*,'(7x,''unit ellipsoid axis a,b,c     :'',3f8.3)') eax
-    
+
     return
   end subroutine axis_2
 
 !========================================================================================!
-! subroutine axis_3
-! axis routine that orients the molecule along the
-! calculated principle axes and shifts it to CMA.
-! new geometry is written to coordout.
+!> subroutine axis_3
+!> axis routine that orients the molecule along the
+!> calculated principle axes and shifts it to CMA.
+!> new geometry is written to coordout.
+!>---------------------------------------------
   subroutine axis_3(nat,at,coord,coordout,rot)
     implicit none
     integer,intent(in) :: nat
@@ -256,10 +270,11 @@ contains
   end subroutine axis_3
 
 !========================================================================================!
-! subroutine axis_4
-! axis routine that orients the molecule along the
-! calculated principle axes and shifts it to CMA.
-! new geometry OVERWRITES input.
+!> subroutine axis_4
+!> axis routine that orients the molecule along the
+!> calculated principle axes and shifts it to CMA.
+!> new geometry OVERWRITES input.
+!>--------------------------------
   subroutine axis_4(nat,at,coord)
     implicit none
     integer,intent(in) :: nat
@@ -270,7 +285,7 @@ contains
     real(wp),allocatable :: coordtmp(:,:)
     integer :: i,j,k
 
-    allocate(coordtmp(3,nat))
+    allocate (coordtmp(3,nat))
     !> call axis routine
     call axis_3(nat,at,coord,coordtmp,rot)
     coord = coordtmp
@@ -280,9 +295,10 @@ contains
   end subroutine axis_4
 
 !========================================================================================!
-! subroutine axistrf
-! as axis_3, but only the first nat0 atoms are taking for the
-! trafo and CMA shift. input coords are overwritten
+!> subroutine axistrf
+!> as axis_3, but only the first nat0 atoms are taking for the
+!> trafo and CMA shift. input coords are overwritten
+!>--------------------------------------
   subroutine axistrf(nat,nat0,at,coord)
     implicit none
     integer,intent(in) :: nat
@@ -296,13 +312,13 @@ contains
     integer :: i,j,k
 
     !> call axis routine, only with the initial nat0 atoms
-    allocate(attmp(nat0))
-    allocate(coordtmp(3,nat0))
+    allocate (attmp(nat0))
+    allocate (coordtmp(3,nat0))
     attmp(1:nat0) = at(1:nat0)
     coordtmp(3,1:nat0) = coord(3,1:nat0)
     call axis_0(nat0,attmp,coordtmp,rot,avmom,evec)
-    deallocate(coordtmp,attmp)
-    
+    deallocate (coordtmp,attmp)
+
     !> shift to CMA of first nat0 atoms
     allocate (coordtmp(3,nat))
     coordtmp = coord
@@ -329,18 +345,21 @@ contains
   end subroutine axistrf
 
 !========================================================================================!
-! function calcxsum
-real(wp) function calcxsum(evec)
+!> function calcxsum
+!> calculates the determinant of evec(3,3)
+!>---------------------------------
+  real(wp) function calcxsum(evec)
     real(wp),intent(in) :: evec(3,3)
     calcxsum = evec(1,1) * (evec(2,2) * evec(3,3) - evec(3,2) * evec(2,3)) + &
   & evec(1,2) * (evec(2,3) * evec(3,1) - evec(2,1) * evec(3,3)) + &
   & evec(1,3) * (evec(2,1) * evec(3,2) - evec(2,2) * evec(3,1))
     return
-end function calcxsum
+  end function calcxsum
 
 !========================================================================================!
-! subroutine CMA
-! calculate CMA-shifted coordinates x y z
+!> subroutine CMA
+!> calculate CMA-shifted coordinates x y z
+!>--------------------------------------
   subroutine CMAxyz(nat,at,coord,x,y,z)
     implicit none
     integer,intent(in) :: nat
@@ -372,8 +391,9 @@ end function calcxsum
   end subroutine CMAxyz
 
 !========================================================================================!
-! subroutine CMAtrf
-! calculate a shift to the first nat0 atoms' CMA
+!> subroutine CMAtrf
+!> calculate a shift to the first nat0 atoms' CMA
+!>---------------------------------------
   subroutine CMAtrf(nat,nat0,at,coord)
     implicit none
     integer,intent(in) :: nat
@@ -404,10 +424,10 @@ end function calcxsum
     return
   end subroutine CMAtrf
 
-
 !========================================================================================!
-! subroutine CMAv
-! calculate a CMA coordinats and save them to vec
+!> subroutine CMAv
+!> calculate a CMA coordinats and save them to vec
+!>----------------------------------
   subroutine CMAv(nat,at,coord,vec)
     implicit none
     integer,intent(in) :: nat
@@ -417,7 +437,7 @@ end function calcxsum
     integer :: i
     real(wp) :: sumw,sumwx,sumwy,sumwz,atmass
     sumw = 1.d-20
-    sumwx = 0.d0 
+    sumwx = 0.d0
     sumwy = 0.d0
     sumwz = 0.d0
     do i = 1,nat
@@ -498,18 +518,24 @@ end function calcxsum
   subroutine epseta(eps,eta)
     implicit none
     real(wp) :: eps,eta
-    eta = 1.0_wp
-    do
-      if ((eta / 2.0_wp) .eq. 0.0_wp) exit
-      if (eta .lt. 1.d-38) exit
-      eta = eta / 2.0_wp
-    end do
-    eps = 1.d0
-    do
-      if ((1.0_wp + (eps / 2.0_wp)) .eq. 1.0_wp) exit
-      if (eps .lt. 1.d-17) exit
-      eps = eps / 2.0_wp
-    end do
+    !> epsilon(X) returns the smallest number E
+    !> of the same kind as X such that 1 + E > 1.
+    !> I.e., it does exactly what this routine did
+    intrinsic :: epsilon
+    !eta = 1.0_wp
+    !do
+    !  if ((eta / 2.0_wp) .eq. 0.0_wp) exit
+    !  if (eta .lt. 1.d-38) exit
+    !  eta = eta / 2.0_wp
+    !end do
+    eta = epsilon(eta - 1.0_wp)
+    !eps = 1.d0
+    !do
+    !  if ((1.0_wp + (eps / 2.0_wp)) .eq. 1.0_wp) exit
+    !  if (eps .lt. 1.d-17) exit
+    !  eps = eps / 2.0_wp
+    !end do
+    eps = epsilon(eps)
     return
   end subroutine epseta
 
@@ -806,37 +832,37 @@ end function calcxsum
   end subroutine tqlrat
 
 !*******************************************************************
-!*c     this subroutine forms the eigenvectors of a real symmetric
-!*c     matrix by back transforming those of the corresponding
-!*c     symmetric tridiagonal matrix determined by  tred3.
-!*c
-!*c     on input-
-!*c
-!*c        nm must be set to the row dimension of two-dimensional
-!*c          array parameters as declared in the calling program
-!*c          dimension statement,
-!*c
-!*c        n is the order of the matrix,
-!*c
-!*c        nv must be set to the dimension of the array parameter a
-!*c          as declared in the calling program dimension statement,
-!*c
-!*c        a contains information about the orthogonal transformations
-!*c          used in the reduction by  tred3  in its first
-!*c          n*(n+1)/2 positions,
-!*c
-!*c        m is the number of eigenvectors to be back transformed,
-!*c
-!*c        z contains the eigenvectors to be back transformed
-!*c          in its first m columns.
-!*c
-!*c     on output-
-!*c
-!*c        z contains the transformed eigenvectors
-!*c          in its first m columns.
-!*c
-!*c     note that trbak3 preserves vector euclidean norms.
-!*c
+!*     this subroutine forms the eigenvectors of a real symmetric
+!*     matrix by back transforming those of the corresponding
+!*     symmetric tridiagonal matrix determined by  tred3.
+!*
+!*     on input-
+!*
+!*        nm must be set to the row dimension of two-dimensional
+!*          array parameters as declared in the calling program
+!*          dimension statement,
+!*
+!*        n is the order of the matrix,
+!*
+!*        nv must be set to the dimension of the array parameter a
+!*          as declared in the calling program dimension statement,
+!*
+!*        a contains information about the orthogonal transformations
+!*          used in the reduction by  tred3  in its first
+!*          n*(n+1)/2 positions,
+!*
+!*        m is the number of eigenvectors to be back transformed,
+!*
+!*        z contains the eigenvectors to be back transformed
+!*          in its first m columns.
+!*
+!*     on output-
+!*
+!*        z contains the transformed eigenvectors
+!*          in its first m columns.
+!*
+!*     note that trbak3 preserves vector euclidean norms.
+!*
 !*******************************************************************
   subroutine trbak3(nm,n,nv,a,m,z)
     implicit none
