@@ -23,7 +23,9 @@
 
 module crest_data
    use iso_fortran_env, wp => real64, dp => int64
-
+   use calc_type,only:calcdata
+   use dynamics_module, only:mddata
+   use strucrd, only:coord
    implicit none
 
    public :: systemdata
@@ -47,6 +49,7 @@ module crest_data
 !============================================================================!
 ! runtype variables
 !============================================================================!
+   integer,parameter,public :: crest_none   = 0
    integer,parameter,public :: crest_mfmdgc = 1    
    integer,parameter,public :: crest_imtd   = 2
    integer,parameter,public :: crest_imtd2  = 22
@@ -57,6 +60,7 @@ module crest_data
    integer,parameter,public :: crest_msreac = 9
    integer,parameter,public :: crest_pka    = 14
    integer,parameter,public :: crest_solv   = 15
+   integer,parameter,public :: crest_test   = 456
 !---- tools
    integer,parameter,public :: p_cregen      = -1
    integer,parameter,public :: p_compare     = -2
@@ -81,8 +85,7 @@ module crest_data
 
    private
 
-!-----------------------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 
    type :: constra
       integer :: ndim
@@ -115,8 +118,7 @@ module crest_data
       procedure :: deallocate => deallocate_constraints
    end type constra
 
-!-----------------------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 
    type :: protobj
       integer :: nfrag
@@ -159,8 +161,7 @@ module crest_data
       logical,allocatable :: blacklist(:) !a blacklist of atoms to disallow deprotonation from
    end type protobj
 
-!-----------------------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 
    type :: sdfobj
       logical :: v3000 = .false. 
@@ -174,9 +175,7 @@ module crest_data
       procedure :: deallocate => deallocate_sdf
    end type sdfobj
 
-
-!-----------------------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 
    !--- ENTROPY mode setting object
    type :: entropyMTD
@@ -215,8 +214,7 @@ module crest_data
       real(wp),allocatable :: xyz(:,:)
    end type entropyMTD
 
-!-----------------------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 
    type :: thermodata
       real(wp) :: ithr  = -50.0_wp  !imaginary mode inversion (in xtb -20.0)
@@ -235,9 +233,7 @@ module crest_data
       procedure :: read_temps => thermo_read_temps
    end type thermodata
 
-
-!-----------------------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 
    type :: refdata
        integer :: nat
@@ -248,11 +244,10 @@ module crest_data
        real(wp),allocatable :: charges(:)
     contains
       procedure :: rdcharges => read_charges
+      procedure :: to => ref_to_mol
    end type refdata
-  
-!-----------------------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------------------
-!------------------------------------------------------------------------------------------------------
+
+!========================================================================================!  
 
    type :: systemdata
     !--- GENERAL data
@@ -421,7 +416,7 @@ module crest_data
       integer :: kshiftnum = 4      ! try 5 different kshift (if not specified otherwise
       real(wp) :: gescoptlev = 2.0_wp 
 
-    !--- DFT driver arguments
+    !--- DFT driver arguments [DEPRECATED]
       character(len=:),allocatable :: dftrcfile !i.e. ~/.dftrc
       integer :: dftprog      !TM=1,ORCA=2
       character(len=:),allocatable :: dftsetup   !,i.e. "cefine -func [...]"
@@ -436,6 +431,12 @@ module crest_data
       real(wp) :: harcutpthr = 0.5_wp  !take no less than 50% population of ensemble
       integer  :: hardcutnst = 5       !take no more than 5 structures
 
+
+   !================================================!
+   !>--- Calculation settings for newer implementations 
+      type(calcdata) :: calc
+      type(mddata)   :: mddat
+   !================================================! 
 
    !--- general logical data
       logical :: allrot = .true.   ! use all rotational constants for check instead of mean?
@@ -534,8 +535,7 @@ module crest_data
       procedure :: wrtCHRG => wrtCHRG
    end type systemdata
 
-!------------------------------------------------------------------------------------------------------
-!------------------------------------------------------------------------------------------------------
+!========================================================================================!
 
    type :: timer
      integer :: times = 0
@@ -549,29 +549,21 @@ module crest_data
      procedure :: stop  => stop_timer
    end type timer
 
-!-----------------------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------------------
-!allocatable string
-   type :: filetype
-
-      integer :: flen
-      integer :: llen
-      character(:),allocatable :: filecontent(:)
-
-    contains
-      procedure :: allocate => allocate_file
-      procedure :: deallocate => deallocate_file
-
-
-   end type filetype
-
-!-----------------------------------------------------------------------------------------------------
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
+!> allocatable string
+!   type :: filetype
+!      integer :: flen
+!      integer :: llen
+!      character(:),allocatable :: filecontent(:)
+!    contains
+!      procedure :: allocate => allocate_file
+!      procedure :: deallocate => deallocate_file
+!   end type filetype
+!========================================================================================!
+!========================================================================================!
 
 contains
-!-----------------------------------------------------------------------------------------------------
-!
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 subroutine allocate_metadyn(self,n)
    implicit none
    class(systemdata) :: self
@@ -588,7 +580,7 @@ subroutine allocate_metadyn(self,n)
    endif
    return
 end subroutine allocate_metadyn
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 subroutine deallocate_metadyn(self)
    implicit none
    class(systemdata) :: self
@@ -596,7 +588,7 @@ subroutine deallocate_metadyn(self)
    if (allocated( self%metadexp )) deallocate( self%metadexp )
    if (allocated( self%metadlist )) deallocate( self%metadlist )
 end subroutine deallocate_metadyn
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 subroutine allocate_constraints(self,n)
    implicit none
    class(constra) :: self
@@ -607,14 +599,14 @@ subroutine allocate_constraints(self,n)
    self%sett = ''
    self%buff = ''
 end subroutine allocate_constraints
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 subroutine deallocate_constraints(self)
    implicit none
    class(constra) :: self
    if (allocated( self%sett)) deallocate( self%sett )
    if (allocated( self%buff )) deallocate( self%buff )
 end subroutine deallocate_constraints
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 subroutine init_timer(self,n)
    implicit none
    class(timer) :: self
@@ -626,14 +618,14 @@ subroutine init_timer(self,n)
    allocate( self%names(n))
    self%names = ''
 end subroutine init_timer
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 subroutine clear_timer(self)
    implicit none
    class(timer) :: self
    deallocate( self%t )
    deallocate( self%names )
 end subroutine clear_timer
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 subroutine start_timer(self,n,inp)
    implicit none
    class(timer) :: self
@@ -643,7 +635,7 @@ subroutine start_timer(self,n,inp)
    self%names(n) = inp
    call system_clock ( self%t(n,1) , dummy )
 end subroutine start_timer
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
 subroutine stop_timer(self,n)
    implicit none
    class(timer) :: self
@@ -652,7 +644,7 @@ subroutine stop_timer(self,n)
    call system_clock ( self%t(n,2) , dummy )
    self%t(n,3)=self%t(n,3) + (self%t(n,2)-self%t(n,1))
 end subroutine stop_timer
-!----------------------------------------------------------------------------------------------------
+!========================================================================================!
 subroutine deallocate_sdf(self)
    implicit none
    class(sdfobj) :: self
@@ -660,21 +652,21 @@ subroutine deallocate_sdf(self)
    if (allocated( self%cblock)) deallocate( self%cblock )
    if (allocated( self%miscblock)) deallocate( self%miscblock )
 end subroutine deallocate_sdf
-!----------------------------------------------------------------------------------------------------
-subroutine allocate_file(self,n)
-   implicit none
-   class(filetype) :: self
-   integer,intent(in)  :: n
-   self%flen      = n
-   allocate( self%filecontent(n), source='')
-end subroutine allocate_file
-!----------------------------------------------------------------------------------------------------
-subroutine deallocate_file(self)
-   implicit none
-   class(filetype) :: self
-   if (allocated( self%filecontent)) deallocate( self%filecontent )
-end subroutine deallocate_file
-!-----------------------------------------------------------------------------------------------------
+!========================================================================================!
+!subroutine allocate_file(self,n)
+!   implicit none
+!   class(filetype) :: self
+!   integer,intent(in)  :: n
+!   self%flen      = n
+!   allocate( self%filecontent(n), source='')
+!end subroutine allocate_file
+!========================================================================================!
+!subroutine deallocate_file(self)
+!   implicit none
+!   class(filetype) :: self
+!   if (allocated( self%filecontent)) deallocate( self%filecontent )
+!end subroutine deallocate_file
+!========================================================================================!
 subroutine add_to_pqueue(self,pjob)
    implicit none
    class(systemdata) :: self
@@ -694,9 +686,10 @@ subroutine add_to_pqueue(self,pjob)
    endif
    return
 end subroutine add_to_pqueue
-!-----------------------------------------------------------------------------------------------------
-! check the queue for requested hybrid reoptimization (e.g. '-gfn2@gff')
-! and sort it accordingly
+
+!========================================================================================!
+!> check the queue for requested hybrid reoptimization (e.g. '-gfn2@gff')
+!> and sort it accordingly
 subroutine pqueue_hybrid(self)
    implicit none
    class(systemdata) :: self
@@ -745,8 +738,8 @@ subroutine pqueue_removehybrid(self)
    return
 end subroutine pqueue_removehybrid
 
-!------------------------------------------------------------------------------------------------------
-! write a .CHRG (and .UHF) file in the specified dir, but only if it is needed
+!========================================================================================!
+!> write a .CHRG (and .UHF) file in the specified dir, but only if it is needed
 subroutine wrtCHRG(self,dir)
     implicit none
     class(systemdata) :: self
@@ -788,8 +781,9 @@ subroutine wrtCHRG(self,dir)
     endif
     return
 end subroutine wrtCHRG 
-!------------------------------------------------------------------------------------------------------
-! read atomic charges from a file (one line per atom)
+
+!========================================================================================!
+!> read atomic charges from a file (one line per atom)
 subroutine read_charges(self,chargesfilename,totchrg)
     implicit none
     class(refdata) :: self
@@ -817,8 +811,18 @@ subroutine read_charges(self,chargesfilename,totchrg)
     return
 end subroutine read_charges
 
+subroutine ref_to_mol(self,mol)
+    implicit none
+    class(refdata) :: self
+    type(coord) :: mol
+    mol%nat = self%nat
+    mol%at  = self%at
+    mol%xyz = self%xyz
+    return
+end subroutine ref_to_mol
 
-!------------------------------------------------------------------------------------------------------
+
+!========================================================================================!
 function optlevflag(optlev) result(flag)
     implicit none
     real(wp),intent(in) :: optlev
@@ -919,5 +923,5 @@ subroutine thermo_read_temps(self,fname)
    return
 end subroutine thermo_read_temps
 
-
+!========================================================================================!
 end module crest_data

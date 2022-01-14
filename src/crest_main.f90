@@ -29,13 +29,13 @@
 !==================================================================================================!
 program CREST
       use iso_fortran_env, wp => real64
-      use crest_data
-      use iomod
-
-      type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
-      type(timer)   :: tim
+      !> module for the main data storage
+      use crest_data   
       
+      implicit none
+      type(systemdata) :: env  !> MAIN STORAGE OF SYSTEM DATA
+      type(timer)   :: tim     !> timer object
+
       integer :: i,j,k,l,args
       integer :: io
       character(len=:),allocatable :: arg(:)
@@ -44,6 +44,8 @@ program CREST
       character(len=1024) :: cmd
       real(wp) :: dumfloat,dumfloat2,d3,d4,d5,d6,d7,d8
       logical :: ex,ex1,ex2
+ 
+      intrinsic :: iargc,getarg
 
       call initsignal() !SIGTERM catcher
 
@@ -290,6 +292,8 @@ program CREST
            call pkaquick(env,tim)   
         case( crest_solv )  !microsolvation tools   
            call crest_solvtool(env, tim) 
+        case( crest_test) 
+           call crest_playground(env, tim) 
         case default
            continue
       end select

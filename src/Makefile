@@ -7,39 +7,47 @@ OBJDIR = build
  #MKLROOT=/opt/intel/mkl
 #--------------------------------------------------------------------------
 
-MODULES += classes.o 
-MODULES += setdg.o
-MODULES += atmasses.o
-MODULES += ls_rmsd.o
-MODULES += iomod.o
-MODULES += filemod.o
-MODULES += syscheck.o
-MODULES += axis_module.o
-MODULES += zdata.o
-MODULES += strucreader.o
-MODULES += msmod.o
-MODULES += thermo.o
+MODULES1 += setdg.o
+MODULES1 += atmasses.o
+MODULES1 += ls_rmsd.o
+MODULES1 += filemod.o
+MODULES1 += syscheck.o
+MODULES1 += axis_module.o
+MODULES1 += strucreader.o
+MODULES1 += iomod.o
+MODULES1 += msmod.o
+MODULES1 += testmol.o
+
+SUBMOD += constraints.o
+SUBMOD += calc_type.o
+SUBMOD += lj.o
+SUBMOD += xtb_sc.o
+SUBMOD += nonadiabatic.o
+SUBMOD += shake_module.o
+SUBMOD += calc_module.o
+SUBMOD += metadynamics_module.o
+SUBMOD += dynamics_module.o
+SUBMOD += optimize_maths.o
+SUBMOD += type_anc.o
+SUBMOD += bfgs.o
+SUBMOD += modelhessian.o
+SUBMOD += ancopt.o
+SUBMOD += optimize_module.o
+SUBMOD += parse_keyvalue.o
+SUBMOD += parse_block.o
+SUBMOD += parse_datastruct.o
+SUBMOD += parse_inputfile.o
+SUBMOD += parse_calcdata.o
+
+MODULES2 += classes.o
+MODULES2 += zdata.o
+MODULES2 += thermo.o
 
 CFILES += symmetry2.o
 CFILES += symmetry_i.o
 CFILES += signal.o
 CFILES += sigterm.o
 CFILES +=
-
-
-SUBMOD += constraints.o
-SUBMOD += calc_type.o
-SUBMOD += lj.o
-SUBMOD += xtb_sc.o
-SUBMOD += shake_module.o
-SUBMOD += calc_module.o
-SUBMOD += metadynamics_module.o
-SUBMOD += dynamics_module.o
-SUBMOD += optimize_module.o
-
-OBJS1 += data.o
-OBJS1 += io.o
-OBJS1 +=
 
 OBJS2 += flexi.o
 OBJS2 += trialmd.o
@@ -55,9 +63,11 @@ OBJS3 += cleanup.o
 OBJS3 += confcross.o
 OBJS3 += confopt.o
 OBJS3 += confparse.o
+OBJS3 += confparse2.o
 OBJS3 += constraining.o
 OBJS3 += cregen.o
 OBJS3 += ccegen.o
+OBJS3 += data.o
 OBJS3 += deprotonate.o
 OBJS3 += dft_propcalc.o
 OBJS3 += ensemblecomp.o
@@ -65,6 +75,7 @@ OBJS3 += eval_timer.o
 OBJS3 += freqmasses.o
 OBJS3 += identifiers.o
 OBJS3 += intmodes.o
+OBJS3 += io.o
 OBJS3 += ligands.o
 OBJS3 += minitools.o
 OBJS3 += ncigeo.o
@@ -106,19 +117,25 @@ OBJS4 += volume.o
 OBJS4 += solvtool.o
 OBJS4 += solvtool_misc.o
 
-#mainfile for crest binary
+#mainfiles for crest binary
 MAINFILES += confscript1.o
 MAINFILES += confscript2_main.o
 MAINFILES += confscript2_misc.o
 MAINFILES += confscript3.o
 MAINFILES += msreact.o
 MAINFILES += pka.o
+MAINFILES += playground.o
 MAINFILES += crest_main.o 
 
-OBJS := $(MODULES) $(SUBMOD) $(CFILES) $(OBJS1) $(OBJS2) $(OBJS3) $(OBJS4) $(MAINFILES)
+OBJS := $(MODULES1) $(SUBMOD) $(MODULES2) $(CFILES) $(OBJS2) $(OBJS3) $(OBJS4) $(MAINFILES)
 #--------------------------------------------------------------------------
 
-SUBDIRS = . calculator dynamics optimize qcg
+SUBDIRS += .
+SUBDIRS += calculator 
+SUBDIRS += dynamics
+SUBDIRS += optimize 
+SUBDIRS += qcg
+SUBDIRS += parsing
 
 vpath % $(SUBDIRS)
 OBJS := $(addprefix $(OBJDIR)/, $(OBJS))
@@ -137,7 +154,7 @@ ifeq ($(OSTYPE),LINUXI)
 #  FFLAGS := -g -O0 -qopenmp -align array64byte -module $(OBJDIR)
 #  FLAGS := -g -O
 #  FFLAGS := -O -axAVX -qopenmp -align array64byte 
-#  FFLAGS += -check all -g -debug all -traceback -fpe0
+  FFLAGS += -check all -g -debug all -traceback -fpe0
   CCFLAGS += -D_Float128=__float128
   CCFLAGS := -O -DLINUX
 endif

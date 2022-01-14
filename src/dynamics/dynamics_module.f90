@@ -127,6 +127,7 @@ contains
 
     type(coord) :: mol
     type(calcdata) :: calc
+    type(calculation_settings) :: job
     type(mddata) :: dat
     type(shakedata) :: shk
     logical :: pr
@@ -142,19 +143,20 @@ contains
 
     call mol%open(fname)
 
-    calc%id = 10 !XTB systemcall
-    !calc%id = 99  !LJ potential
-    !calc%other = '3.0  1.0'
-    calc%calcspace = 'singlepoints'
-    calc%rdwbo = .true.
+    job%id = 10 !XTB systemcall
+    !job%id = 99  !LJ potential
+    !job%other = '3.0  1.0'
+    job%calcspace = 'singlepoints'
+    job%rdwbo = .true.
+    call calc%add(job)
     allocate (grad(3,mol%nat),source=0.0_wp)
     call engrad(mol,calc,energy,grad,io)
     deallocate (grad)
-    calc%rdwbo = .false.
+    calc%calcs(1)%rdwbo = .false.
 
     shk%shake_mode = 2
     !allocate (shk%wbo(mol%nat,mol%nat),source=0.0_wp)
-    call move_alloc(calc%wbo,shk%wbo)
+    call move_alloc(calc%calcs(1)%wbo,shk%wbo)
 
     dat%shk = shk
     call init_shake(mol%nat,mol%at,mol%xyz,dat%shk,pr)

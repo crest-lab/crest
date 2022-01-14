@@ -166,7 +166,7 @@ module strucrd
            procedure :: write => writecoord !write
            procedure :: append => appendcoord !append
            procedure :: get => getcoord !allocate & fill with data
-
+           procedure :: appendlog  !append .log file with coordinates and energy
    end type coord
 !=========================================================================================!
    !ensemble class. contains all structures of an ensemble
@@ -1521,15 +1521,38 @@ subroutine appendcoord(self,io)
       implicit none
       class(coord) :: self
       integer :: io
+      character(len=64) :: atmp
         self%xyz=self%xyz*bohr !to Angström
         if(allocated(self%comment))then
             call wrxyz(io,self%nat,self%at,self%xyz,trim(self%comment))
+        else if(self%energy .ne. 0.0_wp)then
+            write(atmp,'(a,f22.10)')' Etot= ',self%energy
+            call wrxyz(io,self%nat,self%at,self%xyz,trim(atmp))
         else
             call wrxyz(io,self%nat,self%at,self%xyz)
         endif
         self%xyz = self%xyz/bohr !back
       return
 end subroutine appendcoord
+
+subroutine appendlog(self,io,energy,gnorm)
+      implicit none
+      class(coord) :: self
+      integer :: io
+      real(wp) :: energy
+      real(wp),optional :: gnorm
+      character(len=64) :: atmp
+        self%xyz=self%xyz*bohr !to Angström
+        if(present(gnorm))then
+        write(atmp,'(a,f22.10,a,f16.8)')' Etot= ',energy,' grad.norm.= ',gnorm
+        else
+        write(atmp,'(a,f22.10)')' Etot= ',energy
+        endif
+        call wrxyz(io,self%nat,self%at,self%xyz,trim(atmp))
+        self%xyz = self%xyz/bohr !back
+      return
+end subroutine appendlog
+
 
 !=====================================================================================================!
 !=====================================================================================================!

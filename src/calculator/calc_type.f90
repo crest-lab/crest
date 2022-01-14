@@ -18,20 +18,21 @@
 !================================================================================!
 
 module calc_type
-  use iso_fortran_env,only:wp => real64
+  use iso_fortran_env,only:wp => real64,stdout => output_unit
   use constraints
   implicit none
 
   character(len=1),public,parameter :: sep = '/'
   character(len=12),public,parameter :: dev0 = ' 2>/dev/null'
 
-
-  !=========================================================================================!
+!=========================================================================================!
+  !> data object that contains the data for a single calculation
+  public :: calculation_settings
   type :: calculation_settings
 
     integer :: id
 
-    integer :: molcharge = 0
+    integer :: chrg = 0
     integer :: uhf = 0
 
     character(len=:),allocatable :: calcspace
@@ -43,40 +44,30 @@ module calc_type
     character(len=:),allocatable :: systemcall
 
     !>--- results/property requests
-    real(wp) :: epot
-    real(wp) :: efix
-    real(wp) :: etot
+    real(wp) :: epot = 0.0_wp
+    real(wp) :: efix = 0.0_wp
+    real(wp) :: etot = 0.0_wp
 
     logical :: rdwbo = .false.
     real(wp),allocatable :: wbo(:,:)
 
     logical :: rddip = .false.
-    real(wp) :: dip(3)
+    real(wp) :: dip(3) = 0
     logical :: rddipgrad = .false.
+    real(wp),allocatable :: dipgrad(:,:,:)
+
+  contains
+    procedure :: deallocate => calcdata_deallocate
 
   end type calculation_settings
-  !=========================================================================================!
+!=========================================================================================!
 
-
+!=========================================================================================!
+  !> data object that contains settings for all calculation and constraints.
   public :: calcdata
-  !=========================================================================================!
-  !data object that contains settings for a calculation.
   type :: calcdata
-
-    integer :: id
-
-    integer :: molcharge = 0
-    integer :: uhf = 0
-
-    character(len=:),allocatable :: calcspace
-    character(len=:),allocatable :: calcfile
-    character(len=:),allocatable :: gradfile
-    character(len=:),allocatable :: path
-    character(len=:),allocatable :: other
-    character(len=:),allocatable :: binary
-    character(len=:),allocatable :: systemcall
-
-    integer :: type 
+    integer :: id = 0
+    integer :: which = 0
 
     !>--- calculations
     integer :: ncalculations = 0
@@ -91,27 +82,69 @@ module calc_type
     real(wp) :: efix
     real(wp) :: etot
 
-    logical :: rdwbo = .false.
-    real(wp),allocatable :: wbo(:,:)
+    !>--- optimization settings
+    integer  :: optlev = 0
+    integer  :: micro_opt = 20
+    integer  :: maxcycle = 0
+    real(wp) :: maxdispl_opt = 1.0_wp
+    real(wp) :: hlow_opt = 0.010_wp
+    real(wp) :: hmax_opt = 5.0_wp
+    real(wp) :: acc_opt = 1.0_wp
+    logical  :: exact_rf = .false.
+    logical  :: average_conv = .false.
+    logical  :: tsopt = .false.
+    integer  :: iupdat = 0  !> 0=BFGS, 1=Powell
 
-    logical :: rddip = .false.
-    real(wp) :: dip(3)
-    logical :: rddipgrad = .false.
-    real(wp),allocatable :: dipgrad(:,:)
-
+    !>--- printouts and io
+    logical :: pr_energies = .false.
+    integer :: eout_unit = stdout
+    character(len=:),allocatable :: elog
   contains
     procedure :: reset => calculation_reset
+    procedure :: init => calculation_init
     generic,public :: add => calculation_add_constraint,calculation_add_settings
     procedure,private :: calculation_add_constraint,calculation_add_settings
-
   end type calcdata
+!=========================================================================================!
 
 contains
-!==========================================================================================!
+!=========================================================================================!
 
   subroutine calculation_reset(self)
     implicit none
     class(calcdata) :: self
+
+    self%id = 0
+    self%which = 0
+
+    if (allocated(self%calcs)) deallocate (self%calcs)
+    self%ncalculations = 0
+
+    if (allocated(self%cons)) deallocate (self%cons)
+    self%nconstraints = 0
+
+    self%optlev = 0
+    self%micro_opt = 20
+    self%maxcycle = 0
+    self%maxdispl_opt = 1.0_wp
+    self%hlow_opt = 0.010_wp
+    self%hmax_opt = 5.0_wp
+    self%acc_opt = 1.0_wp
+    self%exact_rf = .false.
+    self%average_conv = .false.
+    self%tsopt = .false.
+    self%iupdat = 0
+
+    self%pr_energies = .false.
+    self%eout_unit = stdout
+    if (allocated(self%elog)) deallocate (self%elog)
+
+    return
+  end subroutine calculation_reset
+
+  subroutine calcdata_deallocate(self)
+    implicit none
+    class(calculation_settings) :: self
 
     if (allocated(self%calcspace)) deallocate (self%calcspace)
     if (allocated(self%calcfile)) deallocate (self%calcfile)
@@ -123,19 +156,22 @@ contains
     if (allocated(self%wbo)) deallocate (self%wbo)
     if (allocated(self%dipgrad)) deallocate (self%dipgrad)
 
-    if (allocated(self%calcs)) deallocate (self%calcs)
-    self%ncalculations = 0
-
-    if (allocated(self%cons)) deallocate (self%cons)
-    self%nconstraints = 0
+    self%id = 0
+    self%chrg = 0
+    self%uhf = 0
+    self%epot = 0.0_wp
+    self%efix = 0.0_wp
+    self%etot = 0.0_wp
 
     self%rdwbo = .false.
     self%rddip = .false.
+    self%dip = 0.0_wp
+    self%rddipgrad = .false.
 
     return
-  end subroutine calculation_reset
+  end subroutine calcdata_deallocate
 
-!==========================================================================================!
+!=========================================================================================!
 
   subroutine calculation_add_settings(self,cal)
     implicit none
@@ -161,7 +197,7 @@ contains
     return
   end subroutine calculation_add_settings
 
-!==========================================================================================!
+!=========================================================================================!
 
   subroutine calculation_add_constraint(self,constr)
     implicit none
@@ -186,6 +222,17 @@ contains
 
     return
   end subroutine calculation_add_constraint
+!=========================================================================================!
 
-!==========================================================================================!
+subroutine calculation_init(self)
+   class(calcdata) :: self
+  
+   if(allocated(self%elog))then
+      self%pr_energies = .true.
+      open(newunit=self%eout_unit,file=self%elog)
+   endif
+   
+end subroutine calculation_init
+
+!=========================================================================================!
 end module calc_type

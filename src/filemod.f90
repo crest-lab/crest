@@ -29,6 +29,7 @@ module filemod
    public :: nlines
    public :: lwidth
    public :: getlarg
+   public :: clearcomment
 
    private
 !-----------------------------------------------------------------------------------------------------
@@ -47,6 +48,7 @@ module filemod
        
       character(:),allocatable :: filename   !name of the file
       integer :: lcursor                     !"cursor" postion within the file lines
+      integer :: current_line = 1            ! current line within the file
  
     contains
       procedure :: allocate => allocate_file      !allocate memory for file      
@@ -96,6 +98,7 @@ subroutine allocate_file(self,fname)
    self%lwidth= b
    dummy=repeat(' ',b+5)
    self%nlines      = a
+   self%current_line = 1
    allocate( self%f(a), source=dummy)
    self%filename = fname
 end subroutine allocate_file
@@ -439,5 +442,27 @@ function getlarg(line,n)
      return
 end function
 
-!----------------------------------------------------------------------------------------------------
+!========================================================================================!
+!> remove any comment from a given line.
+!> comments are identified by the "id" character
+subroutine clearcomment(str,id)
+     implicit none
+     character(len=*),intent(inout) :: str
+     character(len=1),intent(in) :: id 
+     character(len=:),allocatable :: atmp
+     integer :: k
+     atmp = str
+     k = index(str,id) 
+     if(k == 1)then
+       atmp =  ''
+     else if(k > 0) then
+       atmp = str(1:k-1)
+     endif
+     str = trim(atmp)
+     deallocate(atmp)
+     return
+end subroutine clearcomment
+
+
+!========================================================================================!
 end module filemod

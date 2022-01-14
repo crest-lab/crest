@@ -56,7 +56,7 @@ contains
 
     implicit none
     type(coord) :: mol
-    type(calcdata) :: calc
+    type(calculation_settings) :: calc
 
     real(wp),intent(inout) :: energy
     real(wp),intent(inout) :: grad(3,mol%nat)
@@ -92,12 +92,12 @@ contains
 
     implicit none
     type(coord) :: mol
-    type(calcdata) :: calc
+    type(calculation_settings) :: calc
 
     integer :: l
     character(len=:),allocatable :: fname
     character(len=:),allocatable :: cpath
-
+    character(len=10) :: num
     integer :: i,j,k,ich,och,io
     logical :: ex
 
@@ -157,8 +157,25 @@ contains
 
     !>--- add other call information
     calc%systemcall = trim(calc%systemcall)//' '//xyzn
-    calc%systemcall = trim(calc%systemcall)//' '//'--gfn 2'
+    !>--- chrg and uhf
+    if(calc%chrg.ne.0)then
+       write(num,'(i0)') calc%chrg
+       calc%systemcall = trim(calc%systemcall)//' '//'--chrg'
+       calc%systemcall = trim(calc%systemcall)//' '//trim(num)
+    endif
+    if(calc%uhf.ne.0)then
+       write(num,'(i0)') calc%uhf
+       calc%systemcall = trim(calc%systemcall)//' '//'--uhf'
+       calc%systemcall = trim(calc%systemcall)//' '//trim(num)
+    endif
+    !>--- user-set flags
+    if(allocated(calc%other))then
+     calc%systemcall = trim(calc%systemcall)//' '//trim(calc%other)
+    endif
+    !>--- don't miss the --grad flag!
+    if(index(calc%systemcall,'-grad').eq.0)then
     calc%systemcall = trim(calc%systemcall)//' '//'--grad'
+    endif
 
     !>--- add printout information
     calc%systemcall = trim(calc%systemcall)//' '//'> xtb.out'
@@ -180,7 +197,7 @@ contains
 
     implicit none
     type(coord) :: mol
-    type(calcdata) :: calc
+    type(calculation_settings) :: calc
     real(wp),intent(inout) :: energy
     real(wp),intent(inout) :: grad(3,mol%nat)
     integer,intent(out) :: iostatus
@@ -254,7 +271,7 @@ contains
   subroutine rd_xtb_wbo(mol,calc,iostatus)
     implicit none
     type(coord) :: mol
-    type(calcdata) :: calc
+    type(calculation_settings) :: calc
     integer,intent(out) :: iostatus
     integer :: i,j
     real(wp) :: dum

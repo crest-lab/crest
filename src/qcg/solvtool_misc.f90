@@ -816,3 +816,39 @@ subroutine check_iff(env,neg_E)
   neg_E = io == 0 .and. int_E < 0.0_wp 
 
 end subroutine check_iff
+
+!----------------------------------------------------------------------------
+! write a wall potential in a file used as xtb input
+
+subroutine write_wall(env,n1,rabc1,rabc12,fname)
+  use iso_fortran_env, only : wp => real64
+  use crest_data
+
+  implicit none
+
+  type(systemdata)     :: env
+  integer, intent(in)  :: n1
+  real(wp),intent(in)  :: rabc1(3),rabc12(3)
+  character (len=8)    :: flag
+  character(len=*)    :: fname
+
+  open(unit=31,file=fname)
+  flag='$'
+  write(31,'(a,"wall")') trim(flag)
+  write(31,'(3x,"potential=polynomial")')
+  write(31,'(3x,"ellipsoid:",1x,3(g0,",",1x),"all")') rabc12
+  write(31,'(3x,"ellipsoid:",1x,3(g0,",",1x),"1-",i0)') rabc1,n1
+  if(env%constrain_solu) then
+    write(31,'("$fix")')
+    write(31,'(3x,"atoms: 1-",i0)') n1
+  end if
+  call write_cts(31,env%cts)
+  call write_cts_biasext(31,env%cts)
+  if(env%cts%used) then !Only, if user set constrians is an $end written
+     write(31,'(a)') '$end'
+  end if
+
+  close(31)
+
+end subroutine write_wall
+
