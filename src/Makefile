@@ -1,4 +1,3 @@
-PROG = crest
 PROG = ~/bin/crest
 
 OBJDIR = build
