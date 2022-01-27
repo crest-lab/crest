@@ -311,7 +311,7 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
      if(env%confgo.and.(index(trim(fname),'none selected').eq.0))then
         fname=trim(env%ensemblename)
         oname=trim(env%ensemblename)//'.sorted'
-        cname='crest_ensemble.xyz'
+        cname=ensemblefile !'crest_ensemble.xyz'
         if(env%fullcre)then
            env%ensemblename=trim(oname)
         endif

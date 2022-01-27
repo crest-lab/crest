@@ -76,7 +76,7 @@ subroutine crest_playground(env,tim)
 
 
   !>-- geopetry optimization
-  pr = .false. !> stdout printout
+  pr = .true. !> stdout printout
   wr = .true. !> write crestopt.log
   call optimize_geometry(mol,molnew,calc,energy,grad,pr,wr,io)
 

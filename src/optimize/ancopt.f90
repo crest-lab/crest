@@ -125,17 +125,17 @@ contains
     logical :: ex,converged,linear
     real(wp) :: estart,esave
     character(len=*),parameter :: scifmt = &
-                                  '(10x,":",3x,a,e22.7,1x,a,1x,":")'
+                                  '(10x,"│",3x,a,e22.7,1x,a,1x,"│")'
     character(len=*),parameter :: dblfmt = &
-                                  '(10x,":",3x,a,f18.7,5x,a,1x,":")'
+                                  '(10x,"│",3x,a,f18.7,5x,a,1x,"│")'
     character(len=*),parameter :: intfmt = &
-                                  '(10x,":",3x,a,i18,      10x,":")'
+                                  '(10x,"│",3x,a,i18,      10x,"│")'
     character(len=*),parameter :: chrfmt = &
-                                  '(10x,":",3x,a,a18,      10x,":")'
- 
+                                  '(10x,"│",3x,a,a18,      10x,"│")'
+
     iostatus = 0
     fail = .false.
-    converged=.false.
+    converged = .false.
     if (mol%nat .eq. 1) return
 !>  defaults
     tight = calc%optlev
@@ -172,9 +172,9 @@ contains
 
 !>--- print a summary of settings, if desired
     if (pr) then
-      write (*,'(/,10x,51("."))')
-      write (*,'(10x,":",22x,a,22x,":")') "SETUP"
-      write (*,'(10x,":",49("."),":")')
+      write (*,'(/,10x,"┍",49("━"),"┑")')
+      write (*,'(10x,"│",22x,a,22x,"│")') "SETUP"
+      write (*,'(10x,"┝",49("━"),"┥")')
       !write (*,chrfmt) "optimization level",int2optlevel(tight)
       write (*,intfmt) "optimization level",tight
       write (*,intfmt) "max. optcycles    ",maxcycle
@@ -183,7 +183,7 @@ contains
       if (modef > 0) then
         write (*,intfmt) "# mode follow     ",modef
       end if
-      write (*,'(10x,":",49("."),":")')
+      write (*,'(10x,"├",49("─"),"┤")')
       if (calc%exact_rf) then
         write (*,chrfmt) "RF solver         ","spevx"
       else
@@ -201,7 +201,7 @@ contains
       write (*,scifmt) "Hlow (freq-cutoff)",hlow,"    "
       write (*,dblfmt) "Hmax (freq-cutoff)",hmax,"    "
       write (*,dblfmt) "S6 in model hess. ",s6,"    "
-      write (*,'(10x,51("."))')
+      write (*,'(10x,"└",49("─"),"┘")')
     end if
 
 !>--- initialize anc object
@@ -231,7 +231,7 @@ contains
       if (.not. linear) then
         call trproj(molopt%nat,nat3,molopt%xyz,hess,.false.,0,pmode,1) ! normal
       end if
-      
+
 !>--- ANC generation (requires blowup)
       k = 0
       do i = 1,nat3
@@ -242,11 +242,11 @@ contains
         end do
       end do
       call anc%new(molopt%xyz,h,pr,linear,fail)
-      if(fail)then
-         iostatus = -1
-         exit ANC_microiter
-      endif
-       
+      if (fail) then
+        iostatus = -1
+        exit ANC_microiter
+      end if
+
       esave = etot !> save energy before relaxation
 !>--- call the actual relaxation routine
 !>    this routine will perform [maxmicro] relaxation steps
@@ -310,7 +310,7 @@ contains
     mol = molopt
 
 !> deallocate data
-    if(allocated(grmsd)) deallocate(grmsd)
+    if (allocated(grmsd)) deallocate (grmsd)
     if (allocated(pmode)) deallocate (pmode)
     if (allocated(h)) deallocate (h)
     if (allocated(hess)) deallocate (hess)
@@ -321,7 +321,7 @@ contains
 
 !========================================================================================!
 !> subroutine relax
-!> 
+!>
 !> Implements the microiteration relaxation cycles, i.e.,
 !> the update steps and diagonalizations between the
 !> new ANC generation.
@@ -372,7 +372,7 @@ contains
     real(sp),parameter :: r4dum = 1.e-8
     !> LAPACK & BLAS
     external :: dgemv
-    real(sp),external :: sdot 
+    real(sp),external :: sdot
 
     iostatus = 0
 
@@ -400,7 +400,9 @@ contains
 !! ========================================================================
       iter = iter + 1
       if (pr) &
-        write (*,'(/,72("."),/,30(".")," CYCLE",i5,1x,30("."),/,72("."))') iter
+        !write (*,'(/,78("."),/,33(".")," CYCLE",i5,1x,33("."),/,78("."))') iter
+        !write (*,'(/,78(":"),/,":",32(" ")," CYCLE",i5,1x,32(" "),":",/,78(":"))') iter
+        write (*,'(/,"┌",76("─"),"┐",/,"│",32(" ")," CYCLE",i5,1x,32(" "),"│",/,"└",76("─"),"┘")') iter
 
       gold = gint
       gnold = gnorm
@@ -409,7 +411,6 @@ contains
       if (ii > 1) then
         call prdechng(anc%nvar,gold,displ,anc%hess,depred)
       end if
-
 
 !>------------------------------------------------------------------------
 !>--- SINGLEPOINT CALCULATION
@@ -434,7 +435,7 @@ contains
       gnorm = norm2(gint)
 
       if (gnorm .gt. 500.0_wp) then
-        if(pr) write(*,*) '|grad| > 500, something is totally wrong!'
+        if (pr) write (*,*) '|grad| > 500, something is totally wrong!'
         fail = .true.
         iostatus = -1
         exit main_loop
@@ -465,11 +466,16 @@ contains
         write (*,'(5x,"change   ",e18.7,1x,"Eh")') echng
         write (*,'(3x,"gradient norm :",f14.7,1x,"Eh/α")',advance='no') gnorm
         write (*,'(3x,"predicted",e18.7)',advance='no') depred
-        if(ii>1)then
-         write (*,'(1x,"("f7.2"%)")') (depred - echng) / echng * 100
+        if (ii > 1) then
+          dummy = (depred - echng) / echng * 100.0_wp
+          if (abs(dummy) < 1000.0_wp) then
+            write (*,'(1x,"("f7.2"%)")') dummy
+          else
+            write (*,'(1x,"(*******%)")')
+          end if
         else
-         write (*,'(1x,"("f7.2"%)")') -100.0_wp
-        endif
+          write (*,'(1x,"("f7.2"%)")') - 100.0_wp
+        end if
       end if
 
       if (gnorm .lt. 0.002) then ! 0.002
@@ -503,7 +509,7 @@ contains
 !>
 !>   ⎛ H  g ⎞ ⎛ dx ⎞     ⎛ dx ⎞
 !>   ⎝ g  0 ⎠ ⎝  1 ⎠ = λ ⎝  1 ⎠
-!>     Aaug    Uaug       Uaug  
+!>     Aaug    Uaug       Uaug
 
 !>--- first, augment Hessian by gradient, everything packed, no blowup
       Aaug(1:npvar) = anc%hess
@@ -514,22 +520,22 @@ contains
       if (exact .or. nvar1 .lt. 50) then
         call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
       else
-      !>--- steepest decent guess for displacement
+        !>--- steepest decent guess for displacement
         if (ii .eq. 1) then
           Uaug(:,1) = [-real(gint(1:anc%nvar),sp),1.0_sp]
           dsnrm = sqrt(sdot(nvar1,Uaug,1,Uaug,1))
           Uaug = Uaug / dsnrm
         end if
         call solver_sdavidson(nvar1,r4dum,Aaug,Uaug,eaug,fail,.false.)
-      !>--- if that failed, retry with better solver
+        !>--- if that failed, retry with better solver
         if (fail) then
           call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
-        endif
+        end if
       end if
 
 !>--- divide by last element(=λ) to get the displacement vector dx
       if (fail .or. abs(Uaug(nvar1,1)) .lt. 1.e-10) then
-        if(pr) write(*,*) "internal rational function error"
+        if (pr) write (*,*) "internal rational function error"
         iostatus = -1
         exit main_loop
       end if
@@ -544,10 +550,10 @@ contains
       !end do
 !>--- maybe more consistent version is to rescale displacement
       maxd = alp * sqrt(ddot(anc%nvar,displ,1,displ,1))
-      if( maxd > maxdispl )then
-        if(pr) write(*,'(" * rescaling step by",f14.7)') maxdispl/maxd
+      if (maxd > maxdispl) then
+        if (pr) write (*,'(" * rescaling step by",f14.7)') maxdispl / maxd
         displ = maxdispl * displ / maxd
-      endif
+      end if
 
 !>--- now some output
       dsnrm = sqrt(ddot(anc%nvar,displ,1,displ,1))
@@ -581,11 +587,11 @@ contains
       gconverged = gnorm .lt. gthr
       lowered = echng .lt. 0.0_wp
       converged = econverged .and. gconverged .and. lowered
-      if(pr)then
+      if (pr) then
         write (*,'(3x,"converged δE/grad :",1x,l," /",l)') econverged,gconverged
-      endif
-      if(converged)then
-      !if (econverged .and. gconverged .and. lowered) then
+      end if
+      if (converged) then
+        !if (econverged .and. gconverged .and. lowered) then
         converged = .true.
         etot = energy
         !return
@@ -921,33 +927,32 @@ contains
   end subroutine set_eg_log
 
 !========================================================================================!
-subroutine rdhess(nat3,h,fname)
-   integer, intent(in)  :: nat3
-   real(wp),intent(out) :: h(nat3,nat3)
-   character(len=*),intent(in) :: fname
-   integer  :: iunit,i,j,mincol,maxcol
-   character(len=5)  :: adum
-   character(len=80) :: a80
+  subroutine rdhess(nat3,h,fname)
+    integer,intent(in)  :: nat3
+    real(wp),intent(out) :: h(nat3,nat3)
+    character(len=*),intent(in) :: fname
+    integer  :: iunit,i,j,mincol,maxcol
+    character(len=5)  :: adum
+    character(len=80) :: a80
 
-   !     write(*,*) 'Reading Hessian <',trim(fname),'>'
-   open(newunit=iunit,file=fname)
-   50  read(iunit,'(a)')a80
-   if(index(a80,'$hessian').ne.0)then
-      do i=1,nat3
-         maxcol = 0
-         200       mincol = maxcol + 1
-         maxcol = min(maxcol+5,nat3)
-         read(iunit,*)(h(j,i),j=mincol,maxcol)
-         if (maxcol.lt.nat3) goto 200
-      enddo
-      close(iunit)
+    !     write(*,*) 'Reading Hessian <',trim(fname),'>'
+    open (newunit=iunit,file=fname)
+50  read (iunit,'(a)') a80
+    if (index(a80,'$hessian') .ne. 0) then
+      do i = 1,nat3
+        maxcol = 0
+200     mincol = maxcol + 1
+        maxcol = min(maxcol + 5,nat3)
+        read (iunit,*) (h(j,i),j=mincol,maxcol)
+        if (maxcol .lt. nat3) goto 200
+      end do
+      close (iunit)
       goto 300
-   endif
-   goto 50
+    end if
+    goto 50
 
-   300 return
-end subroutine rdhess
-
+300 return
+  end subroutine rdhess
 
 !========================================================================================!
 end module ancopt_module

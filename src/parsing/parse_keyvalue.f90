@@ -23,6 +23,8 @@ module parse_keyvalue
     procedure :: deallocate => deallocate_kv
   end type keyvalue
 
+  character(len=*),parameter :: kv_indicator = '='
+
   public :: get_keyvalue
 
 contains
@@ -93,7 +95,7 @@ contains
     atmp = adjustl(str)
     if(len_trim(atmp) < 1) return
     if (atmp(1:1) == '[') return
-    k = index(atmp,' = ')
+    k = index(atmp,kv_indicator)
     if (k .ne. 0) then
       iskeyvalue = .true.
     end if
@@ -107,7 +109,7 @@ contains
     integer :: k,l
     character(len=:),allocatable :: atmp
     atmp = adjustl(str)
-    k = index(atmp,' = ')
+    k = index(atmp,kv_indicator)
     l = k - 1
     if (atmp(1:1) == '"' .or. atmp(1:1) == "'") then
       l = k - 2
@@ -125,10 +127,10 @@ contains
     integer :: k,l
     character(len=:),allocatable :: atmp
     atmp = adjustl(str)
-    k = index(atmp,' = ')
-    k = k + 3
+    k = index(atmp,kv_indicator)
+    k = k + len(kv_indicator)
     l = len_trim(str)
-    kv%rawvalue = trim(atmp(k:l))
+    kv%rawvalue = trim(adjustl(atmp(k:l)))
     return
   end subroutine get_rawvalue
 !========================================================================================!
@@ -210,7 +212,7 @@ contains
     if (allocated(kv%value_rawa)) deallocate (kv%value_rawa)
     atmp = repeat(' ',l)
     kv%na = n + 1
-    allocate (kv%value_rawa(n),source=atmp)
+    allocate (kv%value_rawa(kv%na),source=atmp)
     atmp = kv%rawvalue
     n = 1
     opend = 0

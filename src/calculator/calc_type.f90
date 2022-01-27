@@ -224,15 +224,15 @@ contains
   end subroutine calculation_add_constraint
 !=========================================================================================!
 
-subroutine calculation_init(self)
-   class(calcdata) :: self
-  
-   if(allocated(self%elog))then
+  subroutine calculation_init(self)
+    class(calcdata) :: self
+
+    if (allocated(self%elog)) then
       self%pr_energies = .true.
-      open(newunit=self%eout_unit,file=self%elog)
-   endif
-   
-end subroutine calculation_init
+      open (newunit=self%eout_unit,file=self%elog)
+    end if
+
+  end subroutine calculation_init
 
 !=========================================================================================!
 end module calc_type

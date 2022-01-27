@@ -27,18 +27,7 @@ subroutine confscript_head
       logical :: niceprint
       
       niceprint=.true.
-      write(*,*)
-      write(*,'(7x,''=============================================='')')
-      write(*,'(7x,''|                                            |'')')
-      write(*,'(7x,''|                 C R E S T                  |'')')
-      write(*,'(7x,''|                                            |'')')
-      write(*,'(7x,''|  Conformer-Rotamer Ensemble Sampling Tool  |'')')
-      write(*,'(7x,''|          based on the GFN methods          |'')')
-      write(*,'(7x,''|             P.Pracht, S.Grimme             |'')')
-      write(*,'(7x,''|          Universitaet Bonn, MCTC           |'')')
-      write(*,'(7x,''=============================================='')')
-      write(*,'(7x,''Version '',a,'', '',a)')trim(version),trim(date)
-      write(*,'(2x,''Using the xTB program. Compatible with xTB version 6.4.0'')')
+      call box3(version,date)
       write(*,*)
       write(*,'(3x,''Cite work conducted with this code as'')')
       write(*,'(/,3x,''P. Pracht, F. Bohle, S. Grimme, PCCP, 2020, 22, 7169-7192.'')')
@@ -52,6 +41,58 @@ subroutine confscript_head
 
       call disclaimer()
 
+contains
+ subroutine box1(version,date)
+   implicit none
+   character(len=*) :: version
+   character(len=*) :: date
+      write(*,*)
+      write(*,'(7x,''=============================================='')')
+      write(*,'(7x,''|                                            |'')')
+      write(*,'(7x,''|                 C R E S T                  |'')')
+      write(*,'(7x,''|                                            |'')')
+      write(*,'(7x,''|  Conformer-Rotamer Ensemble Sampling Tool  |'')')
+      write(*,'(7x,''|          based on the GFN methods          |'')')
+      write(*,'(7x,''|             P.Pracht, S.Grimme             |'')')
+      write(*,'(7x,''|          Universitaet Bonn, MCTC           |'')')
+      write(*,'(7x,''=============================================='')')
+      write(*,'(7x,''Version '',a,'', '',a)')trim(version),trim(date)
+      write(*,'(2x,''Using the xTB program. Compatible with xTB version 6.4.0'')')
+   end subroutine box1
+   subroutine box2(version,date)
+   implicit none
+   character(len=*) :: version
+   character(len=*) :: date
+      write(*,*)
+      write(*,'(7x,''╔════════════════════════════════════════════╗'')')
+      !write(*,'(7x,''║                                            ║'')')
+      write(*,'(7x,''║                 C R E S T                  ║'')')
+      write(*,'(7x,''║                                            ║'')')
+      write(*,'(7x,''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
+      write(*,'(7x,''║          based on the GFN methods          ║'')')
+      write(*,'(7x,''║         P.Pracht, RWTH Aachen, IPC         ║'')')
+      write(*,'(7x,''║     S.Grimme, Universität Bonn, MCTC       ║'')')
+      write(*,'(7x,''╚════════════════════════════════════════════╝'')')
+      write(*,'(7x,''Version '',a,'',  '',a)')trim(version),trim(date)
+   end subroutine box2
+   subroutine box3(version,date)
+   implicit none
+   character(len=*) :: version
+   character(len=*) :: date
+      write(*,*)
+      write(*,'(7x,''╔════════════════════════════════════════════╗'')')
+      write(*,'(7x,''║            ___ ___ ___ ___ _____           ║'')')
+      write(*,'(7x,''║           / __| _ \ __/ __|_   _|          ║'')')
+      write(*,'(7x,''║          | (__|   / _|\__ \ | |            ║'')')
+      write(*,'(7x,''║           \___|_|_\___|___/ |_|            ║'')')
+      write(*,'(7x,''║                                            ║'')')
+      write(*,'(7x,''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
+      write(*,'(7x,''║          based on the GFN methods          ║'')')
+      write(*,'(7x,''║         P.Pracht, RWTH Aachen, IPC         ║'')')
+      write(*,'(7x,''║     S.Grimme, Universität Bonn, MCTC       ║'')')
+      write(*,'(7x,''╚════════════════════════════════════════════╝'')')
+      write(*,'(7x,''Version '',a,'',  '',a)')trim(version),trim(date)
+   end subroutine box3
 end subroutine confscript_head
 
 subroutine disclaimer

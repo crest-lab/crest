@@ -41,7 +41,7 @@ subroutine mdopt(env,tim)
       call tim%start(1,'MDOPT')
 
 !---- output file name
-      newname='crest_ensemble.xyz'
+      newname=ensemblefile !'crest_ensemble.xyz'
       if(env%optpurge) newname='crest_optpurge.xyz'
 
 !---- which file to optimize?
@@ -209,7 +209,7 @@ subroutine screen(env,tim)
       call tim%start(1,'SCREEN')
 
 !---- output file name
-      newname='crest_ensemble.xyz'
+      newname=ensemblefile !'crest_ensemble.xyz'
 
 !---- which file to optimize?
       

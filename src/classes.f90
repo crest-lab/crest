@@ -36,11 +36,16 @@ module crest_data
    public :: optlevflag
    public :: optlevnum
 
-
-   character(len=14),parameter,public :: crefile = 'crest_rotamers'              !basename for the CRE files
-   character(len=20),parameter,public :: conformerfile = 'crest_conformers.xyz'  !basename for the conformer file
-   character(len=16),parameter,public :: conformerfilebase = 'crest_conformers'  !basename for the conformer file
-   character(len=19),parameter,public :: clusterfile='crest_clustered.xyz'       !basename for the cluster file
+   !> basename for the CRE files
+   character(len=14),parameter,public :: crefile = 'crest_rotamers'              
+   !> basename for the conformer file
+   character(len=20),parameter,public :: conformerfile = 'crest_conformers.xyz'  
+   !> basename for the conformer file
+   character(len=16),parameter,public :: conformerfilebase = 'crest_conformers'  
+   !> basename for the conformer file
+   character(len=19),parameter,public :: clusterfile='crest_clustered.xyz'       
+   !> basename for the cluster file
+   character(len=*),parameter,public :: ensemblefile='crest_ensemble.xyz'
 
    logical,public :: gui = .false.
 
@@ -49,18 +54,21 @@ module crest_data
 !============================================================================!
 ! runtype variables
 !============================================================================!
-   integer,parameter,public :: crest_none   = 0
-   integer,parameter,public :: crest_mfmdgc = 1    
-   integer,parameter,public :: crest_imtd   = 2
-   integer,parameter,public :: crest_imtd2  = 22
-   integer,parameter,public :: crest_mdopt  = 3
-   integer,parameter,public :: crest_screen = 4
-   integer,parameter,public :: crest_nano   = 7
-   integer,parameter,public :: crest_compr  = 77
-   integer,parameter,public :: crest_msreac = 9
-   integer,parameter,public :: crest_pka    = 14
-   integer,parameter,public :: crest_solv   = 15
-   integer,parameter,public :: crest_test   = 456
+   integer,parameter,public :: crest_none     = 0
+   integer,parameter,public :: crest_mfmdgc   = 1    
+   integer,parameter,public :: crest_imtd     = 2
+   integer,parameter,public :: crest_imtd2    = 22
+   integer,parameter,public :: crest_mdopt    = 3
+   integer,parameter,public :: crest_mdopt2   = 33
+   integer,parameter,public :: crest_screen   = 4
+   integer,parameter,public :: crest_nano     = 7
+   integer,parameter,public :: crest_compr    = 77
+   integer,parameter,public :: crest_msreac   = 9
+   integer,parameter,public :: crest_pka      = 14
+   integer,parameter,public :: crest_solv     = 15
+   integer,parameter,public :: crest_optimize = 265
+   integer,parameter,public :: crest_moldyn   = 266
+   integer,parameter,public :: crest_test     = 456
 !---- tools
    integer,parameter,public :: p_cregen      = -1
    integer,parameter,public :: p_compare     = -2

@@ -166,7 +166,7 @@ subroutine cregen2(env)
         oname=trim(ensemblename)//'.sorted'
         write(ich,*) 'input  file name : ',trim(fname)
         write(ich,*) 'output file name : ',trim(oname)
-        cname='crest_ensemble.xyz'
+        cname=ensemblefile !'crest_ensemble.xyz'
         if(env%fullcre)then
            ensemblename=trim(oname)
         endif

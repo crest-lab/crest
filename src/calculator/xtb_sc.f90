@@ -39,7 +39,7 @@ module xtb_sc
 
   integer,parameter :: nf = 3
   character(len=20),parameter :: xtbfiles(nf) = [&
-          & 'xtbrestart','charges','xtbinp.grad']
+          & 'charges','xtbinp.grad','xtbrestart']
   character(len=3),parameter :: xtb = 'xtb'
   character(len=10),parameter :: xyzn = 'xtbinp.xyz'
   character(len=13),parameter :: gf = 'xtbinp.engrad'
@@ -158,24 +158,24 @@ contains
     !>--- add other call information
     calc%systemcall = trim(calc%systemcall)//' '//xyzn
     !>--- chrg and uhf
-    if(calc%chrg.ne.0)then
-       write(num,'(i0)') calc%chrg
-       calc%systemcall = trim(calc%systemcall)//' '//'--chrg'
-       calc%systemcall = trim(calc%systemcall)//' '//trim(num)
-    endif
-    if(calc%uhf.ne.0)then
-       write(num,'(i0)') calc%uhf
-       calc%systemcall = trim(calc%systemcall)//' '//'--uhf'
-       calc%systemcall = trim(calc%systemcall)//' '//trim(num)
-    endif
+    if (calc%chrg .ne. 0) then
+      write (num,'(i0)') calc%chrg
+      calc%systemcall = trim(calc%systemcall)//' '//'--chrg'
+      calc%systemcall = trim(calc%systemcall)//' '//trim(num)
+    end if
+    if (calc%uhf .ne. 0) then
+      write (num,'(i0)') calc%uhf
+      calc%systemcall = trim(calc%systemcall)//' '//'--uhf'
+      calc%systemcall = trim(calc%systemcall)//' '//trim(num)
+    end if
     !>--- user-set flags
-    if(allocated(calc%other))then
-     calc%systemcall = trim(calc%systemcall)//' '//trim(calc%other)
-    endif
+    if (allocated(calc%other)) then
+      calc%systemcall = trim(calc%systemcall)//' '//trim(calc%other)
+    end if
     !>--- don't miss the --grad flag!
-    if(index(calc%systemcall,'-grad').eq.0)then
-    calc%systemcall = trim(calc%systemcall)//' '//'--grad'
-    endif
+    if (index(calc%systemcall,'-grad') .eq. 0) then
+      calc%systemcall = trim(calc%systemcall)//' '//'--grad'
+    end if
 
     !>--- add printout information
     calc%systemcall = trim(calc%systemcall)//' '//'> xtb.out'

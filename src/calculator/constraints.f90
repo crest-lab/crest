@@ -50,6 +50,8 @@ module constraints
   integer,parameter :: box = 6
   integer,parameter :: box_fermi = 7
 
+  integer,public,parameter :: na_gapdiff = -1
+
   integer,parameter :: pharmonic = 1
   integer,parameter :: plogfermi = 2
 
@@ -72,6 +74,7 @@ module constraints
     procedure,private :: create_sphere_constraint,create_sphere_constraint_all
     procedure :: angleconstraint => create_angle_constraint
     procedure :: dihedralconstraint => create_dihedral_constraint
+    procedure :: gapdiffconstraint => create_gapdiff_constraint
   end type constraint
   !=====================================================!
 
@@ -152,8 +155,8 @@ contains
   end subroutine print_constraint
 
 !========================================================================================!
-! subroutien constraint_deallocate
-! reset and deallocate all data of a given constraint object
+!> subroutien constraint_deallocate
+!> reset and deallocate all data of a given constraint object
   subroutine constraint_deallocate(self)
     implicit none
     class(constraint) :: self
@@ -167,8 +170,7 @@ contains
   end subroutine constraint_deallocate
 
 !========================================================================================!
-! subroutien create_bond_constraint
-
+!> subroutien create_bond_constraint
   subroutine create_bond_constraint(self,i,j,d,k)
     implicit none
     class(constraint) :: self
@@ -192,8 +194,8 @@ contains
   end subroutine create_bond_constraint
 
 !========================================================================================!
-! constrain the distance between two atoms A...B
-! by an harmonic potential V(r) = 1/2kr²
+!> constrain the distance between two atoms A...B
+!> by an harmonic potential V(r) = 1/2kr²
   subroutine bond_constraint(n,xyz,constr,energy,grd)
     implicit none
     integer,intent(in) :: n
@@ -245,7 +247,7 @@ contains
   end subroutine bond_constraint
 
 !========================================================================================!
-! subroutien create_angle_constraint
+!> subroutien create_angle_constraint
   subroutine create_angle_constraint(self,a,b,c,d,k)
     implicit none
     class(constraint) :: self
@@ -284,9 +286,9 @@ contains
   end subroutine create_angle_constraint
 
 !========================================================================================!
-! subroutine angle_constraint
-! constrain angle between atoms A and C, connected via a central atom B:  A-B-C
-! using a harmonic potential
+!> subroutine angle_constraint
+!> constrain angle between atoms A and C, connected via a central atom B:  A-B-C
+!> using a harmonic potential
   subroutine angle_constraint(n,xyz,constr,energy,grd)
     implicit none
     integer,intent(in) :: n
@@ -407,7 +409,7 @@ contains
   end subroutine cross
 
 !========================================================================================!
-! subroutien create_dihedral_constraint
+!> subroutien create_dihedral_constraint
   subroutine create_dihedral_constraint(self,a,b,c,d,ref,k)
     implicit none
     class(constraint) :: self
@@ -452,9 +454,9 @@ contains
     return
   end subroutine create_dihedral_constraint
 !========================================================================================!
-! subroutine dihedral_constraint
-! constrain dihedral angle spanned by atoms A-B-C-D
-! using a harmonic potential
+!> subroutine dihedral_constraint
+!> constrain dihedral angle spanned by atoms A-B-C-D
+!> using a harmonic potential
   subroutine dihedral_constraint(n,xyz,constr,energy,grd)
     implicit none
     integer,intent(in) :: n
@@ -556,7 +558,7 @@ contains
   end subroutine dihedral_constraint
 
 !========================================================================================!
-! subroutien create_sphere_constraint
+!> subroutien create_sphere_constraint
 
   subroutine create_sphere_constraint_all(self,n,r,k,alpha,logfermi)
     implicit none
@@ -605,8 +607,8 @@ contains
   end subroutine create_sphere_constraint
 
 !========================================================================================!
-! constrain atoms within defined wall potentials
-! the potentials themselves can be polinomial or logfermi type
+!> constrain atoms within defined wall potentials
+!> the potentials themselves can be polinomial or logfermi type
   subroutine wall_constraint(n,xyz,constr,energy,grd,subtype)
     implicit none
     integer,intent(in) :: n
@@ -673,4 +675,25 @@ contains
     return
   end subroutine wall_constraint
 
+!========================================================================================!
+!> subroutien create_gapdiff_constraint
+!> (calculation of the constraint in nonadiabatic.f90)
+  subroutine create_gapdiff_constraint(self,sigm,alph)
+    implicit none
+    class(constraint) :: self
+    real(wp),intent(in) :: sigm,alph
+
+    call self%deallocate()
+    self%type = na_gapdiff
+    allocate (self%fc(2),source=fcdefault)
+    self%fc(1) = sigm
+    self%fc(2) = alph
+    return
+  end subroutine create_gapdiff_constraint
+
+
+
+
+
+!========================================================================================!
 end module constraints

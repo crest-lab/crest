@@ -60,6 +60,8 @@ module dynamics_module
   !data object that contains settings for a molecular dynamics simulation.
   type :: mddata
 
+    logical :: requested = .false.
+
     integer :: md_index = 0 ! some index for parallelization
     integer :: simtype = type_md ! type of the molecular dynamics simulation
     logical :: restart = .false.
@@ -103,6 +105,7 @@ module dynamics_module
 
   public :: dynamics
   public :: test_md
+  public :: mdautoset
   !public :: ekinet
   !public :: u_block
   !public :: wrmdrestart

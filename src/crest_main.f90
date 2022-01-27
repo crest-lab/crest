@@ -157,7 +157,7 @@ program CREST
              &    env%tboltz,dumfloat,dumfloat2)
            endif
            if(env%cluster)then
-             call ccegen(env,.true.,'crest_ensemble.xyz')
+             call ccegen(env,.true.,ensemblefile)
            endif
            call tim%stop(1)
            call propquit(tim)
@@ -292,6 +292,12 @@ program CREST
            call pkaquick(env,tim)   
         case( crest_solv )  !microsolvation tools   
            call crest_solvtool(env, tim) 
+        case( crest_optimize)
+           call crest_optimization(env, tim) 
+        case( crest_mdopt2 )
+           call crest_ensemble_optimization(env,tim)
+        case( crest_moldyn)
+           call crest_moleculardynamics(env,tim)
         case( crest_test) 
            call crest_playground(env, tim) 
         case default

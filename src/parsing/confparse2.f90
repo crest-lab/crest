@@ -48,7 +48,8 @@ subroutine parseinputfile(env,fname)
   use parse_block,only:datablock
   use parse_datastruct,only:root_object
   use parse_inputfile, only: parse_input
-  use parse_calcdata, only: parse_calculation_data
+  use parse_calcdata, only: parse_calculation_data, &
+  &                         parse_dynamics_data
   !> Declarations
   implicit none
   type(systemdata),intent(inout) :: env
@@ -57,6 +58,7 @@ subroutine parseinputfile(env,fname)
   type(keyvalue)  :: kv
   type(datablock) :: blk
   type(calcdata) :: newcalc
+  type(mddata) :: mddat
   logical :: ex,l1,l2
   integer :: i,j,k,l
 
@@ -87,6 +89,12 @@ subroutine parseinputfile(env,fname)
   call parse_calculation_data(newcalc,dict,l1)
   if(l1)then
     env%calc = newcalc
+  endif
+
+!>--- check for molecular dynamics setup
+  call parse_dynamics_data(mddat,dict,l1)
+  if(l1)then
+    env%mddat = mddat
   endif
 
 
@@ -147,9 +155,20 @@ contains
       case ('playground','test')
         env%preopt = .false.
         env%crestver = crest_test
+      case ('ancopt','optimize')
+        env%preopt = .false.
+        env%crestver = crest_optimize
+      case ('ancopt_ensemble','optimize_ensemble')
+        env%preopt = .false.
+        env%crestver = crest_mdopt2
+      case ('md','mtd','metadynamics','dynamics')
+        env%preopt = .false.
+        env%crestver = crest_moldyn
       case default
         env%crestver = crest_imtd
       end select
+    case( 'ensemble_input' )
+       env%ensemblename = val
     end select
     return
   end subroutine parse_main_c

@@ -93,9 +93,9 @@ subroutine scrend(env)
         call copy(trim(env%scratchdir)//'/'//conformerfilebase//'.sdf',conformerfilebase//'.sdf')
       endif
 
-      inquire(file=trim(env%scratchdir)//'/'//'crest_ensemble.xyz',exist=ex)
+      inquire(file=trim(env%scratchdir)//'/'//ensemblefile,exist=ex)
       if(ex)then
-        call copy(trim(env%scratchdir)//'/'//'crest_ensemble.xyz','crest_ensemble.xyz')
+        call copy(trim(env%scratchdir)//'/'//ensemblefile,ensemblefile)
       endif
 
       call system('cp -r '//trim(env%scratchdir)//'/* ./')

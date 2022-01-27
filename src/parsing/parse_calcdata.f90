@@ -2,7 +2,8 @@
 module parse_calcdata
   use iso_fortran_env,only:wp => real64,sp => real64
   use calc_type,only:calcdata,calculation_settings
-  use constraints,only:constraint
+  use constraints
+  use dynamics_module
 
   use parse_block,only:datablock
   use parse_keyvalue,only:keyvalue
@@ -27,7 +28,17 @@ module parse_calcdata
     module procedure :: parse_calc_bool
   end interface parse_calc
 
+  interface parse_md
+    module procedure :: parse_md_auto
+    module procedure :: parse_md_float
+    module procedure :: parse_md_int
+    module procedure :: parse_md_c
+    module procedure :: parse_md_bool
+  end interface parse_md
+
+
   public :: parse_calculation_data
+  public :: parse_dynamics_data
 contains
 !========================================================================================!
   subroutine parse_calculation_data(calc,dict,included)
@@ -56,7 +67,7 @@ contains
         included = .true.
         !write(*,*) 'read [calculation.level]'
       else if (blk%header == '[calculation.constraints]') then
-
+        call parse_constraintdat(blk,calc)
         included = .true.
         !write(*,*) 'read [calculation.constraints]'
       end if
@@ -251,5 +262,152 @@ contains
     return
   end subroutine parse_calc_bool
 
+!========================================================================================!
+!> The following routines are used to
+!> read information into the "constraint" object
+!> and add it to a calculation data object
+!>---------------------------------------------------------
+  subroutine parse_constraintdat(blk,calc)
+    implicit none
+    type(datablock),intent(in) :: blk
+    type(calcdata),intent(inout) :: calc
+    logical :: success
+    type(constraint) :: constr
+    integer :: i
+    if (blk%header .ne. '[calculation.constraints]') return
+    do i = 1,blk%nkv
+      call parse_constraint_auto(constr,blk%kv_list(i),success)
+      if(success)then
+      call calc%add(constr)
+      endif
+    end do
+    return
+  end subroutine parse_constraintdat
+  subroutine parse_constraint_auto(constr,kv,success)
+    implicit none
+    type(keyvalue) :: kv
+    type(constraint) :: constr
+    logical,intent(out) :: success
+    real(wp) :: dum1,dum2
+    success = .false.
+    select case(kv%key)
+
+    case( 'gapdiff' )
+        dum1 = kv%value_fa(1)
+        dum2 = kv%value_fa(2)
+        call constr%gapdiffconstraint(dum1,dum2)
+        success = .true.
+    case default
+     return 
+    end select
+
+    return
+  end subroutine parse_constraint_auto
+
+!========================================================================================!
+  subroutine parse_dynamics_data(mddat,dict,included)
+    implicit none
+    type(mddata) :: mddat
+    type(root_object) :: dict
+    type(datablock) :: blk
+    type(calculation_settings) :: newjob
+    type(constraint) :: newcstr
+    integer :: i,j,k,l
+    logical,intent(out) :: included
+
+    included = .false.
+    !call mddat%deallocate()
+
+    do i = 1,dict%nblk
+      call blk%deallocate()
+      blk = dict%blk_list(i)
+      if (blk%header == 'dynamics') then
+        included = .true.
+        call parse_mddat(blk,mddat)
+      end if
+    end do
+    if (included) then
+      mddat%requested=.true.
+    end if
+    return
+  end subroutine parse_dynamics_data
+  subroutine parse_mddat(blk,mddat)
+    implicit none
+    type(datablock),intent(in) :: blk
+    type(mddata),intent(inout) :: mddat
+    integer :: i
+    if (blk%header .ne. 'dynamics') return
+    do i = 1,blk%nkv
+      call parse_md(mddat,blk%kv_list(i))
+    end do
+    return
+  end subroutine parse_mddat
+  subroutine parse_md_auto(mddat,kv)
+    implicit none
+    type(mddata) :: mddat
+    type(keyvalue) :: kv
+    select case (kv%id)
+    case (1) !> float
+      call parse_md(mddat,kv%key,kv%value_f)
+    case (2) !> int
+      call parse_md(mddat,kv%key,kv%value_i)
+    case (3) !> bool
+      call parse_md(mddat,kv%key,kv%value_b)
+    case (4) !> string
+      call parse_md(mddat,kv%key,kv%value_c)
+    end select
+  end subroutine parse_md_auto
+  subroutine parse_md_float(mddat,key,val)
+    implicit none
+    type(mddata) :: mddat
+    character(len=*) :: key
+    real(wp) :: val
+    select case (key)
+    case( 'length' )
+      mddat%length_ps = val 
+    case( 'dump' )
+      mddat%dumpstep = val
+    case default
+      return
+    end select
+    return
+  end subroutine parse_md_float
+  subroutine parse_md_int(mddat,key,val)
+    implicit none
+    type(mddata) :: mddat
+    character(len=*) :: key
+    integer :: val
+    select case (key)
+    case( 'length' )
+     mddat%length_ps = float(val)
+    case( 'dump' )
+      mddat%dumpstep = float(val)
+    case default
+      return
+    end select
+    return
+  end subroutine parse_md_int
+  subroutine parse_md_c(mddat,key,val)
+    implicit none
+    type(mddata) :: mddat
+    character(len=*) :: key
+    character(len=*) :: val
+    select case (key)
+    case default
+      return
+    end select
+    return
+  end subroutine parse_md_c
+  subroutine parse_md_bool(mddat,key,val)
+    implicit none
+    type(mddata) :: mddat
+    character(len=*) :: key
+    logical :: val
+    select case (key)
+    case default
+      return
+    end select
+    return
+  end subroutine parse_md_bool
 !========================================================================================!
 end module parse_calcdata

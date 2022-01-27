@@ -44,73 +44,13 @@ module calc_module
     module procedure :: engrad_xyz
   end interface engrad
 
-  public :: test_engrad
   public :: numhess
   public :: constrhess
 
 contains
 !========================================================================================!
-! subroutine test_engrad
-! test engrad routine
-  subroutine test_engrad(fname)
-    implicit none
-
-    character(len=*) :: fname
-
-    type(coord) :: mol
-    type(coord) :: molo
-    type(calcdata) :: calc
-    type(constraint) :: constr
-    real(wp) :: energy
-    real(wp),allocatable :: grad(:,:)
-    type(calculation_settings) :: job
-    integer :: i,j,k,l,ich,och,io
-
-    logical :: pr
-
-    pr = .true.
-
-    call mol%open(fname)
-
-    allocate (grad(3,mol%nat),source=0.0_wp)
-
-    !job%id = 99
-    !job%other = '15.0   1.5'
-    !job%id = 10
-    job%id = 0
-    job%calcspace = 'testdir'
-    call calc%add(job)
-
-    !call constr%bondconstraint(1,2,2.0_wp,0.1_wp)
-    !call constr%print()
-    !call constr%sphereconstraint(mol%nat,4.0_wp,1.0_wp,6.0_wp,.true.)
-    !call constr%angleconstraint(2,1,3,1387.0_wp,0.02_wp)
-    call constr%dihedralconstraint(1,2,3,9,27.0_wp,0.02_wp)
-    !call constr%print()
-    call calc%add(constr)
-    call calc%cons(1)%print()
-
-    call engrad(mol,calc,energy,grad,io)
-
-    write (*,*) 'Energy: ',energy
-    write (*,*) 'Gradient:'
-    do i = 1,mol%nat
-      write (*,'(3f18.8)') grad(1:3,i)
-    end do
-
-    write (*,*)
-    molo = mol
-    if (pr) then
-      call numgrad(molo,calc,grad)
-    end if
-    deallocate (grad)
-
-    return
-  end subroutine test_engrad
-
-!========================================================================================!
-! subroutine engrad
-! main routine to perform some energy and gradient calculation
+!> subroutine engrad
+!> main routine to perform some energy and gradient calculation
   subroutine engrad_mol(mol,calc,energy,gradient,iostatus)
     implicit none
     type(coord) :: mol
@@ -169,16 +109,16 @@ contains
           energy = etmp(j)
           gradient = grdtmp(:,:,j)
         end if
-      case( -1 ) !> non-adiabatic arithmetic mean
-        if(calc%ncalculations > 1)then
+      case (-1) !> non-adiabatic arithmetic mean
+        if (calc%ncalculations > 1) then
           call engrad_mean(mol%nat,etmp(1),etmp(2),grdtmp(:,:,1), &
           &                grdtmp(:,:,2),energy,gradient)
-        endif
+        end if
       end select
       !>--- printout (to file or stdout)
       call calc_print_energies(calc,energy,etmp)
       !>--- deallocate
-      deallocate (etmp,grdtmp)
+      !deallocate (etmp,grdtmp)
     end if
 
     !>--- Constraints
@@ -187,13 +127,21 @@ contains
       do i = 1,calc%nconstraints
         efix = 0.0_wp
         grdfix = 0.0_wp
-        call calc_constraint(mol%nat,mol%xyz,calc%cons(i),efix,grdfix)
+        if(calc%cons(i)%type > 0)then
+        !>--- structural constraints
+          call calc_constraint(mol%nat,mol%xyz,calc%cons(i),efix,grdfix)
+        else if( allocated(etmp) .and. allocated(grdtmp))then
+        !>--- non-adiabatic constraints
+          call calc_nonadiabatic_constraint(mol%nat,calc%cons(i),n,etmp,grdtmp,efix,grdfix)
+        endif
         energy = energy + efix
         gradient = gradient + grdfix
       end do
       deallocate (grdfix)
     end if
 
+    if(allocated(etmp))deallocate(etmp)
+    if(allocated(grdtmp))deallocate(grdtmp)
     return
   end subroutine engrad_mol
 
@@ -339,18 +287,28 @@ contains
     integer :: tc_backup
     real(wp) :: energy,el,er
     real(wp),allocatable :: hess(:,:)
-
+    logical :: consgeo
     integer :: i,j,k,n3
 
-    !phess = 0.0_wp
     if (calc%nconstraints <= 0) return
+    !>--- skip if only nonadiabatic constraints
+
     dummycalc = calc !> new dummy calculation
     dummycalc%id = 0  !> set to zero so that only constraints are considered
+    dummycalc%ncalculations = 0
     dummycalc%pr_energies = .false.
     n3 = nat * 3
     allocate (hess(n3,n3),source=0.0_wp)
 
+!    if(consgeo)then
     call numhess(nat,at,xyz,dummycalc,hess)
+!    else
+!     hess = 0.0_wp
+!    endif
+!    open(newunit=i,file='hesstest')
+!    write(i,*) hess
+!    close(i)
+!    stop
 
     k = 0
     do i = 1,n3

@@ -301,10 +301,7 @@ subroutine parseflags(env,arg,nra)
 !>--- check for input file
   do i = 1,nra
     argument = trim(arg(i))
-    if (argument(1:2) == '--') then
-      argument = argument(2:)
-    end if
-    if(argument=='-input')then
+    if(argument=='--input' .or. argument=='-i')then
      call parseinputfile(env,trim(arg(i+1)))
      exit
     endif 
@@ -617,6 +614,9 @@ subroutine parseflags(env,arg,nra)
           call redo_extrapol(env,ctmp,0)
         end if
         stop
+      case ('-optimize','-ancopt')
+        env%preopt = .false.
+        env%crestver = crest_optimize
       case ('-SANDBOX')
         !>--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
         !call test_engrad(trim(arg(1)))
@@ -981,7 +981,7 @@ subroutine parseflags(env,arg,nra)
       case ('-cross')
         env%performCross = .true.     !do the genetic crossing
         env%autozsort = .true.
-      case ('-opt')              !settings for optimization level of GFN-xTB
+      case ('-opt','-optlev')              !settings for optimization level of GFN-xTB
         env%optlev = optlevnum(arg(i + 1))
         write (*,'(2x,a,1x,i0)') trim(arg(i)),nint(env%optlev)
       case ('-gfn','-gfn1','-gfn2','-gfn0','-gff','-gfnff')

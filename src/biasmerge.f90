@@ -353,13 +353,13 @@ subroutine biasmerge(env)
             endif
             close(ich)
             env%ensemblename=trim(atmp)
-            call remove('crest_ensemble.xyz')
+            call remove(ensemblefile)
             call mdopt(env,tim2)   !optimization with potential
-            call rdensembleparam('crest_ensemble.xyz',nat3,nall3)
+            call rdensembleparam(ensemblefile,nat3,nall3)
             allocate(at3(nat3), source=0)
             allocate(xyz3(3,nat3,nall3), source=0.0_wp)
             allocate(eread3(nall3))
-            call rdensemble('crest_ensemble.xyz',nat3,nall3,at3,xyz3,eread3)
+            call rdensemble(ensemblefile,nat3,nall3,at3,xyz3,eread3)
             mad = 0.0_wp
             emintryTB=eread3(mintry)
             l=0
