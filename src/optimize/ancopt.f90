@@ -167,8 +167,10 @@ contains
     !  nvar = nat3 - 3 * fixset%n - 3
     !  if (nvar .le. 0) nvar = 1
     !end if
-
+    
+    !$omp critical
     allocate (pmode(nat3,1),grmsd(3,mol%nat)) ! dummy allocated
+    !$omp end critical
 
 !>--- print a summary of settings, if desired
     if (pr) then
@@ -205,11 +207,16 @@ contains
     end if
 
 !>--- initialize anc object
+    !$omp critical
     allocate (h(nat3,nat3),hess(nat3 * (nat3 + 1) / 2),eig(nat3))
     call anc%allocate(mol%nat,nvar,hlow,hmax)
+    allocate(molopt%at(mol%nat),molopt%xyz(3,mol%nat))
+    !$omp end critical
 
 !>--- backup coordinates, and starting energy
-    molopt = mol
+    molopt%nat = mol%nat
+    molopt%at  = mol%at
+    molopt%xyz = mol%xyz
     estart = etot
 
 !>--- initialize .log file, if desired
@@ -307,14 +314,21 @@ contains
     end if
 
 !>--- overwrite input structure with optimized one
-    mol = molopt
+    mol%nat = molopt%nat
+    mol%at  = molopt%at
+    mol%xyz = molopt%xyz
+
 
 !> deallocate data
+    !$omp critical
     if (allocated(grmsd)) deallocate (grmsd)
     if (allocated(pmode)) deallocate (pmode)
     if (allocated(h)) deallocate (h)
     if (allocated(hess)) deallocate (hess)
+    if(allocated(molopt%at)) deallocate( molopt%at )
+    if(allocated(molopt%xyz)) deallocate(molopt%xyz)
     call anc%deallocate
+    !$omp end critical
 
     return
   end subroutine ancopt
@@ -376,6 +390,7 @@ contains
 
     iostatus = 0
 
+    !$omp critical
     allocate (gold(anc%nvar),displ(anc%nvar),gint(anc%nvar),source=0.0_wp)
 
     gnorm = 0.0_wp
@@ -394,6 +409,7 @@ contains
     npvar = anc%nvar * (nvar1) / 2   !> packed size of Hessian (note the abuse of nvar1!)
     npvar1 = nvar1 * (nvar1 + 1) / 2 !> packed size of augmented Hessian
     allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1))
+    !$omp end critical
 
 !! ========================================================================
     main_loop: do ii = 1,maxmicro
@@ -600,9 +616,11 @@ contains
 !>========================================================================
     end do main_loop
 !>========================================================================
+    !$omp critical
     if (allocated(Uaug)) deallocate (Uaug)
     if (allocated(eaug)) deallocate (eaug)
     if (allocated(Aaug)) deallocate (Aaug)
+    !$omp end critical
 
     etot = energy
     call anc%get_cartesian(mol%xyz)

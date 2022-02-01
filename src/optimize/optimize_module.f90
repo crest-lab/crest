@@ -70,23 +70,33 @@ contains
 subroutine optimize_geometry(mol,molnew,calc,etot,grd,pr,wr,iostatus)
      implicit none
      !> Input
-     type(coord),intent(in)    :: mol
-     type(calcdata),intent(in) :: calc
+     type(coord)    :: mol
+     type(calcdata) :: calc
      logical,intent(in)        :: pr
      logical,intent(in)        :: wr
      !> Output
-     type(coord),intent(out)   :: molnew
+     type(coord)   :: molnew
      integer,intent(out)       :: iostatus
      real(wp),intent(inout)    :: etot
      real(wp),intent(inout)    :: grd(3,mol%nat)      
 
+     !type(coord),intent(in)    :: mol
+     !type(calcdata),intent(in) :: calc
+     !logical,intent(in)        :: pr
+     !logical,intent(in)        :: wr
+     !!> Output
+     !type(coord),intent(out)   :: molnew
+     !integer,intent(out)       :: iostatus
+     !real(wp),intent(inout)    :: etot
+     !real(wp),intent(inout)    :: grd(3,mol%nat)      
      iostatus = -1
-     molnew = mol  !> do not overwrite original geometry
+     molnew%at = mol%at  !> do not overwrite original geometry
+     molnew%xyz = mol%xyz
+     molnew%nat = mol%nat
      
      !> initial singlepoint
      call engrad(molnew,calc,etot,grd,iostatus)    
-
-
+ 
      !> optimization
      call ancopt(molnew,calc,etot,grd,pr,wr,iostatus)
 

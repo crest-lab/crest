@@ -77,15 +77,19 @@ contains
     !>--- Calculation
     n = calc%ncalculations
     if (n > 0) then
+      !$omp critical
       allocate (grdtmp(3,mol%nat,n),etmp(n),source=0.0_wp)
+      !$omp end critical
       !>--- loop over all calculations to be done
       do i = 1,calc%ncalculations
+        !write(*,*) i,calc%calcs(i)%calcspace,calc%calcs(i)%id
         if (calc%which > 0) then
           if (i < calc%which) cycle
           if (i > calc%which) exit
         end if
         select case (calc%calcs(i)%id)
         case (10) !-- xtb system call
+          !write(*,*) i,calc%calcs(i)%calcspace
           call xtb_engrad(mol,calc%calcs(i),etmp(i),grdtmp(:,:,i),iostatus)
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
@@ -123,7 +127,9 @@ contains
 
     !>--- Constraints
     if (calc%nconstraints > 0) then
+      !$omp critical
       allocate (grdfix(3,mol%nat),source=0.0_wp)
+      !$omp end critical
       do i = 1,calc%nconstraints
         efix = 0.0_wp
         grdfix = 0.0_wp
@@ -137,11 +143,15 @@ contains
         energy = energy + efix
         gradient = gradient + grdfix
       end do
+      !$omp critical
       deallocate (grdfix)
+      !$omp end critical
     end if
 
+    !$omp critical
     if(allocated(etmp))deallocate(etmp)
     if(allocated(grdtmp))deallocate(grdtmp)
+    !$omp end critical
     return
   end subroutine engrad_mol
 

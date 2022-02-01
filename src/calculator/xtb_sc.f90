@@ -63,9 +63,11 @@ contains
     integer,intent(out) :: iostatus
 
     iostatus = 0
-
+    
     !>--- setup system call information
+    !$omp critical
     call xtb_setup(mol,calc)
+    !$omp end critical
 
     !>--- do the systemcall
     call initsignal()
@@ -73,11 +75,15 @@ contains
     if (iostatus /= 0) return
 
     !>--- read energy and gradient
+    !$omp critical
     call rd_xtb_engrad(mol,calc,energy,grad,iostatus)
+    !$omp end critical
     if (iostatus /= 0) return
 
     !>--- read WBOs?
+    !$omp critical
     call rd_xtb_wbo(mol,calc,iostatus)
+    !$omp end critical
     if (iostatus /= 0) return
 
     return
@@ -120,6 +126,7 @@ contains
     end if
     !>--- cleanup old files
     do i = 1,nf
+      !write(*,*) trim(cpath)//sep//trim(xtbfiles(i)) 
       call remove(trim(cpath)//sep//trim(xtbfiles(i)))
     end do
     deallocate (cpath)

@@ -155,7 +155,8 @@ ifeq ($(OSTYPE),LINUXI)
 #  FFLAGS := -g -O0 -qopenmp -align array64byte -module $(OBJDIR)
 #  FLAGS := -g -O
 #  FFLAGS := -O -axAVX -qopenmp -align array64byte 
-  FFLAGS += -check all -g -debug all -traceback -fpe0
+#  FFLAGS += -check all -g -debug all -traceback -fpe0
+  FFLAGS += -traceback
   CCFLAGS += -D_Float128=__float128
   CCFLAGS := -O -DLINUX
 endif

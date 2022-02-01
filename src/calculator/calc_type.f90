@@ -104,6 +104,7 @@ module calc_type
     procedure :: init => calculation_init
     generic,public :: add => calculation_add_constraint,calculation_add_settings
     procedure,private :: calculation_add_constraint,calculation_add_settings
+    procedure :: copy => calculation_copy
   end type calcdata
 !=========================================================================================!
 
@@ -233,6 +234,51 @@ contains
     end if
 
   end subroutine calculation_init
+
+!=========================================================================================!
+!> copy a calcdata object from src to self
+  subroutine calculation_copy(self,src)
+    class(calcdata) :: self
+    type(calcdata) :: src
+    integer :: i
+    !call self%reset()
+
+    self%id = src%id
+    self%which = src%which
+
+    self%ncalculations = src%ncalculations
+    if (allocated(self%calcs)) deallocate (self%calcs)
+    !self%calcs = src%calcs
+    do i = 1,self%ncalculations
+      call self%add(src%calcs(i))
+    enddo
+
+    self%nconstraints = src%nconstraints
+    if (allocated(self%cons)) deallocate (self%cons)
+    !self%cons = src%cons
+    do i = 1,self%nconstraints
+      call self%add(src%cons(i))
+    enddo
+
+    self%optlev = src%optlev
+    self%micro_opt = src%micro_opt
+    self%maxcycle = src%maxcycle
+    self%maxdispl_opt = src%maxdispl_opt
+    self%hlow_opt = src%hlow_opt
+    self%hmax_opt = src%hmax_opt
+    self%acc_opt = src%acc_opt
+    self%exact_rf = src%exact_rf
+    self%average_conv = src%average_conv
+    self%tsopt = src%tsopt
+    self%iupdat = src%iupdat
+
+    self%pr_energies = src%pr_energies 
+    self%eout_unit = src%eout_unit
+    self%elog = src%elog
+
+    return
+  end subroutine calculation_copy
+
 
 !=========================================================================================!
 end module calc_type
