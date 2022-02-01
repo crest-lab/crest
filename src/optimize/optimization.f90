@@ -151,6 +151,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   use calc_type
   use calc_module
   use optimize_module
+  use iomod,only:makedir,directory_exist,remove
   implicit none
   type(systemdata),intent(inout) :: env
   real(wp),intent(inout) :: xyz(3,nat,nall)
@@ -185,9 +186,14 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   do i=1,env%threads
    do j = 1,calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
-      !write(*,*) env%calc%calcs(j)%id,calc%calcs(j)%id
-      !write (atmp,'(a,"_",i0)') sep,i
-      write (atmp,'("_",i0)') i
+
+      !>--- directories
+      ex = directory_exist(env%calc%calcs(j)%calcspace)
+      if (.not. ex) then
+        io = makedir(trim(env%calc%calcs(j)%calcspace))
+      end if
+      write (atmp,'(a,"_",i0)') sep,i
+      !write (atmp,'("_",i0)') i
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
       !write(*,*) calculations(i)%calcs(j)%calcspace
     end do
