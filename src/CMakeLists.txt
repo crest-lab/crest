@@ -21,7 +21,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND srcs
   "${dir}/acidbase.f90"
   "${dir}/atmasses.f90"
-  "${dir}/axis3.f"
+  "${dir}/axis_module.f90"
   "${dir}/biasmerge.f90"
   "${dir}/bondconstraint.f90"
   "${dir}/ccegen.f90"
@@ -40,7 +40,6 @@ list(APPEND srcs
   "${dir}/data.f90"
   "${dir}/deprotonate.f90"
   "${dir}/dft_propcalc.f90"
-  "${dir}/drsp.f"
   "${dir}/ensemblecomp.f90"
   "${dir}/entropic.f90"
   "${dir}/entropy.f90"
