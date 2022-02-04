@@ -68,6 +68,7 @@ module crest_data
    integer,parameter,public :: crest_solv     = 15
    integer,parameter,public :: crest_optimize = 265
    integer,parameter,public :: crest_moldyn   = 266
+   integer,parameter,public :: crest_s1       = 267
    integer,parameter,public :: crest_test     = 456
 !---- tools
    integer,parameter,public :: p_cregen      = -1

@@ -116,7 +116,7 @@ subroutine crest_ensemble_optimization(env,tim)
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
   call rdensemble(ensnam,nat,nall,at,xyz,eread)
 !>--- Important: crest_oloop requires coordinates in Bohrs
-  xyz = xyz/bohr 
+  xyz = xyz / bohr
 
 !>--- set OMP parallelization
   if (env%autothreads) then
@@ -131,7 +131,7 @@ subroutine crest_ensemble_optimization(env,tim)
   write (stdout,'(10x,"│",14x,a,14x,"│")') "ENSEMBLE OPTIMIZATION"
   write (stdout,'(10x,"┕",49("━"),"┙")')
   write (stdout,*)
-
+  write (stdout,'(1x,a,1x,a)') 'Optimizing all structures of file',trim(ensnam)
   !>--- call the loop
   call crest_oloop(env,nat,nall,at,xyz,eread,.true.)
 
@@ -182,9 +182,9 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   end if
 
   !>--- prepare objects for parallelization
-  allocate(calculations(env%threads),source=env%calc)
-  do i=1,env%threads
-   do j = 1,calc%ncalculations
+  allocate (calculations(env%threads),source=env%calc)
+  do i = 1,env%threads
+    do j = 1,calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
 
       !>--- directories
@@ -198,11 +198,11 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
       !write(*,*) calculations(i)%calcs(j)%calcspace
     end do
     calculations(i)%pr_energies = .false.
-  enddo
+  end do
 
   !>--- shared variables
-  allocate(mol%at(nat),mol%xyz(3,nat))
-  allocate(molnew%at(nat),molnew%xyz(3,nat))
+  allocate (mol%at(nat),mol%xyz(3,nat))
+  allocate (molnew%at(nat),molnew%xyz(3,nat))
   allocate (grad(3,nat),source=0.0_wp)
   pr = .false. !> stdout printout
   wr = .false. !> write crestopt.log
@@ -212,13 +212,13 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   k = 0
   !>--- loop over ensemble
   !$omp parallel &
-  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,pr,wr,dump,percent,bar,ich) 
+  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,pr,wr,dump,percent,bar,ich)
   !$omp single
   do i = 1,nall
 
     call initsignal()
-    vz=i
-    !$omp task firstprivate( vz ) private(j,job,mol,molnew,calc,energy,grad,io,atmp,gnorm,thread_id) 
+    vz = i
+    !$omp task firstprivate( vz ) private(j,job,mol,molnew,calc,energy,grad,io,atmp,gnorm,thread_id)
     call initsignal()
 
     thread_id = OMP_GET_THREAD_NUM()
@@ -275,8 +275,8 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   if (dump) close (ich)
 
   deallocate (grad)
-  deallocate(molnew%xyz,molnew%at)
-  deallocate(mol%xyz,mol%at)
-  deallocate(calculations)
+  deallocate (molnew%xyz,molnew%at)
+  deallocate (mol%xyz,mol%at)
+  deallocate (calculations)
   return
 end subroutine crest_oloop

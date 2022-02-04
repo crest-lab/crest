@@ -164,11 +164,17 @@ contains
       case ('md','mtd','metadynamics','dynamics')
         env%preopt = .false.
         env%crestver = crest_moldyn
+      case ('search_1')
+        env%preopt = .false.
+        env%crestver = crest_s1
+        env%runver   = crest_s1
       case default
         env%crestver = crest_imtd
       end select
     case( 'ensemble_input' )
        env%ensemblename = val
+    case( 'input' )
+       env%inputcoords = val
     end select
     return
   end subroutine parse_main_c

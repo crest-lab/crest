@@ -31,6 +31,11 @@ subroutine crest_moleculardynamics(env,tim)
   write (stdout,*)
 !========================================================================================!
 
+   !>--- parallelization settings
+   if(env%autothreads)then
+      call ompautoset(env%threads,8,env%omp,env%MAXRUN,env%threads) 
+   endif
+
   pr = .true.
   mddat = env%mddat
   calc = env%calc

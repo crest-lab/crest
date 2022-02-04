@@ -438,18 +438,18 @@ subroutine V2mdlength(env)
       return
 end subroutine V2mdlength
 
-!===========================================================================================!
-! Set METADYN default Guiding Force Parameter
-! There are different combinations depending on the runtype
-!===========================================================================================!
-subroutine iV2defaultGF(env)
+!=========================================================================================!
+!> subroutine defaultGF
+!>
+!> Set METADYN default Guiding Force parameter
+!> There are different combinations depending on the runtype
+!>----------------------------------------------------------!
+subroutine defaultGF(env)
      use iso_fortran_env, only : wp => real64
      use crest_data
      use filemod
      implicit none
-     
      type(systemdata) :: env
-     !type(options)    :: opt
 
      integer  :: ia,ik,na,nk,m,nmtdyn
      real(wp) :: alp,k
@@ -461,7 +461,6 @@ subroutine iV2defaultGF(env)
      integer :: i,j,io
      character(len=:),allocatable :: atmp
 
-     settingBool: associate( quick => env%quick, QCG => env%QCG, V2i => env%iterativeV2)
 !----
      if(.not.env%metadynset)then
         if(env%readbias)then
@@ -565,9 +564,18 @@ subroutine iV2defaultGF(env)
          kstart=0.0075d0 ! start value k 
          alpinc = 1.61803 ! increment
          kinc =  2.0     ! increment
+!---------
+       case( crest_s1 ) ! "search_1"
+         na=3
+         nk=3
+         nmtdyn=(na*nk)
+         alp=1.61803 ! start value alpha
+         kstart=0.0075d0 ! start value k 
+         alpinc = 1.61803 ! increment
+         kinc =  2.0     ! increment
 !----------
        case default
-        if(V2i)then  !for the default iterative mode
+        if(env%iterativeV2)then  !for the default iterative mode
         !=======================================================!    
          na=4
          nk=3
@@ -615,9 +623,9 @@ subroutine iV2defaultGF(env)
        endif
 !----
        end if
-     end associate settingBool
+
      return
-end subroutine iV2defaultGF
+end subroutine defaultGF
 
 !=========================================================================!
 ! Dynamically determine the number of normMDs and settings of staticMTDs

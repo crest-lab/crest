@@ -66,6 +66,7 @@ module dynamics_module
     integer :: simtype = type_md ! type of the molecular dynamics simulation
     logical :: restart = .false.
     character(len=:),allocatable :: restartfile
+    character(len=:),allocatable :: trajectoryfile
     !>--- data
     real(wp) :: length_ps = 20.0_wp ! total simulation length in ps
     integer :: length_steps = 20000 ! total simulation length in steps
@@ -104,7 +105,6 @@ module dynamics_module
   end type mddata
 
   public :: dynamics
-  public :: test_md
   public :: mdautoset
   !public :: ekinet
   !public :: u_block
@@ -115,82 +115,6 @@ module dynamics_module
   !public :: h_abort_sigterm
 
 contains
-!========================================================================================!
-! subroutine test_md
-! a small test routine for MD simulations in crest
-  subroutine test_md(fname)
-    use iso_fortran_env,only:wp => real64
-    use calc_module
-    use strucrd
-    use shake_module
-    use metadynamics_module
-    implicit none
-
-    character(len=*) :: fname
-
-    type(coord) :: mol
-    type(calcdata) :: calc
-    type(calculation_settings) :: job
-    type(mddata) :: dat
-    type(shakedata) :: shk
-    logical :: pr
-
-    real(wp) :: energy
-    real(wp),allocatable :: grad(:,:)
-
-    integer :: i
-
-    call initsignal()
-
-    pr = .true.
-
-    call mol%open(fname)
-
-    job%id = 10 !XTB systemcall
-    !job%id = 99  !LJ potential
-    !job%other = '3.0  1.0'
-    job%calcspace = 'singlepoints'
-    job%rdwbo = .true.
-    call calc%add(job)
-    allocate (grad(3,mol%nat),source=0.0_wp)
-    call engrad(mol,calc,energy,grad,io)
-    deallocate (grad)
-    calc%calcs(1)%rdwbo = .false.
-
-    shk%shake_mode = 2
-    !allocate (shk%wbo(mol%nat,mol%nat),source=0.0_wp)
-    call move_alloc(calc%calcs(1)%wbo,shk%wbo)
-
-    dat%shk = shk
-    call init_shake(mol%nat,mol%at,mol%xyz,dat%shk,pr)
-    dat%nshake = dat%shk%ncons
-
-    dat%length_ps = 20.0_wp
-    dat%tstep = 4.0_wp
-    !dat%length_steps = 1000
-    dat%dumpstep = 20.0_wp
-    !dat%sdump = 10
-    !dat%printstep = 10
-    call mdautoset(dat,io)
-
-    dat%md_hmass = 4.0_wp
-    dat%restart = .true.
-    dat%restartfile = 'mdrestart'
-
-    !> test MTD potential
-    dat%simtype = type_mtd
-    dat%npot = 1
-    allocate (dat%mtd(1),dat%cvtype(1))
-    dat%mtd(1)%mtdtype = 2 !> 2=rmsd MTD
-    dat%cvtype = cv_rmsd
-    dat%mtd(1)%cvdump_fs = 1000.0_wp
-    dat%mtd(1)%kpush = 0.002*mol%nat
-
-    call dynamics(mol,dat,calc,pr,io)
-
-    return
-  end subroutine test_md
-
 !========================================================================================!
 ! subroutine dynamics
 ! perform a molecular dynamics simulation
@@ -244,6 +168,7 @@ contains
 
     !>--- allocate data fields
     allocate (xyz_angstrom(3,mol%nat))
+    allocate (molo%at(mol%nat),molo%xyz(3,mol%nat))
     allocate (grd(3,mol%nat),vel(3,mol%nat),velo(3,mol%nat),source=0.0_wp)
     allocate (veln(3,mol%nat),acc(3,mol%nat),mass(mol%nat),source=0.0_wp)
     dat%blockl = min(5000,idint(5000.0_wp / dat%tstep))
@@ -300,8 +225,12 @@ contains
     end if
 
     !>--- initialize trajectory file
-    write (commentline,'(a,i0,a)') 'crest_',dat%md_index,'.trj'
-    trajectory = trim(commentline)
+    if(allocated(dat%trajectoryfile))then
+      trajectory = dat%trajectoryfile
+    else
+      write (commentline,'(a,i0,a)') 'crest_',dat%md_index,'.trj'
+      trajectory = trim(commentline)
+    endif
     open (newunit=trj,file=trajectory)
 
     !>--- begin printout
@@ -380,7 +309,9 @@ contains
       end do
 
       !>--- store positions (at t); velocities are at t-1/2dt
-      molo = mol
+      molo%nat = mol%nat
+      molo%at  = mol%at
+      molo%xyz = mol%xyz
 
       !>>-- STEP 2: temperature and pressure/density control
       !>--- estimate(!) velocities at t
@@ -464,6 +395,7 @@ contains
     deallocate (dat%blockrege,dat%blockt,dat%blocke)
     deallocate (mass,acc,veln)
     deallocate (vel,velo,grd)
+    deallocate (molo%xyz,molo%at)
     deallocate (xyz_angstrom)
 
     return
@@ -616,10 +548,11 @@ contains
     real(wp),intent(in) :: velo(3,mol%nat)
     integer :: io,ich
     character(len=256) :: atmp
-    !if (.not. allocated(dat%restartfile)) then
+    if (.not. allocated(dat%restartfile)) then
     write (atmp,'(a,i0,a)') 'crest_',dat%md_index,'.mdrestart'
-    !  dat%restartfile = trim(atmp)
-    !end if
+    else
+      atmp = dat%restartfile
+    end if
     open (newunit=ich,file=trim(atmp)) !dat%restartfile)
     write (ich,*) '-1.0'
     do i = 1,mol%nat

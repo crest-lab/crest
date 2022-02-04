@@ -90,7 +90,7 @@ OBJS3 += quicksort.o
 OBJS3 += rotcompare.o
 OBJS3 += select.o
 OBJS3 += sortens.o
-OBJS3 += spline.o
+#OBJS3 += spline.o
 OBJS3 += tautomerize.o
 OBJS3 += thermocalc.o
 OBJS3 += trackorigin.o
@@ -121,6 +121,7 @@ MAINFILES += confscript1.o
 MAINFILES += confscript2_main.o
 MAINFILES += confscript2_misc.o
 MAINFILES += confscript3.o
+MAINFILES += search_1.o
 MAINFILES += optimization.o
 MAINFILES += dynamics.o
 MAINFILES += msreact.o
@@ -132,11 +133,12 @@ OBJS := $(MODULES1) $(SUBMOD) $(MODULES2) $(CFILES) $(OBJS2) $(OBJS3) $(OBJS4) $
 #--------------------------------------------------------------------------
 
 SUBDIRS += .
+SUBDIRS += algos
 SUBDIRS += calculator 
 SUBDIRS += dynamics
 SUBDIRS += optimize 
-SUBDIRS += qcg
 SUBDIRS += parsing
+SUBDIRS += qcg
 
 vpath % $(SUBDIRS)
 OBJS := $(addprefix $(OBJDIR)/, $(OBJS))

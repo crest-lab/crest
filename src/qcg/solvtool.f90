@@ -843,7 +843,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   end if
 
   call inputcoords(env,'crest_input')
-  call iV2defaultGF(env)         !Setting MTD parameter
+  call defaultGF(env)         !Setting MTD parameter
 
 
 !--- Special constraints for gff to safeguard stability

@@ -298,6 +298,8 @@ program CREST
            call crest_ensemble_optimization(env,tim)
         case( crest_moldyn)
            call crest_moleculardynamics(env,tim)
+        case( crest_s1)
+           call crest_search_1(env,tim)
         case( crest_test) 
            call crest_playground(env, tim) 
         case default

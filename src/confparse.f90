@@ -667,7 +667,11 @@ subroutine parseflags(env,arg,nra)
   if (env%crestver == crest_solv) then
     call inputcoords_qcg(env,trim(arg(1)),trim(arg(3)))
   else
-    call inputcoords(env,trim(arg(1)))
+    if(allocated(env%inputcoords))then
+      call inputcoords(env,env%inputcoords)
+    else
+      call inputcoords(env,trim(arg(1)))
+    endif
   end if
 !========================================================================================!
 !> after this point there should always be a "coord" file present
@@ -1875,7 +1879,7 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
   if ((any((/crest_imtd,crest_imtd2,crest_pka,crest_compr,11/) == env%crestver)) .and.  &
   &  .not. env%confgo) then
-    call iV2defaultGF(env) !set Guiding Force default if none was read
+    call defaultGF(env) !set Guiding Force default if none was read
   end if
 
   !-- increase gbsa grid for GFNn-xTB calculations (not for the FF)
