@@ -131,7 +131,7 @@ subroutine crest_ensemble_optimization(env,tim)
   write (stdout,'(10x,"│",14x,a,14x,"│")') "ENSEMBLE OPTIMIZATION"
   write (stdout,'(10x,"┕",49("━"),"┙")')
   write (stdout,*)
-  write (stdout,'(1x,a,1x,a)') 'Optimizing all structures of file',trim(ensnam)
+  write (stdout,'(1x,a,i0,a,1x,a)') 'Optimizing all ',nall,' structures of file',trim(ensnam)
   !>--- call the loop
   call crest_oloop(env,nat,nall,at,xyz,eread,.true.)
 

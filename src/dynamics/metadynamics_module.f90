@@ -153,6 +153,20 @@ contains
     if (allocated(self%atinclude)) deallocate (self%atinclude)
     if(allocated(self%cv)) deallocate(self%cv)
     if(allocated(self%cvgrd)) deallocate(self%cvgrd)
+
+    self%mtdtype = 0
+    self%nmax = 0
+    self%ncur = 0
+    self%kpush = 1.0_wp
+    self%alpha = 1.0_wp
+    self%cvdump = 0 !xyz dump counter
+    self%cvdump_fs = 0.0_wp !xyz dump frequency (in fs)
+    self%cvdumpstep = 0 !xyz dump frequency (in MD steps)
+    self%maxsave = 0
+    self%damptype = 0
+    self%ramp = 0.03_wp
+    self%damp = 1.0_wp
+
     return
   end subroutine mtd_deallocate
 

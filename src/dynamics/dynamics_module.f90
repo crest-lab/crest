@@ -51,9 +51,9 @@ module dynamics_module
   real(wp),parameter :: kB = 3.166808578545117e-06_wp !in Eh/K
 
   !-- filetypes as integers
-  integer,parameter :: type_md = 1
-  integer,parameter :: type_mtd = 2
-  integer,parameter :: cv_rmsd = 2
+  integer,parameter,public :: type_md = 1
+  integer,parameter,public :: type_mtd = 2
+  integer,parameter,public :: cv_rmsd = 2
 
   public :: mddata
   !======================================================================================!
@@ -102,6 +102,9 @@ module dynamics_module
     type(mtdpot),allocatable :: mtd(:)
     integer,allocatable :: cvtype(:)
 
+    contains
+    generic,public :: add =>  md_add_mtd
+    procedure,private :: md_add_mtd
   end type mddata
 
   public :: dynamics
@@ -930,6 +933,39 @@ contains
 
     return
   end subroutine md_init_mtd
+
+!========================================================================================!
+  subroutine md_add_mtd(self,mtd)
+    implicit none
+    class(mddata) :: self
+    type(mtdpot) :: mtd
+    type(mtdpot),allocatable :: mtdtmp(:)
+    integer,allocatable :: cvtmp(:)
+    integer :: i,j,k
+ 
+    k = self%npot +1
+    allocate(mtdtmp(k))
+    allocate(cvtmp(k))
+    if(k>1)then
+    do i=1,k-1
+      mtdtmp(i) = self%mtd(i)
+      cvtmp(i) = self%cvtype(i)
+    enddo
+    endif
+    mtdtmp(k) = mtd
+    cvtmp(k) = mtd%mtdtype
+    call move_alloc(mtdtmp,self%mtd)
+    call move_alloc(cvtmp,self%cvtype)
+    self%npot = k
+   
+    if(self%simtype == type_md)then
+     self%simtype = type_mtd
+    endif
+
+    return
+  end subroutine md_add_mtd
+
+
 
 !========================================================================================!
   subroutine md_update_mtd(mol,dat,calc,pr)

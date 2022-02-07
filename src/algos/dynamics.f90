@@ -22,6 +22,7 @@ subroutine crest_moleculardynamics(env,tim)
   real(wp),allocatable :: grad(:,:)
 
   character(len=80) :: atmp
+  character(len=*),parameter :: trjf='crest_dynamics.trj'
 !========================================================================================!
   call tim%start(14,'molecular dynamics')
   call env%ref%to(mol)
@@ -72,12 +73,14 @@ subroutine crest_moleculardynamics(env,tim)
 
   !>--- complete real-time settings to steps
   call mdautoset(mddat,io)
+  mddat%trajectoryfile = trjf
 
   !>--- run the MD
   call dynamics(mol,mddat,calc,pr,io)
 
   if (io == 0) then
     write (stdout,*) 'MD run completed successfully'
+    write (stdout,*) 'Trajectory written to ',trjf
   else
     write (stdout,*) 'MD run terminated with error'
   end if

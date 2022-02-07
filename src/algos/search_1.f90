@@ -46,13 +46,6 @@ subroutine crest_search_1(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 
-  !>--- MTD setup
-  call defaultGF(env)
-  write(stdout,*)'list of Vbias parameters applied:'
-  do m=1,env%nmetadyn
-     write(stdout,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(m)/env%rednat,env%metadexp(m)
-  enddo
-
 !========================================================================================!
 !>--- Dynamics
 
@@ -61,9 +54,9 @@ subroutine crest_search_1(env,tim)
   write(stdout,'(1x,a)') 'Molecular Dynamics Simulations'
   write(stdout,'(1x,a)') '------------------------------'
 
-  call crest_search_multimd_init(env,mol,mddat)
+  call crest_search_multimd_init(env,mol,mddat,nsim)
   !nsim = env%nmetadyn
-  nsim = 4
+  !nsim = 4
   allocate (mddats(nsim), source=mddat)
   call crest_search_multimd_init2(env,mol,mddats,nsim)
 
@@ -89,6 +82,9 @@ subroutine crest_search_1(env,tim)
   endif
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
   call rdensemble(ensnam,nat,nall,at,xyz,eread)
+!>--- Important: crest_oloop requires coordinates in Bohrs
+  xyz = xyz / bohr
+
  
   write(stdout,'(1x,a,i0,a,a,a)')'Optimizing all ',nall, &
   & ' structures from file "',trim(ensnam),'" ...'
@@ -98,7 +94,8 @@ subroutine crest_search_1(env,tim)
   end if
   !>--- optimize
   call tim%start(3,'geom. optimization')
-  call crest_oloop(env,nat,nall,at,xyz,eread,.true.)
+  dump = .true.
+  call crest_oloop(env,nat,nall,at,xyz,eread,dump)
   call tim%stop(3)
 
  
@@ -169,39 +166,6 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     end do
     calculations(i)%pr_energies = .false.
   end do
-
-!  !>--- init SHAKE?
-!  if (mddat%shake) then
-!    calc%calcs(1)%rdwbo = .true.
-!    allocate (grad(3,mol%nat),source=0.0_wp)
-!    call engrad(mol,calc,energy,grad,io)
-!    deallocate (grad)
-!    calc%calcs(1)%rdwbo = .false.
-!
-!    shk%shake_mode = 2
-!    call move_alloc(calc%calcs(1)%wbo,shk%wbo)
-!
-!    mddat%shk = shk
-!    call init_shake(mol%nat,mol%at,mol%xyz,mddat%shk,pr)
-!    mddat%nshake = mddat%shk%ncons
-!  end if
-!  !>--- complete real-time settings to steps
-!  call mdautoset(mddat,io)
-!
-!  !>--- parallel MD setup
-!  ex = directory_exist(mdir)
-!  if (ex) then
-!    call rmrf(mdir)
-!  endif
-!  io = makedir(mdir)
-!  allocate (mddats(nsim),source=mddat)
-!  do i = 1,nsim
-!    mddats(i)%md_index = i
-!    write (atmp,'(a,i0,a)') 'crest_',i,'.trj'
-!    mddats(i)%trajectoryfile = mdir//sep//trim(atmp)
-!    write (atmp,'(a,i0,a)') 'crest_',i,'.mdrestart'
-!    mddats(i)%restartfile = mdir//sep//trim(atmp)
-!  end do
 
   !>--- other settings
   pr = .false.
@@ -283,8 +247,9 @@ subroutine collect(n,mddats)
     return
 end subroutine collect
 end subroutine crest_search_multimd
+!========================================================================================!
 
-subroutine crest_search_multimd_init(env,mol,mddat)
+subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   use iso_fortran_env,only:wp => real64,stdout => output_unit
   use crest_data
   use strucrd
@@ -298,6 +263,7 @@ subroutine crest_search_multimd_init(env,mol,mddat)
   type(systemdata),intent(inout) :: env
   type(mddata) :: mddat
   type(coord) :: mol,moltmp
+  integer,intent(out) :: nsim
   integer :: i,j,k,l,io,ich
   logical :: pr,wr,ex
 !========================================================================================!
@@ -341,6 +307,10 @@ subroutine crest_search_multimd_init(env,mol,mddat)
   !>--- complete real-time settings to steps
   call mdautoset(mddat,io)
 
+  !>--- how many simulations
+  !nsim = env%nmetadyn 
+  nsim = 4
+
   return
 end subroutine crest_search_multimd_init
 subroutine crest_search_multimd_init2(env,mol,mddats,nsim)
@@ -350,6 +320,7 @@ subroutine crest_search_multimd_init2(env,mol,mddats,nsim)
   use calc_type
   use calc_module
   use dynamics_module
+  use metadynamics_module
   use shake_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
@@ -361,10 +332,8 @@ subroutine crest_search_multimd_init2(env,mol,mddats,nsim)
   integer :: i,j,k,l,io,ich
   logical :: pr,wr,ex
 !========================================================================================!
-  type(calcdata) :: calc
-  type(mddata) :: mddat
-  type(shakedata) :: shk
-
+  type(mtdpot),allocatable :: mtds(:)
+  
   real(wp) :: energy,gnorm
   real(wp),allocatable :: grad(:,:)
   character(len=:),allocatable :: ensnam
@@ -385,6 +354,25 @@ subroutine crest_search_multimd_init2(env,mol,mddats,nsim)
     write (atmp,'(a,i0,a)') 'crest_',i,'.mdrestart'
     mddats(i)%restartfile = mdir//sep//trim(atmp)
   end do
+
+  !>--- MTD setup
+  call defaultGF(env)
+  write(stdout,*)'list of applied metadynamics Vbias parameters:'
+  do i=1,nsim
+     write(stdout,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(i)/env%rednat,env%metadexp(i)
+  enddo
+  write(stdout,*)
+
+  allocate(mtds(nsim))
+  do i=1,nsim
+  mddats(i)%simtype = type_mtd 
+  mtds(i)%kpush = env%metadfac(i)/env%rednat
+  mtds(i)%alpha = env%metadexp(i)
+
+  mddats(i)%npot = 1
+  allocate(mddats(i)%mtd(1), source=mtds(i))
+  allocate(mddats(i)%cvtype(1), source=cv_rmsd)
+  enddo
 
   return
 end subroutine crest_search_multimd_init2

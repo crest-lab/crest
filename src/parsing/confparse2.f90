@@ -173,6 +173,7 @@ contains
       end select
     case( 'ensemble_input' )
        env%ensemblename = val
+       env%inputcoords = val
     case( 'input' )
        env%inputcoords = val
     end select

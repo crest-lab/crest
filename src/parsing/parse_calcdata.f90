@@ -4,6 +4,7 @@ module parse_calcdata
   use calc_type,only:calcdata,calculation_settings
   use constraints
   use dynamics_module
+  use metadynamics_module
 
   use parse_block,only:datablock
   use parse_keyvalue,only:keyvalue
@@ -35,6 +36,14 @@ module parse_calcdata
     module procedure :: parse_md_c
     module procedure :: parse_md_bool
   end interface parse_md
+
+  interface parse_mtd
+    module procedure :: parse_metadyn_auto
+    module procedure :: parse_mtd_float
+    module procedure :: parse_mtd_int
+    module procedure :: parse_mtd_c
+    module procedure :: parse_mtd_bool
+  end interface parse_mtd
 
 
   public :: parse_calculation_data
@@ -324,7 +333,11 @@ contains
       if (blk%header == 'dynamics') then
         included = .true.
         call parse_mddat(blk,mddat)
-      end if
+      else if (blk%header == '[dynamics.meta]') then
+        call parse_metadyn(blk,mddat)
+        !call calc%add(newjob)
+        included = .true.
+      endif
     end do
     if (included) then
       mddat%requested=.true.
@@ -367,6 +380,10 @@ contains
       mddat%length_ps = val 
     case( 'dump' )
       mddat%dumpstep = val
+    case( 'hmass' )
+      mddat%md_hmass = val
+    case( 'tstep' )
+      mddat%tstep = val
     case default
       return
     end select
@@ -377,11 +394,11 @@ contains
     type(mddata) :: mddat
     character(len=*) :: key
     integer :: val
+    real(wp) :: fval
     select case (key)
-    case( 'length' )
-     mddat%length_ps = float(val)
-    case( 'dump' )
-      mddat%dumpstep = float(val)
+    case( 'length','dump','hmass','tstep' )
+      fval = float(val)
+      call parse_md(mddat,key,fval)
     case default
       return
     end select
@@ -409,5 +426,112 @@ contains
     end select
     return
   end subroutine parse_md_bool
+!========================================================================================!
+!> The following routines are used to
+!> read information into the "metadynamics" object
+!> and add it to a mol.dynamics data object
+!>---------------------------------------------------------
+  subroutine parse_metadyn(blk,mddat)
+    implicit none
+    type(datablock),intent(in) :: blk
+    type(mddata),intent(inout) :: mddat
+    logical :: success
+    type(mtdpot) :: mtd
+    integer :: i,k
+    call mtd%deallocate()
+    if (blk%header .ne. '[dynamics.meta]') return
+    do i = 1,blk%nkv
+      call parse_metadyn_auto(mtd,blk%kv_list(i),success)
+    end do
+    call mddat%add(mtd) 
+    return
+  end subroutine parse_metadyn
+  subroutine parse_metadyn_auto(mtd,kv,success)
+    implicit none
+    type(keyvalue) :: kv
+    type(mtdpot) :: mtd
+    logical,intent(out) :: success
+    success = .false.
+    select case (kv%id)
+    case (1) !> float
+      call parse_mtd(mtd,kv%key,kv%value_f)
+      success = .true.
+    case (2) !> int
+      call parse_mtd(mtd,kv%key,kv%value_i)
+      success = .true.
+    case (3) !> bool
+      call parse_mtd(mtd,kv%key,kv%value_b)
+      success = .true.
+    case (4) !> string
+      call parse_mtd(mtd,kv%key,kv%value_c)
+      success = .true.
+    end select
+  end subroutine parse_metadyn_auto
+  subroutine parse_mtd_float(mtd,key,val)
+    implicit none
+    type(mtdpot) :: mtd
+    character(len=*) :: key
+    real(wp) :: val
+    select case (key)
+    case( 'alpha' )
+      mtd%alpha = val
+    case( 'kpush' )
+      mtd%kpush = val
+    case( 'dump','dump_fs' )
+      mtd%cvdump_fs = val
+    case( 'dump_ps' )
+     mtd%cvdump_fs = val * 1000.0_wp
+    case default
+      return
+    end select
+    return
+  end subroutine parse_mtd_float
+  subroutine parse_mtd_int(mtd,key,val)
+    implicit none
+    type(mtdpot) :: mtd
+    character(len=*) :: key
+    integer :: val
+    real(wp) :: fval
+    select case (key)
+    case( 'type' )
+      mtd%mtdtype = val
+    case( 'dump','dump_fs','dump_ps' )
+      fval = float(val)
+      call parse_mtd(mtd,key,fval)
+    case default
+      return
+    end select
+    return
+  end subroutine parse_mtd_int
+  subroutine parse_mtd_c(mtd,key,val)
+    implicit none
+    type(mtdpot) :: mtd
+    character(len=*) :: key
+    character(len=*) :: val
+    select case (key)
+    case( 'type' )
+      select case( val )
+      case( 'rmsd','RMSD' )
+        mtd%mtdtype = cv_rmsd
+      case default
+        mtd%mtdtype =  0
+      end select
+    case default
+      return
+    end select
+    return
+  end subroutine parse_mtd_c
+  subroutine parse_mtd_bool(mtd,key,val)
+    implicit none
+    type(mtdpot) :: mtd
+    character(len=*) :: key
+    logical :: val
+    select case (key)
+    case default
+      return
+    end select
+    return
+  end subroutine parse_mtd_bool
+
 !========================================================================================!
 end module parse_calcdata
