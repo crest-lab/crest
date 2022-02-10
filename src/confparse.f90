@@ -1908,7 +1908,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
       endif
 
    !-- defaults for QCG gfnff ensemble search
-      if(env%ensemble_opt .EQ. '--gff') then
+      if(env%ensemble_opt .EQ. '--gff' .AND. env%QCG) then
         env%mdstep = 1.5d0
         env%hmass = 5.0d0 
         ctype = 5 !bond constraint
