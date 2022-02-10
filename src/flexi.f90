@@ -201,15 +201,16 @@ subroutine nciflexi(env,flexval)
          implicit none
          type(systemdata) :: env
          !type(options)    :: opt
-         character(len=80) :: fname,pipe,solv
+         character(len=80) :: fname,solv
          character(len=512) :: jobcall
          integer :: io
          logical :: ex
          real(wp) :: ehb,edisp
          real(wp) :: flexval
+         character(len=*),parameter ::  pipe=' > xtb.out 2>/dev/null'
 
 !---- some options
-         pipe=' > xtb.out 2>/dev/null'
+         !pipe=' &> xtb.out 2>/dev/null'
          call remove('energy')
          call remove('charges')
          call remove('xtbrestart')
@@ -224,7 +225,8 @@ subroutine nciflexi(env,flexval)
 !---- jobcall
          write(*,'(1x,a)',advance='no')'Calculating NCI flexibility...'
          write(jobcall,'(a,1x,a,1x,a,'' --sp '',a,1x,a,a)') &
-         &     trim(env%ProgName),trim(fname),'--gfnff',trim(env%solv),trim(pipe)
+         &     trim(env%ProgName),trim(fname),'--gfnff',trim(env%solv)
+         jobcall = trim(jobcall)//pipe
          call execute_command_line(trim(jobcall), exitstat=io)
 
 !---- read E(disp) and E(HB) from output

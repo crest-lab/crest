@@ -252,15 +252,18 @@ contains
     real(wp) :: evec(3,3),avmom
     real(wp) :: xsum
     real(wp),allocatable :: coordtmp(:,:)
+    real(wp),allocatable :: x(:),y(:),z(:)
     integer :: i,j,k
 
     !> call axis routine
     call axis_0(nat,at,coord,rot,avmom,evec)
 
     !> shift to CMA
-    call CMA(nat,at,coord,coordout(1,:),coordout(2,:),coordout(3,:))
-    allocate (coordtmp(3,nat))
-    coordtmp = coordout
+    allocate (coordtmp(3,nat),x(nat),y(nat),z(nat))
+    call CMA(nat,at,coord,x,y,z)
+    coordtmp(1,:) = x
+    coordtmp(2,:) = y
+    coordtmp(3,:) = z
 
     !> do the trafo (chirality is preserved)
     xsum = calcxsum(evec)

@@ -312,8 +312,11 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
       env%preopt=.true.
       do i=1,nra
          argument=trim(arg(i))
+         l = len_trim(argument)
+         if(l>1)then
          if(argument(1:2)=='--')then
             argument=argument(2:)
+         endif
          endif
          if(argument.ne.'')then
          RUNTYPES : select case( argument )
@@ -685,9 +688,12 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
 !======================================================================================================!
       do i=1,nra
          argument=trim(arg(i))
+         l = len_trim(argument)
+         if(l>1)then
          if(argument(1:2)=='--')then
             argument=argument(2:)
          endif
+         endif 
          if(argument.ne.'')then
 !======================================================================================================!
 !-------- flags exclusively for V1 (MF-MD-GC)
@@ -1142,6 +1148,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                env%scallen = .true.
                call readl(arg(i+1),xx,j)
                env%mdlenfac=xx(1)
+              case( '-nmtd' ) !set number of MTDs
+               env%runver = 787878
+               call readl(arg(i+1),xx,j)
+               env%nmetadyn=nint(xx(1))
              case( '-gcmax','-setgcmax' )                             !set maximum number of structures for GC
                env%setgcmax = .true.
                call readl(arg(i+1),xx,j)
@@ -1848,11 +1858,6 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
          error stop 'At least one flag is only usable for QCG runtype. Exit.'
       end if
 
-!      if((env%qcg_runtype .GE. 1) .and. (env%ensemble_method .EQ. 0) then
-!          env%NCI = .true.
-!          env%runver=4
-!      end if
-
       if(env%autozsort .and. env%crestver.eq. crest_solv) then
           error stop 'Z sorting of the input is unavailable for -qcg runtyp.'
       end if
@@ -1879,14 +1884,14 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
           end select
       endif
 
-!======================================================================================================!
+!================================================================================================!
        call parseRC2(env,bondconst)    !additional parsing of $setblock, .constrains and .confscriptrc file
 
-!======================================================================================================!
-!------------------------------------------------------------------------------------------------------!
+!================================================================================================!
+!------------------------------------------------------------------------------------------------!
 ! settings after user input parsing
-!------------------------------------------------------------------------------------------------------!
-!======================================================================================================!
+!------------------------------------------------------------------------------------------------!
+!================================================================================================!
 
 
       if((any( (/crest_imtd,crest_imtd2,crest_pka,crest_compr,11/)==env%crestver)).and.  &
@@ -1908,6 +1913,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
       endif
 
    !-- defaults for QCG gfnff ensemble search
+      if(env%crestver == crest_solv)then
       if(env%ensemble_opt .EQ. '--gff') then
         env%mdstep = 1.5d0
         env%hmass = 5.0d0 
@@ -1917,6 +1923,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
         env%checkiso = .true.
         env%lmover = '--gfn2'
       end if
+      endif
 
 
      if((env%gfnver .EQ. '--gff').OR.(env%gfnver .EQ. '--gfn0')) then
