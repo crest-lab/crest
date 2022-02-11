@@ -22,8 +22,8 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date='Fr 17. Dec 12:10:44 CEST 2021'
-      character(len=10),parameter:: version='2.11.2'
+      character(len=40),parameter:: date='Fr 11. Feb 9:54:23 CEST 2022'
+      character(len=10),parameter:: version='2.11.3'
       logical :: niceprint
       
       niceprint=.true.
@@ -47,7 +47,7 @@ subroutine confscript_head
 
       write(*,'(3x,a)')'with help from:'
       write(*,'(3x,a)')'C.Bannwarth, F.Bohle, S.Ehlert, S.Grimme,'
-      write(*,'(3x,a)')'C.Plett, P.Pracht, S. Spicher'
+      write(*,'(3x,a)')'C.Plett, P.Pracht, S.Spicher'
       write(*,*)
 
       call disclaimer()

@@ -1,4 +1,4 @@
-PROG = ~/bin/crest
+PROG = crest
 
 OBJDIR = build
 #--------------------------------------------------------------------------
@@ -125,6 +125,7 @@ ifeq ($(OSTYPE),LINUXI)
 #  FFLAGS := -g -O0
 #  FFLAGS := -O -axAVX -qopenmp -align array64byte 
 #  FFLAGS += -check all -g -debug all -traceback -fpe0
+  FFLAGS += -traceback
   CCFLAGS += -D_Float128=__float128
   CCFLAGS := -O -DLINUX
 endif
