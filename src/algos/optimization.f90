@@ -23,9 +23,14 @@ subroutine crest_optimization(env,tim)
   call tim%start(14,'geometry optimization')
   call env%ref%to(mol)
   write (stdout,*)
-  write (stdout,*) 'Input structure:'
+  call smallhead('Input structure:')
   call mol%append(stdout)
   write (stdout,*)
+
+  call smallhead( 'Calculation constraints:' )
+  call env%calc%printconstraints()
+  write (stdout,*)
+
 !========================================================================================!
 
   allocate (grad(3,mol%nat),source=0.0_wp)
@@ -47,6 +52,7 @@ subroutine crest_optimization(env,tim)
   if (io == 0) then
     write (stdout,*) 'geometry successfully optimized!'
     write (stdout,*)
+    call smallhead( 'Output structure:') 
     call molnew%append(stdout)
     write (stdout,*)
     write (stdout,*) 'optimized geometry written to crestopt.xyz'
@@ -108,15 +114,17 @@ subroutine crest_ensemble_optimization(env,tim)
   end if
 
 !>--- start the timer
-  call tim%start(14,'test implementation')
+  call tim%start(14,'Ensemble optimization')
 
 !>---- read the input ensemble
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) return
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
   call rdensemble(ensnam,nat,nall,at,xyz,eread)
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>--- Important: crest_oloop requires coordinates in Bohrs
   xyz = xyz / bohr
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 
 !>--- set OMP parallelization
   if (env%autothreads) then
@@ -161,7 +169,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   logical,intent(in) :: dump
 
   type(coord) :: mol,molnew
-  integer :: i,j,k,l,io,ich,c,job_id
+  integer :: i,j,k,l,io,ich,ich2,c,z,job_id
   logical :: pr,wr,ex
 !========================================================================================!
   type(calcdata),allocatable :: calculations(:)
@@ -186,33 +194,37 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   do i = 1,env%threads
     do j = 1,calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
-
       !>--- directories
       ex = directory_exist(env%calc%calcs(j)%calcspace)
       if (.not. ex) then
         io = makedir(trim(env%calc%calcs(j)%calcspace))
       end if
       write (atmp,'(a,"_",i0)') sep,i
-      !write (atmp,'("_",i0)') i
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
-      !write(*,*) calculations(i)%calcs(j)%calcspace
     end do
     calculations(i)%pr_energies = .false.
   end do
 
-  !>--- shared variables
-  allocate (mol%at(nat),mol%xyz(3,nat))
-  allocate (molnew%at(nat),molnew%xyz(3,nat))
-  allocate (grad(3,nat),source=0.0_wp)
+  !>--- printout directions
   pr = .false. !> stdout printout
   wr = .false. !> write crestopt.log
-
-  if (dump) open (newunit=ich,file=ensemblefile)
+  if (dump)then
+     open (newunit=ich,file=ensemblefile)
+     open (newunit=ich2,file=ensembleelog)
+  endif
+  if (env%niceprint) then
+      percent = 0.0_wp
+      call progbar(percent,bar)
+      call printprogbar(percent,bar)
+  endif
+  !>--- shared variables
+  allocate (grad(3,nat),source=0.0_wp)
   c = 0
   k = 0
+  z = 0
   !>--- loop over ensemble
   !$omp parallel &
-  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,pr,wr,dump,percent,bar,ich)
+  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,z,pr,wr,dump,percent,bar,ich,ich2)
   !$omp single
   do i = 1,nall
 
@@ -225,12 +237,17 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
     job = thread_id + 1
     !>--- modify calculation spaces
     !$omp critical
+    allocate (mol%at(nat),mol%xyz(3,nat))
+    allocate (molnew%at(nat),molnew%xyz(3,nat))
+
+    z = z+1
     mol%nat = nat
+    mol%at(:) = at(:)
+    mol%xyz(:,:) = xyz(:,:,z)
+
     molnew%nat = nat
-    mol%at = at
-    molnew%at = at
-    mol%xyz = xyz(1:3,1:nat,vz)
-    molnew%xyz = xyz(1:3,1:nat,vz)
+    molnew%at(:) = at(:)
+    molnew%xyz(:,:) = xyz(:,:,z)
     !$omp end critical
 
     !>--- first energy&gradient calculation
@@ -241,15 +258,16 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
 
     !$omp critical
     if (io == 0) then
+      !>--- successful optimization (io==0)
       c = c + 1
       if (dump) then
         gnorm = norm2(grad)
         write (atmp,'(1x,"Etot=",f16.10,1x,"g norm=",f12.8)') energy,gnorm
         molnew%comment = trim(atmp)
         call molnew%append(ich)
+        call calc_eprint(calculations(job),energy,calculations(job)%etmp,ich2)
       end if
     end if
-
     k = k + 1
     if (env%niceprint) then
       percent = float(k) / float(nall) * 100.0_wp
@@ -259,6 +277,8 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
       write (stdout,'(1x,i0)',advance='no') k
       flush (stdout)
     end if
+
+    deallocate(mol%xyz,molnew%xyz,mol%at,molnew%at)
     !$omp end critical
     !$omp end task
   end do
@@ -271,12 +291,17 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   else
     write (stdout,*)
   end if
+ 
+  write(stdout,'(1x,i0,a,i0,a)')c,' of ',nall,' structures successfully optimized.' 
 
-  if (dump) close (ich)
+  if (dump)then
+     close (ich)
+     close(ich2)
+  endif 
 
   deallocate (grad)
-  deallocate (molnew%xyz,molnew%at)
-  deallocate (mol%xyz,mol%at)
+  !deallocate (molnew%xyz,molnew%at)
+  !deallocate (mol%xyz,mol%at)
   deallocate (calculations)
   return
 end subroutine crest_oloop

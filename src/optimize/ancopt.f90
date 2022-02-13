@@ -175,7 +175,7 @@ contains
 !>--- print a summary of settings, if desired
     if (pr) then
       write (*,'(/,10x,"┍",49("━"),"┑")')
-      write (*,'(10x,"│",22x,a,22x,"│")') "SETUP"
+      write (*,'(10x,"│",11x,a,11x,"│")') "GEOMETRY OPTIMIZATION SETUP"
       write (*,'(10x,"┝",49("━"),"┥")')
       !write (*,chrfmt) "optimization level",int2optlevel(tight)
       write (*,intfmt) "optimization level",tight

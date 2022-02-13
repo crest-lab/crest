@@ -43,6 +43,7 @@ module constraints
 
   !>--- constrain types
   integer,parameter :: bond = 1
+  integer,parameter :: allbonds = 11
   integer,parameter :: angle = 2
   integer,parameter :: dihedral = 3
   integer,parameter :: wall = 4
@@ -75,6 +76,8 @@ module constraints
     procedure :: angleconstraint => create_angle_constraint
     procedure :: dihedralconstraint => create_dihedral_constraint
     procedure :: gapdiffconstraint => create_gapdiff_constraint
+    procedure :: dummyconstraint => create_dummy_constraint
+    procedure :: analyzedummy => analyze_dummy_bond_constraint
   end type constraint
   !=====================================================!
 
@@ -114,15 +117,18 @@ contains
     return
   end subroutine calc_constraint
 
-  subroutine print_constraint(self)
+  subroutine print_constraint(self,chnl)
     implicit none
     class(constraint) :: self
     character(len=64) :: art
     character(len=64) :: atoms
     character(len=258) :: values
     character(len=10) :: atm
+    integer :: chnl
+    logical :: pr
 
     if (self%type == 0) return
+    pr = .true.
     select case (self%type)
     case (bond)
       art = 'distance'
@@ -144,30 +150,81 @@ contains
       art = 'wall_fermi'
       write (atoms,'(1x,"atoms:",1x,i0,a)') self%n,'/all'
       write (values,'(" radii=",3f12.5," k=",f8.5,1x,"exp=",f5.2)') self%ref(1:3),self%fc(1:2)
+    case (na_gapdiff)
+      art = 'nonadiabatic gap'
+      write (atoms,'(1x,"[",a,"]")') 'σ*ΔE²/(ΔE+α)'
+      write (values,'(" σ=",f8.5," α=",f8.5)') self%fc(1:2)
     case default
       art = 'none'
       atoms = 'none'
       values = ' '
+      pr=.false.
     end select
-    write (*,'(a,a,a,a,1x,a)') ' constraint: ',trim(art),trim(atoms),trim(values)
+    if(pr) &
+    & write (chnl,'(a,a,",",a,",",a,1x,a)') ' constraint: ',trim(art),trim(atoms),trim(values)
 
     return
   end subroutine print_constraint
 
 !========================================================================================!
-!> subroutien constraint_deallocate
+!> subroutine analyze_dummy_bond_constraint
+  subroutine analyze_dummy_bond_constraint(self,t,i,rawa)
+    implicit none
+    class(constraint) :: self
+    integer,intent(in) :: i,t
+    character(len=*) :: rawa(i)
+    real(wp) :: k
+
+    call self%deallocate()
+    
+    select case( i )
+    case ( 1 )
+      if( any(rawa(1) == (/ 'all','allauto' /)))then
+      call self%dummyconstraint(t)
+      endif
+    case (2) 
+      if( any(rawa(1) == (/ 'all','allauto' /)))then
+      read(rawa(2),*) k
+      call self%dummyconstraint(t,k)
+      endif
+    end select
+
+    return
+  end subroutine analyze_dummy_bond_constraint
+
+
+!========================================================================================!
+!> subroutine constraint_deallocate
 !> reset and deallocate all data of a given constraint object
   subroutine constraint_deallocate(self)
     implicit none
     class(constraint) :: self
     if (allocated(self%atms)) deallocate (self%atms)
-    if (allocated(self%fc)) deallocate (self%atms)
+    if (allocated(self%fc)) deallocate (self%fc)
     if (allocated(self%ref)) deallocate (self%ref)
     self%type = 0
     self%subtype = pharmonic
     self%n = 0
     return
   end subroutine constraint_deallocate
+
+!========================================================================================!
+!> subroutien create_bond_constraint
+  subroutine create_dummy_constraint(self,i,k)
+    implicit none
+    class(constraint) :: self
+    integer,intent(in) :: i
+    real(wp),optional :: k
+
+    call self%deallocate()
+    self%type = i
+    self%n = 0
+    allocate (self%fc(1),source=fcdefault)
+    if (present(k)) then
+      self%fc(1) = k
+    end if
+    return
+  end subroutine create_dummy_constraint
 
 !========================================================================================!
 !> subroutien create_bond_constraint

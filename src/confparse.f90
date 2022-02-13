@@ -301,11 +301,11 @@ subroutine parseflags(env,arg,nra)
 !>--- check for input file
   do i = 1,nra
     argument = trim(arg(i))
-    if(argument=='--input' .or. argument=='-i')then
-     call parseinputfile(env,trim(arg(i+1)))
-     exit
-    endif 
-  enddo
+    if (argument == '--input' .or. argument == '-i') then
+      call parseinputfile(env,trim(arg(i + 1)))
+      exit
+    end if
+  end do
 !>--- first arg loop
   do i = 1,nra
     argument = trim(arg(i))
@@ -667,11 +667,11 @@ subroutine parseflags(env,arg,nra)
   if (env%crestver == crest_solv) then
     call inputcoords_qcg(env,trim(arg(1)),trim(arg(3)))
   else
-    if(allocated(env%inputcoords))then
+    if (allocated(env%inputcoords)) then
       call inputcoords(env,env%inputcoords)
     else
       call inputcoords(env,trim(arg(1)))
-    endif
+    end if
   end if
 !========================================================================================!
 !> after this point there should always be a "coord" file present
@@ -1170,7 +1170,6 @@ subroutine parseflags(env,arg,nra)
           read (ctmp,*,iostat=io) rdum
           if (io .eq. 0) env%forceconst = rdum
         end if
-        !call autoBondConstraint('coord',env%forceconst,env%wbofile)
         ctype = 1
         bondconst = .true.
         env%cts%cbonds_global = .true.
@@ -1187,7 +1186,6 @@ subroutine parseflags(env,arg,nra)
           read (ctmp,*,iostat=io) rdum
           if (io .eq. 0) env%forceconst = rdum
         end if
-        !call autoMetalConstraint('coord',env%forceconst,env%wbofile)
         ctype = 2
         bondconst = .true.
         env%cts%cbonds_global = .true.
@@ -1201,7 +1199,6 @@ subroutine parseflags(env,arg,nra)
           read (ctmp,*,iostat=io) rdum
           if (io .eq. 0) env%forceconst = rdum
         end if
-        !call autoHeavyConstraint('coord',env%forceconst,env%wbofile)
         ctype = 3
         bondconst = .true.
         env%cts%cbonds_global = .true.
@@ -1215,7 +1212,6 @@ subroutine parseflags(env,arg,nra)
           read (ctmp,*,iostat=io) rdum
           if (io .eq. 0) env%forceconst = rdum
         end if
-        !call autoHydrogenConstraint('coord',env%forceconst,env%wbofile)
         ctype = 4
         bondconst = .true.
         env%cts%cbonds_global = .true.
@@ -1855,7 +1851,19 @@ subroutine parseflags(env,arg,nra)
     write (*,*)
   end if
 
-  if (bondconst) then
+!>--- automatic bond constraint setup
+  if (env%crestver > 200 .and. env%crestver < 300) then
+    !>--- internal calculation engine versions
+    if (.not. bondconst) then
+      call autoconstraint_internal(env)
+    else
+      select case (ctype)
+      case (1)
+        call autobond_internal(env,0)
+      end select
+    end if
+  else if (bondconst) then
+    !>--- standard crest+xtb version
     select case (ctype)
     case (1)
       call autoBondConstraint('coord',env%forceconst,env%wbofile)
@@ -1869,6 +1877,7 @@ subroutine parseflags(env,arg,nra)
       call autoBondConstraint_withEZ('coord',env%forceconst,env%wbofile)
     end select
   end if
+
 !========================================================================================!
   call parseRC2(env,bondconst)    !additional parsing of $setblock, .constrains and .confscriptrc file
 

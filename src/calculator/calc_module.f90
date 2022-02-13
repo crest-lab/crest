@@ -44,6 +44,12 @@ module calc_module
     module procedure :: engrad_xyz
   end interface engrad
 
+  public :: calc_eprint
+  interface calc_eprint
+    module procedure :: calc_print_energies
+    module procedure :: calc_print_energies2
+  end interface calc_eprint
+
   public :: numhess
   public :: constrhess
 
@@ -67,19 +73,27 @@ contains
     real(wp),allocatable :: grdtmp(:,:,:)
     real(wp),allocatable :: etmp(:)
 
+!==========================================================!
     call initsignal()
+
+    !>--- Calculation
+    n = calc%ncalculations
+ 
+    !$omp critical
+    if(n > 0)then
+    if(.not.allocated(calc%etmp))allocate(calc%etmp(n),source=0.0_wp)
+    if(.not.allocated(calc%grdtmp))allocate(calc%grdtmp(3,mol%nat,n),source=0.0_wp)
+    endif
+    !$omp end critical
 
     iostatus = 0
     dum1 = 1.0_wp
     dum2 = 1.0_wp
-    etmp = 0.0_wp
+    calc%etmp = 0.0_wp
 
+!==========================================================!
     !>--- Calculation
-    n = calc%ncalculations
     if (n > 0) then
-      !$omp critical
-      allocate (grdtmp(3,mol%nat,n),etmp(n),source=0.0_wp)
-      !$omp end critical
       !>--- loop over all calculations to be done
       do i = 1,calc%ncalculations
         !write(*,*) i,calc%calcs(i)%calcspace,calc%calcs(i)%id
@@ -90,41 +104,45 @@ contains
         select case (calc%calcs(i)%id)
         case (10) !-- xtb system call
           !write(*,*) i,calc%calcs(i)%calcspace
-          call xtb_engrad(mol,calc%calcs(i),etmp(i),grdtmp(:,:,i),iostatus)
+          call xtb_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
             read (calc%calcs(i)%other,*) dum1,dum2
           end if
-          call lj_engrad(mol%nat,mol%xyz,dum1,dum2,etmp(i),grdtmp(:,:,i))
+          call lj_engrad(mol%nat,mol%xyz,dum1,dum2,calc%etmp(i),calc%grdtmp(:,:,i))
         case default
           !write (*,*) 'Nothing selected for energy and gradient calculation.'
-          etmp(i) = 0.0_wp
-          grdtmp(:,:,i) = 0.0_wp
+          calc%etmp(i) = 0.0_wp
+          calc%grdtmp(:,:,i) = 0.0_wp
         end select
       end do
       !>--- switch case for what to to with the energies
       select case (calc%id)
-      case default !> take e+grd only from first level
-        energy = etmp(1)
-        gradient = grdtmp(:,:,1)
-      case (2:)
+      case default 
+      !> take e+grd only from first level
+        energy = calc%etmp(1)
+        gradient = calc%grdtmp(:,:,1)
+      case (2:) 
+      !> take e+grd from one of the speciefied calculations
         j = calc%id
         if (j <= calc%ncalculations) then
-          energy = etmp(j)
-          gradient = grdtmp(:,:,j)
+          energy = calc%etmp(j)
+          gradient = calc%grdtmp(:,:,j)
         end if
-      case (-1) !> non-adiabatic arithmetic mean
+      case (-1) 
+      !> take non-adiabatic arithmetic mean (of first two calculations)
         if (calc%ncalculations > 1) then
-          call engrad_mean(mol%nat,etmp(1),etmp(2),grdtmp(:,:,1), &
-          &                grdtmp(:,:,2),energy,gradient)
+          call engrad_mean(mol%nat,calc%etmp(1),calc%etmp(2), &
+          & calc%grdtmp(:,:,1),calc%grdtmp(:,:,2),energy,gradient)
         end if
       end select
       !>--- printout (to file or stdout)
-      call calc_print_energies(calc,energy,etmp)
+      call calc_eprint(calc,energy,calc%etmp)
       !>--- deallocate
       !deallocate (etmp,grdtmp)
     end if
 
+!==========================================================!
     !>--- Constraints
     if (calc%nconstraints > 0) then
       !$omp critical
@@ -136,9 +154,9 @@ contains
         if(calc%cons(i)%type > 0)then
         !>--- structural constraints
           call calc_constraint(mol%nat,mol%xyz,calc%cons(i),efix,grdfix)
-        else if( allocated(etmp) .and. allocated(grdtmp))then
+        else if( allocated(calc%etmp) .and. allocated(calc%grdtmp))then
         !>--- non-adiabatic constraints
-          call calc_nonadiabatic_constraint(mol%nat,calc%cons(i),n,etmp,grdtmp,efix,grdfix)
+          call calc_nonadiabatic_constraint(mol%nat,calc%cons(i),n,calc%etmp,calc%grdtmp,efix,grdfix)
         endif
         energy = energy + efix
         gradient = gradient + grdfix
@@ -148,10 +166,6 @@ contains
       !$omp end critical
     end if
 
-    !$omp critical
-    if(allocated(etmp))deallocate(etmp)
-    if(allocated(grdtmp))deallocate(grdtmp)
-    !$omp end critical
     return
   end subroutine engrad_mol
 
@@ -178,8 +192,8 @@ contains
   end subroutine engrad_xyz
 
 !========================================================================================!
-! subroutine numgrad
-! routine to perform a numerical gradient calculation
+!> subroutine numgrad
+!> routine to perform a numerical gradient calculation
   subroutine numgrad(mol,calc,angrad)
     implicit none
 
@@ -310,15 +324,7 @@ contains
     n3 = nat * 3
     allocate (hess(n3,n3),source=0.0_wp)
 
-!    if(consgeo)then
     call numhess(nat,at,xyz,dummycalc,hess)
-!    else
-!     hess = 0.0_wp
-!    endif
-!    open(newunit=i,file='hesstest')
-!    write(i,*) hess
-!    close(i)
-!    stop
 
     k = 0
     do i = 1,n3
@@ -354,6 +360,31 @@ contains
     deallocate (btmp)
     return
   end subroutine calc_print_energies
+
+
+!==========================================================================================!
+
+  subroutine calc_print_energies2(calc,energy,energies,chnl)
+    implicit none
+    type(calcdata) :: calc
+    real(wp) :: energy
+    real(wp) :: energies(calc%ncalculations)
+    integer :: chnl
+    integer :: i,j
+    character(len=20) :: atmp
+    character(len=:),allocatable :: btmp
+    btmp = ''
+    write (atmp,'(f20.12)') energy
+    btmp = btmp//atmp
+    do i = 1,calc%ncalculations
+      write (atmp,'(f20.12)') energies(i)
+      btmp = btmp//atmp
+    end do
+    write (chnl,'(a)') btmp
+    deallocate (btmp)
+    return
+  end subroutine calc_print_energies2
+
 
 !==========================================================================================!
 end module calc_module

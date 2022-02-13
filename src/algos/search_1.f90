@@ -13,7 +13,7 @@ subroutine crest_search_1(env,tim)
   type(coord) :: mol,molnew
   integer :: i,j,k,l,io,ich,m
   logical :: pr,wr
-!========================================================================================!
+!===========================================================!
   type(calcdata) :: calc
   type(mddata) :: mddat
   type(shakedata) :: shk
@@ -31,7 +31,7 @@ subroutine crest_search_1(env,tim)
   logical :: dump
   character(len=80) :: atmp
 
-!========================================================================================!
+!===========================================================!
 !>--- printout header
   write (stdout,*)
   write (stdout,'(10x,"┍",49("━"),"┑")')
@@ -39,14 +39,14 @@ subroutine crest_search_1(env,tim)
   write (stdout,'(10x,"┕",49("━"),"┙")')
   write (stdout,*)
 
-!========================================================================================!
+!===========================================================!
 !>--- setup
   call env%ref%to(mol)
   write (stdout,*) 'Input structure:'
   call mol%append(stdout)
   write (stdout,*)
 
-!========================================================================================!
+!===========================================================!
 !>--- Dynamics
 
   write(stdout,*)
@@ -55,8 +55,6 @@ subroutine crest_search_1(env,tim)
   write(stdout,'(1x,a)') '------------------------------'
 
   call crest_search_multimd_init(env,mol,mddat,nsim)
-  !nsim = env%nmetadyn
-  !nsim = 4
   allocate (mddats(nsim), source=mddat)
   call crest_search_multimd_init2(env,mol,mddats,nsim)
 
@@ -66,7 +64,7 @@ subroutine crest_search_1(env,tim)
   !>--- a file called crest_dynamics.trj should have been written
   ensnam = 'crest_dynamics.trj'
 
-!========================================================================================!
+!==========================================================!
 !>--- Reoptimization of trajectories
 
   write(stdout,*)
@@ -82,9 +80,10 @@ subroutine crest_search_1(env,tim)
   endif
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
   call rdensemble(ensnam,nat,nall,at,xyz,eread)
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>--- Important: crest_oloop requires coordinates in Bohrs
   xyz = xyz / bohr
-
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
  
   write(stdout,'(1x,a,i0,a,a,a)')'Optimizing all ',nall, &
   & ' structures from file "',trim(ensnam),'" ...'
@@ -100,7 +99,7 @@ subroutine crest_search_1(env,tim)
 
  
 
-!========================================================================================!
+!==========================================================!
   return
 end subroutine crest_search_1
 
@@ -140,6 +139,12 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   integer :: vz,job,thread_id
 !========================================================================================!
 
+
+  !>--- set threads
+  if (env%autothreads) then
+    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nsim)
+  end if
+
   !>--- check if we have any MD & calculation settings allocated
   mddat = env%mddat
   calc = env%calc
@@ -169,7 +174,6 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
 
   !>--- other settings
   pr = .false.
-  allocate(moltmp%at(mol%nat),moltmp%xyz(3,mol%nat))
 
   !>--- run the MDs
   !$omp parallel &
@@ -185,6 +189,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     thread_id = OMP_GET_THREAD_NUM()
     job = thread_id + 1
     !$omp critical
+    allocate(moltmp%at(mol%nat),moltmp%xyz(3,mol%nat))
     moltmp%nat = mol%nat
     moltmp%at = mol%at
     moltmp%xyz = mol%xyz
@@ -204,6 +209,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     else
       write (stdout,'(a,i0,a)') '*MD ',vz,' terminated with error'
     end if
+    deallocate(moltmp%at,moltmp%xyz)
     !$omp end critical
     !$omp end task
   end do
@@ -214,8 +220,6 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   !>--- collect trajectories into one
   call collect(nsim,mddats)
 
-  deallocate (moltmp%xyz,moltmp%at)
-  !deallocate (mddats)
   deallocate (calculations)
   return
 contains
@@ -307,9 +311,16 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   !>--- complete real-time settings to steps
   call mdautoset(mddat,io)
 
+  !>--- MTD initial setup
+  call defaultGF(env)
+  write(stdout,*)'list of applied metadynamics Vbias parameters:'
+  do i=1,env%nmetadyn
+     write(stdout,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(i)/env%rednat,env%metadexp(i)
+  enddo
+  write(stdout,*)
+
   !>--- how many simulations
-  !nsim = env%nmetadyn 
-  nsim = 4
+  nsim = env%nmetadyn 
 
   return
 end subroutine crest_search_multimd_init
@@ -355,19 +366,13 @@ subroutine crest_search_multimd_init2(env,mol,mddats,nsim)
     mddats(i)%restartfile = mdir//sep//trim(atmp)
   end do
 
-  !>--- MTD setup
-  call defaultGF(env)
-  write(stdout,*)'list of applied metadynamics Vbias parameters:'
-  do i=1,nsim
-     write(stdout,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(i)/env%rednat,env%metadexp(i)
-  enddo
-  write(stdout,*)
-
   allocate(mtds(nsim))
   do i=1,nsim
   mddats(i)%simtype = type_mtd 
   mtds(i)%kpush = env%metadfac(i)/env%rednat
   mtds(i)%alpha = env%metadexp(i)
+  mtds(i)%cvdump_fs = float(env%mddump)
+  mtds(i)%mtdtype = cv_rmsd 
 
   mddats(i)%npot = 1
   allocate(mddats(i)%mtd(1), source=mtds(i))

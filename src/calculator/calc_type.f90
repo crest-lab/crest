@@ -72,6 +72,8 @@ module calc_type
     !>--- calculations
     integer :: ncalculations = 0
     type(calculation_settings),allocatable :: calcs(:)
+    real(wp),allocatable :: etmp(:)
+    real(wp),allocatable :: grdtmp(:,:,:)
 
     !>--- constraints
     integer :: nconstraints = 0
@@ -105,6 +107,8 @@ module calc_type
     generic,public :: add => calculation_add_constraint,calculation_add_settings
     procedure,private :: calculation_add_constraint,calculation_add_settings
     procedure :: copy => calculation_copy
+    procedure :: printconstraints => calculation_print_constraints
+    procedure :: removeconstraint => calculation_remove_constraint
   end type calcdata
 !=========================================================================================!
 
@@ -223,6 +227,63 @@ contains
 
     return
   end subroutine calculation_add_constraint
+
+!=========================================================================================!
+
+  subroutine calculation_remove_constraint(self,d)
+    implicit none
+    class(calcdata) :: self
+    type(constraint) :: constr
+    type(constraint),allocatable :: conslist(:)
+    integer :: i,j,d,d1,d2
+
+    if (self%nconstraints < d) return
+
+    i = self%nconstraints - 1
+    j = self%nconstraints
+    allocate (conslist(i))
+    if(d == 1)then
+    conslist(1:i) = self%cons(2:j)
+    else if( d == j)then
+    conslist(1:i) = self%cons(1:i)    
+    else
+    d1=d-1
+    d2=d+1
+    conslist(1:d1) = self%cons(1:d1)
+    conslist(d:i) = self%cons(d2:j)
+    endif
+    call move_alloc(conslist,self%cons)
+    self%nconstraints = i
+
+    return
+  end subroutine calculation_remove_constraint
+
+
+
+!=========================================================================================!
+  subroutine calculation_print_constraints(self,chnl)
+    implicit none
+    class(calcdata) :: self
+    integer :: i,j
+    integer,optional :: chnl
+
+    if (self%nconstraints < 1) then
+      return
+    else
+      if(present(chnl))then
+      i = chnl
+      else
+      i = stdout
+      endif
+      !write(i,*)
+      do j =1,self%nconstraints
+        call self%cons(j)%print(i)
+      enddo
+    end if
+
+    return
+  end subroutine calculation_print_constraints
+
 !=========================================================================================!
 
   subroutine calculation_init(self)

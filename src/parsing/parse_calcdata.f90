@@ -45,7 +45,6 @@ module parse_calcdata
     module procedure :: parse_mtd_bool
   end interface parse_mtd
 
-
   public :: parse_calculation_data
   public :: parse_dynamics_data
 contains
@@ -249,7 +248,7 @@ contains
     character(len=*) :: key
     character(len=*) :: val
     select case (key)
-    case('elog')
+    case ('elog')
       calc%elog = val
       calc%pr_energies = .true.
     case default
@@ -286,9 +285,9 @@ contains
     if (blk%header .ne. '[calculation.constraints]') return
     do i = 1,blk%nkv
       call parse_constraint_auto(constr,blk%kv_list(i),success)
-      if(success)then
-      call calc%add(constr)
-      endif
+      if (success) then
+        call calc%add(constr)
+      end if
     end do
     return
   end subroutine parse_constraintdat
@@ -299,15 +298,27 @@ contains
     logical,intent(out) :: success
     real(wp) :: dum1,dum2
     success = .false.
-    select case(kv%key)
-
-    case( 'gapdiff' )
-        dum1 = kv%value_fa(1)
-        dum2 = kv%value_fa(2)
-        call constr%gapdiffconstraint(dum1,dum2)
+    select case (kv%key)
+    case ('bond','bonds')
+      select case (kv%id)
+      case (4) !> string
+        select case (kv%value_c)
+        case ('all','allauto')
+          call constr%dummyconstraint(11)
+          success = .true.
+        end select
+      case (9) !> unspecified array
+        call constr%analyzedummy(11,kv%na,kv%value_rawa)
         success = .true.
+      end select
+      
+    case ('gapdiff')
+      dum1 = kv%value_fa(1)
+      dum2 = kv%value_fa(2)
+      call constr%gapdiffconstraint(dum1,dum2)
+      success = .true.
     case default
-     return 
+      return
     end select
 
     return
@@ -337,10 +348,10 @@ contains
         call parse_metadyn(blk,mddat)
         !call calc%add(newjob)
         included = .true.
-      endif
+      end if
     end do
     if (included) then
-      mddat%requested=.true.
+      mddat%requested = .true.
     end if
     return
   end subroutine parse_dynamics_data
@@ -376,13 +387,13 @@ contains
     character(len=*) :: key
     real(wp) :: val
     select case (key)
-    case( 'length' )
-      mddat%length_ps = val 
-    case( 'dump' )
+    case ('length')
+      mddat%length_ps = val
+    case ('dump')
       mddat%dumpstep = val
-    case( 'hmass' )
+    case ('hmass')
       mddat%md_hmass = val
-    case( 'tstep' )
+    case ('tstep')
       mddat%tstep = val
     case default
       return
@@ -396,7 +407,7 @@ contains
     integer :: val
     real(wp) :: fval
     select case (key)
-    case( 'length','dump','hmass','tstep' )
+    case ('length','dump','hmass','tstep')
       fval = float(val)
       call parse_md(mddat,key,fval)
     case default
@@ -443,7 +454,7 @@ contains
     do i = 1,blk%nkv
       call parse_metadyn_auto(mtd,blk%kv_list(i),success)
     end do
-    call mddat%add(mtd) 
+    call mddat%add(mtd)
     return
   end subroutine parse_metadyn
   subroutine parse_metadyn_auto(mtd,kv,success)
@@ -473,14 +484,14 @@ contains
     character(len=*) :: key
     real(wp) :: val
     select case (key)
-    case( 'alpha' )
+    case ('alpha')
       mtd%alpha = val
-    case( 'kpush' )
+    case ('kpush')
       mtd%kpush = val
-    case( 'dump','dump_fs' )
+    case ('dump','dump_fs')
       mtd%cvdump_fs = val
-    case( 'dump_ps' )
-     mtd%cvdump_fs = val * 1000.0_wp
+    case ('dump_ps')
+      mtd%cvdump_fs = val * 1000.0_wp
     case default
       return
     end select
@@ -493,9 +504,9 @@ contains
     integer :: val
     real(wp) :: fval
     select case (key)
-    case( 'type' )
+    case ('type')
       mtd%mtdtype = val
-    case( 'dump','dump_fs','dump_ps' )
+    case ('dump','dump_fs','dump_ps')
       fval = float(val)
       call parse_mtd(mtd,key,fval)
     case default
@@ -509,12 +520,12 @@ contains
     character(len=*) :: key
     character(len=*) :: val
     select case (key)
-    case( 'type' )
-      select case( val )
-      case( 'rmsd','RMSD' )
+    case ('type')
+      select case (val)
+      case ('rmsd','RMSD')
         mtd%mtdtype = cv_rmsd
       case default
-        mtd%mtdtype =  0
+        mtd%mtdtype = 0
       end select
     case default
       return

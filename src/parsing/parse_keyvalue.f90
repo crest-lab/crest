@@ -252,7 +252,7 @@ contains
     logical :: allt
 
     !> check if all elements of the raw array fit a specific type
-    
+    kv%id = 9 !> unspecified array type  
     !> int
     allt = .true.
     do k=1,kv%na
@@ -435,6 +435,10 @@ contains
     case (8) !> multiline comment
       abbrval = "'''...'''"
       typ = 'multiline comment'
+    case (9) !> unspecified array
+      call truncate20(self%rawvalue,abbrval)
+      write (typ,'("array,len=",i0)') self%na
+      typ = 'array(unspecified)'
     case default
       call truncate20(self%rawvalue,abbrval)
       typ = 'unspecified'

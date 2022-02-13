@@ -46,6 +46,9 @@ module crest_data
    character(len=19),parameter,public :: clusterfile='crest_clustered.xyz'       
    !> basename for the cluster file
    character(len=*),parameter,public :: ensemblefile='crest_ensemble.xyz'
+   !> basename for the cluster file
+   character(len=*),parameter,public :: ensembleelog='ensemble_energies.log'
+
 
    logical,public :: gui = .false.
 
