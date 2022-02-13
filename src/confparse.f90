@@ -1142,6 +1142,10 @@ subroutine parseflags(env,arg,nra)
         env%scallen = .true.
         call readl(arg(i + 1),xx,j)
         env%mdlenfac = xx(1)
+      case( '-nmtd' ) !set number of MTDs
+        env%runver = 787878
+        call readl(arg(i+1),xx,j)
+        env%nmetadyn=nint(xx(1))
       case ('-gcmax','-setgcmax')                             !set maximum number of structures for GC
         env%setgcmax = .true.
         call readl(arg(i + 1),xx,j)
@@ -1905,6 +1909,7 @@ subroutine parseflags(env,arg,nra)
   end if
 
   !>--- defaults for QCG gfnff ensemble search
+  if( env%crestver ==  crest_solv)then
   if (env%ensemble_opt .EQ. '--gff') then
     env%mdstep = 1.5d0
     env%hmass = 5.0d0
@@ -1919,6 +1924,7 @@ subroutine parseflags(env,arg,nra)
   else
     env%lmover = env%gfnver
   end if
+  endif
 
   if (env%useqmdff) then
     env%autozsort = .false.

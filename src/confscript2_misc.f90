@@ -28,11 +28,12 @@ subroutine xtbsp(env,xtblevel)
          type(systemdata) :: env
          !type(options)    :: opt
          integer,optional :: xtblevel
-         character(len=80) :: fname,pipe,xtbflag
+         character(len=80) :: fname,xtbflag
          character(len=512) :: jobcall
          integer :: io
+         character(*),parameter :: pipe=' >xtb.out 2>/dev/null'
 !---- some options
-         pipe=' > xtb.out 2>/dev/null'
+         !pipe=' > xtb.out 2>/dev/null'
          call remove('gfnff_topo')
          call remove('energy')
          if(.not.env%chargesfile)call remove('charges')
@@ -63,9 +64,9 @@ subroutine xtbsp(env,xtblevel)
          call copy('coord',fname)
          call clear_setblock(fname)
 !---- jobcall
-         write(jobcall,'(a,1x,a,1x,a,'' --sp '',a,1x,a,a)') &
-         &     trim(env%ProgName),trim(fname),trim(xtbflag),trim(env%solv),trim(pipe)
-         !call system(trim(jobcall))
+         write(jobcall,'(a,1x,a,1x,a," --sp ",a)') &
+         &     trim(env%ProgName),trim(fname),trim(xtbflag),trim(env%solv)
+         jobcall = trim(jobcall)//pipe
          call execute_command_line(trim(jobcall), exitstat=io)
 !---- cleanup
          call remove(fname)
