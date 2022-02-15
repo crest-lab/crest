@@ -1425,6 +1425,13 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 env%checktopo = .true.
              case( '-notopo','-notopocheck') 
                 env%checktopo = .false.
+                ctmp=trim(arg(i+1))
+                if(ctmp(1:1).ne.'-')then
+                  call parse_topo_excl(env,ctmp)
+                  if(allocated(env%excludeTOPO))then
+                   env%checktopo = .true.
+                  endif
+                endif
              case( '-noreftopo' )
                 env%reftopo = .false.   
              case( '-ezcheck','-checkez' )
@@ -1913,24 +1920,22 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
       endif
 
    !-- defaults for QCG gfnff ensemble search
-      if(env%crestver == crest_solv)then
-      if(env%ensemble_opt .EQ. '--gff') then
-        env%mdstep = 1.5d0
-        env%hmass = 5.0d0 
-        ctype = 5 !bond constraint
-        bondconst =.true.
-        env%cts%cbonds_md = .true.
-        env%checkiso = .true.
-        env%lmover = '--gfn2'
-      end if
-      endif
-
-
-     if((env%gfnver .EQ. '--gff').OR.(env%gfnver .EQ. '--gfn0')) then
+     if(env%crestver == crest_solv)then
+       if(env%ensemble_opt .EQ. '--gff') then
+         env%mdstep = 1.5d0
+         env%hmass = 5.0d0 
+         ctype = 5 !bond constraint
+         bondconst =.true.
+         env%cts%cbonds_md = .true.
+         env%checkiso = .true.
          env%lmover = '--gfn2'
-     else
+       end if
+       if((env%gfnver .EQ. '--gff').OR.(env%gfnver .EQ. '--gfn0')) then
+         env%lmover = '--gfn2'
+       else
          env%lmover = env%gfnver
-     end if
+       end if
+     endif
 
      if(env%useqmdff)then
         env%autozsort=.false.
