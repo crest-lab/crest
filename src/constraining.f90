@@ -272,6 +272,83 @@ subroutine parse_atlist(line,selected,nat,natlist)
        return
 end subroutine parse_atlist
 
+subroutine parse_atypelist(line,nselect,atlist)
+        use strucrd, only:i2e,e2i
+        implicit none
+        character(len=*) :: line
+        integer,intent(out) :: nselect
+        
+        integer :: i,j,k
+        character(len=1) :: digit
+        character(len=10),parameter :: numbers='0123456789'
+        character(len=52),parameter :: letters='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+        character(len=20) :: atom1,atom2
+        integer :: at1,at2,nat
+
+        logical,intent(inout) :: atlist(118)
+        logical :: rang,stor
+
+        atlist=0
+ 
+        stor=.false.
+        rang=.false.
+
+        atom1=''
+        atom2=''
+        at1=0
+        at2=0
+        atlist = .false.
+        nselect = 0
+
+        do i=1,len(trim(line))
+         digit=line(i:i)
+         if(index(letters,digit).ne.0)then
+            if(.not.rang)then
+            atom1=trim(atom1)//digit
+            stor=.true.
+              else
+            atom2=trim(atom2)//digit
+            endif
+         endif
+         if((digit==',').or.(digit==' ').or.(digit==char(9)) &
+         &  .or.(i.eq.len(trim(line))))then  !comma,space,tab or last character
+            if(.not.rang.and.stor)then !a single atom type
+               atom1 = trim(atom1)
+               at1 = e2i(atom1) 
+               atom1=''
+               if(at1 > 0)then
+               atlist(at1)=.true.
+               endif
+               stor=.false.
+            endif
+            if(rang.and.stor)then !a range of atoms
+              atom2 = trim(atom2)
+              at2 = e2i(atom2)
+              atom2=''
+              stor=.false.
+              rang=.false.
+              if(at1>0 .and. at2>0)then
+              k=max(at1,at2)
+              do j=min(at1,at2),k   !order is arbitrary
+                atlist(j)=.true.
+              enddo
+              endif
+            endif
+         endif
+         if((digit=='-').and.stor)then !begin to select a range of atoms
+            rang=.true.
+            atom1 = trim(atom1)
+            at1 = e2i(atom1)
+            atom1=''
+         endif
+       enddo
+       do i=1,118
+          if(atlist(i)) nselect=nselect+1
+       enddo 
+       return
+end subroutine parse_atypelist
+
+
 
 !-----------------------------------------------------------------------------
 ! modified version of the rdcoord routine to only include selected atoms
@@ -823,13 +900,17 @@ end subroutine write_cts_DISP
 subroutine parse_topo_excl(env,arg)
     use iso_fortran_env, only:wp=>real64
     use crest_data
+    use strucrd, only:i2e
     implicit none
     type(systemdata) :: env
     character(len=*) :: arg
 
-    integer :: i,nat
+    integer :: i,j,k,nat
     integer :: nselect
     integer,allocatable :: natlist(:)
+    integer,allocatable :: at(:)
+    logical,allocatable :: atypes(:)
+    character(len=:),allocatable :: atms
 
     nat = env%nat
     allocate(natlist(nat),source=0)
@@ -847,16 +928,53 @@ subroutine parse_topo_excl(env,arg)
       endif
     enddo 
     endif 
-
     deallocate(natlist)
 
+    if(allocated(env%ref%at))then
+    allocate(at(nat),atypes(118))
+    at = env%ref%at
+    atypes = .false.
+    call parse_atypelist(arg,nselect,atypes)
+    if(nselect > 0)then
+     if(.not.allocated(env%excludeTOPO)) allocate(env%excludeTOPO(nat),source=.false.)
+     do i=1,118
+       if(atypes(i))then
+       do j=1,nat
+         if(at(j) == i) env%excludeTOPO(j) = .true.  
+       enddo
+       endif
+     enddo
+    endif
+    endif
+
+    !>--- printout construction
     if(allocated(env%excludeTOPO))then
     nselect = 0
+    atypes = .false.
     do i=1,nat
-     if(env%excludeTOPO(i)) nselect=nselect+1
+     if(env%excludeTOPO(i))then
+       nselect=nselect+1
+       if(allocated(at))then
+        atypes(at(i)) = .true. 
+       endif 
+     endif
     enddo
-    write(*,'(2x,a,i0,a)') '-notopo <x> : ignoring topology on ',nselect,' atoms'
+    atms = '('
+    k=0
+    do i=1,118
+      if(atypes(i))then
+        k=k+1
+        if( k > 1) atms = atms//','
+        atms = atms//trim(i2e(i,'nc'))
+      endif
+    enddo
+    atms = atms//')'
+
+    write(*,'(2x,a,i0,a,a)') '-notopo <x> : ignoring topology on ',nselect,' atoms ',atms
     endif
+
+    if(allocated(at))deallocate(at)
+    if(allocated(atypes))deallocate(atypes)
     return
 end subroutine parse_topo_excl
 
