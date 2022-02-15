@@ -816,3 +816,48 @@ subroutine write_cts_DISP(ich,cts)
      return
 end subroutine write_cts_DISP
 
+
+!========================================================================================!
+!> parse a list of atoms to exclude from cregen topology check
+!========================================================================================!
+subroutine parse_topo_excl(env,arg)
+    use iso_fortran_env, only:wp=>real64
+    use crest_data
+    implicit none
+    type(systemdata) :: env
+    character(len=*) :: arg
+
+    integer :: i,nat
+    integer :: nselect
+    integer,allocatable :: natlist(:)
+
+    nat = env%nat
+    allocate(natlist(nat),source=0)
+    call parse_atlist(arg,nselect,nat,natlist)  
+
+    if(nselect>0)then
+    if(allocated(env%excludeTOPO)) deallocate(env%excludeTOPO)
+    allocate(env%excludeTOPO(nat),source=.false.)
+    do i=1,nat
+      if(natlist(i) >0)then
+         env%excludeTOPO(i) = .true.
+         !write(*,*) 'excluding atom',i, ' from topology check'
+      else
+         env%excludeTOPO(i) = .false.
+      endif
+    enddo 
+    endif 
+
+    deallocate(natlist)
+
+    if(allocated(env%excludeTOPO))then
+    nselect = 0
+    do i=1,nat
+     if(env%excludeTOPO(i)) nselect=nselect+1
+    enddo
+    write(*,'(2x,a,i0,a)') '-notopo <x> : ignoring topology on ',nselect,' atoms'
+    endif
+    return
+end subroutine parse_topo_excl
+
+

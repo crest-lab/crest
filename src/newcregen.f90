@@ -711,7 +711,11 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
     !do i=1,nat
     !   write(*,*) i,i2e(at(i),'nc'),nint(cn(i))
     !enddo
-    call bondtotopo(nat,at,bond,cn,ntopo,toporef,neighmat)
+    if(allocated(env%excludeTOPO))then
+      call bondtotopo_excl(nat,at,bond,cn,ntopo,toporef,neighmat,env%excludeTOPO)
+    else
+      call bondtotopo(nat,at,bond,cn,ntopo,toporef,neighmat)
+    endif
 
     nbonds = sum(toporef)
     write(ch,'('' # bonds in reference structure :'',i6)')nbonds
@@ -744,7 +748,11 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
        cn=0.0d0
        bond=0.0d0
        call xcoord2(nat,at,c1,rcov,cn,400.0_wp,bond)
+       if(allocated(env%excludeTOPO))then
+       call bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighmat,env%excludeTOPO)
+       else
        call bondtotopo(nat,at,bond,cn,ntopo,topo,neighmat)
+       endif
        do l=1,ntopo
           if(toporef(l).ne.topo(l))then
               !call revlin(int(l,kind=8),k,i)
