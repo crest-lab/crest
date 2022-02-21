@@ -970,6 +970,10 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                    env%autozsort=.false.
                 case( '-norotmd' )                         !don't do the regular mds after step 2 in multilevel optimization of V2
                    env%rotamermds=.false.
+                case( '-mdtemp' )                          !set MTD temperature (V2 version)
+                   call readl(arg(i+1),xx,j)
+                   env%mdtemp=xx(1)
+                   env%user_temp = .true.
                 case( '-tnmd' )                            !temperature for additional normal MDs
                    call readl(arg(i+1),xx,j)
                    env%nmdtemp=xx(1)
