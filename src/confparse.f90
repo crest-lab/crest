@@ -977,6 +977,9 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
                 case( '-tnmd' )                            !temperature for additional normal MDs
                    call readl(arg(i+1),xx,j)
                    env%nmdtemp=xx(1)
+                case( '-shake' )                           !set shake
+                   call readl(arg(i+1),xx,j)
+                   env%shake=nint(xx(1))
                 end select QCG
             end if
 !======================================================================================================!
