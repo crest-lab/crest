@@ -2220,11 +2220,7 @@ subroutine write_qcg_setup(env)
      write(*,'(2x,''Solvation model        : '',a)') env%solvent
   end if
   write(*,'(2x,''xtb opt level          : '',a)') trim(optlevflag(env%optlev))
-  if(.not.env%user_temp)then
-    write(*,'(2x,''System temperature [K] : ''a)') '298.0'
-  else
-    write(*,'(2x,''System temperature [K] : '',F5.1)') env%mdtemps(1)
-  end if
+  write(*,'(2x,''System temperature [K] : '',F5.1)') env%tboltz
   write(*,'(2x,''RRHO scaling factor    : '',F4.2)') env%freq_scal
 
 end subroutine write_qcg_setup
