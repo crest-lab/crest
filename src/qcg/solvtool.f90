@@ -2220,11 +2220,7 @@ subroutine write_qcg_setup(env)
      write(*,'(2x,''Solvation model        : '',a)') env%solvent
   end if
   write(*,'(2x,''xtb opt level          : '',a)') trim(optlevflag(env%optlev))
-  if(.not.env%user_temp)then
-    write(*,'(2x,''System temperature [K] : ''a)') '298.0'
-  else
-    write(*,'(2x,''System temperature [K] : '',F5.1)') env%mdtemps(1)
-  end if
+  write(*,'(2x,''System temperature [K] : '',F5.1)') env%tboltz
   write(*,'(2x,''RRHO scaling factor    : '',F4.2)') env%freq_scal
 
 end subroutine write_qcg_setup
@@ -2694,17 +2690,6 @@ subroutine aver(pr,env,runs,e_tot,S,H,G,sasa,a_present,a_tot)
   de(1:runs)=(e_tot(1:runs)-e0)
   call qcg_boltz(env,runs,de,p)
 
-  if(pr)then
-  open(newunit=ich48,file='population.dat')
-  write(ich48,'(2x, ''cluster'',2x,''E_norm [Eh]'',2x, ''De [kcal]'', 4x, ''p'')')
-    do j=1,runs
-       if(j.lt.10) then
-          write(ich48,'(5x,i0,3x,f11.6,5x,f6.4,3x,f6.4)')j,e_tot(j)/eh, de(j), p(j)
-       else
-          write(ich48,'(5x,i0,2x,f11.6,5x,f6.4,3x,f6.4)')j, e_tot(j)/eh, de(j), p(j)
-       end if
-    end do
-  end if
   A=0
   eav=0
   pmax=0
@@ -2722,10 +2707,21 @@ subroutine aver(pr,env,runs,e_tot,S,H,G,sasa,a_present,a_tot)
   S=(1./beta)*A
   H=eav
   G=eav+S
-  write(ich48,*)
-  write(ich48,'(''Ensemble free energy [Eh]:'', f20.10)') G/eh
-  close(ich48)
- 
+  if(pr)then
+  open(newunit=ich48,file='population.dat')
+  write(ich48,'(2x, ''cluster'',2x,''E_norm [Eh]'',2x, ''De [kcal]'', 4x, ''p'')')
+    do j=1,runs
+       if(j.lt.10) then
+          write(ich48,'(5x,i0,3x,f11.6,5x,f6.4,3x,f6.4)')j,e_tot(j)/eh, de(j), p(j)
+       else
+          write(ich48,'(5x,i0,2x,f11.6,5x,f6.4,3x,f6.4)')j, e_tot(j)/eh, de(j), p(j)
+       end if
+    end do
+    write(ich48,*)
+    write(ich48,'(''Ensemble free energy [Eh]:'', f20.10)') G/eh
+    close(ich48)
+  end if
+
   deallocate(de,p)
  
 end subroutine aver
