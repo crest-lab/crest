@@ -27,6 +27,7 @@
 !>              3 - switch off equivalency analysis
 !>              6 - energy sorting only
 !>              9 - no sorting, only check groups
+!>             12 - no topology check, turn ewin to infty
 !=========================================================================================!
 !=========================================================================================!
 subroutine newcregen(env,quickset)
@@ -292,7 +293,7 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
   call remove(outfile)
   if (simpleset > 0) then
     select case (simpleset)
-    case (6,9)
+    case (6,9,12)
       iounit = output_unit
     case default
       open (newunit=iounit,file=outfile)
@@ -304,18 +305,28 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
     open (newunit=iounit,file=outfile)
   end if
 
-  fname = trim(env%ensemblename)
-  if (env%confgo .and. (index(trim(fname),'none selected') .eq. 0)) then
+  
+  !>--- input file selection
+  select case (simpleset)
+  case (12) !> mecp search sorting  
+    fname = mecpensemble
+    oname = trim(fname)//'.sorted'
+    cname = ensemblefile
+  case default
     fname = trim(env%ensemblename)
-    oname = trim(env%ensemblename)//'.sorted'
-    cname = ensemblefile !'crest_ensemble.xyz'
-    if (env%fullcre) then
-      env%ensemblename = trim(oname)
+    if (env%confgo .and. (index(trim(fname),'none selected') .eq. 0)) then
+      fname = trim(env%ensemblename)
+      oname = trim(env%ensemblename)//'.sorted'
+      cname = ensemblefile !'crest_ensemble.xyz'
+      if (env%fullcre) then
+        env%ensemblename = trim(oname)
+      end if
+    else !internal mode for conformational search
+      call checkname_xyz(crefile,fname,oname)
+      cname = conformerfile
     end if
-  else !internal mode for conformational search
-    call checkname_xyz(crefile,fname,oname)
-    cname = conformerfile
-  end if
+  end select
+  !>--- associated printouts
   write (iounit,*) 'input  file name : ',trim(fname)
   select case (simpleset)
   case (9)
@@ -452,6 +463,14 @@ subroutine cregen_director(env,simpleset,checkbroken,sorte,sortRMSD,sortRMSD2, &
     anal = .false.
   end if
 
+  !> MECP search final sorting
+  if (simpleset == 12) then
+    topocheck = .false.
+    checkez = .false.
+    bonusfiles = .false.
+    anal = .false.
+  end if
+
   return
 end subroutine cregen_director
 
@@ -487,6 +506,9 @@ subroutine cregen_filldata2(env,simpleset,ewin)
   if (simpleset == 6) then
     ewin = 100000
   end if
+  if(simpleset == 12)then
+  ewin = huge(ewin)
+  endif  
   return
 end subroutine cregen_filldata2
 
@@ -2650,7 +2672,11 @@ subroutine cregen_pr1(ch,env,nat,nall,rthr,bthr,pthr,ewin)
   write (ch,'('' RMSD threshold                 :'',f9.4)') rthr
   write (ch,'('' Bconst threshold               :'',f9.4)') bthr
   write (ch,'('' population threshold           :'',f9.4)') pthr
+  if(ewin < 9999.9_wp)then 
   write (ch,'('' conformer energy window  /kcal :'',f9.4)') ewin
+  else
+  write (ch,'('' conformer energy window  /kcal :'',6x,a)') '+∞'
+  endif 
   return
 end subroutine cregen_pr1
 

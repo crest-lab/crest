@@ -46,8 +46,11 @@ module crest_data
    character(len=19),parameter,public :: clusterfile='crest_clustered.xyz'       
    !> basename for the cluster file
    character(len=*),parameter,public :: ensemblefile='crest_ensemble.xyz'
-   !> basename for the cluster file
+   !> basename for the log file
    character(len=*),parameter,public :: ensembleelog='ensemble_energies.log'
+   !> basename for the mecp file
+   character(len=*),parameter,public :: mecpensemble='crest_mecp_search.xyz'
+
 
 
    logical,public :: gui = .false.
@@ -69,9 +72,12 @@ module crest_data
    integer,parameter,public :: crest_msreac   = 9
    integer,parameter,public :: crest_pka      = 14
    integer,parameter,public :: crest_solv     = 15
+   !>> runtypes with IDs between 200 and 300 use the inernal engines <<!
    integer,parameter,public :: crest_optimize = 265
    integer,parameter,public :: crest_moldyn   = 266
    integer,parameter,public :: crest_s1       = 267
+   integer,parameter,public :: crest_mecp     = 268
+   !>> <<! 
    integer,parameter,public :: crest_test     = 456
 !---- tools
    integer,parameter,public :: p_cregen      = -1

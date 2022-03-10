@@ -1882,8 +1882,12 @@ subroutine parseflags(env,arg,nra)
     end select
   end if
 
-!========================================================================================!
-  call parseRC2(env,bondconst)    !additional parsing of $setblock, .constrains and .confscriptrc file
+!>--- additional parsing of $setblock, .constrains and .confscriptrc file
+  call parseRC2(env,bondconst)   
+
+!>--- internal constraint check-up
+  call  internal_constraint_repair(env)
+
 
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
@@ -2167,10 +2171,10 @@ subroutine inputcoords(env,arg)
   use iso_fortran_env,only:wp => real64
   use crest_data
   use strucrd
+  use axis_module
   use zdata
   use iomod
   implicit none
-  !type(options) :: opt
   type(systemdata) :: env
   character(len=*) :: arg
 
@@ -2199,20 +2203,25 @@ subroutine inputcoords(env,arg)
     inputfile = 'coord'
   end if
 
-  !--- if the input was a SDF file, special handling
+  !>--- if the input was a SDF file, special handling
   env%sdfformat = .false.
   call checkcoordtype(inputfile,i)
   if (i == 31 .or. i == 32) then
     call inpsdf(env,inputfile)
   end if
 
-  !--- after this point there should always be an coord file present
+  !>--- after this point there should always be an coord file present
   if (.not. allocated(env%inputcoords)) env%inputcoords = 'coord'
   !call rdnat('coord',env%nat)
   call mol%open('coord')
+  !> shift to CMA and align according to rot.const.
+  call axis(mol%nat,mol%at,mol%xyz)
+  !> overwrite coord
+  call mol%write('coord')
+
   env%nat = mol%nat
   env%rednat = env%nat        !get the number of atoms and the reduced number of atoms if some of them are     excluded from the RMSD calc in V2
-  !--- reference geo
+  !>--- reference geo
   env%ref%nat = mol%nat
   env%ref%at = mol%at
   env%ref%xyz = mol%xyz

@@ -168,6 +168,10 @@ contains
         env%preopt = .false.
         env%crestver = crest_s1
         env%runver   = crest_s1
+      case ('mecp','mecp_search')
+        env%preopt = .false.
+        env%crestver = crest_mecp
+        env%runver   = crest_mecp
       case default
         env%crestver = crest_imtd
       end select
@@ -208,3 +212,47 @@ contains
   end subroutine parse_main_blk
 !========================================================================================!
 end subroutine parseinputfile
+
+!========================================================================================!
+!========================================================================================!
+!> subroutine internal_constraint_setup
+!> 'repair' settings for constraints set up
+!> for the internal calculation engine
+!>----------------------------------------------------
+subroutine internal_constraint_repair(env)
+    use iso_fortran_env, only: wp => real64
+    use crest_data
+    use constraints
+    implicit none
+    type(systemdata) :: env
+    integer :: i,j,k,l,n
+    integer :: nat
+    logical,allocatable :: atms(:)    
+
+    n = env%calc%nconstraints 
+    if(n < 1)return 
+
+    nat = env%nat
+
+    do i=1,n
+      select case( env%calc%cons(i)%type )
+
+      case( 4,5 ) !> wall, wall_fermi
+        if(env%calc%cons(i)%n == 0)then 
+        !> if no #atoms have been specified, apply to all atoms
+          allocate(atms(nat))
+          atms = .true.
+          call env%calc%cons(i)%sphereupdate(nat,atms)
+          deallocate(atms)
+        endif
+
+      case default
+        continue
+      end select
+    enddo
+
+    return
+end subroutine internal_constraint_repair
+
+
+

@@ -90,6 +90,7 @@ contains
     dum1 = 1.0_wp
     dum2 = 1.0_wp
     calc%etmp = 0.0_wp
+    !calc%grdtmp = 0.0_wp
 
 !==========================================================!
     !>--- Calculation
@@ -156,7 +157,12 @@ contains
           call calc_constraint(mol%nat,mol%xyz,calc%cons(i),efix,grdfix)
         else if( allocated(calc%etmp) .and. allocated(calc%grdtmp))then
         !>--- non-adiabatic constraints
+          if( n > 0 )then
           call calc_nonadiabatic_constraint(mol%nat,calc%cons(i),n,calc%etmp,calc%grdtmp,efix,grdfix)
+          else !> this "else" is necessary for constrained model hessians
+           efix = 0.0_wp
+           grdfix = 0.0_wp
+          endif
         endif
         energy = energy + efix
         gradient = gradient + grdfix

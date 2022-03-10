@@ -72,21 +72,27 @@ contains
     real(wp),intent(out) :: efix
     real(wp),intent(out) :: gfix(3,n)
 
-    real(wp) :: sigm,alph
+    real(wp) :: sigm,alph,c
 
     efix = 0.0_wp
     gfix = 0.0_wp
 
     sigm = constr%fc(1)
     alph = constr%fc(2)
+    c    = constr%fc(3)
 
     select case (constr%type)
     case (na_gapdiff)
       call gapdiff_constraint(n,sigm,alph,energies(1),energies(2), &
       &    grds(:,:,1),grds(:,:,2),efix,gfix)
+    case (na_gapdiff2)
+      call gapdiff_constraint2(n,sigm,alph,c,energies(1),energies(2), &
+      &    grds(:,:,1),grds(:,:,2),efix,gfix)
     case default
       return
     end select
+ 
+    !write(*,*) energies(2)-energies(1), efix, gfix(1,1)
 
     return
   end subroutine calc_nonadiabatic_constraint
@@ -125,5 +131,50 @@ contains
   end subroutine gapdiff_constraint
 
 
+!========================================================================================!
+!> subroutine gapdiff_constraint2
+!> construct an constraint that minimizes minimizes the
+!> gap between two given energy surfaces
+!> new version with Gaussian potential as prefactor 
+!>-------------------------------------------------------------------
+  subroutine gapdiff_constraint2(nat,sigm,alph,c,e1,e2,grd1,grd2,efix,gfix)
+    implicit none
+    integer,intent(in) :: nat
+    real(wp),intent(in) :: e1,e2,alph,sigm,c
+    real(wp),intent(in) :: grd1(3,nat),grd2(3,nat)
+    real(wp),intent(out) :: efix
+    real(wp),intent(out) :: gfix(3,nat)
+    integer :: i,j,b
+    real(wp) :: gap,efixgrd,gss,gssgrd,absfct
+    real(wp) :: vfix,vgrd
+    real(wp),parameter :: autoev = 27.2114_wp
+
+    efix = 0.0_wp
+    gfix = 0.0_wp
+
+    gap = e2 - e1
+
+    !> Gaussian function (note: abs(gap) = sqrt(gap)²)
+    b = autoev
+    gss = sigm * (exp(-b*abs(gap)) + c)
+    gssgrd = -b*sigm*exp(-b*abs(gap))
+
+    !> Gap-based potential
+    vfix = ( gap**2 / (abs(gap) + alph))
+    vgrd = ( (gap**2 + 2.0_wp*alph*abs(gap))  / (abs(gap) + alph)**2)
+
+    !> factor to assign the correct prefactor to gradient
+    absfct = gap/abs(gap)
+
+    !> construct bias energy and gradient
+    efix = gss * vfix
+    efixgrd = gss*vgrd + gssgrd*vfix
+
+    do i=1,nat
+      gfix(:,i) = efixgrd * absfct * ( grd2(:,i) - grd1(:,i))
+    enddo
+
+    return
+  end subroutine gapdiff_constraint2
 
 end module nonadiabatic_module

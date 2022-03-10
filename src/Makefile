@@ -122,6 +122,7 @@ MAINFILES += confscript2_main.o
 MAINFILES += confscript2_misc.o
 MAINFILES += confscript3.o
 MAINFILES += search_1.o
+MAINFILES += search_mecp.o
 MAINFILES += optimization.o
 MAINFILES += dynamics.o
 MAINFILES += msreact.o

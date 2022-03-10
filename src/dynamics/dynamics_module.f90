@@ -234,7 +234,9 @@ contains
       write (commentline,'(a,i0,a)') 'crest_',dat%md_index,'.trj'
       trajectory = trim(commentline)
     endif
+    !$omp critical
     open (newunit=trj,file=trajectory)
+    !$omp end critical
 
     !>--- begin printout
     if (pr) then
@@ -286,9 +288,11 @@ contains
       if (dcount == dat%sdump) then
         dcount = 0
         dat%dumped = dat%dumped + 1
+        !$omp critical
         xyz_angstrom = mol%xyz * bohr
         write (commentline,'(a,f22.12,1x,a)') 'Epot =',epot,''
         call wrxyz(trj,mol%nat,mol%at,xyz_angstrom,commentline)
+        !$omp end critical
       end if
       if ((printcount == dat%printstep) .or. (t == 1)) then
         if (t > 1) printcount = 0
@@ -366,7 +370,9 @@ contains
     !>--- finish MD loop
     !===============================================================!
     !>--- close trajectory file
+    !$omp critical
     close (trj)
+    !$omp end critical
 
     !>--- averages printout
     if (pr) then

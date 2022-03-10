@@ -764,7 +764,8 @@ subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut
      read(ich,'(a)',iostat=io) atmp
      if(io < 0) exit
        atmp = adjustl(atmp) 
-       call coordline(atmp,a2,xyz1(1:3,k))
+       call coordline(atmp,a2,xyz1(1:3,k),io)
+       if(io < 0) exit
        at1(k) = e2i(a2)
      k=k+1
   end do
@@ -773,7 +774,8 @@ subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut
      read(ich,'(a)',iostat=io) atmp
      if(io < 0) exit
        atmp = adjustl(atmp) 
-       call coordline(atmp,a2,xyz2(1:3,k))
+       call coordline(atmp,a2,xyz2(1:3,k),io)
+       if(io < 0) exit
        at2(k) = e2i(a2)
      k=k+1
   end do

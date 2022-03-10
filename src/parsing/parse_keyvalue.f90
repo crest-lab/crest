@@ -36,11 +36,11 @@ contains
     self%id = 0
     if (allocated(self%value_c)) deallocate (self%value_c)
     self%na = 0
-    if (allocated(self%value_c)) deallocate (self%value_rawa)
-    if (allocated(self%value_c)) deallocate (self%value_fa)
-    if (allocated(self%value_c)) deallocate (self%value_ia)
-    if (allocated(self%value_c)) deallocate (self%value_ba)
-    if (allocated(self%value_c)) deallocate (self%value_cml)
+    if (allocated(self%value_rawa)) deallocate (self%value_rawa)
+    if (allocated(self%value_fa)) deallocate (self%value_fa)
+    if (allocated(self%value_ia)) deallocate (self%value_ia)
+    if (allocated(self%value_ba)) deallocate (self%value_ba)
+    if (allocated(self%value_cml)) deallocate (self%value_cml)
     return
   end subroutine
 !========================================================================================!

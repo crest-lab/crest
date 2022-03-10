@@ -52,6 +52,7 @@ module constraints
   integer,parameter :: box_fermi = 7
 
   integer,public,parameter :: na_gapdiff = -1
+  integer,public,parameter :: na_gapdiff2 = -2
 
   integer,parameter :: pharmonic = 1
   integer,parameter :: plogfermi = 2
@@ -73,9 +74,11 @@ module constraints
     procedure :: bondconstraint => create_bond_constraint
     generic,public :: sphereconstraint => create_sphere_constraint,create_sphere_constraint_all
     procedure,private :: create_sphere_constraint,create_sphere_constraint_all
+    procedure :: sphereupdate => sphere_update_nat
     procedure :: angleconstraint => create_angle_constraint
     procedure :: dihedralconstraint => create_dihedral_constraint
     procedure :: gapdiffconstraint => create_gapdiff_constraint
+    procedure :: gapdiffconstraint2 => create_gapdiff_constraint2
     procedure :: dummyconstraint => create_dummy_constraint
     procedure :: analyzedummy => analyze_dummy_bond_constraint
   end type constraint
@@ -154,6 +157,10 @@ contains
       art = 'nonadiabatic gap'
       write (atoms,'(1x,"[",a,"]")') 'σ*ΔE²/(ΔE+α)'
       write (values,'(" σ=",f8.5," α=",f8.5)') self%fc(1:2)
+    case (na_gapdiff2)
+      art = 'nonadiabatic gap'
+      write (atoms,'(1x,"[",a,"]")') 'σ*(exp(-β|ΔE|)+C) * ΔE²/(|ΔE|+α)'
+      write (values,'(" σ=",f8.5," α=",f8.5," C=",f8.5," β=",f8.5)') self%fc(1:3),27.2114_wp
     case default
       art = 'none'
       atoms = 'none'
@@ -663,6 +670,21 @@ contains
     return
   end subroutine create_sphere_constraint
 
+  subroutine sphere_update_nat(self,n,atms)
+    implicit none
+    class(constraint) :: self
+    integer,intent(in) :: n
+    logical,intent(in) :: atms(n)
+    integer :: c,i
+    c = count(atms,1)
+    self%n = c
+    if(allocated(self%atms))deallocate(self%atms)
+    allocate(self%atms(c))
+    do i=1,n
+      if (atms(i)) self%atms(i) = i
+    enddo
+    return
+  end subroutine sphere_update_nat
 !========================================================================================!
 !> constrain atoms within defined wall potentials
 !> the potentials themselves can be polinomial or logfermi type
@@ -693,6 +715,9 @@ contains
       case default
         return
       case (wall)
+        !>
+        !> V = k*Σ(|R-O|/Rref)^α 
+        !>
         k = constr%fc(1)
         alpha = constr%fc(2)
         dalpha = alpha - 1.0_wp
@@ -712,6 +737,9 @@ contains
         grd(2,iat) = ddist * dy
         grd(3,iat) = ddist * dz
       case (wall_fermi)
+        !>
+        !> V = Σ kT*log{1+exp[β(|R-O|-Rref)]} 
+        !>
         T = constr%fc(1)
         beta = constr%fc(2)
         ref = maxval(constr%ref(1:3))
@@ -748,6 +776,22 @@ contains
     return
   end subroutine create_gapdiff_constraint
 
+!========================================================================================!
+!> subroutien create_gapdiff_constraint2
+!> (calculation of the constraint in nonadiabatic.f90)
+  subroutine create_gapdiff_constraint2(self,sigm,alph,c)
+    implicit none
+    class(constraint) :: self
+    real(wp),intent(in) :: sigm,alph,c
+
+    call self%deallocate()
+    self%type = na_gapdiff2
+    allocate (self%fc(3),source=fcdefault)
+    self%fc(1) = sigm
+    self%fc(2) = alph
+    self%fc(3) = c
+    return
+  end subroutine create_gapdiff_constraint2
 
 
 

@@ -563,7 +563,7 @@ subroutine defaultGF(env)
         alpinc = 1.61803 ! increment
         kinc = 2.0     ! increment
 !---------
-       case( crest_s1 ) ! "search_1"
+       case( crest_s1,crest_mecp ) ! "search_1"
          na=3
          nk=3
          nmtdyn=(na*nk)

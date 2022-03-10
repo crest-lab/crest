@@ -296,7 +296,7 @@ contains
     type(keyvalue) :: kv
     type(constraint) :: constr
     logical,intent(out) :: success
-    real(wp) :: dum1,dum2
+    real(wp) :: dum1,dum2,dum3
     success = .false.
     select case (kv%key)
     case ('bond','bonds')
@@ -311,12 +311,39 @@ contains
         call constr%analyzedummy(11,kv%na,kv%value_rawa)
         success = .true.
       end select
-      
+     case ('sphere')
+      dum1 = kv%value_fa(3)  !> sphere radius
+      dum2 = kv%value_fa(1)  !> prefactor
+      dum3 = kv%value_fa(2)  !> exponent
+      call constr%sphereconstraint(0,dum1,dum2,dum3,.false.)
+      success = .true.
+    case ('sphere_logfermi')
+      dum1 = kv%value_fa(3)  !> sphere radius
+      dum2 = kv%value_fa(1)  !> fermi temperature
+      dum3 = kv%value_fa(2)  !> exponent factor
+      call constr%sphereconstraint(0,dum1,dum2,dum3,.true.)
+      success = .true.
     case ('gapdiff')
       dum1 = kv%value_fa(1)
       dum2 = kv%value_fa(2)
       call constr%gapdiffconstraint(dum1,dum2)
       success = .true.
+    case ('gapdiff2')
+      success = .true.
+      if(kv%id==3)then
+        if(kv%value_b)then
+          dum1 = 10.0_wp
+          dum2 = 0.005_wp
+          dum3 = 0.20_wp
+        else
+          success = .false. 
+        endif 
+      else
+      dum1 = kv%value_fa(1)
+      dum2 = kv%value_fa(2)
+      dum3 = kv%value_fa(3)
+      endif
+      call constr%gapdiffconstraint2(dum1,dum2,dum3)
     case default
       return
     end select

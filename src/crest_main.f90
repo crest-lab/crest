@@ -300,6 +300,8 @@ program CREST
            call crest_moleculardynamics(env,tim)
         case( crest_s1)
            call crest_search_1(env,tim)
+        case( crest_mecp)
+           call crest_search_mecp(env,tim)
         case( crest_test) 
            call crest_playground(env, tim) 
         case default
