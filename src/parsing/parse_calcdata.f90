@@ -54,7 +54,7 @@ contains
     type(calcdata) :: calc
     type(root_object) :: dict
     type(datablock) :: blk
-    type(calculation_settings) :: newjob
+    type(calculation_settings) :: newjob,newjob2
     type(constraint) :: newcstr
     integer :: i,j,k,l
     logical,intent(out) :: included
@@ -74,6 +74,22 @@ contains
         call calc%add(newjob)
         included = .true.
         !write(*,*) 'read [calculation.level]'
+      else if (blk%header == '[calculation.mecp]') then
+        !>-- setup
+        if(allocated(calc%calcs))deallocate(calc%calcs)
+        calc%ncalculations = 0
+        calc%id = -1 
+        call parse_leveldata(blk,newjob)
+        !>-- S0 setup
+        call parse_leveldata(blk,newjob)
+        newjob%uhf = 0
+        newjob%calcspace = 's0'
+        call calc%add(newjob)
+        !>-- S1 setup
+        newjob%uhf = 2
+        newjob%calcspace = 's1'
+        call calc%add(newjob)
+        included = .true.
       else if (blk%header == '[calculation.constraints]') then
         call parse_constraintdat(blk,calc)
         included = .true.
@@ -96,7 +112,10 @@ contains
     type(calculation_settings),intent(out) :: job
     integer :: i
     call job%deallocate()
-    if (blk%header .ne. '[calculation.level]') return
+    if ((blk%header .ne. '[calculation.level]') .and. &
+    & (blk%header .ne. '[calculation.mecp]')) then
+       return
+    endif
     do i = 1,blk%nkv
       call parse_setting(job,blk%kv_list(i))
     end do
@@ -248,6 +267,13 @@ contains
     character(len=*) :: key
     character(len=*) :: val
     select case (key)
+    case( 'type' )
+      select case( val )
+      case( 'mecp' )
+        calc%id = -1  
+      case default
+        calc%id = 1
+      end select
     case ('elog')
       calc%elog = val
       calc%pr_energies = .true.
