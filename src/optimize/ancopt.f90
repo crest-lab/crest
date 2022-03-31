@@ -32,7 +32,7 @@ module ancopt_module
   use type_anc
   use optimize_maths
   use modelhessian_module
-  use bfgs_module
+  use hessupdate_module
   implicit none
 
   integer,parameter :: olev_crude = -3

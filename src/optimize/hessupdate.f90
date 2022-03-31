@@ -19,7 +19,7 @@
 ! Routines were adapted from the xtb code (github.com/grimme-lab/xtb)
 ! under the Open-source software LGPL-3.0 Licencse.
 !================================================================================!
-module bfgs_module
+module hessupdate_module
    use iso_fortran_env, only: wp=>real64
 
    public :: bfgs
@@ -30,13 +30,21 @@ contains
 !> subroutine bfgs
 !> Performs BFGS update of Hessian matrix
 !>
+!>   Hₖ = Hₖ₋₁ + ΔHᵇᶠᵍˢ
+!>
+!> with 
+!> 
+!>              ΔgΔgᵀ     Hₖ₋₁ ΔxΔxᵀ Hₖ₋₁ 
+!>   ΔHᵇᶠᵍˢ =   ─────  -  ───────────────
+!>              ΔgᵀΔx       Δxᵀ Hₖ₋₁ Δx
+!>
 !> Input:
 !> nat3	= dimension parameter as declared in the calling routine
-!> grad	= actual gradient
-!> grado = gradient one cycle before
-!> dx    = displ = displacement = coords(k) - coord(k-1) ; k=cycle
-!> hess	= hessian matrix and in Output updated hessian
-!>--------------------------------------------------------------------
+!> grad	= gradient ( gₖ )
+!> grado = gradient one cycle before ( gₖ₋₁ )
+!> dx    = displ = Δx = xₖ - xₖ₋₁  ; k=cycle
+!> hess	= Hessian matrix (Hₖ₋₁) on In- and updated Hessian (Hₖ) on Output
+!>------------------------------------------------------------------------
 subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    implicit none
 
@@ -50,65 +58,74 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    real(wp),intent(inout) :: hess(nat3*(nat3+1)/2)
    !> Local:
    integer  :: i,j,ij,ii
-   real(wp),allocatable :: svec(:),tvec(:)
-   real(wp) :: ddtd, dds, temp
-   real(wp) :: thrs, scal, damp, dampO,dampD,thr
-   real(wp) :: ooddtd, oodds, sdds, tddtd
+   real(wp),allocatable :: dg(:), Hdx(:)
+   real(wp) :: ddtd, dds, dHBFGS
+   real(wp) :: iddtd, idds, sdds, tddtd
+   real(wp),parameter :: thrs=1.d-12
+   real(wp),parameter :: thr=1d-2
    !> BLAS:
    external :: dspmv
    real(wp),external :: ddot
    !---------------------------------------------------------------------
-   allocate( svec(nat3),tvec(nat3), source = 0.0_wp )
+   allocate( dg(nat3), Hdx(nat3), source = 0.0_wp )
 
-   !> damping of H update
-!  call hdamp(gnorm,dampO,dampD)
+   !> calculate Δg = gₖ - gₖ
+   dg(1:nat3) = grad(1:nat3) - grado(1:nat3)
 
-   thrs=1.d-12
-   !> calculate dg = grad(k+1) - grad(k)
-   svec(1:nat3) = grad(1:nat3) - grado(1:nat3)
+   !> calculate Hdx = Hₖ₋₁ * Δx
+   call dspmv('u',nat3,1.0_wp,hess,dx,1,0.0_wp,Hdx,1)
 
-   !> calculate tvec = h*dx
-   call dspmv('u',nat3,1.0_wp,hess,dx,1,0.0_wp,tvec,1)
+   !> calculate ddtd = Δxᵀ * Hₖ₋₁ * Δx
+   ddtd = ddot(nat3,Hdx,1,dx,1)
 
-   !> calculate scalar dxdx and jtdx
-   ddtd = ddot(nat3,tvec,1,dx,1)
-   dds  = ddot(nat3,svec,1,dx,1)
-   ooddtd = 1.0_wp / ddtd
-   oodds  = 1.0_wp / dds
+   !> calculate dds = Δgᵀ * Δx
+   dds  = ddot(nat3,dg,1,dx,1)
+
+   !> inverse ddtd and dds 
+   iddtd = 1.0_wp / ddtd
+   idds  = 1.0_wp / dds
 
    if(dds > thrs .and. ddtd > thrs) then
    !$omp parallel default(none) &
-   !$omp shared(nat3,oodds,ooddtd,svec,tvec) &
-   !$omp private(i,j,ii,ij,sdds,tddtd,temp) &
+   !$omp shared(nat3,idds,iddtd,dg,Hdx) &
+   !$omp private(i,j,ii,ij,sdds,tddtd,dHBFGS) &
    !$omp shared(hess)
    !$omp do
       do i=1,nat3
-         ii = i*(i-1)/2
-         sdds  = svec(i)*oodds
-         tddtd = tvec(i)*ooddtd
+         !> Hessian index mapping
+         ii = i*(i-1)/2     
+      
+         !> calculate ssds = Δg / (Δgᵀ * Δx)   (first index)
+         sdds  = dg(i)*idds
+
+         !> calculate tddtd = (Hₖ₋₁ * Δx) / (Δxᵀ * Hₖ₋₁ * Δx) (first index)
+         tddtd = Hdx(i)*iddtd
+
          do j=1,i
             ij = ii + j
-!           scal=dampd
-!           if(i.ne.j)scal=dampo
-            !temp= (svec(i)*svec(j))/dds - (tvec(i)*tvec(j))/ddtd
-            temp = svec(j)*sdds - tvec(j)*tddtd
-            hess(ij) = hess(ij) + temp
+
+            !> calculate Hessian elements of ΔHᵇᶠᵍˢ (second indices)
+            dHBFGS = dg(j)*sdds - Hdx(j)*tddtd
+
+            !> calculate updated Hessian Hₖ
+            hess(ij) = hess(ij) + dHBFGS
          end do
       end do
    !$omp end do
    !$omp end parallel
-!  else
-!     write(*,'(a)') ' ******* Hesse update not performed ******* '
-!     write(*,*    ) dds,ddtd,thrs
    endif
 
-   !> limit diagonal to (0.01 slightly better than 0.001)
-   thr=1.d-2
+   !> limit diagonal to (thr=0.01 slightly better than thr=0.001)
    ij=0
    do i=1,nat3
       ij=ij+i
       if(abs(hess(ij)).lt.thr)hess(ij)=thr
    enddo
+
+   !> deallocate
+   if(allocated(Hdx))deallocate(Hdx)
+   if(allocated(dg))deallocate(dg)
+
    return
 end subroutine bfgs
 
@@ -192,4 +209,4 @@ subroutine hdamp(gnorm,dampO,dampD)
 end subroutine hdamp
 
 !===============================0
-end module bfgs_module
+end module hessupdate_module
