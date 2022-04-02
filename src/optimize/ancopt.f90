@@ -141,6 +141,7 @@ contains
     tight = calc%optlev
     modef = 0
     call get_optthr(mol%nat,tight,calc,ethr,gthr)
+    iupdat = calc%iupdat
     hlow = calc%hlow_opt !optset%hlow_opt !> 0.01 in ancopt, 0.002 too small
     hmax = calc%hmax_opt
     maxdispl = calc%maxdispl_opt !optset%maxdispl_opt
@@ -191,6 +192,18 @@ contains
       else
         write (*,chrfmt) "RF solver         ","davidson"
       end if
+      select case( iupdat )
+      case( 0 )
+       write (*,chrfmt) "Hessian update    ","bfgs"
+      case( 1 )
+       write (*,chrfmt) "Hessian update    ","powell"
+      case( 2 )
+       write (*,chrfmt) "Hessian update    ","sr1"
+      case( 3 )
+       write (*,chrfmt) "Hessian update    ","bofill"
+      case( 4 )
+       write (*,chrfmt) "Hessian update    ","schlegel"
+      end select
       write (*,chrfmt) "write crestopt.log",bool2string(wr)
       if (linear) then
         write (*,chrfmt) "linear (good luck)",bool2string(linear)
@@ -508,13 +521,20 @@ contains
 !> Update the Hessian
 !>------------------------------------------------------------------------
       if (ii .gt. 1) then
-!>--- Hessian update, but only after first iteration
-        if (iupdat .eq. 0) then
-!          if (pr) write(*,*) 'BFGS update step'
-          call bfgs(anc%nvar,gnorm,gint,gold,displ,anc%hess)
-        else
-          call powell(anc%nvar,gnorm,gint,gold,displ,anc%hess)
-        end if
+!>--- Hessian update, but only after first iteration (ii > 1)
+        select case( iupdat )
+        case( 0 )
+           call bfgs(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+        case( 1 )
+           call powell(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+        case( 2 )
+           call sr1(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+        case( 3 )
+           call bofill(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+        case default
+           write(*,*) 'invalid hessian update selection'
+           stop
+        end select
       end if
 
 !>------------------------------------------------------------------------
@@ -695,7 +715,7 @@ contains
     if (calc%maxcycle <= 0) then
       calc%maxcycle = maxcycle
     end if
-    calc%iupdat = 0 !0=BFGS, 1=Powell
+    !calc%iupdat = 0 !0=BFGS, 1=Powell
     if (calc%tsopt) then
       calc%hlow_opt = max(calc%hlow_opt,0.250d0)
       calc%iupdat = 1

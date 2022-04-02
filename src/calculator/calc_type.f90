@@ -95,7 +95,7 @@ module calc_type
     logical  :: exact_rf = .false.
     logical  :: average_conv = .false.
     logical  :: tsopt = .false.
-    integer  :: iupdat = 0  !> 0=BFGS, 1=Powell
+    integer  :: iupdat = 0  !> 0=BFGS, 1=Powell, 2=SR1, 3=Bofill, 4=Schlegel
 
     !>--- printouts and io
     logical :: pr_energies = .false.

@@ -277,6 +277,21 @@ contains
     case ('elog')
       calc%elog = val
       calc%pr_energies = .true.
+    case ('hess_update','hupdate')
+      select case(val)
+        case( 'bfgs' )
+          calc%iupdat = 0
+        case( 'powell' )
+          calc%iupdat = 1
+        case( 'sr1' )
+          calc%iupdat = 2
+        case( 'bofill' )
+          calc%iupdat = 3
+        case( 'schlegel' )
+          calc%iupdat = 4
+        case default
+          calc%iupdat = 0
+      end select
     case default
       return
     end select
