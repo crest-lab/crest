@@ -59,8 +59,9 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    !> Local:
    integer  :: i,j,ij,ii
    real(wp),allocatable :: dg(:), Hdx(:)
-   real(wp) :: ddtd, dds, dHBFGS
-   real(wp) :: iddtd, idds, sdds, tddtd
+   real(wp) :: dHBFGS
+   real(wp) :: dxHdx,idxHdx,HdxdxHdx
+   real(wp) :: dgdx,idgdx,dgdgdx
    real(wp),parameter :: thrs=1.d-12
    real(wp),parameter :: thr=1d-2
    !> BLAS:
@@ -75,38 +76,38 @@ subroutine bfgs(nat3,gnorm,grad,grado,dx,hess)
    !> calculate Hdx = Hₖ₋₁ * Δx
    call dspmv('u',nat3,1.0_wp,hess,dx,1,0.0_wp,Hdx,1)
 
-   !> calculate ddtd = Δxᵀ * Hₖ₋₁ * Δx
-   ddtd = ddot(nat3,Hdx,1,dx,1)
+   !> calculate dxHdx = Δxᵀ * Hₖ₋₁ * Δx
+   dxHdx = ddot(nat3,Hdx,1,dx,1)
 
-   !> calculate dds = Δgᵀ * Δx
-   dds  = ddot(nat3,dg,1,dx,1)
+   !> calculate dgdx = Δgᵀ * Δx
+   dgdx  = ddot(nat3,dg,1,dx,1)
 
-   !> inverse ddtd and dds 
-   iddtd = 1.0_wp / ddtd
-   idds  = 1.0_wp / dds
+   !> inverse dxHdx and dgdx 
+   idxHdx = 1.0_wp / dxHdx
+   idgdx  = 1.0_wp / dgdx
 
-   if(dds > thrs .and. ddtd > thrs) then
+   if(dgdx > thrs .and. dxHdx > thrs) then
    !$omp parallel default(none) &
-   !$omp shared(nat3,idds,iddtd,dg,Hdx) &
-   !$omp private(i,j,ii,ij,sdds,tddtd,dHBFGS) &
+   !$omp shared(nat3,idgdx,idxHdx,dg,Hdx) &
+   !$omp private(i,j,ii,ij,dgdgdx,HdxdxHdx,dHBFGS) &
    !$omp shared(hess)
    !$omp do
       do i=1,nat3
          !> Hessian index mapping
          ii = i*(i-1)/2     
       
-         !> calculate ssds = Δg / (Δgᵀ * Δx)   (first index)
-         sdds  = dg(i)*idds
+         !> calculate dgdgdx = Δg / (Δgᵀ * Δx)   (first index)
+         dgdgdx  = dg(i)*idgdx
 
-         !> calculate tddtd = (Hₖ₋₁ * Δx) / (Δxᵀ * Hₖ₋₁ * Δx) (first index)
-         tddtd = Hdx(i)*iddtd
+         !> calculate HdxdxHdx = (Hₖ₋₁ * Δx) / (Δxᵀ * Hₖ₋₁ * Δx) (first index)
+         HdxdxHdx = Hdx(i)*idxHdx
 
          do j=1,i
             !> Hessian index mapping
             ij = ii + j
 
             !> calculate Hessian elements of ΔHᵇᶠᵍˢ (second indices)
-            dHBFGS = dg(j)*sdds - Hdx(j)*tddtd
+            dHBFGS = dg(j)*dgdgdx - Hdx(j)*HdxdxHdx
 
             !> calculate updated Hessian Hₖ
             hess(ij) = hess(ij) + dHBFGS
@@ -163,7 +164,8 @@ subroutine powell(nat3,gnorm,grad,grado,dx,hess)
    real(wp),intent(inout) :: hess(nat3*(nat3+1)/2)
    !> Local:
    integer :: i,j,ij
-   real(wp) :: dds,ddtd,dHPSB
+   real(wp) :: dHPSB
+   real(wp) :: dxdx,dxdgHdx
    real(wp),allocatable :: dgHdx(:)
    real(wp) :: thrs, scal, damp, dampO,dampD
    !> BLAS
@@ -178,12 +180,12 @@ subroutine powell(nat3,gnorm,grad,grado,dx,hess)
    !> calculate (Δg - Hₖ₋₁ Δx)
    dgHdx(1:nat3) = grad(1:nat3) - grado(1:nat3) - dgHdx(1:nat3)
 
-   !> calculate scalar dds = ΔxᵀΔx
-   dds  = ddot(nat3,dx,1,dx,1)
+   !> calculate scalar dxdx = ΔxᵀΔx
+   dxdx  = ddot(nat3,dx,1,dx,1)
 
-   if(dds > thrs) then
+   if(dxdx > thrs) then
       !> calculate (Δxᵀ (Δg - Hₖ₋₁Δx)) / (ΔxᵀΔx)
-      ddtd = ddot(nat3,dgHdx,1,dx,1)/dds
+      dxdgHdx = ddot(nat3,dgHdx,1,dx,1)/dxdx
 
       do i=1,nat3
          do j=1,i
@@ -192,10 +194,10 @@ subroutine powell(nat3,gnorm,grad,grado,dx,hess)
 
             !> calculate [(Δg - Hₖ₋₁ Δx) Δxᵀ + Δx (Δg - Hₖ₋₁Δx)ᵀ]
             dHPSB=dgHdx(i)*dx(j) + dx(i)*dgHdx(j)
-            !> substract ddtd*(ΔxΔxᵀ)
-            dHPSB=dHPSB - dx(i)*ddtd*dx(j)
+            !> substract dxdgHdx*(ΔxΔxᵀ)
+            dHPSB=dHPSB - dx(i)*dxdgHdx*dx(j)
             !> divide everything by scalar (ΔxᵀΔx)
-            dHPSB = dHPSB/dds
+            dHPSB = dHPSB/dxdx
 
             !> update Hessian by ΔHᵖˢᵇ 
             hess(ij) = hess(ij) + dHPSB
@@ -206,28 +208,6 @@ subroutine powell(nat3,gnorm,grad,grado,dx,hess)
    if(allocated(dgHdx))deallocate(dgHdx)
    return
 end subroutine powell
-
-subroutine hdamp(gnorm,dampO,dampD)
-   implicit none
-   real(wp) gnorm,dampO,dampD
-   dampD = 1.0
-   dampO = 1.0
-   return
-   ! damping of H update
-   if(gnorm > 0.5)then
-      dampD = 1.0
-      dampO = 0.0
-   endif
-   if(gnorm < 0.5 .and. gnorm > 0.2)then
-      dampD = 1.0
-      dampO = 0.2
-   endif
-   if(gnorm < 0.2 .and. gnorm > 0.05) then
-      dampD = 1.0
-      dampO = 0.5
-   endif
-end subroutine hdamp
-
 
 !========================================================================================!
 !> subroutine sr1
@@ -262,10 +242,11 @@ subroutine sr1(nat3,gnorm,grad,grado,dx,hess)
    !> Local:
    integer  :: i,j,ij,ii
    real(wp),allocatable :: dg(:), dgHdx(:)
-   real(wp) :: ddtd, dHSR1
-   real(wp) :: iddtd, tddtd
-   real(wp),parameter :: thrs=1.d-8
-   real(wp),parameter :: thr=1d-3
+   real(wp) :: dHSR1
+   real(wp) :: tddtd
+   real(wp) :: dgHdxdx
+   real(wp),parameter :: thrs=1.d-12
+   real(wp),parameter :: thr=1d-2
    !> BLAS:
    external :: dspmv
    real(wp),external :: ddot
@@ -280,14 +261,12 @@ subroutine sr1(nat3,gnorm,grad,grado,dx,hess)
    !> calculate (Δg - Hₖ₋₁ Δx)
    dgHdx = dg - dgHdx
 
-   !> calculate ddtd = (Δg - Hₖ₋₁Δx)ᵀ Δx
-   ddtd = ddot(nat3,dgHdx,1,dx,1)
-   !> inverse ddtd  
-   iddtd = 1.0_wp / ddtd
+   !> calculate dgHdxdx = (Δg - Hₖ₋₁Δx)ᵀ Δx
+   dgHdxdx = ddot(nat3,dgHdx,1,dx,1)
 
-!   if(abs(ddtd).gt.thrs)then
+   if(abs(dgHdxdx).gt.thrs)then
    !$omp parallel default(none) &
-   !$omp shared(nat3,iddtd,dg,dgHdx) &
+   !$omp shared(nat3,dgHdxdx,dg,dgHdx) &
    !$omp private(i,j,ii,ij,tddtd,dHSR1) &
    !$omp shared(hess)
    !$omp do
@@ -296,7 +275,7 @@ subroutine sr1(nat3,gnorm,grad,grado,dx,hess)
          ii = i*(i-1)/2     
       
          !> calculate tddtd = (Δg - Hₖ₋₁Δx)/ ((Δg - Hₖ₋₁Δx)ᵀ Δx) (first index)
-         tddtd = dgHdx(i)*iddtd
+         tddtd = dgHdx(i)/dgHdxdx
 
          do j=1,i
             !> Hessian index mapping
@@ -311,14 +290,7 @@ subroutine sr1(nat3,gnorm,grad,grado,dx,hess)
       end do
    !$omp end do
    !$omp end parallel
-!   endif
-
-   !> limit diagonal
-!   ij=0
-!   do i=1,nat3
-!      ij=ij+i
-!      if(abs(hess(ij)).lt.thr)hess(ij)=thr
-!   enddo
+   endif
 
    !> deallocate
    if(allocated(dgHdx))deallocate(dgHdx)
@@ -428,6 +400,127 @@ subroutine bofill(nat3,gnorm,grad,grado,dx,hess)
    if(allocated(dgHdx))deallocate(dgHdx)
    return
 end subroutine bofill
+
+
+!========================================================================================!
+!> subroutine schlegel:
+!> Performs Farkas-Schlegel update of Hessian matrix
+!>
+!>   Hₖ = Hₖ₋₁ + ΔHᶠˢ
+!>
+!> with 
+!> 
+!>   ΔHᶠˢ = φ^½ ΔHˢʳ¹ + (1-φ^½) ΔHᵇᶠᵍˢ
+!>
+!> and             
+!>           ⎛((Δg - Hₖ₋₁Δx)ᵀ Δx)²⎞½
+!>    φ^½ =  ⎜────────────────────⎟
+!>           ⎝|Δg - Hₖ₋₁Δx|² |Δx|²⎠
+!>
+!> Input:
+!> nat3   = dimension parameter as declared in the calling routine=
+!>         3*natoms
+!> grad = gradient ( gₖ )
+!> grado = gradient one cycle before ( gₖ₋₁ )
+!> dx    = displ = Δx = xₖ - xₖ₋₁  ; k=cycle
+!> hess = Hessian matrix (Hₖ₋₁) on In- and updated Hessian (Hₖ) on Output
+!>--------------------------------------------------------------------
+subroutine schlegel(nat3,gnorm,grad,grado,dx,hess)
+   implicit none
+   !> Input:
+   integer, intent(in) :: nat3
+   real(wp),intent(in) :: grad(nat3),grado(nat3),dx(nat3),gnorm
+   !> Output:
+   real(wp),intent(inout) :: hess(nat3*(nat3+1)/2)
+   !> Local:
+   integer :: i,j,ij
+   real(wp) :: dds,ddsd,ddtd,iddtd,dHBFGS,dHSR1,dHFS
+   real(wp) :: ddh,ddhx,tddtd
+   real(wp) :: dxHdx,idxHdx,dgdx,idgdx,dgdgdx,HdxdxHdx
+   real(wp),allocatable :: dgHdx(:)
+   real(wp),allocatable :: dg(:),Hdx(:)
+   real(wp) :: phi
+   real(wp) :: thrs, scal, damp, dampO,dampD
+   !> BLAS
+   real(wp),external :: ddot
+   !---------------------------------------------------------------------
+   allocate( dg(nat3), dgHdx(nat3), Hdx(nat3), source=0.0_wp)
+   thrs=1.d-14
+
+   !> calculate Δg = gₖ - gₖ₋₁
+   dg(1:nat3) = grad(1:nat3) - grado(1:nat3)
+
+   !> calculate Hdx = Hₖ₋₁ * Δx
+   call dspmv('u',nat3,1.0d0,hess,dx,1,0.0d0,Hdx,1)
+
+   !> calculate (Δg - Hₖ₋₁ Δx)
+   dgHdx(1:nat3) = dg(1:nat3) - Hdx(1:nat3)
+
+   !> calculate scalar dds = ΔxᵀΔx = |Δx|²
+   dds  = ddot(nat3,dx,1,dx,1)
+
+   !> calculate ddtd = (Δg - Hₖ₋₁Δx)ᵀ Δx
+   ddtd = ddot(nat3,dgHdx,1,dx,1)
+   !> inverse ddtd  
+   iddtd = 1.0_wp / ddtd
+
+
+   !> calculate ddtd = Δxᵀ * Hₖ₋₁ * Δx
+   dxHdx = ddot(nat3,Hdx,1,dx,1)
+   
+   !> calculate dds = Δgᵀ * Δx
+   dgdx  = ddot(nat3,dg,1,dx,1)
+
+   !> inverse dxHdx and dgdx
+   idxHdx = 1.0_wp / dxHdx
+   idgdx  = 1.0_wp / dgdx
+
+
+   !> calculate ((Δg - Hₖ₋₁Δx)ᵀ Δx)²
+   ddhx = ddtd * ddtd
+   !> calculate scalar |Δg - Hₖ₋₁Δx|²
+   ddh = ddot(nat3,dgHdx,1,dgHdx,1)
+
+   if(dds > thrs) then
+      !> calculate φ^½
+      phi = ddhx / ( ddh * dds )
+      phi = sqrt(phi)
+
+      do i=1,nat3
+
+         !> calculate tddtd = (Δg - Hₖ₋₁Δx)/ ((Δg - Hₖ₋₁Δx)ᵀ Δx) (SR1 first index)
+         tddtd = dgHdx(i)*iddtd
+
+         !> calculate dgdgdx = Δg / (Δgᵀ * Δx)   (BFGS first index)
+         dgdgdx  = dg(i)*idgdx
+         !> calculate HdxdxHdx = (Hₖ₋₁ * Δx) / (Δxᵀ * Hₖ₋₁ * Δx) (BFGS first index)
+         HdxdxHdx = Hdx(i)*idxHdx
+
+
+         do j=1,i
+            !> Hessian index mapping
+            ij = i*(i-1)/2 + j
+
+            !> calculate Hessian elements of ΔHᵇᶠᵍˢ (BFGS second indices)
+            dHBFGS = dg(j)*dgdgdx - Hdx(j)*HdxdxHdx
+
+            !> calculate Hessian elements of ΔHˢʳ¹ (SR1 second index)
+            dHSR1 = dgHdx(j)*tddtd
+
+            !> calculate ΔHᶠˢ
+            dHFS = phi*dHSR1 + (1.0_wp - phi)*dHBFGS 
+
+            !> update Hessian by ΔHᶠˢ
+            hess(ij) = hess(ij) + dHFS
+         end do
+      end do
+   endif
+   
+   if(allocated(Hdx))deallocate(Hdx)
+   if(allocated(dgHdx))deallocate(dgHdx)
+   if(allocated(dg))deallocate(dg)
+   return
+end subroutine schlegel
 
 !========================================================================================!
 end module hessupdate_module

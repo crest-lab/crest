@@ -531,6 +531,8 @@ contains
            call sr1(anc%nvar,gnorm,gint,gold,displ,anc%hess)
         case( 3 )
            call bofill(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+        case( 4 )
+           call schlegel(anc%nvar,gnorm,gint,gold,displ,anc%hess)
         case default
            write(*,*) 'invalid hessian update selection'
            stop
