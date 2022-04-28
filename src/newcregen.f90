@@ -621,7 +621,8 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
           endif
        endif
 
-       if(dissoc .or. (abs(erj).lt.1.0d-6) .or. &
+!      if(dissoc .or. (abs(erj).lt.1.0d-6) .or. &
+      if(dissoc .or. &
       &   (cnorm.lt.1.0d-6) .or. (.not.distok)    )then
          !-- move broken structures to the end of the matrix
          orderref(j)=llan
