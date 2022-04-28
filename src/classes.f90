@@ -370,6 +370,7 @@ module crest_data
       integer :: nstatic
 
       integer,allocatable  :: includeRMSD(:)
+      logical,allocatable  :: excludeTOPO(:)
 
     !--- property data objects
       type(protobj) :: ptb

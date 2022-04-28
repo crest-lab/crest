@@ -28,7 +28,7 @@ subroutine xtbsp3(env,fname)
          character(len=*) :: fname
          type(systemdata) :: env
          character(len=512) :: jobcall
-         character(*),parameter :: pipe=' > xtb.out 2>/dev/null'
+         character(*),parameter :: pipe=' > xtb.out 2> /dev/null'
          integer :: io
          call remove('gfnff_topo')
          call remove('energy')
@@ -41,6 +41,7 @@ subroutine xtbsp3(env,fname)
 !---- jobcall
          write(jobcall,'(a,1x,a,1x,a,'' --sp '',a,1x,a)') &
          &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
+
          call execute_command_line(trim(jobcall), exitstat=io)
 !---- cleanup
          call remove('energy')
@@ -239,8 +240,8 @@ subroutine ensemble_lmo(env,fname,self,NTMP,TMPdir,conv)
 
   !create the system call (it is the same for every optimization)
 
-  write(jobcall,'(a,1x,a,1x,a,'' --sp --lmo --chrg '',i3,1x,a,1x,a,'' >xtb_lmo.out'')') &
-  &     trim(env%ProgName),trim(fname),trim(env%lmover),self%chrg,trim(env%solv),trim(pipe)
+  write(jobcall,'(a,1x,a,1x,a,'' --sp --lmo --chrg '',i3,1x,a,'' >xtb_lmo.out'')') &
+  &     trim(env%ProgName),trim(fname),trim(env%lmover),self%chrg,trim(pipe)
   k=0 !counting the finished jobs
 
 !___________________________________________________________________________________
@@ -560,7 +561,7 @@ subroutine ens_sp(env,fname,NTMP,TMPdir)
   end if
 
 !--- Jobcall  
-    write(jobcall,'(a,1x,a,1x,a,'' --sp '',a,1x,a,'' >xtb_sp.out'')') &
+    write(jobcall,'(a,1x,a,1x,a,'' --sp '',a,1x,a,'' > xtb_sp.out'')') &
     &    trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
 
   k=0 !counting the finished jobs

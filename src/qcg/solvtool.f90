@@ -414,6 +414,9 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   character(len=512)         :: thispath, resultspath, tmp
   character(len=20)          :: gfnver_tmp
   integer                    :: ich99,ich15,ich88
+  character(len=LEN(env%solv)) :: solv_tmp
+  logical                    :: gbsa_tmp
+
 
   interface
     subroutine both_ellipsout(fname,n,at,xyz,r1,r2)
@@ -583,7 +586,13 @@ do iter=1, max_cycle
 !--- Interaction energy
   gfnver_tmp = env%gfnver
   env%gfnver = env%lmover
+  gbsa_tmp=env%gbsa
+  solv_tmp=env%solv
+  env%gbsa = .false.
+  env%solv = ''
   call get_interaction_E (env,solu,solv,clus,iter,E_inter)
+  env%gbsa = gbsa_tmp
+  env%solv = solv_tmp
   if(E_inter(iter) .lt. 0) then
      success=.true.
   else
@@ -762,6 +771,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   real(wp), allocatable      :: de(:)
   real(wp), allocatable      :: p(:)
   integer                    :: ich98,ich65,ich48
+  logical                    :: not_param=.false.
 
   interface
     subroutine aver(pr,env,runs,e_tot,S,H,G,sasa,a_present,a_tot)
@@ -812,10 +822,6 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   write(env%cts%pots(2),'(2x,"potential=polynomial")')
   write(env%cts%pots(3),'(2x,"ellipsoid:",1x,3(g0,",",1x),"all")') clus%ell_abc  
   if(.not.env%solv_md) write(env%cts%pots(4),'(2x,"ellipsoid:",1x,3(g0,",",1x),"1-",i0)') solu%ell_abc, solu%nat
-!  if(env%ens_const) then
-!    write(env%cts%pots(5),'("$fix")')
-!    write(env%cts%pots(6),'(2x,"atoms: 1-",i0)') solu%nat
-!  endif
 
   call chdir(env%scratchdir)
   scratchdir_tmp = env%scratchdir
@@ -1088,9 +1094,6 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
 !--- Optimization
          call print_qcg_opt
          if(env%gfnver .eq. '--gfn2') call multilevel_opt(env,99)    
-!         if(env%gfnver .ne. '--gfn2') then
-!            call sort_and_check(env,'crest_rotamers_1.xyz')
-!         end if
 
   end select
 
@@ -1150,6 +1153,22 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
      call chdir(tmppath2)
   end do
 
+  if(.not.e_there) then
+     write(*,*)
+     write(*,*) 'Energy not found. Error in xTB computations occured'
+     call chdir(to)
+     call minigrep('xtb_sp.out','solv_model_loadInternalParam',not_param)
+     call chdir(tmppath2)
+     if(not_param) then
+        write(*,*) '  !!!WARNIG: CHOSEN SOLVENT NOT PARAMETERIZED FOR IMPLICIT SOLVATION MODEL!!!'
+        write(*,'(''  CHECK IF '',A,'' IS AVAILABLE IN xTB'')') env%solv 
+        write(*,*) '  PLEASE RESTART THE ENSEMBLE GENERATION WITH AVAILABLE PARAMETERIZATION IF YOU NEED ENERGIES'
+        call copysub ('crest_conformers.xyz',resultspath)
+        write(*,*) '  The enesemble can be found in the <ensemble> directory as <crest_conformers.xyz>'
+        error stop
+     end if
+  end if
+
   env%gfnver = gfnver_tmp
   call ens%write ('full_ensemble.xyz')
 
@@ -1158,11 +1177,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   minpos=minloc(ens%er,dim=1)
   write(to,'("TMPSP",i0)') minpos
   call chdir(to)
-!  call clus%deallocate
-!  call rdnat('final_cluster.coord',clus%nat)
-!  allocate(clus%at(clus%nat),clus%xyz(3,clus%nat))
   call rdxmol('cluster.xyz',clus%nat,clus%at,clus%xyz)
-!  clus%xyz = clus%xyz * bohr
   call chdir(tmppath2)
   write(comment,'(F20.8)') ens%er(minpos)
   inquire(file='crest_best.xyz',exist=ex)
@@ -1442,6 +1457,7 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   call chdir('solvent_properties')
   call copysub('solvent.lmo',tmppath2)
   call chdir(tmppath2)
+
 
 !--- SP of each cluster
   call ens%write('ensemble.xyz')
@@ -2204,11 +2220,7 @@ subroutine write_qcg_setup(env)
      write(*,'(2x,''Solvation model        : '',a)') env%solvent
   end if
   write(*,'(2x,''xtb opt level          : '',a)') trim(optlevflag(env%optlev))
-  if(.not.env%user_temp)then
-    write(*,'(2x,''System temperature [K] : ''a)') '298.0'
-  else
-    write(*,'(2x,''System temperature [K] : '',F5.1)') env%mdtemps(1)
-  end if
+  write(*,'(2x,''System temperature [K] : '',F5.1)') env%tboltz
   write(*,'(2x,''RRHO scaling factor    : '',F4.2)') env%freq_scal
 
 end subroutine write_qcg_setup
@@ -2678,17 +2690,6 @@ subroutine aver(pr,env,runs,e_tot,S,H,G,sasa,a_present,a_tot)
   de(1:runs)=(e_tot(1:runs)-e0)
   call qcg_boltz(env,runs,de,p)
 
-  if(pr)then
-  open(newunit=ich48,file='population.dat')
-  write(ich48,'(2x, ''cluster'',2x,''E_norm [Eh]'',2x, ''De [kcal]'', 4x, ''p'')')
-    do j=1,runs
-       if(j.lt.10) then
-          write(ich48,'(5x,i0,3x,f11.6,5x,f6.4,3x,f6.4)')j,e_tot(j)/eh, de(j), p(j)
-       else
-          write(ich48,'(5x,i0,2x,f11.6,5x,f6.4,3x,f6.4)')j, e_tot(j)/eh, de(j), p(j)
-       end if
-    end do
-  end if
   A=0
   eav=0
   pmax=0
@@ -2706,10 +2707,21 @@ subroutine aver(pr,env,runs,e_tot,S,H,G,sasa,a_present,a_tot)
   S=(1./beta)*A
   H=eav
   G=eav+S
-  write(ich48,*)
-  write(ich48,'(''Ensemble free energy [Eh]:'', f20.10)') G/eh
-  close(ich48)
- 
+  if(pr)then
+  open(newunit=ich48,file='population.dat')
+  write(ich48,'(2x, ''cluster'',2x,''E_norm [Eh]'',2x, ''De [kcal]'', 4x, ''p'')')
+    do j=1,runs
+       if(j.lt.10) then
+          write(ich48,'(5x,i0,3x,f11.6,5x,f6.4,3x,f6.4)')j,e_tot(j)/eh, de(j), p(j)
+       else
+          write(ich48,'(5x,i0,2x,f11.6,5x,f6.4,3x,f6.4)')j, e_tot(j)/eh, de(j), p(j)
+       end if
+    end do
+    write(ich48,*)
+    write(ich48,'(''Ensemble free energy [Eh]:'', f20.10)') G/eh
+    close(ich48)
+  end if
+
   deallocate(de,p)
  
 end subroutine aver
