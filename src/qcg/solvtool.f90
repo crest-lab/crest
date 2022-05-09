@@ -2341,7 +2341,6 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   real(wp)           :: ell_solu(3), ell_solv(3)
   character (len=10) :: fname
   logical            :: ex,pr,pr1
-  real(wp)           :: xyz_dum1(3,solu%nat), xyz_dum2(3,solv%nat)
 
   real(wp),parameter :: pi43   = 3.1415926540d0*4.0d0/3.0d0
   real(wp),parameter :: pi     = 3.1415926540d0
@@ -3017,7 +3016,7 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
     clus%nmol = (clus%nat-solu%nat)/solv%nat + 1
     allocate(xyz(3,clus%nat))
     xyz=clus%xyz 
-    call get_ellipsoid(env, solu, solv, clus,.false.)
+    call get_ellipsoid(env, solu, solv, clus,.true.)
     clus%xyz = xyz !Needed, because get_ellipsoid performs axistransformation and not fitting potential
     deallocate(xyz)
 
