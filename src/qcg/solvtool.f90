@@ -637,7 +637,6 @@ do iter=1, max_cycle
     write(ich15,'(a,1x,3F24.10)')i2e(clus%at(j)),clus%xyz(1:3,j)*bohr 
   enddo
 
-
 !--- Output
   call analyze_cluster(iter,clus%nat,solu%nat,solv%nat,clus%xyz,clus%at,shr_av,shr)   ! dist of new mol from solute for output
 
@@ -2335,7 +2334,6 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   type(systemdata)   :: env 
   type(zmolecule)    :: solu, solv, clus
   type(zmolecule)    :: dummy_solu, dummy_solv
-  real(wp)           :: eax_solu(3), eax_solv(3)
   real(wp)           :: rabc_solu(3), rabc_solv(3)
   real(wp)           :: aniso, sola
   real(wp)           :: rmax_solu, rmax_solv
@@ -2343,6 +2341,7 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   real(wp)           :: ell_solu(3), ell_solv(3)
   character (len=10) :: fname
   logical            :: ex,pr,pr1
+  real(wp)           :: xyz_dum1(3,solu%nat), xyz_dum2(3,solv%nat)
 
   real(wp),parameter :: pi43   = 3.1415926540d0*4.0d0/3.0d0
   real(wp),parameter :: pi     = 3.1415926540d0
@@ -2353,25 +2352,27 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   fname = 'eaxis.qcg'
   inquire(file=fname,exist=ex)
 
+  if(pr1) then !First time called
 !--- Moving all coords to the origin (transformation)
-  call axistrf(solu%nat,solu%nat,solu%at,solu%xyz) 
+    call axistrf(solu%nat,solu%nat,solu%at,solu%xyz) 
 !  call axistrf(solv%nat,solv%nat,solv%at,solv%xyz)  !Not done in original QCG code
-  call axistrf(clus%nat,solu%nat,clus%at,clus%xyz)
+    call axistrf(clus%nat,solu%nat,clus%at,clus%xyz)
 
 !--- Overwrite solute and solvent coord in original file with transformed and optimized ones
-  call wrc0('solute',solu%nat,solu%at,solu%xyz)
-  call wrc0('solvent',solv%nat,solv%at,solv%xyz)
+    call wrc0('solute',solu%nat,solu%at,solu%xyz)
+    call wrc0('solvent',solv%nat,solv%at,solv%xyz)
 
 !--- Getting axis
-  if(pr1) write(*,*) 'Solute:'
-  call axis(pr1,solu%nat,solu%at,solu%xyz,eax_solu)
-  if(pr1) write(*,*) 'Solvent:'
-  call axis(pr1,solv%nat,solv%at,solv%xyz,eax_solv)
-  if(pr1) write(*,*)
+    write(*,*) 'Solute:'
+    call axis(pr1,solu%nat,solu%at,solu%xyz,solu%eax)
+    write(*,*) 'Solvent:'
+    call axis(pr1,solv%nat,solv%at,solv%xyz,solv%eax)
+    write(*,*)
+  end if
 
 !--- Computing anisotropy factor of solute and solvent
-  sola=sqrt(1.+(eax_solu(1)-eax_solu(3))/((eax_solu(1)+eax_solu(2)+eax_solu(3))/3.))
-  aniso=sqrt(1.+(eax_solv(1)-eax_solv(3))/((eax_solv(1)+eax_solv(2)+eax_solv(3))/3.)) ! =1 for a spherical system
+  sola=sqrt(1.+(solu%eax(1)-solu%eax(3))/((solu%eax(1)+solu%eax(2)+solu%eax(3))/3.))
+  aniso=sqrt(1.+(solv%eax(1)-solv%eax(3))/((solv%eax(1)+solv%eax(2)+solv%eax(3))/3.)) ! =1 for a spherical system
 
 !--- Get maximum intramoleclar distance of solute and solvent
   call getmaxrad(solu%nat,solu%at,solu%xyz,rmax_solu)
@@ -2386,17 +2387,17 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
 !--- Computation of outer Wall        
   roff = sola * dummy_solu%vtot / 1000
   boxr=((0.5*aniso*clus%nmol*dummy_solv%vtot+dummy_solu%vtot)/pi43)**third+roff+rmax_solv*0.5 !0.5 both
-  r=(boxr**3/(eax_solu(1)*eax_solu(2)*eax_solu(3)))**third       ! volume of ellipsoid = volume of sphere
-  rabc_solv= eax_solu * r                              ! outer solvent wall
+  r=(boxr**3/(solu%eax(1)*solu%eax(2)*solu%eax(3)))**third       ! volume of ellipsoid = volume of sphere
+  rabc_solv= solu%eax * r                              ! outer solvent wall
   
 !--- Computation of inner wall
   roff= sola * dummy_solu%vtot / 1000 
   boxr=((sola*dummy_solu%vtot)/pi43)**third+roff+rmax_solu*0.1 !0.1 before
-  r=(boxr**3/(eax_solu(1)*eax_solu(2)*eax_solu(3)))**third       ! volume of ellipsoid = volume of sphere
-  rabc_solu = eax_solu * r
-  dummy_solu%ell_abc(1) = eax_solu(1)**2/sum((eax_solu(1:3))**2)
-  dummy_solu%ell_abc(2) = eax_solu(2)**2/sum((eax_solu(1:3))**2)
-  dummy_solu%ell_abc(3) = eax_solu(3)**2/sum((eax_solu(1:3))**2)
+  r=(boxr**3/(solu%eax(1)*solu%eax(2)*solu%eax(3)))**third       ! volume of ellipsoid = volume of sphere
+  rabc_solu = solu%eax * r
+  dummy_solu%ell_abc(1) = solu%eax(1)**2/sum((solu%eax(1:3))**2)
+  dummy_solu%ell_abc(2) = solu%eax(2)**2/sum((solu%eax(1:3))**2)
+  dummy_solu%ell_abc(3) = solu%eax(3)**2/sum((solu%eax(1:3))**2)
   rabc_solu = dummy_solu%ell_abc * r
 
    solu%aniso = sola
