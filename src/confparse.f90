@@ -1953,7 +1953,7 @@ subroutine parseflags(env,arg,nra)  !FOR THE CONFSCRIPT STANDALONE
      endif
 
      do i=1, env%cts%ndim
-        if(env%cts%sett(i) .eq. '  reference=coord.ref') then
+        if(env%cts%sett(i) .eq. '  reference=coord.ref' .and. not(env%QCG)) then
             do j=i, env%cts%ndim
                 env%cts%sett(j) = env%cts%sett(j+1)
             end do
