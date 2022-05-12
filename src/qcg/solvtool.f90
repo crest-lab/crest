@@ -53,6 +53,8 @@ subroutine crest_solvtool(env, tim)
   !>-----------------------------------
   call qcg_head()
   !>-----------------------------------
+!> Check, if xtbiff is present
+  call check_prog_path_iff(env)
 
 !------------------------------------------------------------------------------
 !   Setup
@@ -482,7 +484,9 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   call get_ellipsoid(env, solu, solv, clus,.true.)
   call pr_grow_energy()
 
+  if(env%cts%used) call copysub(env%solu_file,env%scratchdir)
   call chdir(env%scratchdir)
+  if(env%cts%used) call copysub(env%solu_file,'tmp_grow')
   call chdir('tmp_grow')
 
   call ellipsout('solute_cavity.coord',clus%nat,clus%at,clus%xyz,solu%ell_abc)
@@ -572,7 +576,6 @@ do iter=1, max_cycle
   call rdxmolselec('xtbscreen.xyz', minE_pos, clus%nat,clus%at,clus%xyz) !Read the struc into clus%xyz
   call remove ('cluster.coord')
   call wrc0 ('cluster.coord',clus%nat,clus%at,clus%xyz)
-
   call both_ellipsout('twopot_2.coord',clus%nat,clus%at,clus%xyz,clus%ell_abc,solu%ell_abc)
 
   success=.false.
@@ -580,6 +583,10 @@ do iter=1, max_cycle
 !--- Cluster restart, if interaction energy not negativ (wall pot. too small)
   do while (.not.success)
 !--- Cluster optimization
+  if(env%cts%used) then
+    call write_reference(env,solu,clus) !new fixed file 
+  end if
+
   call opt_cluster(env,solu,clus,'cluster.coord')
   call rdcoord('xtbopt.coord',clus%nat,clus%at,clus%xyz)
 
@@ -822,12 +829,18 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   write(env%cts%pots(3),'(2x,"ellipsoid:",1x,3(g0,",",1x),"all")') clus%ell_abc  
   if(.not.env%solv_md) write(env%cts%pots(4),'(2x,"ellipsoid:",1x,3(g0,",",1x),"1-",i0)') solu%ell_abc, solu%nat
 
+  if(env%cts%used) then
+    call write_reference(env,solu,clus) !new fixed file 
+    call copysub(env%fixfile,env%scratchdir)
+  end if
+
   call chdir(env%scratchdir)
   scratchdir_tmp = env%scratchdir
   if(.not.env%solv_md) then
     io = makedir('tmp_MTD')
     call copysub('.CHRG','tmp_MTD')
     call copysub('.UHF','tmp_MTD')
+    if(env%cts%used) call copysub(env%fixfile,'tmp_MTD')
     call chdir('tmp_MTD')
   else
     io = makedir('tmp_solv_MTD') 
@@ -3129,24 +3142,43 @@ subroutine qcg_cleanup(env)
 end subroutine qcg_cleanup
 
 
-subroutine prog_path(exe)
+subroutine check_prog_path_iff(env)
+  use crest_data
   implicit none
-! Dummy  
-  character(len=*),intent(in)  :: exe
-! Stack
+  type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
   character(len=256)           :: prog
   character(len=256)           :: str
   character(len=256)           :: path
-  integer                      :: ios
-  integer                      :: error
+  integer                      :: ios,io
 
-  prog=exe
-  write(str,'("which ",a," > data/",a,"_path 2>/dev/null")') trim(prog),trim(prog)
-  call system(trim(str))
-  write(str,'("data/",a,"_path")') trim(prog)
+  prog=env%ProgIFF
+  write(str,'("which ",a," > ",a,"_path 2>/dev/null")') trim(prog),trim(prog)
+  call execute_command_line(trim(str), exitstat=io)
+  write(str,'(a,"_path")') trim(prog)
   str=trim(str)
   open(unit=27, file=str, iostat=ios)
-  read(27,*,iostat=ios) path
-  if(ios .ne. 0) error stop 'No xtb-IFF found'
+  read(27,'(a)',iostat=ios) path
+  if(ios .ne. 0) error stop 'No xtb-IFF found. This is currently required for QCG and availabel at https:/github.com/grimme-lab/xtbiff/releases/tag/v1.1'
 
-end subroutine prog_path  
+end subroutine check_prog_path_iff 
+
+subroutine write_reference(env,solu,clus)
+  use iso_fortran_env, wp => real64
+  use crest_data
+  use zdata, only: zmolecule
+  use iomod
+  use strucrd
+
+  implicit none
+  type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
+  type(zmolecule)            :: solu, clus
+  type(zmolecule)            :: ref_mol, ref_clus
+
+  ref_mol=solu
+  call rdcoord(env%solu_file,ref_mol%nat,ref_mol%at,ref_mol%xyz) !original solute coordinates
+  call remove(env%fixfile)
+  ref_clus=clus
+  ref_clus%xyz(1:3,1:solu%nat)=solu%xyz
+  call wrc0(env%fixfile,ref_clus%nat,ref_clus%at,ref_clus%xyz)
+
+end subroutine write_reference 
