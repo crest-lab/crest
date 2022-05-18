@@ -3158,7 +3158,7 @@ subroutine check_prog_path_iff(env)
   str=trim(str)
   open(unit=27, file=str, iostat=ios)
   read(27,'(a)',iostat=ios) path
-  if(ios .ne. 0) error stop 'No xtb-IFF found. This is currently required for QCG and availabel at https:/github.com/grimme-lab/xtbiff/releases/tag/v1.1'
+  if(ios .ne. 0) error stop 'No xtb-IFF found. This is currently required for QCG and available at https:/github.com/grimme-lab/xtbiff/releases/tag/v1.1'
 
 end subroutine check_prog_path_iff 
 
