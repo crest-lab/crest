@@ -795,7 +795,7 @@ subroutine excludeSelected(zmol,inc,atlist)
       integer :: i,j,ncon
       integer,allocatable :: inc2(:)
       allocate(inc2(zmol%nat),source=0)
-      call parse_atlist(atlist,ncon,zmol%nat,inc2)
+      call parse_atlist_new(atlist,ncon,zmol%nat,zmol%at,inc2)
       do i=1,zmol%nat
          if(inc2(i)==1)inc(i)=0
       enddo
