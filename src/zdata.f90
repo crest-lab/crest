@@ -186,6 +186,7 @@ module zdata
       real(wp)             :: svib          !vibrational entropy
       real(wp)             :: srot          !rotational entropy
       real(wp)             :: stra          !translational entropy
+      real(wp)             :: eax(3)        !molecular axis
 
 
    !--- procedures to be used with the zmol type

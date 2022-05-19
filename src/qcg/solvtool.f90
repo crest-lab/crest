@@ -53,6 +53,8 @@ subroutine crest_solvtool(env, tim)
   !>-----------------------------------
   call qcg_head()
   !>-----------------------------------
+!> Check, if xtbiff is present
+  call check_prog_path_iff(env)
 
 !------------------------------------------------------------------------------
 !   Setup
@@ -482,7 +484,9 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   call get_ellipsoid(env, solu, solv, clus,.true.)
   call pr_grow_energy()
 
+  if(env%cts%used) call copysub(env%solu_file,env%scratchdir)
   call chdir(env%scratchdir)
+  if(env%cts%used) call copysub(env%solu_file,'tmp_grow')
   call chdir('tmp_grow')
 
   call ellipsout('solute_cavity.coord',clus%nat,clus%at,clus%xyz,solu%ell_abc)
@@ -572,7 +576,6 @@ do iter=1, max_cycle
   call rdxmolselec('xtbscreen.xyz', minE_pos, clus%nat,clus%at,clus%xyz) !Read the struc into clus%xyz
   call remove ('cluster.coord')
   call wrc0 ('cluster.coord',clus%nat,clus%at,clus%xyz)
-
   call both_ellipsout('twopot_2.coord',clus%nat,clus%at,clus%xyz,clus%ell_abc,solu%ell_abc)
 
   success=.false.
@@ -580,6 +583,10 @@ do iter=1, max_cycle
 !--- Cluster restart, if interaction energy not negativ (wall pot. too small)
   do while (.not.success)
 !--- Cluster optimization
+  if(env%cts%used) then
+    call write_reference(env,solu,clus) !new fixed file 
+  end if
+
   call opt_cluster(env,solu,clus,'cluster.coord')
   call rdcoord('xtbopt.coord',clus%nat,clus%at,clus%xyz)
 
@@ -636,7 +643,6 @@ do iter=1, max_cycle
   do j=1,clus%nat
     write(ich15,'(a,1x,3F24.10)')i2e(clus%at(j)),clus%xyz(1:3,j)*bohr 
   enddo
-
 
 !--- Output
   call analyze_cluster(iter,clus%nat,solu%nat,solv%nat,clus%xyz,clus%at,shr_av,shr)   ! dist of new mol from solute for output
@@ -823,12 +829,18 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   write(env%cts%pots(3),'(2x,"ellipsoid:",1x,3(g0,",",1x),"all")') clus%ell_abc  
   if(.not.env%solv_md) write(env%cts%pots(4),'(2x,"ellipsoid:",1x,3(g0,",",1x),"1-",i0)') solu%ell_abc, solu%nat
 
+  if(env%cts%used) then
+    call write_reference(env,solu,clus) !new fixed file 
+    call copysub(env%fixfile,env%scratchdir)
+  end if
+
   call chdir(env%scratchdir)
   scratchdir_tmp = env%scratchdir
   if(.not.env%solv_md) then
     io = makedir('tmp_MTD')
     call copysub('.CHRG','tmp_MTD')
     call copysub('.UHF','tmp_MTD')
+    if(env%cts%used) call copysub(env%fixfile,'tmp_MTD')
     call chdir('tmp_MTD')
   else
     io = makedir('tmp_solv_MTD') 
@@ -2335,7 +2347,6 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   type(systemdata)   :: env 
   type(zmolecule)    :: solu, solv, clus
   type(zmolecule)    :: dummy_solu, dummy_solv
-  real(wp)           :: eax_solu(3), eax_solv(3)
   real(wp)           :: rabc_solu(3), rabc_solv(3)
   real(wp)           :: aniso, sola
   real(wp)           :: rmax_solu, rmax_solv
@@ -2353,25 +2364,27 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   fname = 'eaxis.qcg'
   inquire(file=fname,exist=ex)
 
+  if(pr1) then !First time called
 !--- Moving all coords to the origin (transformation)
-  call axistrf(solu%nat,solu%nat,solu%at,solu%xyz) 
+    call axistrf(solu%nat,solu%nat,solu%at,solu%xyz) 
 !  call axistrf(solv%nat,solv%nat,solv%at,solv%xyz)  !Not done in original QCG code
-  call axistrf(clus%nat,solu%nat,clus%at,clus%xyz)
+    call axistrf(clus%nat,solu%nat,clus%at,clus%xyz)
 
 !--- Overwrite solute and solvent coord in original file with transformed and optimized ones
-  call wrc0('solute',solu%nat,solu%at,solu%xyz)
-  call wrc0('solvent',solv%nat,solv%at,solv%xyz)
+    call wrc0('solute',solu%nat,solu%at,solu%xyz)
+    call wrc0('solvent',solv%nat,solv%at,solv%xyz)
 
 !--- Getting axis
-  if(pr1) write(*,*) 'Solute:'
-  call axis(pr1,solu%nat,solu%at,solu%xyz,eax_solu)
-  if(pr1) write(*,*) 'Solvent:'
-  call axis(pr1,solv%nat,solv%at,solv%xyz,eax_solv)
-  if(pr1) write(*,*)
+    write(*,*) 'Solute:'
+    call axis(pr1,solu%nat,solu%at,solu%xyz,solu%eax)
+    write(*,*) 'Solvent:'
+    call axis(pr1,solv%nat,solv%at,solv%xyz,solv%eax)
+    write(*,*)
+  end if
 
 !--- Computing anisotropy factor of solute and solvent
-  sola=sqrt(1.+(eax_solu(1)-eax_solu(3))/((eax_solu(1)+eax_solu(2)+eax_solu(3))/3.))
-  aniso=sqrt(1.+(eax_solv(1)-eax_solv(3))/((eax_solv(1)+eax_solv(2)+eax_solv(3))/3.)) ! =1 for a spherical system
+  sola=sqrt(1.+(solu%eax(1)-solu%eax(3))/((solu%eax(1)+solu%eax(2)+solu%eax(3))/3.))
+  aniso=sqrt(1.+(solv%eax(1)-solv%eax(3))/((solv%eax(1)+solv%eax(2)+solv%eax(3))/3.)) ! =1 for a spherical system
 
 !--- Get maximum intramoleclar distance of solute and solvent
   call getmaxrad(solu%nat,solu%at,solu%xyz,rmax_solu)
@@ -2386,17 +2399,17 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
 !--- Computation of outer Wall        
   roff = sola * dummy_solu%vtot / 1000
   boxr=((0.5*aniso*clus%nmol*dummy_solv%vtot+dummy_solu%vtot)/pi43)**third+roff+rmax_solv*0.5 !0.5 both
-  r=(boxr**3/(eax_solu(1)*eax_solu(2)*eax_solu(3)))**third       ! volume of ellipsoid = volume of sphere
-  rabc_solv= eax_solu * r                              ! outer solvent wall
+  r=(boxr**3/(solu%eax(1)*solu%eax(2)*solu%eax(3)))**third       ! volume of ellipsoid = volume of sphere
+  rabc_solv= solu%eax * r                              ! outer solvent wall
   
 !--- Computation of inner wall
   roff= sola * dummy_solu%vtot / 1000 
   boxr=((sola*dummy_solu%vtot)/pi43)**third+roff+rmax_solu*0.1 !0.1 before
-  r=(boxr**3/(eax_solu(1)*eax_solu(2)*eax_solu(3)))**third       ! volume of ellipsoid = volume of sphere
-  rabc_solu = eax_solu * r
-  dummy_solu%ell_abc(1) = eax_solu(1)**2/sum((eax_solu(1:3))**2)
-  dummy_solu%ell_abc(2) = eax_solu(2)**2/sum((eax_solu(1:3))**2)
-  dummy_solu%ell_abc(3) = eax_solu(3)**2/sum((eax_solu(1:3))**2)
+  r=(boxr**3/(solu%eax(1)*solu%eax(2)*solu%eax(3)))**third       ! volume of ellipsoid = volume of sphere
+  rabc_solu = solu%eax * r
+  dummy_solu%ell_abc(1) = solu%eax(1)**2/sum((solu%eax(1:3))**2)
+  dummy_solu%ell_abc(2) = solu%eax(2)**2/sum((solu%eax(1:3))**2)
+  dummy_solu%ell_abc(3) = solu%eax(3)**2/sum((solu%eax(1:3))**2)
   rabc_solu = dummy_solu%ell_abc * r
 
    solu%aniso = sola
@@ -3016,7 +3029,7 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
     clus%nmol = (clus%nat-solu%nat)/solv%nat + 1
     allocate(xyz(3,clus%nat))
     xyz=clus%xyz 
-    call get_ellipsoid(env, solu, solv, clus,.false.)
+    call get_ellipsoid(env, solu, solv, clus,.true.)
     clus%xyz = xyz !Needed, because get_ellipsoid performs axistransformation and not fitting potential
     deallocate(xyz)
 
@@ -3129,24 +3142,43 @@ subroutine qcg_cleanup(env)
 end subroutine qcg_cleanup
 
 
-subroutine prog_path(exe)
+subroutine check_prog_path_iff(env)
+  use crest_data
   implicit none
-! Dummy  
-  character(len=*),intent(in)  :: exe
-! Stack
+  type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
   character(len=256)           :: prog
   character(len=256)           :: str
   character(len=256)           :: path
-  integer                      :: ios
-  integer                      :: error
+  integer                      :: ios,io
 
-  prog=exe
-  write(str,'("which ",a," > data/",a,"_path 2>/dev/null")') trim(prog),trim(prog)
-  call system(trim(str))
-  write(str,'("data/",a,"_path")') trim(prog)
+  prog=env%ProgIFF
+  write(str,'("which ",a," > ",a,"_path 2>/dev/null")') trim(prog),trim(prog)
+  call execute_command_line(trim(str), exitstat=io)
+  write(str,'(a,"_path")') trim(prog)
   str=trim(str)
   open(unit=27, file=str, iostat=ios)
-  read(27,*,iostat=ios) path
-  if(ios .ne. 0) error stop 'No xtb-IFF found'
+  read(27,'(a)',iostat=ios) path
+  if(ios .ne. 0) error stop 'No xtb-IFF found. This is currently required for QCG and available at https:/github.com/grimme-lab/xtbiff/releases/tag/v1.1'
 
-end subroutine prog_path  
+end subroutine check_prog_path_iff 
+
+subroutine write_reference(env,solu,clus)
+  use iso_fortran_env, wp => real64
+  use crest_data
+  use zdata, only: zmolecule
+  use iomod
+  use strucrd
+
+  implicit none
+  type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
+  type(zmolecule)            :: solu, clus
+  type(zmolecule)            :: ref_mol, ref_clus
+
+  ref_mol=solu
+  call rdcoord(env%solu_file,ref_mol%nat,ref_mol%at,ref_mol%xyz) !original solute coordinates
+  call remove(env%fixfile)
+  ref_clus=clus
+  ref_clus%xyz(1:3,1:solu%nat)=solu%xyz
+  call wrc0(env%fixfile,ref_clus%nat,ref_clus%at,ref_clus%xyz)
+
+end subroutine write_reference 

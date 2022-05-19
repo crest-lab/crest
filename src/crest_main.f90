@@ -62,8 +62,6 @@ program CREST
          call getarg(i,arg(i))
       enddo
       call parseflags(env,arg,args)
-
-
       deallocate(arg)
 
 !===================================================================================================!

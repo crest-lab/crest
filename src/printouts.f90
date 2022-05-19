@@ -468,7 +468,10 @@ subroutine qcg_head()
   write(*,'(2x,''|        Quantum Cluster Growth        |'')')
   write(*,'(2x,''|       University of Bonn, MCTC       |'')')
   write(*,'(2x,''========================================'')')
-  write(*,'(2x,'' S. Grimme, S. Spicher, unpublished.'')')
+  write(*,'(2x,'' S. Grimme, S. Spicher, C. Plett.'')')
+  write(*,*)
+  write(*,'(3x,''Cite work conducted with this code as'')')
+  write(*,'(/,3x,''S. Spicher, C. Plett, P. Pracht, A. Hansen, S. Grimme, JCTC, 2022, 18, 3174-3189.'')')
   write(*,*)
 end subroutine qcg_head
 

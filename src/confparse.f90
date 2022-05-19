@@ -1422,6 +1422,13 @@ subroutine parseflags(env,arg,nra)
         env%checktopo = .true.
       case ('-notopo','-notopocheck')
         env%checktopo = .false.
+        ctmp=trim(arg(i+1))
+        if(ctmp(1:1).ne.'-')then
+          call parse_topo_excl(env,ctmp)
+          if(allocated(env%excludeTOPO))then
+            env%checktopo = .true.
+          endif
+        endif
       case ('-noreftopo')
         env%reftopo = .false.
       case ('-ezcheck','-checkez')
