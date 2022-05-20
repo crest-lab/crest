@@ -22,16 +22,20 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date='Thu 28. Apr 11:40:28 CEST 2022'
+      character(len=40),parameter:: date=' Thu 19. Mai 16:32:32 CEST 2022'
       character(len=10),parameter:: version='devel'
       logical :: niceprint
       
       niceprint=.true.
       call box3(version,date)
       write(*,*)
+
       write(*,'(3x,''Cite work conducted with this code as'')')
-      write(*,'(/,3x,''P. Pracht, F. Bohle, S. Grimme, PCCP, 2020, 22, 7169-7192.'')')
-      write(*,'(/,3x,''and  S. Grimme, JCTC, 2019, 15, 2847-2862.'')')
+      write(*,'(/,3x,''• P.Pracht, F.Bohle, S.Grimme, PCCP, 2020, 22, 7169-7192.'')')
+      write(*,'(  3x,''• S.Grimme, JCTC, 2019, 15, 2847-2862.'')')
+      write(*,'(/,3x,''and for works involving QCG as'')')
+      write(*,'(/,3x,''• S.Spicher, C.Plett, P.Pracht, A.Hansen, S.Grimme,'')')
+      write(*,'(  3x,''  JCTC, 2022, 18 (5), 3174-3189.'')')
       write(*,*)
 
       write(*,'(3x,a)')'with help from:'
@@ -43,23 +47,23 @@ subroutine confscript_head
 
 contains
  subroutine box1(version,date)
-   implicit none
-   character(len=*) :: version
-   character(len=*) :: date
-      write(*,*)
-      write(*,'(7x,''=============================================='')')
-      write(*,'(7x,''|                                            |'')')
-      write(*,'(7x,''|                 C R E S T                  |'')')
-      write(*,'(7x,''|                                            |'')')
-      write(*,'(7x,''|  Conformer-Rotamer Ensemble Sampling Tool  |'')')
-      write(*,'(7x,''|          based on the GFN methods          |'')')
-      write(*,'(7x,''|             P.Pracht, S.Grimme             |'')')
-      write(*,'(7x,''|          Universitaet Bonn, MCTC           |'')')
-      write(*,'(7x,''=============================================='')')
-      write(*,'(7x,''Version '',a,'', '',a)')trim(version),trim(date)
-      write(*,'(2x,''Using the xTB program. Compatible with xTB version 6.4.0'')')
-   end subroutine box1
-   subroutine box2(version,date)
+    implicit none
+    character(len=*) :: version
+    character(len=*) :: date
+    write(*,*)
+    write(*,'(7x,''=============================================='')')
+    write(*,'(7x,''|                                            |'')')
+    write(*,'(7x,''|                 C R E S T                  |'')')
+    write(*,'(7x,''|                                            |'')')
+    write(*,'(7x,''|  Conformer-Rotamer Ensemble Sampling Tool  |'')')
+    write(*,'(7x,''|          based on the GFN methods          |'')')
+    write(*,'(7x,''|             P.Pracht, S.Grimme             |'')')
+    write(*,'(7x,''|          Universitaet Bonn, MCTC           |'')')
+    write(*,'(7x,''=============================================='')')
+    write(*,'(7x,''Version '',a,'', '',a)')trim(version),trim(date)
+    write(*,'(2x,''Using the xTB program. Compatible with xTB version 6.4.0'')')
+ end subroutine box1
+ subroutine box2(version,date)
    implicit none
    character(len=*) :: version
    character(len=*) :: date
@@ -335,35 +339,37 @@ end subroutine confscript_help
 subroutine crestcite
      write(*,*)
      write(*,'(4x,''MAIN REFERENCES:'')')
-     write(*,'(/,7x,''P. Pracht, F. Bohle, S. Grimme,'')')
-     write(*,'(  7x,''PCCP, 2020, 22, 7169-7192.'')')
-     write(*,'(/,7x,''S. Grimme, JCTC, 2019, 15, 2847-2862.'')')
-     write(*,'(/7x,''P. Pracht, S. Grimme, Chem. Sci., 2021,'')')
-     write(*,'(7x,''DOI: 10.1039/d1sc00621e'')')
+     write(*,'(/5x,''• P. Pracht, F. Bohle, S. Grimme,'')')
+     write(*,'( 5x,''  PCCP, 2020, 22, 7169-7192.'')')
+     write(*,'(/5x,''• S.Grimme, JCTC, 2019, 15, 2847-2862.'')')
+     write(*,'(/5x,''• P.Pracht, S.Grimme, Chem. Sci., 2021, 12, 6551-6568.'')')
+     write(*,'(/5x,''• S.Spicher, C.Plett, P.Pracht, A.Hansen, S.Grimme,'')')
+     write(*,'( 5x,''  JCTC, 2022, 18 (5), 3174-3189.'')')
      write(*,'(/,/)')
      write(*,'(4x,''GFNn-xTB references:'')')
-     write(*,'(6x,''GFN1-xTB'')')
-     write(*,'(7x,''S. Grimme, C. Bannwarth, P. Shushkov, JCTC, 2017,'')')
-     write(*,'(7x,''13, 1989-2009. DOI: 10.1021/acs.jctc.7b00118'')')
-     write(*,'(6x,''GFN2-xTB'')')
-     write(*,'(7x,''C. Bannwarth, S. Ehlert and S. Grimme., JCTC, 2019,'')')
-     write(*,'(7x,''15, 1652-1671. DOI: 10.1021/acs.jctc.8b01176'')')
-     write(*,'(6x,''GFN0-xTB'')')
-     write(*,'(7x,''P. Pracht, E. Caldeweyher, S. Ehlert, S. Grimme, 2019,'')')
-     write(*,'(7x,''ChemRxiv preprint, DOI: 10.26434/chemrxiv.8326202.v1'')')
-     write(*,'(6x,''GFN-FF'')')
-     write(*,'(7x,''S. Spicher, S. Grimme, Angew. Chem. Int. Ed., 2020,'')')
-     write(*,'(7x,''132, 2-11, DOI: 10.1002/ange.202004239'')')
+     write(*,'(5x,''GFN1-xTB'')')
+     write(*,'(5x,''• S.Grimme, C.Bannwarth, P.Shushkov, JCTC, 2017,'')')
+     write(*,'(5x,''  13, 1989-2009. DOI: 10.1021/acs.jctc.7b00118'')')
+     write(*,'(5x,''GFN2-xTB'')')
+     write(*,'(5x,''• C.Bannwarth, S.Ehlert and S.Grimme., JCTC, 2019,'')')
+     write(*,'(5x,''  15, 1652-1671. DOI: 10.1021/acs.jctc.8b01176'')')
+     write(*,'(5x,''GFN0-xTB'')')
+     write(*,'(5x,''• P.Pracht, E.Caldeweyher, S.Ehlert, S.Grimme, 2019,'')')
+     write(*,'(5x,''  ChemRxiv preprint, DOI: 10.26434/chemrxiv.8326202.v1'')')
+     write(*,'(5x,''GFN-FF'')')
+     write(*,'(5x,''• S.Spicher, S.Grimme, Angew. Chem. Int. Ed., 2020,'')')
+     write(*,'(5x,''  132, 2-11, DOI: 10.1002/ange.202004239'')')
     
      write(*,'(/,/)')
      write(*,'(4x,''related references:'')')
-     write(*,'(7x, ''S. Grimme, C. Bannwarth, S. Dohm, A. Hansen,'')')
-     write(*,'(7x, ''J. Pisarek, P. Pracht, J. Seibert, F. Neese,'')')
-     write(*,'(7x, ''Angew. Chem. Int. Ed., 2017, 56, 14763-14769'')')
-     write(*,'(/7x,''P. Pracht, C.A. Bauer, S. Grimme, JCC, 2017,'')')
-     write(*,'(7x, ''38, 2618–2631, DOI: 10.1002/jcc.24922'')')
-     write(*,'(/7x,''P. Pracht, R. Wilcken, A. Udvarhelyi, S. Rodde, S. Grimme,'')')
-     write(*,'(7x, ''JCAMD, 2018, 32, 1139-1149, DOI: 10.1007/s10822-018-0145-7'')')
+     write(*,'(5x, ''• S.Grimme, C.Bannwarth, S.Dohm, A.Hansen,'')')
+     write(*,'(5x, ''  J.Pisarek, P.Pracht, J.Seibert, F.Neese,'')')
+     write(*,'(5x, ''  Angew. Chem. Int. Ed., 2017, 56, 14763-14769'')')
+     write(*,'(/5x,''• P.Pracht, C.A.Bauer, S.Grimme, JCC, 2017,'')')
+     write(*,'(5x, ''  38, 2618–2631, DOI: 10.1002/jcc.24922'')')
+     write(*,'(/5x,''• P.Pracht, R.Wilcken, A.Udvarhelyi, S.Rodde, S.Grimme,'')')
+     write(*,'(5x, ''  JCAMD, 2018, 32, 1139-1149.'')')
+     write(*,'(/5x,''• P.Pracht, S.Grimme, JPCA, 2021, 125, 5681-5692'')')
  
 
      write(*,'(/,/)')

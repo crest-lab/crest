@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2018-2020 Philipp Pracht
+! Copyright (C) 2018-2022 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -287,7 +287,9 @@ subroutine parseflags(env,arg,nra)
   env%freq_scal = 0.75
   env%freqver = '--gfn2'
   env%max_solv = 150
-
+  env%solv_file = ''
+  env%solu_file = ''
+  
 !=========================================================================================!
 !=========================================================================================!
 !=========================================================================================!
@@ -466,6 +468,10 @@ subroutine parseflags(env,arg,nra)
         env%ewin = 3.0d0
         env%doOHflip = .false. !Switch off OH-flip
         if (env%iterativeV2) env%iterativeV2 = .false.
+        if (nra >= i + 1) then
+           env%solv_file = trim(arg(i + 1))
+        endif  
+        exit
       case ('-compress')
         env%crestver = crest_compr
         env%runver = 77
@@ -619,10 +625,6 @@ subroutine parseflags(env,arg,nra)
         env%crestver = crest_optimize
       case ('-SANDBOX')
         !>--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
-        !call test_engrad(trim(arg(1)))
-        !call test_md(trim(arg(1)))
-        !call test_optimize(trim(arg(1)))
-        call parse_test(arg(1))
         !>-----
         stop
       case ('-PLAYGROUND','-TEST')
@@ -664,15 +666,15 @@ subroutine parseflags(env,arg,nra)
 !>    I N P U T   C O O R D I N A T E S
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
-  if (env%crestver == crest_solv) then
-    call inputcoords_qcg(env,trim(arg(1)),trim(arg(3)))
-  else
+!> If env%inputcoords is initialized anywhere prior to 
+!> this point, it will be taken as the input.
+!> Otherwise, the first cmd argument after "crest" will
+!> taken for the input coordinates
     if (allocated(env%inputcoords)) then
       call inputcoords(env,env%inputcoords)
     else
       call inputcoords(env,trim(arg(1)))
     end if
-  end if
 !========================================================================================!
 !> after this point there should always be a "coord" file present
 !========================================================================================!
@@ -1168,7 +1170,7 @@ subroutine parseflags(env,arg,nra)
         write (*,'(2x,a,1x,a)') trim(arg(i)),': tracking conformer origins.'
       case ('-constrain')                       !provide a list of atoms to write a .xcontrol.sample
         ctmp = trim(arg(i + 1))
-        call quick_constrain_file('coord',env%nat,ctmp)
+        call quick_constrain_file('coord',env%nat,env%ref%at,ctmp)
       case ('-nocbonds')
         bondconst = .false.
         env%cts%cbonds_global = .false.
@@ -1952,15 +1954,18 @@ subroutine parseflags(env,arg,nra)
     if (allocated(env%ref%topo)) deallocate (env%ref%topo)
   end if
 
-  do i = 1,env%cts%ndim
-    if (env%cts%sett(i) .eq. '  reference=coord.ref') then
-      do j = i,env%cts%ndim
-        env%cts%sett(j) = env%cts%sett(j + 1)
-      end do
-      env%cts%sett(env%cts%ndim) = ''
-      env%cts%ndim = env%cts%ndim - 1
-    end if
-  end do
+!> I have no idea why this was in the code,
+!> thats such a specific condition...
+!  do i = 1,env%cts%ndim
+!    if (trim(adjustl(env%cts%sett(i))).eq.'reference=coord.ref' &
+!    &   .and. .not.(env%QCG)) then
+!      do j = i,env%cts%ndim
+!        env%cts%sett(j) = env%cts%sett(j + 1)
+!      end do
+!      env%cts%sett(env%cts%ndim) = ''
+!      env%cts%ndim = env%cts%ndim - 1
+!    end if
+!  end do
 
   !> driver for optimization along trajectory, additional settings
   if (.not. any((/crest_mfmdgc,crest_imtd,crest_imtd2,crest_compr/) == env%crestver) &
@@ -2100,7 +2105,7 @@ subroutine parseRC2(env,bondconst)
         atomlistused = .true.
         dg = atmp
         call split_set_args(dg,argument)
-        call parse_atlist(trim(argument),env%rednat,env%nat,atlist)
+        call parse_atlist_new(trim(argument),env%rednat,env%nat,env%ref%at,atlist)
         write (*,'(2x,a)') trim(adjustl(btmp))
         write (*,'(5x,a,i0)') '# of atoms considered for RMSDs:',env%rednat
         env%includeRMSD = atlist !includeRMSD contains only the atoms that are included in RMSD
@@ -2110,7 +2115,7 @@ subroutine parseRC2(env,bondconst)
         atomlistused = .true.
         dg = atmp
         call split_set_args(dg,argument)
-        call parse_atlist(trim(argument),j,env%nat,atlist)
+        call parse_atlist_new(trim(argument),j,env%nat,env%ref%at,atlist)
         env%rednat = env%nat - j
         write (*,'(2x,a)') trim(adjustl(btmp))
         write (*,'(3x,a,i0)') '# of atoms considered for RMSDs:',env%rednat
@@ -2132,7 +2137,7 @@ subroutine parseRC2(env,bondconst)
             atomlistused = .true.
             dg = btmp
             call split_set_args(dg,argument)
-            call parse_atlist(trim(argument),env%rednat,env%nat,atlist)
+            call parse_atlist_new(trim(argument),env%rednat,env%nat,env%ref%at,atlist)
             write (*,'(2x,a)') trim(adjustl(btmp))
             write (*,'(5x,a,i0)') '# of atoms considered for RMSDs:',env%rednat
             env%includeRMSD = atlist !includeRMSD contains only the atoms that are included in RMSD
@@ -2189,15 +2194,26 @@ subroutine inputcoords(env,arg)
   use zdata
   use iomod
   implicit none
+  !> Input
   type(systemdata) :: env
   character(len=*) :: arg
 
+  !> Local variables
   logical :: ex,ex2
   character(len=:),allocatable :: inputfile
+  character(len=:),allocatable :: arg2
   type(coord) :: mol
   type(zmolecule) :: zmol
 
   integer :: i,j,k,l
+
+!>--- Redirect for QCG input reading
+  if (env%crestver == crest_solv) then
+    arg2 = env%solv_file
+    call inputcoords_qcg(env,arg,arg2)
+    return
+  endif
+!>---
 
   inquire (file=arg,exist=ex)
   inquire (file='coord',exist=ex2)
@@ -2288,18 +2304,18 @@ subroutine inputcoords_qcg(env,arg1,arg2)
 
   inquire (file='solvent',exist=solv)
   inquire (file=arg2,exist=ex21)
-  if (len(arg2) .eq. 1024) then !Check if the second argument is just empty
+  if (len_trim(arg2) .eq. 0) then !Check if the second argument is just empty
     ex21 = .false.
   end if
   inquire (file='coord',exist=ex22)
-
-!---------------Handling solute---------------------!
 
   if (.not. ex11 .and. .not. ex12 .and. .not. solu) then
     error stop 'No (valid) solute file! exit.'
   else if (.not. ex21 .and. .not. ex22 .and. .not. solv) then
     error stop 'No (valid) solvent file! exit.'
   end if
+
+!---------------Handling solute---------------------!
 
   if (ex11 .and. arg1(1:1) .ne. '-') then
     call mol%open(arg1)
