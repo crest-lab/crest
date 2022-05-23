@@ -224,11 +224,14 @@ subroutine nciflexi(env,flexval)
          call clear_setblock(fname)
 !---- jobcall
          write(*,'(1x,a)',advance='no')'Calculating NCI flexibility...'
-         write(jobcall,'(a,1x,a,1x,a,'' --sp '',a,1x,a,a)') &
-         &     trim(env%ProgName),trim(fname),'--gfnff',trim(env%solv)
+!         write(jobcall,'(a,1x,a,1x,a,'' --sp '',a,1x,a,a)') &
+!         &     trim(env%ProgName),trim(fname),'--gfnff',trim(env%solv)
+         jobcall = ""
+         jobcall = trim(jobcall)//trim(env%ProgName)
+         jobcall = trim(jobcall)//" "//trim(fname)//" --sp --gfnff"
+         jobcall = trim(jobcall)//" "//trim(env%solv)
          jobcall = trim(jobcall)//pipe
          call execute_command_line(trim(jobcall), exitstat=io)
-
 !---- read E(disp) and E(HB) from output
          call grepval('xtb.out','HB energy',ex,ehb)
          call grepval('xtb.out','dispersion energy',ex,edisp)
