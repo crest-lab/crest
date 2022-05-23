@@ -64,8 +64,13 @@ subroutine xtbsp(env,xtblevel)
          call copy('coord',fname)
          call clear_setblock(fname)
 !---- jobcall
-         write(jobcall,'(a,1x,a,1x,a," --sp ",a)') &
-         &     trim(env%ProgName),trim(fname),trim(xtbflag),trim(env%solv)
+!         write(jobcall,'(a,1x,a,1x,a," --sp ",a)') &
+!         &     trim(env%ProgName),trim(fname),trim(xtbflag),trim(env%solv)
+         jobcall = ""
+         jobcall = trim(jobcall)//trim(env%ProgName)
+         jobcall = trim(jobcall)//" "//trim(fname)//" --sp"
+         jobcall = trim(jobcall)//" "//trim(xtbflag) 
+         jobcall = trim(jobcall)//" "//trim(env%solv)
          jobcall = trim(jobcall)//pipe
          call execute_command_line(trim(jobcall), exitstat=io)
 !---- cleanup
