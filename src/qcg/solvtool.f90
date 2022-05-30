@@ -860,9 +860,10 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   call rdcoord('solvent_shell.coord',clus%nat,clus%at,clus%xyz)
   end if
 
+  env%crestver=crest_imtd2
   call inputcoords(env,'crest_input')
+  env%crestver=crest_solv
   call iV2defaultGF(env)         !Setting MTD parameter
-
 
 !--- Special constraints for gff to safeguard stability
   if(env%ensemble_opt .eq. '--gff') then
@@ -1101,7 +1102,9 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
          call dum%deallocate
          call chdir(tmppath2)
          call wrc0('coord',clus%nat,clus%at,clus%xyz)
+         env%crestver=crest_imtd2
          call inputcoords(env,'coord') !Necessary
+         env%crestver=crest_solv
 
 !--- Optimization
          call print_qcg_opt
