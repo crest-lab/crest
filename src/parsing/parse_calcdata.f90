@@ -352,7 +352,7 @@ contains
         call constr%analyzedummy(11,kv%na,kv%value_rawa)
         success = .true.
       end select
-     case ('sphere')
+    case ('sphere')
       dum1 = kv%value_fa(3)  !> sphere radius
       dum2 = kv%value_fa(1)  !> prefactor
       dum3 = kv%value_fa(2)  !> exponent
@@ -369,7 +369,7 @@ contains
       dum2 = kv%value_fa(2)
       call constr%gapdiffconstraint(dum1,dum2)
       success = .true.
-    case ('gapdiff2')
+    case ('gapdiff2', 'mecp')
       success = .true.
       if(kv%id==3)then
         if(kv%value_b)then

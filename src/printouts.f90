@@ -22,8 +22,8 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date=' Thu 19. Mai 16:32:32 CEST 2022'
-      character(len=10),parameter:: version='devel'
+      character(len=40),parameter:: date='Thu 31. Mai 17:09:21 CEST 2022'
+      character(len=10),parameter:: version='3.0dev'
       logical :: niceprint
       
       niceprint=.true.
@@ -38,7 +38,9 @@ subroutine confscript_head
       write(*,'(  3x,''  JCTC, 2022, 18 (5), 3174-3189.'')')
       write(*,*)
 
-      write(*,'(3x,a)')'with help from:'
+      write(*,'(3x,a)')'Original code'
+      write(*,'(3x,a)')'P.Pracht, S.Grimme, Universität Bonn, MCTC'
+      write(*,'(3x,a)')'with help from (alphabetical order):'
       write(*,'(3x,a)')'C.Bannwarth, F.Bohle, S.Ehlert, S.Grimme,'
       write(*,'(3x,a)')'C.Plett, P.Pracht, S.Spicher'
       write(*,*)
@@ -92,8 +94,7 @@ contains
       write(*,'(7x,''║                                            ║'')')
       write(*,'(7x,''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
       write(*,'(7x,''║          based on the GFN methods          ║'')')
-      write(*,'(7x,''║         P.Pracht, RWTH Aachen, IPC         ║'')')
-      write(*,'(7x,''║     S.Grimme, Universität Bonn, MCTC       ║'')')
+      write(*,'(7x,''║                                            ║'')')
       write(*,'(7x,''╚════════════════════════════════════════════╝'')')
       write(*,'(7x,''Version '',a,'',  '',a)')trim(version),trim(date)
    end subroutine box3
@@ -103,7 +104,8 @@ subroutine disclaimer
 
       write(*,'(3x,a)')'This program is distributed in the hope that it will be useful,'
       write(*,'(3x,a)')'but WITHOUT ANY WARRANTY; without even the implied warranty of'
-      write(*,'(3x,a)')'MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.'
+      write(*,'(3x,a)')'MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the'
+      write(*,'(3x,a)')'GNU Lesser General Public License for more details.'
 
 end subroutine disclaimer
 
