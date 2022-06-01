@@ -486,10 +486,6 @@ subroutine parseflags(env,arg,nra)
         env%presp = .true.
       case ('-logkow','-kow')
         env%crestver = 11
-      case ('-qdock')
-        ctmp = trim(arg(i + 1))
-        dtmp = trim(arg(i + 2))
-        call quickdock(ctmp,dtmp,'coord')
       case ('-splitfile')
         ctmp = trim(arg(i + 1))
         k = huge(j)
@@ -616,9 +612,9 @@ subroutine parseflags(env,arg,nra)
         ctmp = trim(arg(i + 1))
         read (arg(i + 2),*,iostat=io) j
         if (io == 0) then
-          call redo_extrapol(env,ctmp,j)
+          call redo_extrapol(ctmp,j)
         else
-          call redo_extrapol(env,ctmp,0)
+          call redo_extrapol(ctmp,0)
         end if
         stop
 !      case ('-optimize','-ancopt')
@@ -1894,9 +1890,9 @@ subroutine parseflags(env,arg,nra)
     case (2)
       call autoMetalConstraint('coord',env%forceconst,env%wbofile)
     case (3)
-      call autoHeavyConstraint('coord',env%forceconst,env%wbofile)
+      call autoHeavyConstraint('coord',env%forceconst)
     case (4)
-      call autoHydrogenConstraint('coord',env%forceconst,env%wbofile)
+      call autoHydrogenConstraint('coord',env%forceconst)
     case (5)
       call autoBondConstraint_withEZ('coord',env%forceconst,env%wbofile)
     end select

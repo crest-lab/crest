@@ -99,7 +99,6 @@ list(APPEND srcs
   "${dir}/utilities.f"
   "${dir}/xtbmodef.f90"
   "${dir}/zdata.f90"
-  "${dir}/zfunctional.f90"
   "${dir}/zsort.f90"
   "${dir}/ztopology.f90"
 )

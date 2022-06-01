@@ -197,10 +197,9 @@ c     call isort(iring,c)
       real*8  xyz(3,natoms)
 
       logical da
-      character*40 atmp
-      integer iat,i,j,k,nn,ni,ii,jj,kk,ll
+      integer iat,i,j,k,nn
       real*8 rad(94)
-      real*8 dx,dy,dz,r,damp,xn,rr,rco,r2,f,a1
+      real*8 dx,dy,dz,r,rco,r2,f
       data rad/
      . 0.80628308, 1.15903197, 3.02356173, 2.36845659, 1.94011865,
      . 1.88972601, 1.78894056, 1.58736983, 1.61256616, 1.68815527,
@@ -262,10 +261,9 @@ c critical step
       real*8  xyz(3,natoms),dist(natoms,natoms)
 
       logical da
-      character*40 atmp
-      integer iat,i,j,k,nn,ni,ii,jj,kk,ll
+      integer iat,i,j,k,nn
       real*8 rad(94)
-      real*8 dx,dy,dz,r,damp,xn,rr,rco,r2,f,a1
+      real*8 dx,dy,dz,r,rco,r2,f
       data rad/
      . 0.80628308, 1.15903197, 3.02356173, 2.36845659, 1.94011865,
      . 1.88972601, 1.78894056, 1.58736983, 1.61256616, 1.68815527,

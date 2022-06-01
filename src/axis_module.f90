@@ -99,8 +99,8 @@ contains
     real(wp) :: t(6),xyzmom(3),eig(3)
     !real(wp) :: x(nat),y(nat),z(nat)
     real(wp),allocatable :: x(:),y(:),z(:)
-    real(wp) :: sumw,sumwx,sumwy,sumwz,atmass
-    integer :: i,j,k
+    real(wp) :: atmass
+    integer :: i,j
     !************************************************************************
     !*     const1 =  10**40/(n*a*a)
     !*               n = avergadro's number
@@ -198,8 +198,8 @@ contains
     integer,intent(in) :: at(nat)
     real(wp),intent(inout) :: coord(3,nat)
     real(wp),intent(out) :: eax(3)
-    real(wp) :: rot(3),avmom,eig(3)
-    real(wp) :: dum(3,3),eps
+    real(wp) :: rot(3),eig(3)
+    real(wp) :: eps
     real(wp) :: sumw
     integer :: i
     real(wp),allocatable :: xyztmp(:,:)
@@ -300,9 +300,7 @@ contains
     integer,intent(in) :: at(nat)
     real(wp),intent(inout) :: coord(3,nat)
     real(wp) :: rot(3)
-    real(wp) :: xsum
     real(wp),allocatable :: coordtmp(:,:)
-    integer :: i,j,k
 
     allocate (coordtmp(3,nat))
     !> call axis routine
@@ -501,7 +499,6 @@ contains
     real(wp) :: fv1(2 * n),fv2(2 * n)
     real(wp) :: eps,eta
     integer :: nv,nm,ierr
-    logical :: first
     integer :: i
 
     if (n .eq. 1) then
@@ -514,7 +511,7 @@ contains
 
     nv = (n * (n + 1)) / 2
     nm = n
-    call tred3(n,nv,a,w,fv1,fv2,eps,eps)
+    call tred3(n,a,w,fv1,fv2)
     if (matz .ne. 0) then ! go to 10
       !>--- find eigenvalues only
       z = 0.0_wp
@@ -523,7 +520,7 @@ contains
       end do
       call tql2(nm,n,w,fv1,z,ierr,eps)
       if (ierr .ne. 0) return
-      call trbak3(nm,n,nv,a,n,z)
+      call trbak3(nm,n,a,n,z)
     else
       call tqlrat(n,w,fv2,ierr,eps)
     end if
@@ -634,8 +631,8 @@ contains
       end do
 
       JLOOP: do
-30      if (m .eq. l) exit JLOOP !go to 100
-40      if (j .eq. 30) then
+        if (m .eq. l) exit JLOOP !go to 100
+        if (j .eq. 30) then
           ierr = l
           return
         end if
@@ -649,7 +646,7 @@ contains
         h = g - d(l)
 
         do i = l1,n
-50        d(i) = d(i) - h
+          d(i) = d(i) - h
         end do
 
         f = f + h
@@ -676,7 +673,7 @@ contains
             s = c / r
             c = 1.0d0 / r
           end if
-70        p = c * d(i) - s * g
+          p = c * d(i) - s * g
           d(i + 1) = h + s * (c * g + s * d(i))
 !>    ********** form vector **********
           do k = 1,n
@@ -754,18 +751,19 @@ contains
     real(wp) :: e2(*)
     integer :: ierr
     real(wp) :: eps
-    integer :: i,j,k,l,l1,m,ii,mml
+    integer :: i,j,l,l1,m,ii,mml
     real(wp) :: f,b,h,c,r,s,g,p
 
     ierr = 0
     if (n .eq. 1) return
 
     do i = 2,n
-10    e2(i - 1) = e2(i)
+      e2(i - 1) = e2(i)
     end do
 
     f = 0.0_wp
     b = 0.0_wp
+    c = 0.0_wp
     e2(n) = 0.0_wp
 
     LLOOP: do l = 1,n
@@ -776,15 +774,15 @@ contains
         c = b * b
       end if
 !>    ********** look for small squared sub-diagonal element **********
-20    do m = l,n
+      do m = l,n
         if (e2(m) .le. c) exit !go to 40
 !>    ********** e2(n) is always zero, so there is no exit
 !>               through the bottom of the loop **********
       end do
 
       JLOOP: do
-40      if (m .eq. l) exit JLOOP !go to 80
-50      if (j .eq. 30) then
+        if (m .eq. l) exit JLOOP !go to 80
+        if (j .eq. 30) then
           ierr = l !go to 130
           return
         end if
@@ -830,7 +828,7 @@ contains
         if (e2(l) .ne. 0.0_wp) cycle JLOOP !go to 50
         exit JLOOP
       end do JLOOP
-80    p = d(l) + f
+      p = d(l) + f
 !>    ********** order eigenvalues **********
       if (l /= 1) then !if (l .eq. 1) go to 100
 !>    ********** for i=l step -1 until 2 do -- **********
@@ -843,11 +841,11 @@ contains
           d(i) = d(i - 1)
         end do
       end if
-100   i = 1
-110   d(i) = p
+      i = 1
+      d(i) = p
     end do LLOOP
 
-140 return
+    return
   end subroutine tqlrat
 
 !*******************************************************************
@@ -883,9 +881,9 @@ contains
 !*     note that trbak3 preserves vector euclidean norms.
 !*
 !*******************************************************************
-  subroutine trbak3(nm,n,nv,a,m,z)
+  subroutine trbak3(nm,n,a,m,z)
     implicit none
-    integer :: nm,n,nv,m
+    integer :: nm,n,m
     real(wp) :: a(*),z(nm,*)
     integer :: i,iz,ik,j,k,l
     real(wp) :: h,s
@@ -916,7 +914,7 @@ contains
       end do
     end do
 
-50  return
+    return
   end subroutine trbak3
 
 !*******************************************************************
@@ -949,10 +947,9 @@ contains
 !*          e2 may coincide with e if the squares are not needed.
 !*
 !*******************************************************************
-  subroutine tred3(n,nv,a,d,e,e2,eps,eta)
+  subroutine tred3(n,a,d,e,e2)
     implicit none
-    integer :: n,nv
-    real(wp) :: eps,eta
+    integer :: n
     real(wp) :: a(*),d(*),e(*),e2(*)
     integer :: i,j,k,l,iz,jk,ii
     real(wp) :: scale,h,hh,f,g
@@ -972,7 +969,7 @@ contains
       end do
 
       if (scale .ne. 0.d0) then !go to 20
-20      do k = 1,l
+        do k = 1,l
           d(k) = d(k) / scale
           h = h + d(k) * d(k)
         end do
@@ -993,7 +990,7 @@ contains
 !>    ********** form element of a*u **********
           k = 0
           do
-40          k = k + 1
+            k = k + 1
             jk = jk + 1
             g = g + a(jk) * d(k)
             if (k .lt. j) cycle !go to 40
@@ -1001,7 +998,7 @@ contains
           end do
           if (k /= l) then
             do
-50            jk = jk + k
+              jk = jk + k
               k = k + 1
               g = g + a(jk) * d(k)
               if (k .lt. l) cycle !go to 50

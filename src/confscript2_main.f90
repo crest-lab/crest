@@ -17,10 +17,10 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!============================================================================================!
+!=========================================================================================!
 ! iMTD(RMSD)-GC Algorithm (also Entropy mode and iMTD-sMTD Algo --v4)
 ! This is the algo for the conformational search.
-!============================================================================================!
+!=========================================================================================!
 subroutine confscript2i(env,tim)
   use iso_fortran_env,only:wp => real64
   use crest_data
@@ -30,10 +30,9 @@ subroutine confscript2i(env,tim)
   type(systemdata) :: env
   !type(options) :: opt
   type(timer)   :: tim
-  integer :: i,j,k,l,m
+  integer :: i,k,m
   integer :: eit,eit2
-  real(wp) :: time
-  real(wp) :: ethr,ediff,ewin
+  real(wp) :: ewin
   integer :: dum,bref
   character(len=256) :: str,atmp,btmp
   integer :: nallout
@@ -41,7 +40,6 @@ subroutine confscript2i(env,tim)
   logical :: start
   logical :: ex
   logical :: stopiter,fail
-  integer :: fcount
 
   real(wp) :: autokcal
   parameter(autokcal=627.509541d0)
@@ -357,10 +355,8 @@ subroutine V2mdlength(env)
   use crest_data
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-  !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
-  integer :: mdlenfactor
-  real(wp) :: total,k,minimum,fRMSD,tmtd,lenthr
-  real(wp) :: flex,av1,rfac,nciflex,flextot
+  real(wp) :: total,minimum,lenthr
+  real(wp) :: flex,av1,rfac,nciflex
 
   settingBool:associate (quick => env%quick,QCG => env%QCG,V2i => env%iterativeV2,NCI => env%NCI)
 
@@ -460,7 +456,7 @@ subroutine iV2defaultGF(env)
 
   type(filetype) :: biasfile
   logical :: ex
-  integer :: i,j,io
+  integer :: i,io
   character(len=:),allocatable :: atmp
 
   settingBool:associate (quick => env%quick,QCG => env%QCG,V2i => env%iterativeV2)
@@ -648,7 +644,7 @@ subroutine gfdistribute(nsoll,k,a,rem)
   implicit none
   integer,intent(in) :: nsoll
   integer,intent(out) :: k,a,rem
-  real(wp) :: kk,aa,nn,nsq
+  real(wp) :: nn,nsq
   k = 1
   a = 1
   rem = 0

@@ -35,16 +35,16 @@ subroutine flexi(nat,rednat,includeRMSD,flex,effectivNat)
 
       real(wp) :: flex
 
-      real(wp),allocatable::xyz(:,:),bond(:,:),rcov(:),cn(:),cring(:,:),wbo(:,:),wbofull(:,:)
+      real(wp),allocatable::xyz(:,:),rcov(:),cn(:),cring(:,:),wbo(:,:),wbofull(:,:)
       integer,allocatable::at(:),map(:),nb(:,:),b(:,:),sring(:),map2(:)
 
       real(wp) :: thr
       parameter (thr=1.2)  ! CN less than this is considerd as terminating atom (H, F, ...)
 
-      real(wp) :: dx,dy,dz,r,r2,rco,tmp,val,ringf,doublef,branch,av1,effectivNat,hybf
+      real(wp) :: dx,dy,dz,r,r2,rco,val,ringf,doublef,branch,effectivNat,hybf
       real(wp) :: av2
       integer :: i,j,k,l,m,n,rn
-      logical samering,ex
+      logical :: ex
 
       flex = 0
 
@@ -200,8 +200,7 @@ subroutine nciflexi(env,flexval)
          use crest_data
          implicit none
          type(systemdata) :: env
-         !type(options)    :: opt
-         character(len=80) :: fname,solv
+         character(len=80) :: fname
          character(len=512) :: jobcall
          integer :: io
          logical :: ex
@@ -243,7 +242,8 @@ subroutine nciflexi(env,flexval)
          edisp = edisp / env%nat
 
          !--- NCI flexi is determined RELATIVE to a reference molecule (Crambin)
-         flexval = 0.5_wp * ( 1.0_wp - ehb / -0.00043374 + 1.0_wp - edisp / -0.00163029 )
+         flexval = 0.5_wp * ( 1.0_wp - (ehb / (-0.00043374_wp)))
+         flexval = flexval + 0.5_wp *( 1.0_wp - (edisp / (-0.00163029_wp )))
 
 !---- cleanup
          call remove(fname)
@@ -267,9 +267,8 @@ subroutine minringsizes(nat,at,xyz,sring)
     integer :: at(nat)
     real(wp) :: xyz(3,nat)
     integer :: sring(nat)
-    character(len=:),allocatable :: dum
     type(zmolecule) :: zmol
-    integer :: i,j,k
+    integer :: i,j
 
     call simpletopo(nat,at,xyz,zmol,.false.,.true.,'')
     do i=1,zmol%nat

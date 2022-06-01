@@ -23,8 +23,8 @@ c project cartesian on internal mode to determine str, bend, tors
       integer na(n),nb(n),nc(n)
       real*8 bmat(3*n-6,3*n),u(3*n),geo(3,n),coord(3,n),step
 
-      real*8 dit(3*n-6),norm,geo2(3,n)
-      integer k,j,kl,l,lend,n36
+      real*8 dit(3*n-6),geo2(3,n)
+      integer k,j,kl,l,lend
       logical fail
 
       dit = 0
@@ -84,15 +84,15 @@ c project cartesian on internal mode to determine str, bend, tors
       end
 
 c Bmatrix dZmat/dxyz
-      subroutine bzmat(n,at,xyzin,bmat)  
+      subroutine bzmat(n,xyzin,bmat)  
       implicit none
-      integer n,at(n)
+      integer n
       real*8 xyzin(3,n)
       real*8 bmat(3*n-6,3*n)
 
       real*8 xyz(3,n),geo(3,n),br(3*n-6),bl(3*n-6),step,one
       parameter (one=1.0d0)
-      integer i,k,n3,ia,ii,ic,na(n),nb(n),nc(n),n36,j,kl
+      integer i,k,n3,na(n),nb(n),nc(n),n36,j,kl
       integer lend,l,ij
 
       n36=3*n-6
@@ -229,16 +229,15 @@ c        write(*,*)'atom ',i,'  NA,NB,NC :',na(i),nb(i),nc(i)
 
 C     *****************************************************************
 
-      SUBROUTINE cart2zmat(XYZin,molvec,at,nat,N,n2,nmol,
+      SUBROUTINE cart2zmat(XYZin,at,N,n2,nmol,
      .                    fragind,NA,NB,NC,geo)
       use axis_module, only: cma
       IMPLICIT none                       
       integer n,n2,NA(n2), NB(n2), NC(n2), at(n), nmol, fragind(100)
-      integer molvec(n),nat(n2)
       real*8 xyzin(3,n),geo(3,n2)
 
-      integer ind(n2,n2),i,j,k,m,molv(n2),nm,ntot,mm,idum(n)
-      real*8 xyz(3,n2),R,rr(n2),sum3(3),tmp(3,n),one
+      integer i,k,m,nm,ntot,idum(n)
+      real*8 xyz(3,n2),sum3(3),tmp(3,n),one
       parameter (one=1.0d0)
 
       if(nmol.gt.1)then
@@ -524,6 +523,7 @@ C     *****************************************************************
 ***********************************************************************
       NAI1=0
       NAI2=0
+      K=1
       DO 20 I=1,NUMAT
          NA(I)=2
          NB(I)=3

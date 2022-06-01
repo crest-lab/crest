@@ -36,11 +36,10 @@ program CREST
       !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
       type(timer)   :: tim
       
-      integer :: i,j,k,l,args
-      integer :: io
+      integer :: i,j,l,args
       character(len=:),allocatable :: arg(:)
       character(len=:),allocatable :: infile
-      character(len=512) :: str,thisdir
+      character(len=512) :: thisdir
       character(len=1024) :: cmd
       real(wp) :: dumfloat,dumfloat2,d3,d4,d5,d6,d7,d8
       logical :: ex,ex1,ex2
@@ -74,7 +73,7 @@ program CREST
 !c   OMP_NUM_THREAD handling
 !===================================================================================================!
       if(.not.env%autothreads)then
-          call ompquickset(env%omp,env%MAXRUN)
+          call ompquickset(env%omp)
       else
          if(.not.env%threadssetmanual)then
           call ompgetauto(env%threads,env%omp,env%MAXRUN)

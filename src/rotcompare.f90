@@ -65,7 +65,7 @@ end function rotdiff
 logical function equalrotall(i,j,nall,thr,rot)
       implicit none
       integer i,j,nall
-      real*8 rot(3,nall),r,thr
+      real*8 rot(3,nall),thr
       logical :: r1,r2,r3     
       equalrotall=.false.
       r1=abs(rot(1,i)-rot(1,j)).le.thr
@@ -79,7 +79,7 @@ end function equalrotall
 logical function equalrotallrel(i,j,nall,thr,rot)
       implicit none
       integer i,j,nall
-      real*8 rot(3,nall),r,thr
+      real*8 rot(3,nall),thr
       logical :: r1,r2,r3
       equalrotallrel=.false.
       r1=abs((rot(1,i)/rot(1,j))-1.0d0).le.thr
@@ -94,7 +94,6 @@ logical function equalrotmean(i,j,nall,thr,rot)
       implicit none
       integer i,j,nall
       real*8 rot(3,nall),r,thr
-      logical :: r1,r2,r3
       equalrotmean=.false.
       r = abs(rot(1,i)-rot(1,j))
       r = r + abs(rot(2,i)-rot(2,j))

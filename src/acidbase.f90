@@ -47,7 +47,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       type(zmolecule) :: acid
       type(zmolecule) :: base
       integer :: basechrg
-      integer :: i,j,k,l,ich,r
+      integer :: i,j,ich,r
       integer :: nata,natb              !number of atoms for acid/bas
       real(wp),allocatable :: wboa(:,:) !WBOs for the acid
       real(wp),allocatable :: wbob(:,:) !WBOs for the base
@@ -151,7 +151,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
         qh = 0.0_wp
      endif
 
-      open(unit=ich2,file='.ATOM')
+      open(newunit=ich2,file='.ATOM')
       write(ich2,*) xH
       close(ich2)
      
@@ -223,7 +223,7 @@ subroutine ab_reactivecenter(zmola,zmolb,X)
     type(zmolecule) :: zmola  !topology of the acid
     type(zmolecule) :: zmolb  !topology of the base
     integer,intent(out) :: X
-    integer :: i,j,k,l,n
+    integer :: i,j,n
     integer :: na,nb
     integer :: ha,hb
     X = 0
@@ -369,10 +369,9 @@ subroutine rewrite_AB_ensemble(env,acensemble,baensemble)
       type(ensemble) :: ACIDENSEMBLE
       type(ensemble) :: BASEENSEMBLE
       real(wp) :: t
-      real(wp) :: GA,GB,dG
       real(wp) :: eatb,gsa,grrhoa,ebtb,gsb,grrhob,dE
-      integer :: i,j,k,l,h,ich,io
-      logical :: bhess,ex,ldum
+      integer :: i,j,l
+      logical :: bhess,ldum
       integer :: nalla
       real(wp),allocatable :: ae(:)
       integer :: nallb

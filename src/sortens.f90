@@ -32,7 +32,6 @@ subroutine sort_ens(sort,infile,verbose)
 
     integer  :: n
     integer  :: nall
-    real(wp) :: iz1
     real(wp),allocatable :: xyz(:,:,:)
     real(wp),allocatable :: xyz_new(:,:,:)
     real(wp),allocatable :: eread(:)
@@ -40,12 +39,11 @@ subroutine sort_ens(sort,infile,verbose)
     integer,allocatable  :: at(:)
     real(wp) :: e_rel
 
-    real(wp),allocatable :: pop(:)
     real(wp),allocatable :: xdum(:,:)
     integer,allocatable  :: molvec(:)
     integer  :: frag
     integer  :: minl,minll(1)
-    integer  :: i,j,k,l
+    integer  :: i,k
     integer  :: ich,ochan
     real(wp) :: dE 
     logical :: verbose

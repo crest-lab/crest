@@ -29,26 +29,21 @@ subroutine xtbmodef(env,s,e,n,u,l,o,x)
       integer :: e  !end mode
       integer :: n  !number of points on mode
       integer :: o  !opt cycles per point per mode
-      integer :: i,j,k
+      integer :: i,k
       integer :: TOTAL,MINM,MAXM
       integer :: DONE,dir,ACTIVE,MODE,CHECK
-      integer :: OMP_GET_NUM_THREADS,OMP_GET_NUM_PROCS
-      integer :: OMP_GET_MAX_THREADS
-      integer :: io,symlnk,r
+      integer :: io,r
       real(wp)  :: u !mode update factor
       real(wp)  :: l !steplength between points on mode
-      real(wp)  :: tmp
 
       character(len=20):: modefile1,modefile2
       character(len=20)::extn
       character(len=80):: solv,fname,outf,pipe
       character(len=512):: str,thispath,tmppath,dg
-      character(len=868) :: str2
       character(len=1024):: jobcall
-      character(len=200):: finfile,runfile
-      character(len=:), allocatable :: ProgName, gfnver
+      !character(len=:), allocatable :: ProgName, gfnver
 
-      logical:: l1,l2,fin,run,modefok,mop,update,ex,clo
+      logical:: l2,update,ex,clo
       logical :: niceprint
 
       real(wp) :: percent
@@ -59,10 +54,8 @@ subroutine xtbmodef(env,s,e,n,u,l,o,x)
 
       associate( gbsa => env%gbsa, solvent => env%solvent,  &
       & fixfile => env%fixfile, constraints => env%constraints, optlev => env%optlev, &
-      & trackorigin => env%trackorigin)
+      & trackorigin => env%trackorigin, gfnver => env%gfnver, ProgName => env%ProgName)
       niceprint = env%niceprint
-      gfnver = env%gfnver
-      ProgName = env%ProgName
 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
@@ -205,14 +198,14 @@ subroutine xtbmodef(env,s,e,n,u,l,o,x)
       endif
 !$omp parallel &
 !$omp shared( MODE,TOTAL,percent,k,niceprint,bar ) &
-!$omp shared( ProgName,gfnver,solv,outf,pipe )
+!$omp shared( env, solv,outf,pipe )
 !$omp single
       do i=1,TOTAL
          MODE= i + s - 1
       !$omp task firstprivate( MODE ) private( tmppath,io )
          write(tmppath,'(a,i0)')'MODEF',MODE
          write(jobcall,'(a,'' coord '',a,'' -modef '',i0,1x,a,'' > '',a,1x,a)') &
-         & trim(ProgName),trim(gfnver),MODE,trim(solv),trim(outf),trim(pipe)
+         & trim(env%ProgName),trim(env%gfnver),MODE,trim(solv),trim(outf),trim(pipe)
          !call system('cd '//trim(tmppath)//' && '//trim(jobcall))
          call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
       !$omp critical

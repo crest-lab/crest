@@ -35,8 +35,7 @@ subroutine compare_ensembles(env)
 
          integer :: i,j,k,l,kk,ll
          integer :: be,ed
-         integer :: iz1,iz2
-         integer :: io,tr1,tr2
+         integer :: tr1,tr2
          integer :: nat
          integer :: dum
          integer :: nat1,nat2
@@ -46,10 +45,9 @@ subroutine compare_ensembles(env)
          integer :: rcount
          integer :: ich,ich2
 
-         real(wp) :: rthr,bthr
+         real(wp) :: rthr
          real(wp) :: rval
          real(wp) :: min_1,min_2,min_tot
-         real(wp) :: max_1,max_2
 
          real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:), ydum(:)  ! rmsd dummy stuff
          real(wp),allocatable :: rmat(:,:),rmat2(:)
@@ -61,7 +59,6 @@ subroutine compare_ensembles(env)
          integer,allocatable  :: b1(:),b2(:)
          integer,allocatable  :: e1(:),e2(:)
          integer,allocatable  :: rots1(:),rots2(:)
-         integer,allocatable  :: sort(:)
 
          character(len=128) :: ensname1,ensname1backup
          character(len=128) :: ensname2
@@ -352,8 +349,7 @@ subroutine compare_ensembles(env)
 
 end subroutine compare_ensembles
 
-!-------------------------------------------------------------------------------------------------------------------
-!--------------------------------------------------------------------------------------------------------------------
+!---------------------------------------------------------------------------------------
 subroutine compens_cleanup()
          use iso_fortran_env, only : wp => real64
          use iomod
@@ -367,14 +363,13 @@ subroutine compens_cleanup()
          call remove('cregen.out.tmp')
 end subroutine compens_cleanup
 
-!-------------------------------------------------------------------------------------------------------------------
-!--------------------------------------------------------------------------------------------------------------------
+!--------------------------------------------------------------------------------------
 subroutine pr_rmat(rmat,acon,bcon)
          use iso_fortran_env, only : wp => real64
          implicit none
          integer :: acon,bcon
          real(wp) :: rmat(acon,bcon)         
-         integer :: i,j,k,l
+         integer :: i,j
          write(*,*)
          write(*,*) 'RMSD matrix:'
          write(*,'(2x,a9)',advance='no')'conformer'

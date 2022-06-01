@@ -140,7 +140,7 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       real(wp) :: val
       real(wp) :: denom
       real(wp) :: emin
-      integer  :: i,j,k,l
+      integer  :: i
 
       p = 0.0_wp
       emin = minval(e)
@@ -201,7 +201,7 @@ c but including H in OH
       implicit none
       integer k,l
       real*8 rmsdval
-      character*80 atmp1,atmp2,atmp
+      character(len=80) atmp1,atmp2
       !Dummys:
       real*8  g(3,3), U(3,3), x_center(3), y_center(3)
       integer n
@@ -226,6 +226,7 @@ c but including H in OH
       logical function ohbonded2(n,m,xyz,at)
       integer n,at(n),m             
       real*8 xyz(3,n)
+      real*8 :: r
 
       ohbonded2=.false.
       if(at(m).ne.1) return
@@ -250,7 +251,7 @@ CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
       logical function ohbonded(n,m,xyz,at,acid)
       integer n,at(n),m,acid(86)       
       real*8 xyz(3,n)
-      
+      real*8 :: r
 
       ohbonded=.false.
       if(at(m).ne.1) return

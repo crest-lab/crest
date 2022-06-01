@@ -44,23 +44,20 @@ subroutine deprotonate(env,tim)
       use strucrd, only: rdnat,rdcoord,i2e
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)      :: tim
       type(protobj)    :: deprot
 
       real(wp),allocatable :: xyz(:,:)
       integer,allocatable  :: at(:)
 
-      integer :: i,j,k,l
+      integer :: i,j
       character(len=64)  :: deprotname
       character(len=256) :: thispath
       character(len=256) :: filename
       character(len=128) :: inpnam,outnam
 
       integer :: ich
-      integer :: natp,nallout,nhat,refchrg
-
-      logical :: ex
+      integer :: natp,nallout,refchrg
 
 !--- printout & clean directory
       call deprotclean
@@ -195,7 +192,7 @@ subroutine deprot_correction(env,iname)
     integer,allocatable :: at(:)
     real(wp),allocatable :: xyz(:,:,:)
     real(wp),allocatable :: eread(:)
-    integer :: i,j,k,l
+    integer :: i
     real(wp) :: dE
     real(wp) :: acidchrg
     real(wp) :: d1,d2,d3,d4,d5,d6

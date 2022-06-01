@@ -30,7 +30,7 @@ subroutine htothebottom(fname,ichrg,n,atmap)
        use strucrd, only: rdnat,rdcoord,i2e
        implicit none
 
-       integer :: i,j,k,l,h
+       integer :: i,j
        character(len=*) :: fname
        integer :: n,ichrg
        integer :: atmap(n)
@@ -105,18 +105,16 @@ subroutine cosort(iname,oname,wrscoord,verbose)
       character(len=*),intent(in) :: oname
       logical,intent(in)          :: wrscoord
 
-      integer :: i,j,k,l,q,p,r
+      integer :: j,k,q,p,r
       real(wp),allocatable :: eread(:),xyz(:,:,:),xyztmp(:,:)
       real(wp),allocatable :: cn(:),bond(:,:)
       integer,allocatable :: at(:),group(:)
-      real(wp) :: xx(100),thresh,dE
-      character(len=10) :: ident
-      character(len=10),allocatable :: itens(:,:)   !identifier tensor
+      real(wp) :: dE
       character(len=10),allocatable :: itensr(:),itensl(:)   !identifier tensor
       character(len=80) :: str
-      integer :: n,iz1,nall,nonh,gc,sgc,tgc
+      integer :: n,nall,nonh,gc,sgc,tgc
 
-      logical :: lprint,verbose
+      logical :: verbose
       integer :: ochan,ich
 
       write(*,*)
@@ -258,9 +256,9 @@ subroutine counth(nat,iz,n)    !count all hydrogen atoms
 end subroutine counth
 
 
-subroutine countnonh2(nat,icn,iat,idarr,n2)
+subroutine countnonh2(icn,idarr,n2)
       implicit none
-      integer :: nat,iat(nat),icn,idarr(icn),n2,i
+      integer :: icn,idarr(icn),n2,i
       n2=0
       do i=1,icn
          if(idarr(i).eq.1)then
@@ -311,7 +309,6 @@ subroutine analyze_neighbours(i,xyz,iat,nat,ntopo,topo,ident)
       integer,intent(in) :: ntopo
       integer,intent(in) :: topo(ntopo)
       character(len=10),intent(inout) :: ident
-      real(wp) :: r
       integer  :: j,k,l,icn,n2
       integer :: lin !this is a function
       integer,allocatable :: idarr(:),neighb(:)
@@ -345,7 +342,7 @@ subroutine analyze_neighbours(i,xyz,iat,nat,ntopo,topo,ident)
       !Check if (pseudo-)chirality has to be determined for atom i
       if((iat(i).eq.6).and.(icn.eq.4))then     !for carbon
          chiralC=.true.
-         call countnonh2(nat,icn,iat,idarr,n2)
+         call countnonh2(icn,idarr,n2)
          !if((idarr(1).eq.idarr(2)).and.(iat(idarr(1)).eq.1))then !methyl and ehtyl group workaround
          !   chiralC=.false.
          if(n2.le.2)then                                          !methyl and ehtyl group workaround
@@ -354,7 +351,7 @@ subroutine analyze_neighbours(i,xyz,iat,nat,ntopo,topo,ident)
       endif
       if((iat(i).ne.6).and.(icn.ge.3))then     !for other heavy atoms
          chiralX=.true.
-         call countnonh2(nat,icn,iat,idarr,n2)
+         call countnonh2(icn,idarr,n2)
          if((icn-n2).gt.1)then                     !if more than one hydrogen are present don't use the chirality identifier
             chiralX=.false.                        !because the results might differ (hydrogen order not fixed in the coordinates)
          endif
@@ -364,7 +361,7 @@ subroutine analyze_neighbours(i,xyz,iat,nat,ntopo,topo,ident)
  
       if(chiralC.or.chiralX)then                    !add a (pseudo-)chirality identifier (+ or -)
          chiral=''
-         call chispat(i,icn,neighb,iat,nat,xyz,idarr,chiral)
+         call chispat(i,icn,neighb,nat,xyz,chiral)
          str2=trim(ident)
          write(ident,'(a,a)')trim(str2),trim(chiral)
          chiralC=.false.
@@ -381,7 +378,7 @@ subroutine idwrite(n,arr,str)
       use strucrd, only: i2e
       implicit none
       integer :: n,arr(n)
-      integer :: i,j,k,l
+      integer :: i
       character(len=*) :: str
       character(len=6) :: dummy
       call quicksort(n,arr)
@@ -395,26 +392,19 @@ end subroutine idwrite
 !! --------------------------------------------------------------------------------------
 !  chispat -  chirality identifier by using a spat product
 !! --------------------------------------------------------------------------------------
-subroutine chispat(c,icn,neighb,iat,nat,xyz,idarr,chiral)
+subroutine chispat(c,icn,neighb,nat,xyz,chiral)
       use iso_fortran_env, only : wp => real64
       implicit none
       integer  :: c
       integer  :: nat
       integer  :: icn
-      integer  :: iat(nat)
       integer  :: neighb(icn)
-      integer  :: idarr(icn)
       real(wp) :: xyz(3,nat)
       character(len=*) :: chiral
 
-      integer :: i,j,k,l
+      integer :: i,j,k
       real(wp),allocatable :: xyz2(:,:)
-      real(wp) :: vec(3)
-      real(wp) :: vec2(3)
       real(wp) :: mat(3,3)
-      real(wp) :: mat2(3,3)
-      real(wp) :: spat
-      real(wp) :: spat2
       real(wp) :: sig
 
       allocate(xyz2(3,icn))
@@ -488,8 +478,7 @@ subroutine methyl_autocomplete(n,xyz,at,equiv)
       integer,allocatable :: eqv(:,:)
       integer,intent(inout) :: equiv(n+1,n)
 
-      integer :: i,j,k,l
-      integer :: m
+      integer :: i,m
        allocate(eqv(n,3))
        call get_methyl(n,xyz,at,eqv)
 
@@ -518,14 +507,12 @@ subroutine get_methyl(n,xyz,at,eqv)
       real(wp),allocatable :: cn(:)
       real(wp),allocatable :: bond(:,:)
 
-      character(len=10) :: ident
       integer :: p,nonh
       integer :: a,b,c
 
       logical :: meth
-      integer :: nmeth,nmeth2
+      integer :: nmeth
       integer :: hyd(3)
-      integer,allocatable :: equivalents(:,:)
 
       allocate(cn(n),bond(n,n))
 
@@ -540,7 +527,7 @@ subroutine get_methyl(n,xyz,at,eqv)
       nmeth=0
       do p=1,n                                 
         if(at(p).ne.6) cycle !only check for carbon
-        call methyl(p,xyz,at,n,cn,bond,meth,hyd)
+        call methyl(p,at,n,cn,bond,meth,hyd)
         !if(meth)nmeth=nmeth+1
         if(meth)then
           a=hyd(1)
@@ -564,26 +551,21 @@ end subroutine get_methyl
 !! --------------------------------------------------------------------------------------
 !! --------------------------------------------------------------------------------------
 
-subroutine methyl(i,xyz,iat,nat,cn,bond,meth,hydrogens)
+subroutine methyl(i,iat,nat,cn,bond,meth,hydrogens)
       use iso_fortran_env, only : wp => real64
       implicit none
       integer,intent(in)  :: i
-      real(wp),intent(in) :: xyz(3,nat)
       integer,intent(in)  :: iat(nat)
       integer,intent(in)  :: nat
       real(wp),intent(in) :: cn(nat)
       real(wp),intent(inout) :: bond(nat,nat)
       logical,intent(out) :: meth
       integer,intent(out) :: hydrogens(3)
-      real(wp) :: r
       integer  :: j
       integer  :: icn
       integer  :: k,l
       integer  :: nhyd
-      integer,allocatable :: idarr(:),neighb(:)
-      character(len=8) :: str
-      character(len=9) :: str2
-      character(len=1) :: chiral
+      integer,allocatable :: neighb(:)
       meth=.false.
       hydrogens(1:3)=0
       l=0

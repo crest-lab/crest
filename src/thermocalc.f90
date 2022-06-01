@@ -243,7 +243,7 @@ subroutine calcthermo(nat,at,xyz,etot,freq,pr,ithr,fscal,sthr,nt,temps, &
       call print_thermo_sthr_ts(iunit,nvib,vibs,avmom,sthr,temps(j))
       endif
       call thermodyn(iunit,a,b,c,avmom,linear,atom,sym,molmass,vibs,nvib, &
-      & etot,temps(j),sthr,et(j),ht(j),gt(j),ts(j),zp,pr2)
+      & temps(j),sthr,et(j),ht(j),gt(j),ts(j),zp,pr2)
       stot(j) = (ts(j)/temps(j))*autocal
     enddo
 

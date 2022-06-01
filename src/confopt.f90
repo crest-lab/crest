@@ -44,23 +44,18 @@ subroutine confopt(env,xyz,TMPCONF,confcross)
       integer,intent(in) :: TMPCONF  !number of structures to be optimized
       logical,intent(in) :: confcross ! used after confcross?
 
-      integer :: i,j,k,l,m,n
+      integer :: i
       integer :: vz
       integer :: fileid
 
-      character(len=20) :: optl,pipe
+      character(len=20) :: pipe
       character(len=80) :: solv
       character(len=256) :: tmpname,oname         
       character(len=512) :: str,thispath,tmppath 
       character(len=1024):: jobcall,jobcall2       
-      character(len=52) :: bar
       
-      real(wp) :: percent
-
-      integer :: TID,nproc,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM
-
-      logical :: setoptlev,ex
-      logical :: l1,l2,fin,run,optok,mop,update,notok
+      logical :: ex
+      logical :: l1,l2,update
 
       logical :: niceprint
 
@@ -209,7 +204,6 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
       character(len=*) :: base
       character(len=:),allocatable :: bdir
 
-      real(wp) :: pthr
       logical :: niceprint
 
       character(len=52) :: bar
@@ -218,8 +212,7 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
       integer :: vz,k,i,maxpop
       integer :: io
 
-      character(len=256) :: tmpname,oname,ctmp
-      character(len=512) :: str,thispath,tmppath,optpath
+      character(len=512) :: tmppath
 
 
       !niceprint=env%niceprint

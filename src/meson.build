@@ -97,7 +97,6 @@ srcs += files(
   'utilities.f',
   'xtbmodef.f90',
   'zdata.f90',
-  'zfunctional.f90',
   'zsort.f90',
   'ztopology.f90',
 )

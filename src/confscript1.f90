@@ -28,11 +28,8 @@ subroutine confscript1(env,tim)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)      :: tim
-      integer :: i,j,k,l
       integer :: nmodes
-      character(len=256) :: infile
       character(len=512) :: str
 
       logical :: better
@@ -55,7 +52,7 @@ subroutine confscript1(env,tim)
       call clean  ! remove dirs and confg files
 
       call tim%start(1,'hessian')
-      call ohess(env,nmodes)
+      call ohess(env)
       call tim%stop(1)
 
       env%icount = env%icount + 1
@@ -64,7 +61,7 @@ subroutine confscript1(env,tim)
 
       if(performModef)then
          call tim%start(2,'MF')
-         call modef(env,nmodes,better)
+         call modef(env,better)
          call tim%stop(2)
          if(better.and.env%icount.lt.env%Maxrestart) cycle ! goto 9999  ! avoid infinite loop
       endif
@@ -124,17 +121,14 @@ end subroutine confscript1
 !c RUN THE MODE FOLLOWING 
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine modef(env,nmodes,better)
+subroutine modef(env,better)
       use iso_fortran_env, wp => real64
       use crest_data
       implicit none
 
       type(systemdata) :: env
-      !type(options)     :: opt
-
-      integer nmodes
       logical better
-      integer start_mode,end_mode,end_model,i
+      integer start_mode,end_mode,end_model
 
       start_mode=7
       end_mode  = start_mode+env%nmodes-1
@@ -199,11 +193,9 @@ subroutine md(env,better)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
 
       logical :: better
-      integer :: idump,mdmode,temps,snaps
-      real(wp) :: level,ewin,time
+      real(wp) :: time
       character(len=512) :: atmp,btmp
       character(len=1024) :: str
       integer :: io
@@ -247,22 +239,11 @@ subroutine cross(env,better)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
 
       logical :: better
-      real(wp) :: ewin
       integer :: i,imax,tmpconf
-      character(len=80) :: str      
       character(len=128) :: inpnam,outnam
       character(len=512) :: thispath
-      logical :: ex
-      real(wp) :: thresholds(8)
-      logical :: cgf(6)
-
-      !write(*,*)
-      !write(*,'(5x,''========================================'')')
-      !write(*,'(5x,''|        Structure Crossing (GC)       |'')')
-      !write(*,'(5x,''========================================'')')
 
       write(*,*)
       write(*,'(''------------------------'')')
@@ -295,25 +276,20 @@ end subroutine cross
 !c RUN THE HESSIAN    
 !ccccccccccccccccccccccccccccccccccccccc
 
-subroutine ohess(env,nmodes)
+subroutine ohess(env)
       use crest_data
       use iomod
       use strucrd, only: coord2xyz
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
 
-      integer :: icount,nmodes
-      integer :: mdmode,io
-      real*8 :: level
+      integer :: io
 
-      integer :: i,iost,ich
-      character(len=512) :: str,dg,atmp
-      character(len=64)  :: dum
+      integer :: iost,ich
+      character(len=512) :: str,atmp
       character(len=868) :: tmp
       character(len=1024):: jobcall
-      character(len=80):: optl
       real*8 tmpx
       logical :: ex
       character(len=:),allocatable :: pipe

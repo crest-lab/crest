@@ -29,16 +29,14 @@ subroutine wallpot(env)
   !type(options) :: opt
   type(systemdata) :: env
 
-  integer :: i,j,k,l
   integer :: nat
   integer,allocatable  :: at(:)
   real(wp),allocatable :: xyz(:,:)
   real(wp) :: eaxr(3),rabc(3)
   real(wp) :: rmax
-  real(wp) :: sola,atot,vtot
+  real(wp) :: sola,vtot
   real(wp) :: r,roff,boxr
   real(wp) :: pshape
-  real(wp) :: dumbox(3,3),getbox
   real(wp) :: volsum
   real(wp) :: natfac,erffac,erfscal
   logical :: pr = .false.
@@ -66,7 +64,7 @@ subroutine wallpot(env)
   call axis(pr,nat,at,xyz,eaxr)
   sola = sqrt(1.0d0 + (abs(eaxr(1) - eaxr(3))) / (abs(eaxr(1) + eaxr(2) + eaxr(3)) / 3.0d0))
   call getmaxdist(nat,xyz,at,rmax)
-  vtot = volsum(nat,xyz,at) !--- volume as sum of speherical atoms (crude approximation)
+  vtot = volsum(nat,at) !--- volume as sum of speherical atoms (crude approximation)
 
 !--- calculate ellipsoid
 
@@ -92,7 +90,7 @@ subroutine wallpot(env)
 
 !--- write CMA transformed coord file
   call wrc0('coord',env%nat,at,xyz)
-  call dummypot(env,rabc,xyz,at,env%nat)
+  call dummypot(rabc,xyz,at,env%nat)
 
   deallocate (at,xyz)
 
@@ -113,13 +111,11 @@ subroutine wallpot_calc(nat,at,xyz,rabc)
   integer,intent(inout)  :: at(nat)
   real(wp),intent(inout) :: xyz(3,nat)
   real(wp),intent(out)   :: rabc(3)     !potential ellipsoide-axis
-  integer :: i,j,k,l
   real(wp) :: eaxr(3)
   real(wp) :: rmax
-  real(wp) :: sola,atot,vtot
+  real(wp) :: sola,vtot
   real(wp) :: r,roff,boxr
   real(wp) :: pshape
-  real(wp) :: dumbox(3,3),getbox
   real(wp) :: volsum
   real(wp) :: natfac,erffac,erfscal
   logical :: pr = .false.
@@ -135,7 +131,7 @@ subroutine wallpot_calc(nat,at,xyz,rabc)
   call axis(pr,nat,at,xyz,eaxr)
   sola = sqrt(1.0d0 + (eaxr(1) - eaxr(3)) / ((eaxr(1) + eaxr(2) + eaxr(3)) / 3.0d0))
   call getmaxdist(nat,xyz,at,rmax)
-  vtot = volsum(nat,xyz,at) !--- volume as sum of speherical atoms (crude approximation)
+  vtot = volsum(nat,at) !--- volume as sum of speherical atoms (crude approximation)
 !--- calculate ellipsoid
   roff = sola * vtot / 1000.0d0
   boxr = ((sola * vtot) / pi43)**third + roff + rmax * 0.5
@@ -158,7 +154,7 @@ subroutine getmaxdist(n,xyz,at,dist)
   implicit none
   integer :: n
   integer :: at(n)
-  integer :: i,j,k,l
+  integer :: i
   real(wp) :: xyz(3,n)
   real(wp) :: dist
   real(wp) :: dum
@@ -181,16 +177,13 @@ end subroutine getmaxdist
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !c
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-subroutine dummypot(env,ellips,xyz,at,nat)
+subroutine dummypot(ellips,xyz,at,nat)
   use iso_fortran_env,wp => real64
   use crest_data
   use strucrd,only:i2e
   implicit none
-  !type(options) :: opt
-  type(systemdata) :: env
 
-  integer :: i,j,k,l
-  integer :: imax
+  integer :: i
   integer :: nat,ich
   integer :: at(nat)
 
@@ -254,93 +247,6 @@ SUBROUTINE init_random_seed()
 
   DEALLOCATE (seed)
 END SUBROUTINE
-!---- statically merge two molecules A and B and paste into C
-subroutine quickdock(Aname,Bname,Cname)
-  use iso_fortran_env,wp => real64
-  use strucrd,only:rdnat,rdcoord,wrc0
-  use crest_data,only:bohr
-  use axis_module
-  implicit none
-
-  character(len=*) :: Aname
-  character(len=*) :: Bname
-  character(len=*) :: Cname
-
-  integer :: i,j,k,l
-  integer :: ich,ich2
-  integer :: nA,nB
-
-  real(wp),allocatable :: A(:,:)
-  real(wp),allocatable :: B(:,:)
-  integer,allocatable  :: atA(:)
-  integer,allocatable  :: atB(:)
-  real(wp),allocatable :: boxA(:,:)
-  real(wp),allocatable :: boxB(:,:)
-  real(wp) :: volA,volB
-
-  integer :: nC
-  integer,allocatable :: atC(:)
-  real(wp),allocatable :: C(:,:)
-
-  real(wp),allocatable :: dum(:)
-
-  real(wp) :: getbox
-  real(wp) :: X(3)
-  real(wp) :: shift
-
-!---- write
-  write (*,'(2x,a,a,1x,a,a)') '-dock ',trim(Aname),trim(Bname), &
-  & ' : merging structures to create input coord'
-!---- some init stuff
-  allocate (boxA(3,3),boxB(3,3),dum(3))
-
-!---- Read in the files
-  call rdnat(Aname,nA)
-  call rdnat(Bname,nB)
-  allocate (A(3,nA),atA(nA),B(3,nB),atB(nB))
-  call rdcoord(Aname,nA,atA,A)
-  call rdcoord(Bname,nB,atB,B)
-!---- Transform to CMA
-  call axis(nA,atA,A,A,dum)
-  call axis(nB,atB,B,B,dum)
-
-  volA = getbox(nA,A,boxA)
-  volB = getbox(nB,B,boxB)
-
-  !write(*,*) 'Volume of A:',volA
-  !write(*,*) 'Volume of B:',volB
-
-  call wrc0('A.new',nA,atA,A)
-  call wrc0('B.new',nB,atB,B)
-!---- shift molecules
-  X = (/0.0_wp,0.0_wp,1.0_wp/) !translation along z
-  shift = 2.5_wp / bohr
-  if (volA .ge. volB) then  !shift the larger molecule above the smaller one
-    call shiftXvec(boxA,boxB,X,shift)
-    call shiftmol(A,nA,B,nB,X)
-  else
-    call shiftXvec(boxB,boxA,X,shift)
-    call shiftmol(B,nB,A,nA,X)
-  end if
-!--- produce merged geometry C
-  nC = nA + nB
-  allocate (atC(nC),C(3,nC))
-  do i = 1,nA
-    atC(i) = atA(i)
-    C(1:3,i) = A(1:3,i)
-  end do
-  do j = 1,nB
-    k = j + nA !offset
-    atC(k) = atB(j)
-    C(1:3,k) = B(1:3,j)
-  end do
-  call wrc0(Cname,nC,atC,C)
-
-  deallocate (C,atC)
-  deallocate (atB,B,atA,A)
-  deallocate (dum,boxB,boxA)
-  return
-end subroutine quickdock
 
 !---- set up  a box around the molecule. the return value is the box volume
 function getbox(n,xyz,box)
@@ -350,7 +256,7 @@ function getbox(n,xyz,box)
   integer,intent(in)  :: n
   real(wp),intent(in) :: xyz(3,n)
   real(wp),intent(out) :: box(3,3)
-  integer :: i,j
+  integer :: i
   box = 0.0_wp
   getbox = 1.0_wp
   do i = 1,3 !i are the X,Y,Z axis
@@ -370,7 +276,7 @@ function getbox2(n,xyz,at,box)
   real(wp),intent(in) :: xyz(3,n)
   real(wp),intent(out) :: box(3,3)
   integer,intent(in) :: at(n)
-  integer :: i,j
+  integer :: i
   real(wp),allocatable :: rcov(:),rat(:)
   real(wp) :: rcovmax
   allocate (rcov(94),rat(n))
@@ -397,15 +303,14 @@ function getbox2(n,xyz,at,box)
 end function getbox2
 
 !---- get the volume simply as a sum of spherical atom volumes (crude approximation)
-function volsum(n,xyz,at)
+function volsum(n,at)
   use iso_fortran_env,wp => real64
   implicit none
   real(wp) :: volsum
   integer,intent(in)  :: n
-  real(wp),intent(in) :: xyz(3,n)
   integer,intent(in) :: at(n)
-  integer :: i,j
-  real(wp),allocatable :: rcov(:),rat(:)
+  integer :: i
+  real(wp),allocatable :: rcov(:)
   real(wp) :: r
   allocate (rcov(94))
   !--- D3 radii in Bohr
@@ -438,31 +343,3 @@ function volsum(n,xyz,at)
   return
 end function volsum
 
-!---- move molecule B above molecule A by a the vector X
-subroutine shiftmol(A,nA,B,nB,X)
-  use iso_fortran_env,wp => real64
-  implicit none
-  integer,intent(in)     :: nA
-  real(wp),intent(inout) :: A(3,nA)
-  integer,intent(in)     :: nB
-  real(wp),intent(inout) :: B(3,nB)
-  real(wp),intent(in)    :: X(3)
-  integer :: i
-  do i = 1,nB
-    B(1:3,i) = B(1:3,i) + X(1:3)
-  end do
-  return
-end subroutine shiftmol
-!--- transform unit vector X to include coodrinates of mol boxes
-subroutine shiftXvec(boxA,boxB,X,c)
-  use iso_fortran_env,wp => real64
-  implicit none
-  real(wp),intent(inout)    :: X(3)
-  real(wp),intent(in)       :: c
-  real(wp) :: boxA(3,3)
-  real(wp) :: boxB(3,3)
-  X(1) = X(1) * (boxA(1,1) + abs(boxB(1,2)) + c)
-  X(2) = X(2) * (boxA(2,1) + abs(boxB(2,2)) + c)
-  X(3) = X(3) * (boxA(3,1) + abs(boxB(3,2)) + c)
-  return
-end subroutine shiftXvec

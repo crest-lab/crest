@@ -558,9 +558,9 @@ subroutine integrate(circles, int_parts, nat, nint_parts, rad, z1, av_part)
    av_part(2) = 0d0
 
    do i = 1, nint_parts
-      x = circles(int_parts(i, 1), 1)
-      y = circles(int_parts(i, 1), 2)
-      z = circles(int_parts(i, 1), 3)
+      x = circles(nint(int_parts(i, 1)), 1) !> int_parts is type real(wp) and therefore
+      y = circles(nint(int_parts(i, 1)), 2) !> should not be used as an array index?
+      z = circles(nint(int_parts(i, 1)), 3) !> added nint()
       xz = x*z
       yz = y*z
       pre_V = (4d0*rad**2 + x**2 + y**2 + z**2)/2d0

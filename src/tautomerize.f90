@@ -925,7 +925,7 @@ subroutine PDT_constraints(env)
          write(*,'(1x,a,f8.4,a)') 'Selected force constant:',env%forceconst,' Eh'
 
       !-- analyse sorted coord and write bondlength constraint 
-         call autoHeavyConstraint('coord',env%forceconst,'')
+         call autoHeavyConstraint('coord',env%forceconst)
 
       !-- read (only) the bondlength file as constraint
          call read_constrainbuffer('bondlengths',env%cts)

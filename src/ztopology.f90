@@ -136,13 +136,11 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
      real(wp),allocatable :: bond(:,:)
      real(wp),allocatable :: wbo(:,:)
      real(wp),allocatable :: rcov(:)
-     real(wp) :: dummy
-     integer :: i,j,k,l
+     integer :: i,j,k
      integer :: ntopo
      logical,allocatable :: neighmat(:,:)
      integer,allocatable :: topovec(:)
      integer :: nrings
-     character(len=10) :: numchar
 
      logical :: ex,useWBO
 
@@ -281,7 +279,7 @@ subroutine xcoord2(nat,iz,xyz,rcov,cn,cn_thr,bond)
       real(wp),intent(in)  :: cn_thr
       real(wp),intent(in)  :: rcov(94)
       real(wp),intent(out) :: bond(nat,nat)
-      integer :: i,j,k1
+      integer :: i,k1
       integer :: iat
       real(wp) :: dx,dy,dz,r,damp,xn,rr,rco,r2,rcovi,rcovj
       k1=16
@@ -491,7 +489,6 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec)
       real(wp),intent(in) :: cn(nat)
       integer,intent(in)     :: ntopo
       integer,intent(in) :: topovec(ntopo)
-      type(zatom)         :: zat    !--- "zat" is the complex datatype object for atom i
       integer :: lin
       integer :: i,j,k,l
       integer :: inei
@@ -549,7 +546,7 @@ subroutine ztopozmat(zmol,pr)
     real(wp),allocatable :: xyz(:,:)
     real(wp),allocatable :: geo(:,:)
     integer,allocatable :: na(:),nb(:),nc(:)
-    integer :: i,j,k,l
+    integer :: i
     real(wp),parameter :: pi =  3.14159265358979D0
     real(wp),parameter :: rad = 180.0d0/pi
 
@@ -690,7 +687,6 @@ subroutine wborepaireta(i,nat,at,xyz,cn,wbo,zat)
       real(wp),intent(in) :: xyz(3,nat)
       real(wp),intent(in) :: cn(nat)
       real(wp),intent(in) :: wbo(nat,nat)
-      real(wp) :: wbothr
       integer,intent(in)  :: at(nat)
       integer,intent(in)  :: nat
       type(zatom)         :: zat
@@ -717,7 +713,7 @@ subroutine wbomrec(molcount,nat,wbo,wbothr,molvec)
       implicit none
       real(wp) :: wbo(nat,nat)
       real(wp) :: wbothr
-      integer :: nat,molvec(nat),i,molcount,at(nat)
+      integer :: nat,molvec(nat),i,molcount
       logical :: taken(nat)
       molvec=0
       molcount=1
@@ -740,7 +736,7 @@ recursive subroutine wbofrags(i,nat,wbo,wbothr,taken,molvec,molcnt)
       integer :: i,nat
       real(wp) :: wbo(nat,nat)
       real(wp) :: wbothr
-      integer :: molcnt,molvec(nat),j,iat(nat),k
+      integer :: molcnt,molvec(nat),j
       logical taken(nat)
       do j=1,nat
          if(i .eq. j) cycle
@@ -765,7 +761,7 @@ subroutine zadjacent(zmol,A,E)
       type(zmolecule) :: zmol
       integer :: A(zmol%nat,zmol%nat)
       real(wp) :: E(zmol%nat,zmol%nat)
-      integer :: i,j,k,l
+      integer :: i,j
       integer :: nat
       nat = zmol%nat
       A=0
@@ -794,7 +790,6 @@ subroutine arrcomp(n,narr,m,marr,equi)
       integer :: marr(*)
       logical :: equi
       logical,allocatable :: mask(:)
-      integer :: i,j,k,l
       if(n.ne.m)then
          equi=.false.
          return
@@ -822,7 +817,7 @@ function arruniqel(n,narr,m,marr,el)
       integer :: marr(m)
       integer :: el
       integer :: incr
-      integer :: i,j
+      integer :: i
       arruniqel = .false.
       el = 0
       incr = 0
@@ -878,7 +873,6 @@ subroutine getsideweight(zmol,i,j,mside)
       integer :: k,l
       integer :: atm
 
-      logical,allocatable :: taken(:)
       integer,allocatable :: path(:)
   
       mside=0.0_wp
@@ -943,7 +937,7 @@ subroutine newgetrings(zmol,verbose)
       type(zatom) :: za
       type(zring) :: zri 
       logical :: verbose 
-      integer :: k,l
+      integer :: k
       integer :: ric  
       integer :: atms
       logical :: newring
@@ -1002,13 +996,13 @@ subroutine startring(zmol,k,newring,zri,verbose)
       use zdata
       implicit none
       type(zmolecule) :: zmol
-      type(zatom) :: za,zb
+      type(zatom) :: za
       type(zring) :: zri 
       logical,intent(out) :: newring
       integer,intent(in) :: k          !the starting atom
       logical,intent(in) :: verbose      
 
-      integer :: i,j,l,q,m,n
+      integer :: i,j,l,q
       integer :: w,v
       integer :: nei
 
@@ -1131,16 +1125,16 @@ recursive subroutine recurring2(zmol,k,j,taken,path,path2,ntak,tref)
       integer,intent(inout) :: tref
     
       integer :: npathold,npathmax
-      integer :: nref,iref,nmax
+      integer :: nref
 
       integer :: i,l,n,m
-      integer :: p,q
+      integer :: p
 
 !      logical,allocatable :: takedum(:)
       integer,allocatable :: ndum(:)
       real(wp),allocatable :: dists(:)
 
-      logical :: ring,dumreset
+      logical :: ring
 
       ring = .false.
 

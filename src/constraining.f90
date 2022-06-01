@@ -30,8 +30,7 @@ subroutine ConstrainsToSET(fname,isplainxyz,constraints)
   character(len=256),allocatable :: strings(:)
   character(len=128) :: key
   real*8,allocatable  :: floats(:)
-  integer :: i,j,k
-  integer :: iost,cs,cf,ich
+  integer :: iost,ich
   logical :: ex,isplainxyz
 
   inquire (file=constraints,exist=ex)
@@ -91,9 +90,9 @@ subroutine sort_constrain_file(fname)
   character(len=256),allocatable :: entire(:),setsave(:)
   character(len=256) :: atmp
   character(len=*) :: fname
-  integer :: i,j,k
+  integer :: i
   integer :: io,ich,och,lines
-  integer :: setb,sete
+  integer :: setb
   logical :: ex,follow,setset
 
   inquire (file=fname,exist=ex)
@@ -292,7 +291,7 @@ subroutine parse_atypelist(line,nselect,atlist)
   character(len=10),parameter :: numbers = '0123456789'
   character(len=52),parameter :: letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
   character(len=20) :: atom1,atom2
-  integer :: at1,at2,nat
+  integer :: at1,at2
   logical :: rang,stor
 
   !>-- intitalize
@@ -392,9 +391,9 @@ subroutine sort_constraints(cts)
   type(constra) :: cts
 
   character(len=128) :: atmp,btmp
-  integer :: i,j,k
+  integer :: i,j
   integer :: bpos
-  logical :: ex,follow
+  logical :: follow
 
 !--- some initialization issues
   cts%buff = ''
@@ -443,10 +442,10 @@ subroutine read_constrainbuffer(fname,cts)
   character(len=*) :: fname
 
   character(len=128) :: atmp
-  integer :: i,j,k
-  integer :: io,ich,och,lines
+  integer :: i
+  integer :: io,ich,lines
   integer :: ndim
-  logical :: ex,follow,setset
+  logical :: ex
 
 !--- get the dimensions
   inquire (file=fname,exist=ex)
@@ -483,8 +482,7 @@ subroutine write_cts(ich,cts)
   implicit none
   type(constra) :: cts
   integer :: ich
-  integer :: i,j,k
-  character(len=40) :: dum
+  integer :: i
 !--- not really a "constraint", but convenient for the implementation:
 !    change of the gbsa grid
   if (cts%ggrid) then
@@ -521,7 +519,7 @@ subroutine write_cts_NCI(ich,cts)
   implicit none
   type(constra) :: cts
   integer :: ich
-  integer :: i,j,k
+  integer :: i
 !---- do it only if constaints are given
   if (cts%NCI) then
     do i = 1,10
@@ -542,7 +540,7 @@ subroutine write_cts_NCI_pr(ich,cts)
   implicit none
   type(constra) :: cts
   integer :: ich
-  integer :: i,j,k
+  integer :: i
 !---- do it only if constaints are given
   if (cts%NCI) then
     do i = 1,10
@@ -563,7 +561,6 @@ subroutine write_cts_biasext(ich,cts)
   implicit none
   type(constra) :: cts
   integer :: ich
-  integer :: i,j,k,l
 !---- do it only if constaints are given
   if (cts%usermsdpot) then
     !l = sylnk(cts%rmsdpotfile,'rmsdpot.xyz')
@@ -591,7 +588,7 @@ subroutine quick_constrain_file(fname,nat,at,atlist)
   character(len=*) :: fname
   !> Local variables
   integer,allocatable :: unconstrained(:)
-  integer :: ncon,i,j
+  integer :: ncon
 
   write (*,'(1x,a,a)') 'Input list of atoms: ',trim(atlist)
 
@@ -599,7 +596,7 @@ subroutine quick_constrain_file(fname,nat,at,atlist)
   call parse_atlist_new(atlist,ncon,nat,at,unconstrained)
   !> "unconstrained" contains all the *constrained* atoms after parsing
   !> which has to be *inversed* for the next subroutine, therefore:
-  unconstrained = unconstrained*-1         
+  unconstrained = unconstrained*(-1)
   unconstrained = unconstrained + 1
 
   call build_constrain_file(fname,nat,unconstrained)
@@ -618,10 +615,8 @@ subroutine build_constrain_file(fname,nat,unconstrained)
   integer :: nat
   integer :: unconstrained(nat)  !UNconstrained atoms have value 1, else 0
   character(len=*) :: fname
-  character(len=:),allocatable :: atstr
   character(len=256) :: atstr2
-  character(len=10) :: dum
-  integer :: ich,i,j,k,l
+  integer :: ich
 
   character(len=:),allocatable :: fref
 
@@ -737,7 +732,7 @@ subroutine mtdatoms(filname,env)
   type(coord) :: mol
   type(zmolecule) :: zmol
   character(len=*) :: filname
-  integer :: i,j,k,l
+  integer :: i,j
   integer,allocatable :: inc(:)
   character(len=256) :: atstr
   integer :: r,rs
@@ -870,7 +865,7 @@ subroutine write_cts_CBONDS(ich,cts)
   implicit none
   type(constra) :: cts
   integer :: ich
-  integer :: i,j,k
+  integer :: i
 !---- do it only if constaints are given
   if (allocated(cts%cbonds)) then
     do i = 1,cts%n_cbonds
@@ -890,7 +885,6 @@ subroutine write_cts_DISP(ich,cts)
   implicit none
   type(constra) :: cts
   integer :: ich
-  integer :: i,j,k
   character(len=40) :: dum
 !---- apply dispersion scaling factor (> xtb 6.4.0)
   write (ich,'(a)') '$gfn'
@@ -935,8 +929,9 @@ subroutine parse_topo_excl(env,arg)
   end if
   deallocate (natlist)
 
+  allocate (at(nat), source=0)
+  allocate (atypes(118), source=.false.)
   if (allocated(env%ref%at)) then
-    allocate (at(nat),atypes(118))
     at = env%ref%at
     atypes = .false.
     call parse_atypelist(arg,nselect,atypes)
@@ -959,9 +954,7 @@ subroutine parse_topo_excl(env,arg)
     do i = 1,nat
       if (env%excludeTOPO(i)) then
         nselect = nselect + 1
-        if (allocated(at)) then
-          atypes(at(i)) = .true.
-        end if
+        if (at(i).ne.0) atypes(at(i)) = .true.
       end if
     end do
     atms = '('
@@ -996,7 +989,7 @@ subroutine parse_atlist_new(arg,selected,nat,at,natlist)
   integer,intent(out) :: selected
   integer,intent(inout) :: natlist(nat)
   !> Local variables
-  integer :: i,j,k
+  integer :: i,j
   integer :: nselect
   logical,allocatable :: atypes(:)
 

@@ -328,7 +328,6 @@ subroutine clear_blanklines_from_file(self)
    character(len=:),allocatable :: dummy
    integer :: maxwidth
    integer :: newlines
-   integer :: cursor
    integer :: i,k
    !--- set the stage
    newlines=self%nlines

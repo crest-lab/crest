@@ -183,7 +183,7 @@ subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
 
    !--- 8. calculating entropy  
       call calculateEntropy(zens%nconf,energies,introtscal, &
-     &   symsym,enantiofac,T,S,Cp,Hdum,pr,pr2)
+     &   enantiofac,T,S,Cp,Hdum,pr,pr2)
 
    !--- 9. temperature dependence
       if( env%properties == -45)then
@@ -208,7 +208,7 @@ subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
              tdum = env%thermo%temps(i)
              sdum=0.0d0
              cpdum=0.0d0
-             call calculateEntropy(zens%nconf,energies,introtscal,symsym, &
+             call calculateEntropy(zens%nconf,energies,introtscal, &
              &   enantiofac,tdum,Sdum,Cpdum,Hdum,.false.,.false.)
              !tdum = tdum + tstep
              if(allocated(env%emtd%soft))then

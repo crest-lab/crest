@@ -29,7 +29,6 @@ subroutine msreact_handler(env,tim)
     use strucrd
     implicit none
 
-    !type(options) :: opt
     type(systemdata) :: env
     type(timer) :: tim
 
@@ -49,9 +48,9 @@ subroutine msreact_handler(env,tim)
     integer :: nat
     integer,allocatable :: pair(:)
     integer,allocatable :: paths(:,:)
-    integer :: lin !this is a function
-    integer :: i,j,k,l
+    integer :: k
 
+    call tim%start(1,'MSREACT')
 
     !-- read the input coord and put it into the
     !   iso-list as Gen 0 structure
@@ -75,17 +74,19 @@ subroutine msreact_handler(env,tim)
     endif
 
     !-- do the directory setup and optimizations
-    call msreact(mso,mso%il%mol(1),nat,pair,paths,3)
+    call msreact(mso,mso%il%mol(1),nat,pair,3)
 
 
     deallocate(paths,pair)
+
+    call tim%stop(1)
     return
 end subroutine msreact_handler
 
 !==============================================================!
 ! the main implementation of the msreact algo should go here
 !==============================================================!
-subroutine msreact(mso,mol,nat,pair,paths,nbonds)
+subroutine msreact(mso,mol,nat,pair,nbonds)
       use iso_fortran_env, wp => real64
       use msmod
       use crest_data, only : bohr
@@ -97,10 +98,10 @@ subroutine msreact(mso,mol,nat,pair,paths,nbonds)
 
       integer :: nat
       integer :: pair(nat*(nat+1)/2)
-      integer :: paths(nat*(nat+1)/2,nat)
+      !integer :: paths(nat*(nat+1)/2,nat)
       integer :: nbonds
       integer :: lin !this is a function
-      integer :: i,j,k,l
+      integer :: i,j,k
       integer :: p
       integer :: np
       integer :: io
@@ -141,7 +142,7 @@ subroutine msreact(mso,mol,nat,pair,paths,nbonds)
       enddo
              
       write(*,*) '# of distortions',np
-      call msreact_jobber(mso,np,'Pair_',.false.)
+      call msreact_jobber(np,'Pair_',.false.)
 
       call msreact_collect(mol%nat,np,'products.xyz')
       call rename(subdir//'/'//'products.xyz','products.xyz')
@@ -212,12 +213,11 @@ end subroutine isodir
 ! The job construction routine for MSREACT
 ! (will have to be modified later, for now it is for testing)
 !=====================================================================!
-subroutine msreact_jobber(mso,ndirs,base,niceprint)
+subroutine msreact_jobber(ndirs,base,niceprint)
      use iso_fortran_env, only : wp => real64
     use msmod
     use iomod
     implicit none
-    type(msobj) :: mso
     integer :: ndirs
     character(len=*) :: base
     logical :: niceprint
@@ -331,7 +331,7 @@ subroutine msreact_collect(nat,np,outfile)
 
     allocate(at(nat),xyz(3,nat))
     open(newunit=ich,file=outfile)
-
+    p=0
     do p2=1,np
        write(pdir,'(i0,i0,a,i0)')1,p+1,'Pair_',p2
        write(pdir,'(a,i0)')'Pair_',p2

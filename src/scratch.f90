@@ -59,7 +59,6 @@ subroutine scrdir(env)
       call copy(env%constraints,trim(env%scratchdir)//'/'//trim(env%constraints))
       call copy(trim(env%fixfile),trim(env%scratchdir)//'/'//trim(env%fixfile))
 
-!      io = sylnk('./scratch',trim(env%scratchdir))
       io = sylnk(trim(env%scratchdir),'./scratch')
 
       call chdir(trim(env%scratchdir))
@@ -72,14 +71,10 @@ subroutine scrend(env)
       use iomod
 
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
-
       character(len=1024) :: crefi,crefi2
-      integer :: io
       logical :: ex
 
       if(len_trim(env%scratchdir).lt.1)then
-
          return
       endif
 

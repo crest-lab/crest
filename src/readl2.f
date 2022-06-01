@@ -98,7 +98,7 @@ c     end
       implicit none
       character*(*) field,str
       real*8 num
-      integer i,e,ty
+      integer e,ty
       logical is_num
 
       ty=99
