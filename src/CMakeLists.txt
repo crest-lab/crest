@@ -66,7 +66,7 @@ list(APPEND srcs
   "${dir}/ompmklset.F90"
   "${dir}/pka.f90"
   "${dir}/printouts.f90"
-  "${dir}/prmat.f"
+  "${dir}/prmat.f90"
   "${dir}/progressbar.f90"
   "${dir}/propcalc.f90"
   "${dir}/protonate.f90"
