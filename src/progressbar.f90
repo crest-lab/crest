@@ -20,7 +20,7 @@ subroutine progbar(percent,bar)
       implicit none
       real*8,intent(in) :: percent
       character(len=52),intent(inout) :: bar
-      integer :: i,j,k,l
+      integer :: i
       integer :: done,notdone
 
       bar='['

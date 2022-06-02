@@ -29,7 +29,6 @@ subroutine protreffrag(env)
       use strucrd, only: rdnat,rdcoord
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       integer,allocatable  :: molvec(:)
       integer,allocatable  :: at(:)
       real(wp),allocatable :: xyz(:,:)
@@ -43,9 +42,9 @@ subroutine protreffrag(env)
       end associate
 end subroutine protreffrag
 
-!-----------------------------------------------------------------------------------------------------
+!---------------------------------------------------------------------------------------
 ! perform a property calculation for a given ensemble file
-!-----------------------------------------------------------------------------------------------------
+!---------------------------------------------------------------------------------------
 subroutine propcalc(iname,imode,env,tim)
       use iso_fortran_env, wp => real64
       use crest_data
@@ -54,16 +53,15 @@ subroutine propcalc(iname,imode,env,tim)
       implicit none
  
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)      :: tim
       integer :: imode
 
       character(len=*),intent(in)  :: iname   !file name
 
-      integer :: i,j,k,l,m,n,r,ii
-      integer :: ACTIVE,DONE,vz,TMPCONF
+      integer :: i,k,r,ii
+      integer :: TMPCONF
       integer :: P
-      integer :: fileid,ich
+      integer :: ich
 
       interface
           subroutine prop_OMP_loop(env,TMPCONF,jobcall,pop)
@@ -78,30 +76,20 @@ subroutine propcalc(iname,imode,env,tim)
       end interface
 
       character(len=20) :: xname
-      character(len=20) :: optl,pipe
+      character(len=20) :: pipe
       character(len=80) :: solv
-      character(len=256) :: tmpname,oname,ctmp        
+      character(len=256) :: ctmp        
       character(len=512) :: str,thispath,tmppath,optpath
       character(len=1024):: jobcall       
-      character(len=52) :: bar
       character(len=:),allocatable :: largejobcall
       
-      real(wp) :: percent
-      
       real(wp) :: pthr,sumpop
-
       integer :: maxpop
       integer :: nat,nall,ng
-      
-
-      logical :: setoptlev,ex
-      logical :: l1,l2,fin,run,optok,mop,update,notok
-
+      logical :: ex,update
       logical :: niceprint
 
       character(len=40),allocatable :: origin(:)
-      real(wp) :: lev
-
       real(wp),allocatable :: eread(:),popul(:),dumm(:)
       real(wp),allocatable :: xyz(:,:,:)
       integer,allocatable  :: at(:)
@@ -500,22 +488,16 @@ subroutine prop_OMP_loop(env,TMPCONF,jobcall,pop)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
-
       integer :: TMPCONF
       character(len=1024) :: jobcall
       real(wp),intent(in),optional :: pop(TMPCONF)
 
       real(wp) :: pthr
       logical :: niceprint
-
       character(len=52) :: bar
       real(wp) :: percent
-
       integer :: vz,k,i,maxpop,io
-
-      character(len=256) :: tmpname,oname,ctmp
-      character(len=512) :: str,thispath,tmppath,optpath
+      character(len=512) :: tmppath
 
 
 !----- quick settings
@@ -562,27 +544,22 @@ end subroutine prop_OMP_loop
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! grep total energies and printout energy list
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-subroutine etotprop(TMPCONF,env,pop,pr)
+subroutine etotprop(TMPCONF,pop,pr)
       use iso_fortran_env, wp => real64
       use crest_data
       use iomod
       implicit none
-
-      type(systemdata) :: env
-      !type(options)    :: opt
-
       integer,intent(in) :: TMPCONF
       real(wp),intent(inout) :: pop(TMPCONF)  
       logical :: pr
       character(len=512) :: tmppath
       logical :: ex
-      integer :: i,j,k,l
+      integer :: i
       real(wp) :: dE
       real(wp),allocatable :: eread(:)
 
       real(wp),parameter :: kcal =627.5095_wp
 
-      !write(*,*)
       write(*,'(1x,a)')"Calculating populations from total energies ..."
       allocate(eread(TMPCONF))
       do i=1,TMPCONF
@@ -624,7 +601,7 @@ subroutine rdpropens(TMPCONF,n,xyz)
       character(len=512) :: tmppath,atmp
       character(len=64)  :: dum
       logical :: ex
-      integer :: i,j,k,l
+      integer :: i,j
 
       real(wp),parameter :: kcal =627.5095_wp
 
@@ -660,7 +637,7 @@ subroutine wrpropens(TMPCONF,n,xyz,at,eread)
       integer :: ich
       character(len=512) :: tmppath
       logical :: ex
-      integer :: i,j,k,l
+      integer :: i
 
       open(newunit=ich,file='crest_property.xyz')
       do i=1,TMPCONF
@@ -678,8 +655,6 @@ subroutine wrpropens_pop(env,TMPCONF,n,xyz,at,eread,pthr)
       implicit none
 
       type(systemdata) :: env
-      !type(options) :: opt
-
       integer,intent(in)    :: TMPCONF
       integer,intent(in)    :: n
       real(wp),intent(in)   :: xyz(3,n,TMPCONF)
@@ -687,9 +662,7 @@ subroutine wrpropens_pop(env,TMPCONF,n,xyz,at,eread,pthr)
       integer,intent(in)    :: at(n)
       real(wp),intent(in)   :: pthr
       integer :: ich,ich5
-      character(len=512) :: tmppath
-      logical :: ex
-      integer :: i,j,k,l
+      integer :: i
       integer :: pmax
       real(wp),allocatable :: pop(:),dpop(:),edum(:)
 
@@ -736,7 +709,6 @@ subroutine autoir(TMPCONF,imode,env)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
 
       integer,intent(in) :: TMPCONF
       integer :: imode
@@ -908,8 +880,8 @@ subroutine rdvibs(fname,nmodes,freq,inten)
       real(wp),intent(out) :: freq(nmodes)    !frequencies
       real(wp),intent(out) :: inten(nmodes)   !intensities
 
-      integer :: i,j,k,l
-      integer :: ich,io
+      integer :: k
+      integer :: ich,io,n
       character(len=256) :: atmp
       real(wp) :: floats(10)
       logical :: ex 
@@ -931,7 +903,7 @@ subroutine rdvibs(fname,nmodes,freq,inten)
              if(io<0)exit rdfile
              if(index(atmp,'$end').ne.0)exit rdfile
              if(index(atmp,'#').ne.0)cycle rdblock !skip comment lines
-             call readline3(atmp,floats) !split line
+             call readl(atmp, floats, n)
              freq(k)=floats(2)
              inten(k)=floats(3)
              k=k+1

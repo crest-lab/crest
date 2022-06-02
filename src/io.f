@@ -171,100 +171,6 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       end subroutine delsubstr2
 
-!----------------------------------------------------------------------------
-! modified readline routine
-
-      subroutine readline3(line,floats)
-      implicit none
-      real*8,intent(out) :: floats(10)
-      character(len=*) :: line
-      character(len=80) :: strings(3)
-
-      real*8 :: num
-      character(len=80) :: stmp,str
-      character(len=1)  :: digit
-      integer :: i,ty,cs,cf
-
-      stmp=''
-      cs=1
-      cf=1
-      strings(:)=''
-      floats=0.0d0
-      do i=1,len(trim(line))
-       digit=line(i:i)
-       if(digit.ne.' '.and.digit.ne.char(9)) then  !should exclude tabstops and blanks, 9 is ascii code for tab
-        stmp=trim(stmp)//trim(digit)
-       elseif(stmp.ne.'')then
-        call checktype(stmp,num,str,ty)      !get type of string, 0=number, 1=character
-        if(ty.eq.0) then
-         floats(cf)=num
-         cf=cf+1
-        elseif(ty.eq.1) then
-         strings(cs)=str
-         cs=cs+1
-        else
-          write(*,*)'Problem in checktype, must abort'
-          exit
-        endif
-        stmp=''
-       endif
-       if(i.eq.len(trim(line))) then  !special case: end of line
-        call checktype(stmp,num,str,ty)
-        if(ty.eq.0) then
-         floats(cf)=num
-         cf=cf+1
-        elseif(ty.eq.1) then
-         strings(cs)=str
-         cs=cs+1
-        else
-          write(*,*)'Problem in checktype, must abort'
-          exit
-        endif
-        stmp=''
-       endif
-      enddo
-      cs=cs-1
-      cf=cf-1
-      end subroutine readline3
-
-!----------------------------------------------------------------------------
-! modified readline routine
-
-      subroutine readline4(line,strings)
-      implicit none
-      real*8 :: floats(10)
-      character(len=*) :: line
-      character(len=10) :: strings(10)
-
-      real*8 :: num
-      character(len=80) :: stmp,str
-      character(len=1)  :: digit
-      integer :: i,ty,cs,cf
-
-      stmp=''
-      cs=1
-      cf=1
-      strings(:)=''
-      floats=0.0d0
-      do i=1,len(trim(line))
-       digit=line(i:i)
-       if(digit.ne.' '.and.digit.ne.char(9)) then  !should exclude tabstops and blanks, 9 is ascii code for tab
-        stmp=trim(stmp)//trim(digit)
-       else
-         strings(cs)=stmp
-         cs=cs+1
-       endif
-       if(cs.eq.10)exit
-       stmp=''
-       if(i.eq.len(trim(line))) then  !special case: end of line
-         strings(cs)=''
-         cs=cs+1
-       endif
-       stmp=''
-      enddo
-      cs=cs-1
-      end subroutine readline4
-
 !-------------------------------------------------------------------------
 ! append content of test file "from" into text file "to", similar to "cat A >> B"
 ! but specifically for XYZ files
@@ -274,7 +180,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       integer :: io
       character(len=*) :: from
       character(len=*) :: to
-      integer :: i,j,k,nat
+      integer :: i,nat
       character(len=1024) :: str
       open(unit=666,file=to)
       open(unit=777,file=from)
@@ -345,7 +251,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       integer :: io,to
       character(len=*) :: from
       integer :: fromch
-      integer :: i,j,k,nat
+      integer :: i,nat
       character(len=1024) :: str
 
       open(newunit=fromch,file=from)
@@ -404,13 +310,13 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       character(len=80) :: fname
       character(len=512) :: fname2
       logical :: ex,ex2
-      !use a global .anmrrc if present (commented out for the use with orca)
+      !use a global .anmrrc if present
       inquire(file='~/.anmrrc',exist=ex)
       if(ex)then
         atmp='~/.anmrrc'
         return
       else
-      !if not present try to use a custom .anmrrc in the current directory
+      !if not present try to use a custom .anmrrc
         fname2='.anmrrc'
         inquire(file=fname2,exist=ex2)
         if(ex2) then
@@ -453,7 +359,6 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-------------------------------------------------------------------------
       subroutine rdarg(str,arg,val)
       implicit none
-      logical :: bool
       character(len=*) :: str
       character(len=*) :: arg
       character(len=*) :: val
@@ -477,13 +382,11 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !-------------------------------------------------------------------------
       subroutine gettime(fil,secs)
       implicit none
-      logical :: bool
       real*8 :: secs
       real*8 :: floats(10)
-      character(len=80) :: strings(3)
       character(len=*) :: fil
       character(len=512) :: tmp,tmp2
-      integer :: io,ich,cs,cf
+      integer :: io,ich,n
       secs=0.0d0
       open(newunit=ich,file=fil)
       do
@@ -495,7 +398,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
           read(ich,'(a)') tmp
           read(ich,'(a)') tmp
           call rdarg(tmp,'time:',tmp2)
-          call readline3(tmp2,floats)
+          call readl(tmp2,floats,n)
         endif
       enddo
       secs=secs+floats(2)*86400.0d0  !days to seconds      

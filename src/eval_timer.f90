@@ -23,7 +23,7 @@ subroutine eval_time(time,printout)
       implicit none
       real(wp) :: time
       character(len=*) :: printout
-      integer(dp) :: days,hours,minutes,seconds
+      integer(dp) :: hours,minutes,seconds
 
       hours = floor(time / 3600.0d0)
       time = time - (real(hours)*3600.0d0)
@@ -41,8 +41,8 @@ subroutine eval_sub_timer(tim)
       implicit none
       type(timer) :: tim
       character(len=64) :: ftime
-      integer(dp) ::  t1,ttot1
-      real(wp) :: t2,ttot2
+      integer(dp) ::  t1
+      real(wp) :: t2
       integer :: i,j
       j=tim%times
       if(j .lt. 1 )return
@@ -67,8 +67,8 @@ subroutine eval_timer(tim)
       implicit none
       type(timer) :: tim
       character(len=64) :: ftime
-      integer(dp) ::  t1,ttot1
-      real(wp) :: t2,ttot2
+      integer(dp) ::  ttot1
+      real(wp) :: ttot2
       integer :: j
       write(*,*)
       call smallhead('Wall Time Summary')

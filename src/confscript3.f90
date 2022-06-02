@@ -27,13 +27,11 @@ subroutine mdopt(env,tim)
      implicit none
      
      type(systemdata) :: env
-     !type(options)   :: opt
      type(timer)     :: tim
-     integer :: i,j,k,l
-     real*8 :: time
-     character(len=256) :: str,tmpname,newname
+     character(len=256) :: tmpname
+     character(len=128) :: newname
 
-     integer :: iz1,iz2,nall
+     integer :: iz2,nall
 
      associate( ensemblename => env%ensemblename)
 
@@ -107,7 +105,7 @@ subroutine cleanpurge(fname,ethr)
     integer :: nall,nat
     integer,allocatable :: groups(:)
     integer :: ngrps
-    integer :: ich,i,j,k,ich2,jref
+    integer :: ich,i,j,ich2,jref
     real(wp),allocatable :: xyz(:,:,:)
     integer,allocatable :: at(:)
     real(wp),allocatable :: er(:)
@@ -188,12 +186,10 @@ subroutine screen(env,tim)
      implicit none
      
      type(systemdata) :: env
-     !type(options)    :: opt
      type(timer)      :: tim
-     integer :: i,j,k,l
-     character(len=256) :: str,tmpname,newname
+     character(len=256) :: tmpname,newname
 
-     integer :: iz1,iz2,nall,nremain
+     integer :: iz2,nall,nremain
 
      character(len=128) :: inpnam,outnam
      character(len=512) :: thispath,filename
@@ -302,16 +298,15 @@ subroutine MTDsample(env,tim)
     use iomod
     use strucrd
     implicit none
-    !type(options)    :: opt
     type(systemdata) :: env
     type(timer)      :: tim
     type(ensemble) :: ens
-    character(len=512) :: thispath,filename
+    character(len=512) :: thispath
     character(len=:),allocatable :: subdirname
     character(len=128) :: mtddir
     character(len=:),allocatable :: coordname
-    integer :: io,r,ich
-    integer :: i,j,k,l
+    integer :: r
+    integer :: i,l
     logical :: ex
     real(wp) :: mdtime
 

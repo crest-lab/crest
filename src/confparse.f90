@@ -55,12 +55,9 @@ subroutine parseflags(env,arg,nra)
   character(len=512) :: atmp,btmp
   character(len=:),allocatable :: ctmp,dtmp
   integer :: i,j,k,l,io,ich,idum
-  integer*8 :: w,v
   real(wp) :: rdum
-  integer,allocatable :: intdum(:)
-  integer :: cs,cf,slength
   integer :: ctype
-  logical :: parse,ex,ex2,fg,bondconst
+  logical :: ex,bondconst
   character(len=:),allocatable :: argument
 
   allocate (xx(10),floats(3),strings(3))
@@ -484,12 +481,6 @@ subroutine parseflags(env,arg,nra)
         env%crestver = crest_msreac
         env%preopt = .false.
         env%presp = .true.
-      case ('-logkow','-kow')
-        env%crestver = 11
-      case ('-qdock')
-        ctmp = trim(arg(i + 1))
-        dtmp = trim(arg(i + 2))
-        call quickdock(ctmp,dtmp,'coord')
       case ('-splitfile')
         ctmp = trim(arg(i + 1))
         k = huge(j)
@@ -616,9 +607,9 @@ subroutine parseflags(env,arg,nra)
         ctmp = trim(arg(i + 1))
         read (arg(i + 2),*,iostat=io) j
         if (io == 0) then
-          call redo_extrapol(env,ctmp,j)
+          call redo_extrapol(ctmp,j)
         else
-          call redo_extrapol(env,ctmp,0)
+          call redo_extrapol(ctmp,0)
         end if
         stop
 !      case ('-optimize','-ancopt')
@@ -1894,9 +1885,9 @@ subroutine parseflags(env,arg,nra)
     case (2)
       call autoMetalConstraint('coord',env%forceconst,env%wbofile)
     case (3)
-      call autoHeavyConstraint('coord',env%forceconst,env%wbofile)
+      call autoHeavyConstraint('coord',env%forceconst)
     case (4)
-      call autoHydrogenConstraint('coord',env%forceconst,env%wbofile)
+      call autoHydrogenConstraint('coord',env%forceconst)
     case (5)
       call autoBondConstraint_withEZ('coord',env%forceconst,env%wbofile)
     end select
@@ -2017,14 +2008,11 @@ subroutine parseRC2(env,bondconst)
   implicit none
 
   type(systemdata),intent(inout) :: env
-  !type(options),intent(inout)    :: opt
 
-  integer :: i,j,k,l,fil,bb
-  integer :: imd,io,ich
-  character(len=256),allocatable :: cfiles(:)
+  integer :: i,j,k
+  character(len=512),allocatable :: cfiles(:)
   character(len=256) :: atmp,btmp
   character(len=512) :: dg,argument
-  real(wp) :: floats(10)
   integer,allocatable :: atlist(:)
   logical :: ex,ex1,ex2
   logical :: create,atomlistused
@@ -2208,8 +2196,7 @@ subroutine inputcoords(env,arg)
   character(len=:),allocatable :: arg2
   type(coord) :: mol
   type(zmolecule) :: zmol
-
-  integer :: i,j,k,l
+  integer :: i
 
 !>--- Redirect for QCG input reading
   if (env%crestver == crest_solv) then
@@ -2297,8 +2284,7 @@ subroutine inputcoords_qcg(env,arg1,arg2)
   character(len=:),allocatable :: inputfile
   type(coord) :: mol
   type(zmolecule) :: zmol,zmol1
-
-  integer :: i,j,k,l
+  integer :: i
 
 !--------------------Checking for input-------------!
 

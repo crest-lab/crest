@@ -135,7 +135,6 @@ subroutine rotRz180(u)
      implicit none
      real(wp) :: u(3) !first vector
      real(wp) :: v(3) !second vector
-     real(wp) :: theta
      real(wp) :: Rz(3,3)
 
      Rz = 0.0_wp
@@ -186,7 +185,6 @@ subroutine rotRy180(u)
      implicit none
      real(wp) :: u(3) !first vector
      real(wp) :: v(3) !second vector
-     real(wp) :: theta
      real(wp) :: Ry(3,3)
 
      Ry = 0.0_wp
@@ -239,7 +237,6 @@ subroutine rotRx180(u)
      implicit none
      real(wp) :: u(3) !first vector
      real(wp) :: v(3) !second vector
-     real(wp) :: theta
      real(wp) :: Rx(3,3)
 
      Rx = 0.0_wp

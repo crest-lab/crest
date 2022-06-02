@@ -550,8 +550,9 @@ do {
 f = eval_optimization_target_function( elem, NULL ) ;
 if( cycle >= MaxOptCycles ) BadOptimization = 1 ;
 if( verbose > 0 ) {
-    if( cycle >= MaxOptCycles )
+    if( cycle >= MaxOptCycles ){
         printf( "        maximum number of optimization cycles made\n" ) ;
+    }
         printf( "        optimization completed after %d cycles with f = %g\n", cycle, f ) ;
     }
 }
@@ -1048,14 +1049,17 @@ axis->direction[2] = (b[0]-a[0])*(c[1]-b[1]) - (b[1]-a[1])*(c[0]-b[0]) ;
  *  or the direction is positive.
  */
 sign = 0 ;
-if( axis->direction[0] <= 0 )
-    if( axis->direction[0] < 0 )
-         sign = 1 ;
-    else if( axis->direction[1] <= 0 )
-             if( axis->direction[1] < 0 )
-                  sign = 1 ;
-             else if( axis->direction[2] < 0 )
-                      sign = 1 ;
+if( axis->direction[0] <= 0 ) {
+  if( axis->direction[0] < 0 ){
+    sign = 1 ;
+  } else if( axis->direction[1] <= 0 ){
+     if( axis->direction[1] < 0 ){
+        sign = 1 ;
+     } else if( axis->direction[2] < 0 ){
+        sign = 1 ;
+     }
+  }
+}
 if( sign )
     for( i = 0 ; i < DIMENSION ; i++ )
         axis->direction[i] = -axis->direction[i] ;
@@ -1404,11 +1408,12 @@ find_improper_axes(void)
 {
         int                i, j, k ;
         SYMMETRY_ELEMENT * axis ;
-    
+
+/*    
 //#pragma omp parallel for private(i,j,k, axis) \
 //shared (ImproperAxesCount, ImproperAxes) \
 //schedule (guided)
-
+*/
 for( i = 0 ; i < AtomsCount ; i++ ){
     for( j = i + 1 ; j < AtomsCount ; j++ ){
         for( k = 0 ; k < AtomsCount ; k++ ){
@@ -1688,7 +1693,6 @@ int
 identify_point_group( void )
 {
         int            i ;
-	int 	       j ;
         int            last_matching = -1 ;
         int            matching_count = 0 ;
 

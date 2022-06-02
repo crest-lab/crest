@@ -354,7 +354,6 @@ subroutine wrcn(self,ch)
     implicit none
     class(zatom) :: self
     integer :: ch
-    integer :: i
     write(ch,'(1x,a,a,i0,a,5x)',advance='no') self%el,'(',self%pos,')'
     write(ch,'(f8.4)') self%cn
     return
@@ -431,7 +430,7 @@ subroutine get_fragment(self,i,znew)
    class(zmolecule) :: self
    type(zmolecule) :: znew    
    integer :: i,natnew
-   integer :: j,k,l,m,p,q
+   integer :: j,k,l,m
    integer,allocatable :: map(:)
    real(wp),allocatable :: xyz(:,:)
    if(i>self%nfrag)return
@@ -668,7 +667,7 @@ subroutine readwbo(fname,nat,wbo)
       integer,intent(in) :: nat
       real(wp),intent(inout) :: wbo(nat,nat)
       logical :: ex
-      integer :: i,j,k,ich,io
+      integer :: i,j,ich,io
       wbo = 0 ! if it does not exist, single and double bonds are not distinguished
       inquire(file=fname,exist=ex)
       if(ex)then
@@ -736,7 +735,6 @@ subroutine zmol_getxyz(self,xyz)
      implicit none
      class(zmolecule) :: self
      real(wp) :: xyz(3,self%nat)    
-     logical,allocatable :: taken(:)    
      integer :: i
      do i=1,self%nat
         xyz(1:3,i) = self%zat(i)%cart(1:3)
@@ -767,7 +765,7 @@ end function count_hydrogen
 subroutine count_bonds(self)
       implicit none
       class(zmolecule) :: self
-      integer :: i,j,k
+      integer :: i,j
       integer :: nb
       if(allocated(self%bondpairs))deallocate(self%bondpairs)
       nb = 0

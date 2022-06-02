@@ -132,7 +132,6 @@ subroutine spline_cubic_set ( n, t, y, ibcbeg, ybcbeg, ibcend, ybcend, ypp )
   integer ( kind = 4 ) i
   integer ( kind = 4 ) ibcbeg
   integer ( kind = 4 ) ibcend
-  integer ( kind = 4 ) info
   real ( kind = 8 ) t(n)
   real ( kind = 8 ) y(n)
   real ( kind = 8 ) ybcbeg

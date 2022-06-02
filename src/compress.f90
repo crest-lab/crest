@@ -27,7 +27,6 @@ subroutine compress(env, tim)
   use strucrd, only: rdensembleparam,rdensemble
   implicit none
 
-  !type(options) :: opt
   type(systemdata) :: env
   type(timer) :: tim
 
@@ -62,7 +61,7 @@ subroutine compress(env, tim)
 
   !--- 3. loose threshold optimization
      call tim%start(4,'geometry opt.')
-     call append_INPUT_to('coord',env%nat,'input')   !include the input structure into the last optimization
+     call append_INPUT_to('coord','input')   !include the input structure into the last optimization
      call multilevel_opt(env,2)
      call tim%stop(4)
 

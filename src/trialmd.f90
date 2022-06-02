@@ -24,26 +24,16 @@ subroutine trialMD(env)
       implicit none
 
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
 
-      integer :: i,j,k,l
       integer :: io,Vdumpfreq,counter
-      integer :: iz1,iz2,nall,nrmsds
 
       real(wp) :: prefac,alpha,length
-      real(wp) :: dum1,dum2
       real(wp) :: perc
-      real(wp) :: mRMSD,f_mRMSD
-      real(wp) :: fRMSD,tmtd
       real(wp) :: rtime
 
       character(len=512) :: thispath,jobcall
       character(len=64)  :: dirnam,fname
-      character(len=80)  :: solv,pipe
-
-      real(wp),allocatable :: xyz(:,:,:),eread(:),c1(:,:),c2(:,:)
-      real(wp),allocatable :: rmsds(:)
-      integer,allocatable  :: at(:)
+      character(len=80)  :: pipe
 
       real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:),ydum(:)  !rmsd dummy stuff
 
@@ -215,9 +205,7 @@ subroutine timeestimate(rtime,mdtime,nmetadyn,threads)
      integer :: nmetadyn
      integer :: threads
      real*8  :: rtime,rtime2
-     real*8  :: hours,minutes,seconds
      real*8  :: w,t
-     integer :: f,g
      character(len=80) :: stime,stime2
  
      rtime2=rtime

@@ -19,10 +19,19 @@ cc = meson.get_compiler('c')
 fc_id = fc.get_id()
 cc_id = cc.get_id()
 
+if fc.get_id() != cc.get_id()
+  warning('FC and CC are not from the same vendor')
+endif
+
+## ========================================= ##
+## Compiler specific default arguments
+## ========================================= ##  
 if fc_id == 'gcc'
   add_project_arguments(
     '-ffree-line-length-none',
     '-fbacktrace',
+    '-Wno-maybe-uninitialized',
+    '-Wno-uninitialized',
     language: 'fortran',
   )
 elif fc_id == 'intel'
@@ -49,15 +58,25 @@ elif fc_id == 'flang'
   )
 endif
 
-omp_dep = dependency('openmp', required: fc.get_id() != 'intel')
-if not omp_dep.found()
-  omp_dep = declare_dependency(
-    compile_args: '-qopenmp',
-    link_args: '-qopenmp',
-  )
-endif
-exe_deps += omp_dep
+add_project_arguments('-D_Float128=__float128', language: 'c')
 
+## ========================================= ##
+## OpenMP
+## ========================================= ##
+if get_option('openmp')
+  omp_dep = dependency('openmp', required: fc.get_id() != 'intel')
+  if not omp_dep.found()
+    omp_dep = declare_dependency(
+      compile_args: '-qopenmp',
+      link_args: '-fopenmp',
+    )
+  endif
+  exe_deps += omp_dep
+endif
+
+## ======================================== ##
+## Linear Algebra Libraries
+## ======================================== ##
 la_backend = get_option('la_backend')
 if la_backend == 'mkl' or la_backend == 'mkl-static'
   add_project_arguments('-DWITH_MKL', language: 'fortran')
@@ -66,18 +85,32 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
     add_project_link_arguments('-static', language: 'c') # icc will do linking
   endif
 
-  if fc.get_id() == 'gcc'
-    libmkl_exe = [fc.find_library('mkl_gf_lp64')]
-    libmkl_exe += fc.find_library('mkl_gnu_thread')
-  elif fc.get_id() == 'intel'
-    libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-    libmkl_exe += fc.find_library('mkl_intel_thread')
-  elif fc.get_id() == 'pgi'
-    libmkl_exe = [fc.find_library('mkl_intel_lp64')]
-    libmkl_exe += fc.find_library('mkl_pgi_thread')
+  if get_option('default_library') == 'dynamic'
+    mkl_rt_dep = cc.find_library('mkl_rt', required: true)
+    exe_deps += mkl_rt_dep
+  else
+    if fc.get_id() == 'gcc'
+      libmkl_exe = [cc.find_library('mkl_gf_lp64')]
+      if get_option('openmp')
+        libmkl_exe += cc.find_library('mkl_gnu_thread')
+      endif
+    elif fc.get_id() == 'intel' or fc.get_id() == 'intel-cl'
+      libmkl_exe = [cc.find_library('mkl_intel_lp64')]
+      if get_option('openmp')
+        libmkl_exe += cc.find_library('mkl_intel_thread')
+      endif
+    elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
+      libmkl_exe = [cc.find_library('mkl_intel_lp64')]
+      if get_option('openmp')
+        libmkl_exe += cc.find_library('mkl_pgi_thread')
+      endif
+    endif
+    if not get_option('openmp')
+      libmkl_exe += cc.find_library('mkl_sequential')
+    endif
+    libmkl_exe += cc.find_library('mkl_core')
+    exe_deps += libmkl_exe
   endif
-  libmkl_exe += fc.find_library('mkl_core')
-  exe_deps += libmkl_exe
 
 elif la_backend == 'mkl-rt'
   add_project_arguments('-DWITH_MKL', language: 'fortran')

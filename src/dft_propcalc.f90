@@ -31,12 +31,11 @@ subroutine dftrc_reader(env,b973c)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
       type(filetype)   :: rc
       logical,intent(in) :: b973c
 
 
-      integer :: i,j,k,l
+      integer :: i,k
       integer :: n
 
       logical :: ex,ex2
@@ -288,7 +287,6 @@ subroutine DFTprocessing(env,TMPCONF,nat,at)
       use crest_data
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       integer :: TMPCONF
       integer :: at(nat)
       integer :: nat
@@ -300,7 +298,7 @@ subroutine DFTprocessing(env,TMPCONF,nat,at)
       select case(env%dftruntype)
         case( 1,2 )
          allocate(pop(TMPCONF))
-         call etotprop(TMPCONF,env,pop,.true.)
+         call etotprop(TMPCONF,pop,.true.)
          deallocate(pop)
          call rdpropens(TMPCONF,nat,xyz) !get updated geometries
          call wrpropens(TMPCONF,nat,xyz,at,eread)
@@ -319,7 +317,7 @@ subroutine DFTprocessing(env,TMPCONF,nat,at)
        case( 4 )
          write(*,*)
          if(env%dftprog == 1)then !TM
-           call replaceGridsize(env,TMPCONF,3)
+           call replaceGridsize(TMPCONF,3)
            call aoforce_turbomole(env,TMPCONF)
          else if(env%dftprog == 2)then !ORCA
            !ORCA goes here
@@ -349,10 +347,8 @@ subroutine cutDFTpop(env,pop,TMPCONF)!,eread)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
       integer          :: TMPCONF
       real(wp)         :: pop(TMPCONF)
-      !real(wp)         :: eread(TMPCONF)
 
       integer  :: maxs
       real(wp) :: popthr,popsum
@@ -405,28 +401,22 @@ subroutine cefine_setup(env,TMPCONF)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
       integer          :: TMPCONF
 
-      integer :: i,j,k,l
-      integer :: vz,io
+      integer :: i,k
+      integer :: io
 
       character(len=52) :: bar
       real(wp) :: percent
 
       character(len=512) :: thispath
-      character(len=64) :: tmppath,val
+      character(len=64) :: tmppath
       character(len=:),allocatable  :: cefine
 
       if(env%autothreads)then
-        call ompautoset(env%threads,7,env%omp,env%MAXRUN,TMPCONF) !to enforce serial performance replace TMPCONF by 1
+        call ompautoset(env%threads,7,env%omp,env%MAXRUN,TMPCONF) 
       endif
-      !write(*,*) env%omp,env%MAXRUN
-      !call ompprint_intern()
-      !call ompprint()
       call TMparnodes(env%omp)
-      !call getenv('PARNODES',val)
-      !write(*,*)'Parnodes=',trim(val)
 
       call getcwd(thispath)
 
@@ -471,7 +461,6 @@ subroutine ridft_turbomole(env,TMPCONF)
       use crest_data
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       integer          :: TMPCONF
       character(len=:),allocatable :: jobcall
       real(wp),allocatable :: pop(:)
@@ -497,12 +486,11 @@ subroutine aoforce_turbomole(env,TMPCONF)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
       integer          :: TMPCONF
       
       real(wp),allocatable :: pop(:)
       real(wp) :: pthr
-      integer :: i,j,k,l
+      integer :: i
       integer :: npop
       integer :: maxpop
       character(len=1024) :: jobcall
@@ -520,7 +508,7 @@ subroutine aoforce_turbomole(env,TMPCONF)
 
    !--- obtain populations
       allocate(pop(TMPCONF))
-      call etotprop(TMPCONF,env,pop,.false.)
+      call etotprop(TMPCONF,pop,.false.)
       if(env%hardcutDFT)then
          call cutDFTpop(env,pop,TMPCONF)
       endif
@@ -545,15 +533,13 @@ subroutine aoforce_turbomole(env,TMPCONF)
 end subroutine aoforce_turbomole
 !-----------------------------------------------------------------------------------------------------
 ! cut DFT populations HARD
-subroutine replaceGridsize(env,TMPCONF,g)!,eread)
+subroutine replaceGridsize(TMPCONF,g)!,eread)
       use iso_fortran_env, wp => real64
       use crest_data
       use iomod
       use filemod
       implicit none
 
-      type(systemdata) :: env
-      !type(options)    :: opt
       type(filetype)   :: control
       integer          :: TMPCONF
       integer          :: g

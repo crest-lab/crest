@@ -42,12 +42,11 @@ module crest_thermo
 contains
 
 subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
-      &              vibs,nvibs,escf,T,sthr_rcm,et,ht,g,ts,zp,pr)
+      &              vibs,nvibs,T,sthr_rcm,et,ht,g,ts,zp,pr)
    use iso_fortran_env, only : wp => real64
    implicit none
    integer, intent(in)  :: iunit       !< output_unit
    integer, intent(in)  :: nvibs       !< number of vibrational frequencies
-   real(wp),intent(in)  :: escf        !< total energy from electronic structure
    real(wp),intent(in)  :: A_rcm       !< rotational constants in cm-1
    real(wp),intent(in)  :: B_rcm       !< rotational constants in cm-1
    real(wp),intent(in)  :: C_rcm       !< rotational constants in cm-1
@@ -76,11 +75,11 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    integer  :: i
    real(wp) :: s_tr,s_rot,s_vib,s_int,s_tot
    real(wp) :: h_tr,h_rot,h_vib,h_int,h_tot
-   real(wp) :: q_tr,q_rot,q_vib,q_int,q_tot
+   real(wp) :: q_tr,q_rot,q_vib,q_int
    real(wp) :: cptr,cprot,cpvib,cpint,cptot
    real(wp) :: beta,sthr,avmom,A,B,C
-   real(wp) :: ewj,omega,e,xxmom,xmom,mu
-   real(wp) :: wofrot,RT
+   real(wp) :: ewj,omega,mu
+   real(wp) :: wofrot
    real(wp) :: sv_ho,sv_rr
    !*******************************************************************
 
@@ -208,12 +207,11 @@ subroutine thermodyn(iunit,A_rcm,B_rcm,C_rcm,avmom_si,linear,atom,sym,molmass, &
    return
 end subroutine thermodyn
 
-subroutine oldthermo(a,b,c,avmom,linear,atom,sym,molmass,vibs,nvibs,escf, &
+subroutine oldthermo(a,b,c,avmom,linear,atom,sym,molmass,vibs,nvibs, &
       & T,sthr,et,ht,g,ts,zp,pr)
    use iso_fortran_env, only : wp => real64
    implicit none
    integer, intent(in)  :: nvibs       !< number of vibrational frequencies
-   real(wp),intent(in)  :: escf        !< total energy from electronic structure
    real(wp),intent(in)  :: A,B,C       !< rotational constants in cm-1
    real(wp),intent(in)  :: avmom       !< average moment of inertia in whatever
    real(wp),intent(in)  :: sym         !< symmetry number
@@ -256,7 +254,7 @@ subroutine oldthermo(a,b,c,avmom,linear,atom,sym,molmass,vibs,nvibs,escf, &
    integer  :: i
    real(wp) :: s_tr,s_rot,s_vib,s_int,s_tot
    real(wp) :: h_tr,h_rot,h_vib,h_int,h_tot
-   real(wp) :: q_tr,q_rot,q_vib,q_int,q_tot
+   real(wp) :: q_tr,q_rot,q_vib,q_int
    real(wp) :: cptr,cprot,cpvib,cpint,cptot
    real(wp) :: beta,c1
    real(wp) :: ewj,omega,e,xxmom,xmom
@@ -499,7 +497,7 @@ subroutine print_thermo_sthr_ts(iunit,nvib,vibs,avmom_si,sthr_rcm,temp)
 
    integer  :: i
    real(wp) :: maxfreq,omega,s_r,s_v,fswitch
-   real(wp) :: beta,xxmom,e,ewj,mu,RT,sthr,avmom
+   real(wp) :: beta,ewj,mu,RT,sthr,avmom
    beta = 1.0_wp/kB/temp ! beta in 1/Eh
    sthr = sthr_rcm * rcmtoau ! sthr in Eh
    RT = kb*temp*autokcal ! RT in kcal/mol for printout

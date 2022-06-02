@@ -17,8 +17,7 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !===============================================================================!
 
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
 ! BIASMERGE is used to determine sufficiently different structures
 ! that can be used as an static bias. k_i and alpha_i will be determined
 ! based on RMSDs and the read-in energy difference.
@@ -27,8 +26,7 @@
 !    in the comment line: first the DFT and then the TB energy
 ! The old ensemble is also in the XYZ ensemble format, but in its comment line
 !    there must be k_i and alpha_i for the structure. This is NOT modified.
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
 subroutine biasmerge(env)
       use iso_fortran_env, only: wp => real64, sp => real32, dp => int64, output_unit
       use crest_data
@@ -37,7 +35,7 @@ subroutine biasmerge(env)
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
       type(timer) :: tim2
-      integer :: i,j,k,l,p,q,ich
+      integer :: i,j,k,l,p,ich
       integer :: nat,nall
       integer,allocatable :: at(:)
       real(wp),allocatable :: xyz(:,:,:)
@@ -46,7 +44,6 @@ subroutine biasmerge(env)
       real(wp),allocatable :: ecdftref(:)
       real(wp),allocatable :: ectbref(:)
       real(wp),allocatable :: rminmaxref(:,:)
-      real(wp),allocatable :: rlistref(:)
       real(wp) :: rdum
       character(len=128),allocatable :: comments(:)
       character(len=:),allocatable :: reffile
@@ -323,6 +320,7 @@ subroutine biasmerge(env)
             env%cts%rmsdpotfile=trim(newcomment)//'/'//trim(atmp)
             open(newunit=ich,file=trim(atmp))
             emintry=0.0_wp
+            mintry = 1
             l=0
             if(refgiven)then
               do i=1,nall

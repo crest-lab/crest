@@ -32,7 +32,6 @@ subroutine relaxensemble(fname,env,tim)
 
       character(len=*) :: fname
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)   :: tim
 
       integer :: nall
@@ -44,8 +43,7 @@ subroutine relaxensemble(fname,env,tim)
       integer,allocatable :: at(:)
       character(len=40),allocatable :: origin(:)
 
-      integer :: i,j,k,l
-      integer :: r,io,ich
+      integer :: i,r,ich
 
       character(len=:),allocatable :: relaxdir
       character(len=:),allocatable :: oname

@@ -49,7 +49,6 @@ subroutine protonate(env,tim)
       use strucrd, only: coord2xyz
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)      :: tim
       type(protobj)    :: prot
 
@@ -196,8 +195,7 @@ subroutine xtblmo(env)
          use crest_data
          implicit none
          type(systemdata) :: env
-         !type(options)    :: opt
-         character(len=80) :: fname,pipe,solv
+         character(len=80) :: fname,pipe
          character(len=512) :: jobcall
          integer :: io
 !---- some options
@@ -241,9 +239,8 @@ subroutine swelem(iname,env)
          type(protobj) :: prot
          character(len=*) :: iname
 
-         integer :: i,j,k,l
-         integer :: ich
-         integer :: nat,nall,iz1,iz2
+         integer :: i,ich
+         integer :: nat,nall
          integer :: nchrg
          real(wp),allocatable :: xyz(:,:,:)
          real(wp),allocatable :: eread(:)
@@ -284,8 +281,7 @@ subroutine swparse(iname,prot)
          type(protobj) :: prot
          character(len=*) :: iname
 
-         integer :: i,j,k,l
-         integer :: slen
+         integer :: i,slen
          character(len=1) :: sig
          character(len=10) :: el
          character(len=10) :: numbers
@@ -348,14 +344,13 @@ subroutine prot_correction(env,iname)
     use crest_data
     use strucrd
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     character(len=*) :: iname
     integer :: nat,nall
     integer,allocatable :: at(:)
     real(wp),allocatable :: xyz(:,:,:)
     real(wp),allocatable :: eread(:)
-    integer :: i,j,k,l
+    integer :: i
     real(wp) :: dE
     real(wp) :: acidchrg
     real(wp) :: d1,d2,d3,d4,d5,d6

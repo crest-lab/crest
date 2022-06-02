@@ -42,7 +42,7 @@ module strucrd
     !=========================================================================================! 
     !--- private module variables and parameters
       private
-       integer :: i,j,k,l,ich,och,io
+       integer :: i,j,k,ich,io
        logical :: ex
 
      !--- some constants and name mappings
@@ -113,6 +113,7 @@ module strucrd
        
      public :: wrensemble
        interface wrensemble
+       module procedure wrensemble_conf
        module procedure wrensemble_conf_energy
        module procedure wrensemble_conf_energy_comment
        end interface wrensemble
@@ -202,11 +203,11 @@ module strucrd
 
 
 contains
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 !  1. ROUTINES FOR READING ENTIRE ENSEMBLES (OR TRAJECTORIES)
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 
 subroutine openensembledummy(fname) !DUMMY FUNCTION FOR IMPLEMENTATION TESTING
       implicit none
@@ -216,18 +217,6 @@ subroutine openensembledummy(fname) !DUMMY FUNCTION FOR IMPLEMENTATION TESTING
       real(wp),allocatable :: xyz(:,:,:)
       real(wp),allocatable :: eread(:)
       integer :: nall
-      logical :: conform
-
-      type(coord) :: struc
-      type(ensemble) :: trj
-      character(len=:),allocatable :: dummy
-      character(len=6) :: sym
-      real(wp) :: crd(3)
-
-      !inquire(file=fname,exist=ex)
-      !if(.not.ex)then
-      !  error stop 'ensemble file does not exist.'
-      !endif
 
       call rdensembleparam(fname,nat,nall)
 
@@ -246,11 +235,6 @@ subroutine openensembledummy(fname) !DUMMY FUNCTION FOR IMPLEMENTATION TESTING
         error stop 'format error while reading ensemble file.'
       endif
 
-      !call struc%open(fname)
-
-      !call wrc0(6,struc%nat,struc%at,struc%xyz)
-      !write(*,*)
-      !call wrxyz(6,struc%nat,struc%at,struc%xyz)
       return
 end subroutine openensembledummy
 
@@ -282,6 +266,7 @@ subroutine rdensembleparam(fname,nat,nall,conform)
       conformdum = .true.
       nat = 0
       nall = 0
+      natref = 0
       inquire(file=fname,exist=ex)
       if(.not.ex)return
       open(newunit=ich,file=fname)
@@ -325,7 +310,6 @@ subroutine rdensemble_conf1(fname,nat,nall,at,xyz,eread)
       integer :: i,j
       integer :: io,ich
       integer :: dum
-      real(wp) :: dum2
       character(len=512) :: line
       character(len=6) :: sym
  
@@ -497,13 +481,8 @@ subroutine wrensemble_conf(fname,nat,nall,at,xyz)
       integer,intent(in) :: nall
       integer :: at(nat)
       real(wp) :: xyz(3,nat,nall)
-      real(wp) :: er(nall)
-      integer :: i,j
-      integer :: io,ich
-      integer :: dum
-      real(wp) :: dum2
-      character(len=512) :: line
-      character(len=6) :: sym
+      integer :: i
+      integer :: ich
 
       open(newunit=ich,file=fname,status='replace')
       do i=1,nall
@@ -526,12 +505,8 @@ subroutine wrensemble_conf_energy(fname,nat,nall,at,xyz,er)
       integer :: at(nat)
       real(wp) :: xyz(3,nat,nall)
       real(wp) :: er(nall)
-      integer :: i,j
-      integer :: io,ich
-      integer :: dum
-      real(wp) :: dum2
-      character(len=512) :: line
-      character(len=6) :: sym
+      integer :: i
+      integer :: ich
 
       open(newunit=ich,file=fname,status='replace')
       do i=1,nall
@@ -555,12 +530,9 @@ subroutine wrensemble_conf_energy_comment(fname,nat,nall,at,xyz,er,comments)
       real(wp) :: xyz(3,nat,nall)
       real(wp) :: er(nall)
       character(len=*) :: comments(nall)
-      integer :: i,j
-      integer :: io,ich
-      integer :: dum
-      real(wp) :: dum2
+      integer :: i
+      integer :: ich
       character(len=512) :: line
-      character(len=6) :: sym
 
       open(newunit=ich,file=fname,status='replace')
       do i=1,nall
@@ -621,7 +593,6 @@ subroutine openensemble(self,fname)
       real(wp),allocatable :: xyz(:,:,:)
       real(wp),allocatable :: eread(:)
       integer :: nall
-      logical :: conform
 
       inquire(file=fname,exist=ex)
       if(.not.ex)then
@@ -1047,10 +1018,8 @@ subroutine rdPDB(fname,nat,at,xyz,pdb)
      real(wp),intent(inout) :: xyz(3,nat)
      type(pdbdata) :: pdb
      character(len=2) :: sym
-     integer :: ich,io,i,j,k,l
-     integer :: dum
+     integer :: ich,io,i,j,k
      character(len=256) :: atmp
-     character(len=32) :: btmp
      character(len=6) :: dum1
      character(len=1) :: dum2,dum3,pdbgp
      character(len=3) :: pdbas
@@ -1190,11 +1159,9 @@ subroutine opencoord(self,fname)
       implicit none
       class(coord) :: self
       character(len=*),intent(in) :: fname
-      integer :: nat,i
+      integer :: nat
       integer,allocatable :: at(:)
       real(wp),allocatable :: xyz(:,:)
-      integer :: nall
-      logical :: conform
       integer :: ftype
 
       inquire(file=fname,exist=ex)
@@ -1531,11 +1498,11 @@ subroutine appendcoord(self,io)
       return
 end subroutine appendcoord
 
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 !  4. GENERAL UTILITY ROUTINES
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 
 !============================================================!
 ! read a line of coordinates and determine by itself
@@ -1546,7 +1513,6 @@ subroutine coordline(line,sym,xyz)
       character(len=*) :: line
       character(len=*) :: sym
       real(wp) :: xyz(3)
-      character(len=len_trim(line)) :: dum
       integer :: io
 
       read(line,*,iostat=io) xyz(1:3),sym
@@ -1870,7 +1836,7 @@ function sgrep(fname,key)
     character(len=*), intent(in) :: key
     logical :: sgrep
     character(len=256) :: atmp
-    integer :: ic, i, io
+    integer :: ic, io
     sgrep=.false.
     open(newunit=ic,file=fname)
     do
@@ -1894,7 +1860,7 @@ function grepenergy(line)
     character(len=*), intent(in) :: line
     real(wp) :: energy
     character(len=:),allocatable :: atmp
-    integer :: ic, i, io
+    integer :: i, io
     atmp=trim(line)
     energy=0.0_wp
     do i=1,len_trim(atmp)
@@ -1913,9 +1879,9 @@ function grepenergy(line)
 end function grepenergy
 
 
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 ! end of the module
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 end module strucrd

@@ -52,10 +52,9 @@ subroutine pkaquick(env,tim)
               real(wp) :: pka
           end function pKaPolyFER
       end interface
-      real(wp) :: c0,c1,c2,c3,c4
       integer :: nc
       real(wp),allocatable :: c(:)
-      integer :: i,j,k,l,h,ich,io
+      integer :: i,j,h,ich
       integer :: refnat,refchrg,basechrg
       logical :: bhess,ex,rangepka
       real(wp) :: pkamin,pkamax
@@ -354,7 +353,6 @@ contains
        implicit none
        type(systemdata) :: env
        character(len=*) :: fname
-       integer :: chrg
        character(len=1028) :: jobcall
        integer :: io
        logical :: ex
@@ -409,8 +407,7 @@ subroutine pka_argparse2(env,str1,str2,h)
     implicit none
     type(systemdata) :: env
     character(len=*) :: str1,str2
-    integer :: h,io
-    real(wp) :: rdum
+    integer :: h
     logical :: ex,ex2
     h=0
     inquire(file=trim(str1),exist=ex)
@@ -578,7 +575,6 @@ end function pKaLFER
 function pKaCFER(dG,c1,c2,c3,c4,T) result(pka)
     use iso_fortran_env, wp => real64
     implicit none
-    real(wp) :: GA,GB
     real(wp) :: dG         !in Eh
     real(wp),optional :: T !in K
     real(wp) :: pka
@@ -616,7 +612,6 @@ end function pKaCFER
 function pKaPolyFER(dG,nc,c,T) result(pka)
     use iso_fortran_env, wp => real64
     implicit none
-    real(wp) :: GA,GB
     real(wp) :: dG         !in Eh
     real(wp),optional :: T !in K
     real(wp) :: pka

@@ -27,9 +27,8 @@ subroutine ompmklset(omp,maxrun,maximum)
       use omp_lib
       use iomod
       implicit none
-      integer :: omp,maxrun,threads
+      integer :: omp,maxrun
       real*8 :: omp1,omp2
-      character(len=256) :: atmp
       integer :: dummy5 ,io
       logical :: maximum
 
@@ -39,17 +38,9 @@ subroutine ompmklset(omp,maxrun,maximum)
 
       if(maximum)then
          dummy5=omp*MAXRUN
-         !write(atmp,'(''OMP_NUM_THREADS='',i0)') dummy5
-         !call PUTENV(trim(atmp)//char(0))
-         !write(atmp,'(''MKL_NUM_THREADS='',i0)') dummy5
-         !call PUTENV(trim(atmp)//char(0))
          io = setenv('OMP_NUM_THREADS',dummy5)
          io = setenv('MKL_NUM_THREADS',dummy5)
       else
-         !write(atmp,'(''OMP_NUM_THREADS='',i0)') omp
-         !call PUTENV(trim(atmp)//char(0))
-         !write(atmp,'(''MKL_NUM_THREADS='',i0)') omp
-         !call PUTENV(trim(atmp)//char(0))
          io = setenv('OMP_NUM_THREADS',omp)
          io = setenv('MKL_NUM_THREADS',omp)
 
@@ -65,7 +56,7 @@ subroutine ompmklset(omp,maxrun,maximum)
          omp2 = real(omp)
          MAXRUN=floor((omp1/omp2))
       endif
-      write(*,'(''  parallel xTB calls:''1x,i3)'),MAXRUN
+      write(*,'(''  parallel xTB calls:''1x,i3)')MAXRUN
       write(*,*) '==================================='
       write(*,*)
       endif
@@ -75,10 +66,10 @@ end subroutine ompmklset
 !c OMP and MKL parallelization settings (short routine)
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine ompquickset(omp,maxrun)
+subroutine ompquickset(omp)
       use iomod
       implicit none
-      integer,intent(in) :: omp,maxrun
+      integer,intent(in) :: omp
       integer :: io
 
       io = setenv('OMP_NUM_THREADS',omp)
@@ -134,8 +125,7 @@ subroutine ompautoset(threads,mode,omp,maxrun,factor)
       implicit none
       integer,intent(in) :: mode,factor
       integer,intent(inout) :: threads,omp,maxrun
-      real*8 :: dum1,dum2
-      character(len=256) :: atmp
+      real*8 :: dum1
 
       if(threads.eq.0)then                    !special case
          threads=OMP_GET_NUM_PROCS()
@@ -166,7 +156,7 @@ subroutine ompautoset(threads,mode,omp,maxrun,factor)
           if(dum1.ge.2)then
              maxrun=factor
              omp=floor(dum1)
-             call ompquickset(omp,maxrun)
+             call ompquickset(omp)
           else
              call ompset_min(omp,maxrun)
           endif
@@ -191,7 +181,7 @@ subroutine ompautoset(threads,mode,omp,maxrun,factor)
           if(dum1.ge.2)then
              maxrun=factor
              omp=floor(dum1)
-             call ompquickset(omp,maxrun)
+             call ompquickset(omp)
           else
              call ompset_min(omp,maxrun)
           endif
@@ -202,13 +192,13 @@ subroutine ompautoset(threads,mode,omp,maxrun,factor)
         case( 8 ) !--- set OMP threads to max. or a given maximum, i.e. use an upper limit for the threads
           omp=min(threads,factor)
           maxrun=1
-          call ompquickset(omp,maxrun)
+          call ompquickset(omp)
           call OMP_Set_Num_Threads(maxrun)
 #ifdef WITH_MKL
           call MKL_Set_Num_Threads(maxrun)
 #endif
         case default  !done if omp and MAXRUN are valid and 
-          call ompquickset(omp,maxrun)
+          call ompquickset(omp)
       end select     
 
 
@@ -223,27 +213,15 @@ subroutine ompgetauto(threads,omp,maxrun)
       use iomod
       implicit none
       integer,intent(inout) :: threads,omp,maxrun
-      integer :: nproc,TID
-      integer :: r,io 
-      character(len=256) :: atmp,val
-
-!!$OMP PARALLEL PRIVATE(TID)
-!      TID = OMP_GET_THREAD_NUM()
-!      IF (TID .EQ. 0) THEN
-!         nproc = OMP_GET_NUM_THREADS()
-         !write(*,*) '============================='
-         !write(*,*) ' # threads =', nproc
-         !write(*,*) '============================='
-!      END IF
-!!$OMP END PARALLEL 
+      integer :: nproc
+      integer :: r
+      character(len=256) :: val
 
       call getenv('OMP_NUM_THREADS',val)
       read(val,*,iostat=r) nproc
       if(r.ne.0)then
          nproc=1
       endif
-
-
       threads=nproc
       maxrun=1
       omp=nproc
@@ -258,9 +236,9 @@ end subroutine ompgetauto
 subroutine ompprint()
       use omp_lib
       implicit none
-      integer :: nproc,TID
+      integer :: nproc
       integer :: r
-      character(len=256) :: atmp,val
+      character(len=256) :: val
 
       call getenv('OMP_NUM_THREADS',val)
       read(val,*,iostat=r) nproc
@@ -280,8 +258,6 @@ subroutine ompprint_intern()
       use omp_lib
       implicit none
       integer :: nproc,TID
-      integer :: r
-      character(len=256) :: atmp,val
 
 !$OMP PARALLEL PRIVATE(TID)
       TID = OMP_GET_THREAD_NUM()

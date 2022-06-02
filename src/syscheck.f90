@@ -29,10 +29,6 @@ module syscheck
    public :: checkprog_secret
 
    private
-!-------------------------------------------------------------------------------------------------------
-!--- dummy variables to use thoughout the module
-   integer :: i
-   logical :: ex
 
 !-------------------------------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------------------------------
@@ -106,9 +102,7 @@ subroutine checkprog_secret(fname)
     character(len=*) :: fname
     character(len=:),allocatable :: checkcall
     character(len=:),allocatable :: pipe
-    integer :: rcode,r
-    character(len=512) :: path
-
+    integer :: rcode
 
     pipe=' >/dev/null 2>/dev/null'
 

@@ -88,12 +88,11 @@ end subroutine autoMetalConstraint
 !   A file "bondlengths" is written with a constraint on each bond.
 !   The input argument is the required force constant.
 !==========================================================================!
-subroutine autoHeavyConstraint(filename,forceconstant,wbofile)
+subroutine autoHeavyConstraint(filename,forceconstant)
      use iso_fortran_env, wp => real64
      use zdata
      implicit none
      character(len=*) :: filename
-     character(len=*) :: wbofile
      real(wp) :: forceconstant
      type(zmolecule) :: zmol
    !--- get topology
@@ -113,12 +112,11 @@ end subroutine autoHeavyConstraint
 !   A file "bondlengths" is written with a constraint on each bond.
 !   The input argument is the required force constant.
 !==========================================================================!
-subroutine autoHydrogenConstraint(filename,forceconstant,wbofile)
+subroutine autoHydrogenConstraint(filename,forceconstant)
      use iso_fortran_env, wp => real64
      use zdata
      implicit none
      character(len=*) :: filename
-     character(len=*) :: wbofile
      real(wp) :: forceconstant
      type(zmolecule) :: zmol
    !--- get topology
@@ -144,7 +142,7 @@ subroutine getbmat(zmol,r,force)
      real(wp),allocatable :: bmat(:,:)
      integer,allocatable :: at(:)
      integer,allocatable :: bonds(:,:)
-     integer :: i,j,k,l,nb
+     integer :: i,j,nb
 
      integer,parameter :: cbonds = 1
      integer,parameter :: cmetal = 2
@@ -156,6 +154,7 @@ subroutine getbmat(zmol,r,force)
      real(wp),parameter :: bohr = 0.52917726_wp
 
      nat = zmol%nat
+     allocate(at(nat), source=0)
      at = zmol%at
      allocate(xyz(3,nat),bmat(nat,nat), source = 0.0_wp)
     
@@ -222,7 +221,7 @@ subroutine writeBmatconstr(nat,bmat,force)
      implicit none
      integer :: nat
      real(wp) :: bmat(nat,nat)
-     integer :: i,j,k,l,ich
+     integer :: i,j,ich
      real(wp) :: force
      character(len=20) :: dumm
 
@@ -252,7 +251,7 @@ subroutine writeMetalconstr(nat,at,bmat,force)
      integer :: nat
      integer :: at(nat)
      real(wp) :: bmat(nat,nat)
-     integer :: i,j,k,l,ich
+     integer :: i,j,ich
      real(wp) :: force
      character(len=20) :: dumm
      logical :: isTMetal  !this is a function
@@ -295,10 +294,9 @@ subroutine writeHeavyconstr(nat,at,bmat,force)
      integer :: nat
      integer :: at(nat)
      real(wp) :: bmat(nat,nat)
-     integer :: i,j,k,l,ich
+     integer :: i,j,ich
      real(wp) :: force
      character(len=20) :: dumm
-     logical :: isTMetal  !this is a function
 
      open(newunit=ich,file='bondlengths')
      write(ich,'(a)') '$constrain'
@@ -326,10 +324,9 @@ subroutine writeHydrogenconstr(nat,at,bmat,force)
      integer :: nat
      integer :: at(nat)
      real(wp) :: bmat(nat,nat)
-     integer :: i,j,k,l,ich
+     integer :: i,j,ich
      real(wp) :: force
      character(len=20) :: dumm
-     logical :: isTMetal  !this is a function
 
      open(newunit=ich,file='bondlengths')
      write(ich,'(a)') '$constrain'
