@@ -299,7 +299,7 @@ subroutine DFTprocessing(env,TMPCONF,nat,at)
       select case(env%dftruntype)
         case( 1,2 )
          allocate(pop(TMPCONF))
-         call etotprop(TMPCONF,env,pop,.true.)
+         call etotprop(TMPCONF,pop,.true.)
          deallocate(pop)
          call rdpropens(TMPCONF,nat,xyz) !get updated geometries
          call wrpropens(TMPCONF,nat,xyz,at,eread)
@@ -519,7 +519,7 @@ subroutine aoforce_turbomole(env,TMPCONF)
 
    !--- obtain populations
       allocate(pop(TMPCONF))
-      call etotprop(TMPCONF,env,pop,.false.)
+      call etotprop(TMPCONF,pop,.false.)
       if(env%hardcutDFT)then
          call cutDFTpop(env,pop,TMPCONF)
       endif

@@ -443,15 +443,19 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 *                     AND RADIANS
 *
 ***********************************************************************
-      DO 10 I=2,NUMAT
+      DO I=2,NUMAT
          J=NA(I)
          K=NB(I)
          L=NC(I)
-         IF(I.LT.3) GOTO 10
+      GEO(1,I)= SQRT((XYZ(1,I)-XYZ(1,J))**2+
+     1               (XYZ(2,I)-XYZ(2,J))**2+
+     2               (XYZ(3,I)-XYZ(3,J))**2)
+
+         IF(I.LT.3) cycle
          II=I
          CALL BANGLE(XYZ,II,J,K,GEO(2,I))
          GEO(2,I)=GEO(2,I)*DEGREE
-         IF(I.LT.4) GOTO 10
+         IF(I.LT.4) cycle
 C
 C   MAKE SURE DIHEDRAL IS MEANINGLFUL
 C
@@ -485,9 +489,7 @@ c     ENDIF
 c           ENDIF
          CALL DIHED(XYZ,II,J,K,L,GEO(3,I))
          GEO(3,I)=GEO(3,I)*DEGREE
-10    GEO(1,I)= SQRT((XYZ(1,I)-XYZ(1,J))**2+
-     1               (XYZ(2,I)-XYZ(2,J))**2+
-     2               (XYZ(3,I)-XYZ(3,J))**2)
+      enddo
       GEO(1,1)=0.D0
       GEO(2,1)=0.D0
       GEO(3,1)=0.D0

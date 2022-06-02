@@ -144,7 +144,7 @@ subroutine flexi(nat,rednat,includeRMSD,flex,effectivNat)
          enddo
       enddo
 
-!     call prmati(6,b,n,n,'B')
+!     call prmat(6,b,n,n,'B')
 
 !---- setup ring data for all atoms, i.e., in which ring and how large
 

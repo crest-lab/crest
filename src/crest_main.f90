@@ -234,8 +234,8 @@ program CREST
   !---- calculate potential correction for acid/base reaction
        case( p_ligand )
          call tim%start(4,'')
-         call ligandtool(env,env%ptb%infile,env%ptb%newligand, &
-         &    env%ptb%centeratom,env%ptb%ligand,env%ptb%isatom)
+         call ligandtool(env%ptb%infile,env%ptb%newligand, &
+         &    env%ptb%centeratom,env%ptb%ligand)
          call tim%stop(4)
          call propquit(tim)  
   !---- wrapper for the thermo routine       

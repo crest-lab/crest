@@ -32,7 +32,6 @@ subroutine cregen2(env)
    !$ use omp_lib
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
 
       real(wp),allocatable :: xyz(:,:,:),e(:),p(:),er(:),c1(:,:),c2(:,:)
       real(wp),allocatable :: c1r(:,:),c2r(:,:)
@@ -44,30 +43,28 @@ subroutine cregen2(env)
       integer,allocatable  :: atr(:)
       integer,allocatable  :: relat(:,:),equiv(:,:,:),molvec(:)
       integer,allocatable  :: pair(:),pre(:),nb(:,:),elist(:,:),flist(:,:)
-      integer,allocatable  :: jnd(:),perm(:),sames(:)
+      integer,allocatable  :: jnd(:),sames(:)
       logical,allocatable  :: vis(:)
       real(wp),allocatable :: xx(:),pg(:),rcov(:)
       real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:), ydum(:)  ! rmsd dummy stuff
       integer,allocatable:: iref(:),dgen(:),glist(:,:),nmract(:)
       character(len=40),allocatable :: origin(:),originnew(:)
       integer,allocatable :: timetag(:)
-      real(wp),allocatable :: ertag(:)
-
 
       real(wp) :: autokcal,beta,eav,A,T,rthr,s,g
-      real(wp) :: ss,ethr,de,dr,bthr,aa
-      real(wp) :: elow,psum,ewin,pthr,eref,athr,r,dsum,dav
-      real(wp) :: dum,distcma,esort
-      real(wp) :: rij(3),ri,rj,cnorm,erj
+      real(wp) :: ss,ethr,de,dr,bthr
+      real(wp) :: elow,ewin,pthr,eref,athr,r
+      real(wp) :: dum
+      real(wp) :: rij(3),cnorm,erj
       !real*8 :: gdum(3,3),Udum(3,3),xdum(3), ydum(3)  ! rmsd dummy stuff
       real(wp), external :: rotdiff,shortest_distance
 
       parameter (autokcal=627.509541d0)
 
-      integer :: i,j,k,l,m,nall,n,ig,ng,nall2,norig
-      integer :: m1,m2,s1,s2,maxg,current,mm,mmm,ndoub
-      integer :: molcount0,j1,iat,k2,molcount,m1end,imax
-      integer :: kk,memb,irr,ir,nr,jj,nall_old,iig
+      integer :: i,j,k,l,m,nall,n,ig,ng,nall2
+      integer :: m1,m2,s1,s2,maxg,current,ndoub
+      integer :: molcount0,j1,iat,k2,m1end
+      integer :: kk,memb,irr,ir,nr,jj,nall_old
       integer :: TID, nproc
       integer :: ich,ich2,io,ich3,rednat
       integer, external :: lin
@@ -76,12 +73,12 @@ subroutine cregen2(env)
       integer(idp),allocatable :: rmatmap1(:)
       integer,allocatable :: rmatmap2(:),includeRMSD(:)
 
-      character(len=80) :: atmp,btmp,ctmp,oname,fname,cname
+      character(len=80) :: atmp,btmp,oname,fname,cname
       character(len=3) :: a3            
       character(len=512) :: outfile
 
-      logical :: debug,heavy,l1,l2,l3,ex,newfile,anal,rmsdchk
-      logical :: exchok,fail,equalrot2
+      logical :: debug,heavy,l1,l2,ex,newfile,anal,rmsdchk
+      logical :: fail
       logical :: substruc
       logical :: ttag
       logical, external :: distcheck,equalrot,equalrotall
@@ -93,6 +90,7 @@ subroutine cregen2(env)
       &             trackorigin => env%trackorigin, autothreads => env%autothreads,      &
       &             omp => env%omp, MAXRUN => env%MAXRUN, threads => env%threads)
       rednat = env%rednat
+      allocate(includeRMSD(env%nat))
       includeRMSD = env%includeRMSD
 
       thresholdNames: associate( cgf => env%cgf, thresholds => env%thresholds)
@@ -419,7 +417,7 @@ subroutine cregen2(env)
       if(env%esort) then    !-- just resort the input and make a cut (if inquired by cmd)
         open(unit=2,file=oname)                        
         do i=1,nall
-           if((er(i)-elow)*autokcal.gt.esort) goto 999
+           if((er(i)-elow)*autokcal.gt.ewin) goto 999
            c2(1:3,1:n)=xyz(1:3,1:n,i)
            write(2,'(2x,i0)') n
            if(.not.trackorigin)then
@@ -502,7 +500,7 @@ subroutine cregen2(env)
                ! klong=lina(j,i)
                 klong=linr(rmatmap1(i),rmatmap2(i),j)
                 !$omp critical
-                rmat(klong) = dum
+                rmat(klong) = real(dum, 4)
                 !$omp end critical
             endif
          enddo
@@ -526,7 +524,7 @@ subroutine cregen2(env)
                ! klong=lina(j,i)
                klong=linr(rmatmap1(i),rmatmap2(i),j)
                !$omp critical
-               rmat(klong) = dum
+               rmat(klong) = real(dum, 4)
                !$omp end critical
            endif
          enddo
@@ -544,7 +542,7 @@ subroutine cregen2(env)
             if(de.lt.ethr)then
             !klong=lina(j,i)
             klong=linr(rmatmap1(i),rmatmap2(i),j)
-            rmat(klong)=rotdiff(i,j,nall,rot)
+            rmat(klong)=real(rotdiff(i,j,nall,rot), 4)
             endif
          enddo
        enddo
@@ -1314,7 +1312,7 @@ subroutine cpincluded(n,nr,c,cr,inc)
       real(wp),intent(in) :: c(3,n)
       real(wp),intent(out) :: cr(3,nr)
       integer,intent(in) :: inc(n)
-      integer :: i,j,k
+      integer :: i,k
       k=1
       do i=1,n
         if(inc(i).gt.0)then
@@ -1334,7 +1332,7 @@ subroutine compare(n,nall,s1,s2,dist,athr,relat)
       integer :: relat(0:n,n)
       real*8 :: dist(n,n,nall),athr
 
-      integer :: i,j,k,lin
+      integer :: i,j,k
       real*8 :: rsum,athr2
       logical :: ok
 
@@ -1447,7 +1445,7 @@ subroutine repairorder(nall,n,ng,order,xyz,er,trackorigin,originnew)
       real(wp) :: er(nall)
       logical :: trackorigin
       character(len=40) :: originnew(nall)
-      integer :: i,j,k,l
+      integer :: i,j,k
 
       integer,allocatable :: dumorder(:)
       real(wp),allocatable :: dumxyz(:,:,:)
@@ -1498,7 +1496,7 @@ subroutine repairentropic(nall,n,ng,order,xyz,er,trackorigin,originnew)
       real(wp) :: er(nall)
       logical :: trackorigin
       character(len=40) :: originnew(nall)
-      integer :: i,j,k,l,t
+      integer :: i,j,k,t
       integer :: tmax
 
       integer,allocatable :: dumorder(:)
@@ -1508,9 +1506,9 @@ subroutine repairentropic(nall,n,ng,order,xyz,er,trackorigin,originnew)
       integer,allocatable :: timetag(:)
 
       allocate(dumorder(nall),dumxyz(3,n,nall),dumer(nall))
-      if(trackorigin)then
       allocate(dumorig(nall))
-      allocate(timetag(nall))
+      allocate(timetag(nall), source=0)
+      if(trackorigin)then
       call origin2time(nall,originnew,timetag)
       endif
       tmax=maxval(timetag,1)

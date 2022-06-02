@@ -128,7 +128,7 @@ subroutine confscript2i(env,tim)
         if (env%optlev >= -2.0d0) then
           call multilevel_opt(env,4)
         end if
-        call append_INPUT_to('coord',nat,'input')   !include the input structure into the last optimization
+        call append_INPUT_to('coord','input')   !include the input structure into the last optimization
         if (.not. env%superquick .and. env%optlev >= 1.0d0) then
           if (.not. env%entropic) then
             call multilevel_opt(env,5)

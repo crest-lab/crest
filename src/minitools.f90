@@ -415,7 +415,7 @@ subroutine testtopo(fname,env,tmode)
     real(wp) :: dum
     integer,allocatable :: inc(:)
     real(wp) :: flex
-    integer :: nt,i,k
+    integer :: nt,i
     logical :: l1
     real(wp),allocatable :: temps(:)
     real(wp),allocatable :: et(:)

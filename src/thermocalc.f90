@@ -110,7 +110,7 @@ end subroutine prepthermo
 !====================================================================!
 ! calcthermo based on xtb's "print_thermo" routine
 !====================================================================!
-subroutine calcthermo(nat,at,xyz,etot,freq,pr,ithr,fscal,sthr,nt,temps, &
+subroutine calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr,nt,temps, &
     &      et,ht,gt,stot )
     use iso_fortran_env, wp => real64, iunit=>output_unit
     use crest_thermo
@@ -121,7 +121,6 @@ subroutine calcthermo(nat,at,xyz,etot,freq,pr,ithr,fscal,sthr,nt,temps, &
     integer,intent(in)     :: nat
     integer,intent(in)     :: at(nat)
     real(wp),intent(inout) :: xyz(3,nat)  !in Angstroem
-    real(wp) :: etot                      !in Eh
     real(wp),intent(inout) :: freq(3*nat) !in cm-1
     logical,intent(in)     :: pr
     real(wp),intent(in) :: ithr     !imag. inv. in cm-1
@@ -147,11 +146,9 @@ subroutine calcthermo(nat,at,xyz,etot,freq,pr,ithr,fscal,sthr,nt,temps, &
     integer :: nvib,nimag
     real(wp) :: vibthr
     real(wp),allocatable :: vibs(:)
-    real(wp),allocatable :: tmp(:)
 
-    integer :: i,j,k
-    integer :: n3,isthr,rt
-    real(wp) :: diff,dum
+    integer :: i,j
+    integer :: n3,rt
     real(wp) :: adum(nt)
     character(len=64) :: atmp
 
@@ -298,10 +295,9 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
     logical,intent(in) :: bhess       !calculate bhess instead?
 
     logical :: subdir,ex
-    integer :: i,j,k,l
-    integer :: io,r,ich
+    integer :: i,io,r,ich
     character(len=1024) :: jobcall
-    character(len=*),parameter :: pipe ='2>>xtb.out'
+    character(len=*),parameter :: pipe ='2>/dev/null'
     character(len=*),parameter :: xname='freq.xyz'
     character(len=:),allocatable :: optpath
     character(len=:),allocatable :: jobcall2
@@ -310,8 +306,7 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
     real(wp) :: etot
     integer :: nfreq
     real(wp),allocatable :: freq(:)
-    real(wp),allocatable :: inten(:)
-    real(wp) :: ithr,fscal,sthr,temp
+    real(wp) :: ithr,fscal,sthr
 
     integer :: TID,OMP_GET_THREAD_NUM
 
@@ -329,12 +324,12 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
     i = len_trim(dirname)
     if( i > 0) subdir = .true.
 
-    write(jobcall,'(a,1x,a,1x,a,'' --ohess '',a,1x,a,1x,a'' >xtb.out'')') &
+    write(jobcall,'(a,1x,a,1x,a,'' --ohess '',a,1x,a,1x,a,'' > xtb.out'')') &
     &  trim(env%ProgName),trim(xname),trim(env%gfnver),trim(env%solv), &
     &  '--ceasefiles',trim(pipe)
 
     if(bhess)then
-    write(jobcall,'(a,1x,a,1x,a,'' --bhess loose '',a,1x,a,1x,a'' >xtb.out'')') &
+    write(jobcall,'(a,1x,a,1x,a,'' --bhess loose '',a,1x,a,1x,a,'' > xtb.out'')') &
     &  trim(env%ProgName),trim(xname),trim(env%gfnver),trim(env%solv), &
     &  '--ceasefiles',trim(pipe)
     endif
@@ -401,7 +396,7 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
     ithr=env%thermo%ithr
     fscal=env%thermo%fscal
     sthr=env%thermo%sthr
-    call calcthermo(nat,at,xyz,etot,freq,pr,ithr,fscal,sthr, &
+    call calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr, &
     &    nt,temps,et,ht,gt,stot )
     deallocate(freq)
 !$omp end critical
@@ -419,8 +414,7 @@ subroutine rdfreq(fname,nmodes,freq)
       character(len=*),intent(in) :: fname
       integer,intent(in)   :: nmodes
       real(wp),intent(out) :: freq(nmodes)    !frequencies
-      integer :: i,j,k,l
-      integer :: ich,io
+      integer :: k,ich,io
       character(len=256) :: atmp
       real(wp) :: floats(10)
       logical :: ex
@@ -542,8 +536,10 @@ subroutine calcSrrhoav(env,ensname)
     if(ex)then
       open(newunit=ich,file='cre_degen2')
       read(ich,*) atmp 
+      write(*,*) trim(atmp),nall
       do i=1,nall
-         read(ich,*)j,g(i)
+         read(ich,*,iostat=io)j,g(i)
+         if(io < 0) exit
       enddo
       close(ich)
     else

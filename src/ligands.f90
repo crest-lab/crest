@@ -33,9 +33,7 @@ subroutine extractligands(infile,centeratom)
     type(zmolecule) :: zmol
     integer,allocatable :: path(:)
     integer :: i,j,k,l,nb,ich
-    real(wp),allocatable :: xyz(:,:)
-    integer,allocatable :: at(:)
-    character(len=128) :: atmp,btmp
+    character(len=128) :: atmp
     call mol%open(infile)
     call simpletopo_mol(mol,zmol,.false.,.false.)
     allocate(path(zmol%nat), source=0)
@@ -88,11 +86,9 @@ subroutine exchangeligands(infile,infile2,centeratom,ligandnr)
     type(coord) :: mol
     type(zmolecule) :: zmol
     integer,allocatable :: path(:)
-    integer :: i,j,k,l,m,nb,ich
+    integer :: i,j,k,l,m,nb
     integer :: newcenter,newnb
-    real(wp),allocatable :: xyz(:,:)
-    integer,allocatable :: at(:)
-    character(len=128) :: atmp,btmp
+    character(len=128) :: atmp
     interface
         subroutine matchligands(mol1,mol2,metal)
             import :: coord, wp
@@ -198,7 +194,7 @@ subroutine matchligands(mol1,mol2,metal)
     type(zmolecule) :: zmol1 !topology of mol1
     type(zmolecule) :: zmol2 !topology of mol2
     real(wp) :: c0(3),shift(3)
-    integer :: i,j,k,l,ich,nr,nl,pls
+    integer :: i,j,k,nr,nl,pls
     real(wp) :: distref
     real(wp),allocatable :: c1(:,:),c2(:,:)
     real(wp),allocatable :: b1(:,:),b2(:,:)
@@ -327,7 +323,7 @@ subroutine estimatecenter(n,c0,refdist)
     !and c0(:,n) is the atom position to be determined
     real(wp) :: refdist
     real(wp) :: center(3),cdist,distrel
-    integer :: i,j,k,l,n2
+    integer :: i,k,n2
     n2=n-2
     center = 0.0_wp
     if(n2>0)then
@@ -339,7 +335,7 @@ subroutine estimatecenter(n,c0,refdist)
        !center = center / float(n2)
        cdist = getdist(c0(1:3,1),center)
        distrel = refdist / cdist
-       center = center * -distrel
+       center = center * (-distrel)
        c0(1:3,n) = center(1:3) 
     else !n2=0 
     !this means that the ligand is an atom and 
@@ -351,20 +347,16 @@ subroutine estimatecenter(n,c0,refdist)
 endsubroutine estimatecenter
 end subroutine matchligands    
 
-subroutine ligandtool(env,infile,newligand,center,oldligand,isatom)
+subroutine ligandtool(infile,newligand,center,oldligand)
     use iso_fortran_env, only: wp=>real64
     use crest_data
     implicit none
-    !type(options) :: opt
-    type(systemdata) :: env
     character(len=*) :: infile
     character(len=*) :: newligand
     integer :: center
     integer :: oldligand
-    logical,optional :: isatom
 
     if(oldligand==0)then
-        !write(*,*) trim(infile),center
         write(*,*) 'No ligand selected in the molecule'
         write(*,'(1x,a,i0,a)') 'Ligands for central atom ',center,':'
         call extractligands(infile,center)
@@ -381,24 +373,20 @@ end subroutine ligandtool
 ! A hack to 'flip' hydrogens at OH (technically also SH, NH, etc.)
 ! currently not used.
 !====================================================================!
-subroutine ohflip(env,mol,numstruc)
+subroutine ohflip(mol,numstruc)
     use iso_fortran_env, only: wp=>real64
     use crest_data
     use strucrd
     use zdata
     implicit none
-    type(systemdata) :: env
-    !character(len=*) :: infile
     type(coord) :: mol,new
     type(zmolecule) :: zmol
     integer :: numstruc
     logical,allocatable :: ohmap(:)
-    integer :: i,noh,j,io
+    integer :: i,noh,io
     integer :: theh
     real(wp) :: hpos(3),opos(3),xpos(3)
     real(wp) :: kvec(3),theta,hnew(3)
-    real(wp) :: ohlen,ohlen2
-    real(wp) :: eucdist !this is a function
     real(wp),parameter :: pi = 3.14159265359_wp
     character(len=50) :: atmp
 
@@ -483,37 +471,35 @@ end subroutine ohflip
 !====================================================================!
 ! file wrapper for the ohflip routine
 !====================================================================!
-subroutine ohflip_file(env,infile)
+subroutine ohflip_file(infile)
     use iso_fortran_env, only: wp=>real64
     use crest_data
     use strucrd
     use zdata
     implicit none
-    type(systemdata) :: env
     character(len=*) :: infile
     type(coord) :: mol
     integer :: k
     call mol%open(infile)
-    call ohflip(env,mol,k)
+    call ohflip(mol,k)
     call mol%deallocate()
     write(*,*) k,'XH groups in the molecule'
     return
 end subroutine ohflip_file
 
-subroutine ohflip_ensemble(env,infile,maxnew)
+subroutine ohflip_ensemble(infile,maxnew)
     use iso_fortran_env, only: wp=>real64
     use crest_data
     use strucrd
     use zdata
     use iomod
     implicit none
-    type(systemdata) :: env
     character(len=*) :: infile
     type(coord) :: mol
     integer,intent(in) :: maxnew
     integer :: limit,counter,xout
     integer :: nat,nall
-    integer :: i,j,k,l
+    integer :: k
     real(wp),allocatable :: xyz(:,:,:)
     real(wp),allocatable :: er(:)
     integer,allocatable  :: at(:)
@@ -534,7 +520,7 @@ subroutine ohflip_ensemble(env,infile,maxnew)
     do
     k=k+1
     call mol%get(bohr,nat,at,xyz(:,:,k))
-    call ohflip(env,mol,xout)
+    call ohflip(mol,xout)
     call mol%deallocate()
     if(xout==0) then
         exit

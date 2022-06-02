@@ -54,7 +54,6 @@ subroutine reactor(env, tim)
   ! DECLARATIONS
   ! for purpose of variables look at the lines where they are used
   character(len=100):: trjFile = "xtb.trj"
-  integer:: lineCount              ! <-- nl
   integer:: nat              ! <-- nat
   integer:: snapCount              ! <-- nstr
 
@@ -334,7 +333,7 @@ subroutine reactor_setup(env)
     write(atmp, '("  sphere:",1x,g0,",",1x,"all")') rabc(1)
     call f%write(trim(atmp))
     write(atmp, '(f16.1)')env%tempfermi
-    atmp = '  temp='//adjustl(atmp)
+    atmp = '  temp='//trim(adjustl(atmp))
     call f%write(trim(atmp))
     deallocate(at, xyz)
   endif
@@ -363,7 +362,6 @@ subroutine reactor_pot(ax, wei, densref, dens)
   real(wp), intent(in)    :: densref
   real(wp), intent(out)   :: dens
 
-  real(wp):: vol
   real(wp):: scal
   real(wp) :: mass
 
@@ -444,11 +442,9 @@ function are_zequals_different(zequal_1, zequal_2) result(different)
 
   !-- Forward declarations
   logical:: are_1d_int_arrays_different
-  logical:: are_zgrps_different
 
   logical:: different
   type(zequal), intent(in):: zequal_1, zequal_2
-  integer:: i
 
   different = .TRUE.
 
@@ -543,7 +539,6 @@ subroutine sort_zgrps(zgrps, zgrps_dim)
 
   integer, intent(in):: zgrps_dim
   type(zgrp), dimension(zgrps_dim), intent(inout):: zgrps
-  type(zgrp), dimension(zgrps_dim):: sorted_zgrps
   integer:: i, j, comp, comp_pos
 
   do i = 1, zgrps_dim-1
@@ -643,10 +638,9 @@ subroutine reactorreopt(env,nat,at,nall,xyz,taken,frags,ndirs)
     type(zequal),intent(in) :: frags(nall)
     integer,intent(out) :: ndirs
 
-    real(wp),allocatable :: chrgs(:,:)
+    !real(wp),allocatable :: chrgs(:,:)
     integer :: i,j,k,l,m,n
-    integer :: io,ich
-    logical :: ex
+    integer :: io
     logical,allocatable :: mask(:)
 
     character(len=512) :: thispath,optpath
@@ -763,13 +757,10 @@ subroutine collectproducts(optdir,base,ndirs,oname,iso)
     logical :: iso
 
     logical :: ex
-    integer :: i,j,k,l
-    integer :: ndtrack
-    integer :: idum
-    integer :: ich,ich2
+    integer :: i,k
+    integer :: ich
     integer :: natiso
     character(len=256) :: atmp
-    character(len=6) :: btmp
 
     real(wp),allocatable :: xyz(:,:)
     integer,allocatable :: at(:)

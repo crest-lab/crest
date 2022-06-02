@@ -23,6 +23,8 @@ if fc_id == 'gcc'
   add_project_arguments(
     '-ffree-line-length-none',
     '-fbacktrace',
+    '-Wno-maybe-uninitialized',
+    '-Wno-uninitialized',
     language: 'fortran',
   )
 elif fc_id == 'intel'

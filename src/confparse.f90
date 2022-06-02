@@ -55,12 +55,9 @@ subroutine parseflags(env,arg,nra)
   character(len=512) :: atmp,btmp
   character(len=:),allocatable :: ctmp,dtmp
   integer :: i,j,k,l,io,ich,idum
-  integer*8 :: w,v
   real(wp) :: rdum
-  integer,allocatable :: intdum(:)
-  integer :: cs,cf,slength
   integer :: ctype
-  logical :: parse,ex,ex2,fg,bondconst
+  logical :: ex,bondconst
   character(len=:),allocatable :: argument
 
   allocate (xx(10),floats(3),strings(3))
@@ -2015,12 +2012,10 @@ subroutine parseRC2(env,bondconst)
   type(systemdata),intent(inout) :: env
   !type(options),intent(inout)    :: opt
 
-  integer :: i,j,k,l,fil,bb
-  integer :: imd,io,ich
-  character(len=256),allocatable :: cfiles(:)
+  integer :: i,j,k
+  character(len=512),allocatable :: cfiles(:)
   character(len=256) :: atmp,btmp
   character(len=512) :: dg,argument
-  real(wp) :: floats(10)
   integer,allocatable :: atlist(:)
   logical :: ex,ex1,ex2
   logical :: create,atomlistused
@@ -2204,8 +2199,7 @@ subroutine inputcoords(env,arg)
   character(len=:),allocatable :: arg2
   type(coord) :: mol
   type(zmolecule) :: zmol
-
-  integer :: i,j,k,l
+  integer :: i
 
 !>--- Redirect for QCG input reading
   if (env%crestver == crest_solv) then
@@ -2293,8 +2287,7 @@ subroutine inputcoords_qcg(env,arg1,arg2)
   character(len=:),allocatable :: inputfile
   type(coord) :: mol
   type(zmolecule) :: zmol,zmol1
-
-  integer :: i,j,k,l
+  integer :: i
 
 !--------------------Checking for input-------------!
 

@@ -28,15 +28,13 @@ subroutine normalMD(fname,env,nr,newtemp,newtime)
          implicit none
 
          type(systemdata) :: env
-         !type(options)    :: opt
          real(wp) :: newtemp
          real(wp) :: newtime
          character(len=*)  :: fname
          character(len=256) :: basename,dirname
-         character(len=512) :: tmppath,thispath,str
+         character(len=512) :: tmppath,thispath
 
          integer :: r,nr
-         logical :: verbose,parallel
 
          real(wp) :: k,alpha
 
@@ -44,23 +42,16 @@ subroutine normalMD(fname,env,nr,newtemp,newtime)
          basename='NORMMD'  !base name of the directories
 
          call getcwd(thispath)              !current dir= thispath
-         !call getname_dir(trim(basename),dirname)
          write(dirname,'(a,i0)')trim(basename),nr
          tmppath=trim(dirname)
          call rmrf(tmppath)            !clear old directory
          r = makedir(trim(tmppath))    !make new directory
 
          call rename(trim(fname),trim(tmppath)//'/'//'coord')
-         !call copysub('.CHRG',trim(tmppath))
-         !call copysub('.UHF',trim(tmppath))
          call env%wrtCHRG(trim(tmppath))   
          call copysub(env%fixfile,trim(tmppath))
-         !call copysub(env%constraints,trim(tmppath))
          if(env%useqmdff)then
             call copysub('solvent',trim(tmppath))
-         endif
-         if(env%gfnver=='--gff')then
-!            r = sylnk(trim(thispath)//'/'//'gfnff_topo',trim(tmppath)//'/'//'gfnff_topo')
          endif
 
          if(env%staticmtd)then
@@ -95,20 +86,18 @@ subroutine normalMD_para_OMP(env,lconf,ntemps)
          implicit none
 
          type(systemdata) :: env
-         !type(options)    :: opt          
 
          integer :: lconf,ntemps,tot
 
-         integer :: i,j,k,l
-         integer :: ACTIVE,DONE,TOTAL,vz,io
+         integer :: i,j,k
+         integer :: TOTAL,vz,io
          real(wp) :: time
          character(len=512) :: thispath,tmppath
          character(len=512) :: jobcall
-         character(len=80)  :: fname,pipe,solv,inpnam,outnam,sname
+         character(len=80)  :: fname,pipe,inpnam,outnam,sname
 
-         integer,allocatable :: MDstatus(:)
          integer :: nat
-         integer :: iz1,iz2
+         integer :: iz2
          integer,allocatable :: at(:)
          real(wp),allocatable :: xyz(:,:,:),eread(:),scoords(:,:,:)
          real(wp),allocatable :: temperatures(:),temperatures2(:)
@@ -344,18 +333,16 @@ subroutine entropyMD_para_OMP(env)
          use strucrd, only: wrc0,rdensembleparam,rdensemble
          implicit none
          type(systemdata) :: env
-         !type(options)    :: opt          
-         integer :: lconf,ntemps,tot
-         integer :: i,j,k,l
-         integer :: ACTIVE,DONE,TOTAL,vz,io
+         integer :: lconf,tot
+         integer :: i,j,k
+         integer :: TOTAL,vz,io
          real(wp) :: time
          character(len=512) :: thispath,tmppath
          character(len=512) :: jobcall
-         character(len=80)  :: fname,pipe,solv,inpnam,outnam,sname
-         integer :: iz1,iz2
+         character(len=80)  :: fname,pipe,inpnam,outnam,sname
+         integer :: iz2
          integer,allocatable :: at(:)
          real(wp),allocatable :: xyz(:,:,:),eread(:),scoords(:,:,:)
-         real(wp),allocatable :: temperatures(:),temperatures2(:)
          real(wp),allocatable :: kprint(:)
          integer :: nclustbackup
          real(wp) :: newtemp
@@ -527,10 +514,9 @@ subroutine entropyMD(fname,env,nr,newtemp,newtime,k,alpha)
          real(wp) :: newtime
          character(len=*)  :: fname
          character(len=256) :: basename,dirname
-         character(len=512) :: tmppath,thispath,str
+         character(len=512) :: tmppath,thispath
 
          integer :: r,nr
-         logical :: verbose,parallel
 
          real(wp) :: k,alpha
 

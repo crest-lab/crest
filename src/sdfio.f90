@@ -39,7 +39,7 @@ subroutine inpsdf(env,fname)
       return
 end subroutine inpsdf
 
-!----------------------------------------------------------------------------------------------------------------
+!----------------------------------------------------------------------------------
 subroutine rdsdf(sdf,fname)
       use iso_fortran_env, only: wp => real64
       use iomod
@@ -50,7 +50,7 @@ subroutine rdsdf(sdf,fname)
       type(sdfobj) :: sdf
       type(filetype) :: myfile
       character(len=*),intent(in) :: fname
-      integer  :: nat,nmisc
+      integer  :: nat
       integer :: i,j,k,l
       character(len=256) :: atmp,btmp
 
@@ -113,7 +113,7 @@ subroutine rdsdf3000(sdf,fname)
       type(sdfobj) :: sdf
       type(filetype) :: myfile
       character(len=*),intent(in) :: fname
-      integer  :: nat,nmisc
+      integer  :: nat
       integer :: i,j,k,l
       character(len=256) :: atmp,btmp
 
@@ -181,11 +181,7 @@ subroutine wrsdfens(sdf,fname,oname)
       integer,allocatable  :: at(:)
       real(wp),allocatable :: eread(:)
       real(wp),allocatable :: xyz(:,:,:)
-      integer :: i,j,k
-      integer :: ich,ich2,io
-      integer :: iz1
-      integer :: c,l
-      character(len=256) :: atmp,btmp
+      integer :: i,j,ich
     !---- read existing ensemble
       call rdensembleparam(fname,nat,nall)
       allocate(at(nat),eread(nat),xyz(3,nat,nall))

@@ -23,17 +23,15 @@ subroutine zsort
       integer n
       real*8,allocatable::xyz(:,:)                             ! comment out if subroutine
       real*8,allocatable::xyznew(:,:)
-      real*8,allocatable::cn(:),tmp(:,:),tmpgeo(:,:)
+      real*8,allocatable :: tmp(:,:),tmpgeo(:,:)
       real*8,allocatable::geo(:,:)                             ! comment out if subroutine
       integer,allocatable::nat_mols(:),mvec(:),itmp(:),atnew(:)        
       integer,allocatable::na(:),nb(:),nc(:),at(:)             ! comment out if subroutine
       integer,allocatable::tmpna(:),tmpnb(:),tmpnc(:)          
       real*8,allocatable :: rcov(:),xx(:)     
 
-      integer :: i,j,k,l,nn,nmol,refmol
-      integer :: i1,i2,fail,try,zmatcnt,zmatstart
-
-      character(len=80) ::fname
+      integer :: i,j,k,nn,nmol,refmol
+      integer :: zmatcnt,zmatstart
 
       logical ex
 
@@ -207,7 +205,7 @@ end subroutine recursive_zmat
 
 recursive subroutine find_buddies(i,xyz,taken,nat,cn,bond,na,nb,nc,zmatcnt,nref,zmatpos)
       implicit none
-      real*8 xyz(3,nat),cntmp,cn(nat),bond(nat,nat)
+      real*8 xyz(3,nat),cn(nat),bond(nat,nat)
       integer i,nat,j,icn,k,na(nat),nb(nat),nc(nat)
       integer zmatcnt, nref(nat),zmatpos(nat)
       logical taken(nat)
@@ -273,9 +271,8 @@ subroutine zmatsort(nat,at,xyz,na,nb,nc,zmatpos)
 !     sort zmat according to zmat position from previous subroutine     
       integer nat, at(nat), na(nat),nb(nat),nc(nat),zmatpos(nat)
       integer tmpat(nat),tmpna(nat),tmpnb(nat),tmpnc(nat)
-      integer i,j,k,l,oldpos,mode
+      integer i,oldpos
       real*8 xyz(3,nat),tmpxyz(3,nat)
-      logical considered(nat)
         tmpat=0
         tmpna=0
         tmpnb=0
@@ -349,7 +346,6 @@ subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
       integer :: nat,na(nat),nb(nat),nc(nat),at(nat)
       real(wp) :: geo(3,nat)
       character(len=20) ::  filename
-      logical :: ex
       integer :: i,l,m,n,molnum
       real(wp) :: bl,ang,dihed,pi
       parameter (pi =  3.14159265358979D0)
@@ -375,7 +371,7 @@ subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
          &   i,i2e(at(i)),bl,ang,dihed,na(i),nb(i),nc(i)   
          enddo
          
-         write(filename,'("zmatrix",i0,".zmat")'),molnum
+         write(filename,'("zmatrix",i0,".zmat")')molnum
          open(unit=42, file=filename)
 
          write(42,'(a2)') i2e(at(1))

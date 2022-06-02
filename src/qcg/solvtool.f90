@@ -36,7 +36,6 @@ subroutine crest_solvtool(env, tim)
   type(ensemble) :: full_ensemble, solvent_ensemble
  
   integer :: progress
-  integer :: io
   character(len=512) :: thispath
 
   real(wp),parameter         :: eh = 627.509541d0
@@ -160,7 +159,7 @@ subroutine qcg_setup(env,solu,solv)
   integer :: num_O, num_H, i
   character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
   logical :: e_there, tmp, used_tmp
-  character(len=512) :: thispath, tmp_grow, printout
+  character(len=512) :: thispath, tmp_grow
   character(len=40)  :: solv_tmp
   character(len=80) :: atmp
 
@@ -351,7 +350,7 @@ subroutine read_qcg_input(env,solu,solv)
   call rdcoord('solvent',solv%nat,solv%at,solv%xyz)
 
 !--- CMA-Trafo
-  call cma_shifting(env,solu,solv)
+  call cma_shifting(solu,solv)
 
 !--- Setting solute charge and uhf to input
   solu%chrg=env%chrg
@@ -398,7 +397,6 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   integer                    :: minE_pos, m
   integer                    :: iter=1
   integer                    :: i,j,io
-  integer                    :: ich,ios,ios2
   integer                    :: max_cycle
   logical                    :: e_there, high_e, success, neg_E
   real(wp)                   :: etmp(500)
@@ -413,7 +411,7 @@ subroutine qcg_grow(env,solu,solv,clus,tim)
   real(wp)                   :: mean_old = 0.0_wp
   real(wp)                   :: mean_diff = 0.0_wp
   character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
-  character(len=512)         :: thispath, resultspath, tmp
+  character(len=512)         :: thispath, resultspath
   character(len=20)          :: gfnver_tmp
   integer                    :: ich99,ich15,ich88
   character(len=LEN(env%solv)) :: solv_tmp
@@ -528,7 +526,7 @@ do iter=1, max_cycle
        call xtb_iff(env, 'solute.lmo', 'solvent.lmo', solu, solv) !solu for nat of core pot. solv for outer ellips
 
 !!! Check if Interaction Energy is negativ and existent, else wall pot. too small and increase
-        call check_iff(env, neg_E)
+        call check_iff(neg_E)
         if(neg_E) then
            success=.true.
         else
@@ -544,7 +542,7 @@ do iter=1, max_cycle
         end if
    else
        call xtb_iff(env, 'cluster.lmo', 'solvent.lmo', solu, clus)
-        call check_iff(env, neg_E)
+        call check_iff(neg_E)
 
         if(neg_E) then
            success=.true.
@@ -759,18 +757,19 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   character(len=512)         :: scratchdir_tmp
   character(len=512)         :: jobcall
   character(len=256)         :: inpnam, outnam
-  character(len=80)          :: fname,pipe,to, fname_results
+  character(len=80)          :: fname,pipe,to
+  character(len=*)           :: fname_results
   character(len=64)          :: comment
   character(len=20)          :: gfnver_tmp
   character(len=LEN(env%solv)) :: solv_tmp
   logical                    :: gbsa_tmp
-  logical                    :: g_found, ex, mdfail,e_there
+  logical                    :: ex, mdfail,e_there
   logical                    :: checkiso_tmp, cbonds_tmp
   real(wp), allocatable      :: e_fix(:), e_clus(:)
   real(wp),parameter         :: eh  = 627.509541d0
-  real(wp)                   :: S,H,G,e_average,dens,shr,shr_av
+  real(wp)                   :: S,H,G,dens,shr,shr_av
   real(wp)                   :: sasa
-  real(wp)                   :: newtemp,newmass,newmdtime,newmdstep, newhmass
+  real(wp)                   :: newtemp,newmdtime,newmdstep, newhmass
   real(wp)                   :: newmetadlist, newmetadexp, newmetadfac
   real(wp)                   :: optlev_tmp
   real(wp)                   :: e0
@@ -1373,7 +1372,7 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   type(ensemble),intent(in)  :: ens
 
   integer                    :: i,j,k,iter
-  integer                    :: io,f,r,ich
+  integer                    :: io,r
   integer                    :: nsolv,n_ini
   integer                    :: ipos, dum
   integer                    :: v_ratio
@@ -1382,10 +1381,9 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   integer                    :: conv(env%nqcgclust+1)
   integer                    :: solv_added, minpos
   character(len=512)         :: thispath,resultspath,tmppath,tmppath2
-  character(len=512)         :: scratchdir_tmp
   character(len=64)          :: fname_lmo1, fname_lmo2, comment
   character(len=20)          :: to
-  real(wp), allocatable      :: e_clus(:), e_empty(:), inner_ell_abc(:,:)
+  real(wp), allocatable      :: e_empty(:), inner_ell_abc(:,:)
   real(wp), allocatable      :: outer_ell_abc(:,:)
   real(wp), allocatable      :: e_cur(:,:)
   real(wp)                   :: e_cluster(env%nqcgclust)
@@ -1399,11 +1397,9 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   real(wp)                   :: shr = 0 
   real(wp)                   :: shr_av = 0
   real(wp)                   :: dens, atotS
-  logical                    :: found, ex,skip, e_there
+  logical                    :: ex,skip, e_there
   logical                    :: all_converged
   logical,allocatable        :: converged(:), nothing_added(:)
-  real(wp)                   :: newtemp,newmass,newmdtime,newmdstep, newhmass
-  real(wp)                   :: newmetadlist, newmetadexp, newmetadfac
 
   character(len=20)          :: gfnver_tmp
   real(wp)                   :: optlev_tmp
@@ -2062,7 +2058,7 @@ subroutine qcg_eval(env,solu,solu_ens,solv_ens)
   type(zmolecule)            :: solu
   type(ensemble)             :: solu_ens,solv_ens
 
-  character(len=512)         :: thispath,resultspath
+  character(len=512)         :: thispath
 
   integer                    :: i,j
   integer                    :: srange
@@ -2255,8 +2251,8 @@ subroutine get_sphere(pr,zmol,r_logical)
   real(wp),parameter :: third  = 1.0d0/3.0d0
   real(wp),parameter :: bohr   = 0.52917726d0
 
-  integer i,j,k
-  real*8 rad(zmol%nat),xyz_tmp(3,zmol%nat)
+  integer :: i
+  real*8 :: rad(zmol%nat),xyz_tmp(3,zmol%nat)
   real(wp),allocatable :: rcov(:)
 
   allocate(rcov(94))
@@ -2311,7 +2307,7 @@ subroutine get_sphere(pr,zmol,r_logical)
 end subroutine get_sphere
 
 
-subroutine cma_shifting(env,solu,solv)
+subroutine cma_shifting(solu,solv)
   use iso_fortran_env, wp => real64
   use crest_data
   use iomod
@@ -2320,7 +2316,6 @@ subroutine cma_shifting(env,solu,solv)
   use axis_module, only: cma
   implicit none
 
-  type(systemdata)   :: env 
   type(zmolecule)    :: solu, solv
 
   integer            :: i
@@ -2354,7 +2349,6 @@ subroutine get_ellipsoid(env,solu,solv,clus,pr1)
   real(wp)           :: aniso, sola
   real(wp)           :: rmax_solu, rmax_solv
   real(wp)           :: boxr, roff, r
-  real(wp)           :: ell_solu(3), ell_solv(3)
   character (len=10) :: fname
   logical            :: ex,pr,pr1
 
@@ -2490,12 +2484,10 @@ subroutine ellipsout(fname,n,at,xyz,r1)
   use strucrd, only: i2e
   implicit none
 
-  integer            :: i,j
+  integer            :: i
   integer            :: n,at(n)
-  real(wp)           :: dum(3)
-  real(wp)           :: rx,ry,rz 
   real(wp)           :: xyz(3,n),r1(3)
-  real               :: x,y,z,f,rr
+  real(wp)           :: x,y,z,f,rr
   character(len=*)   :: fname
   integer            :: ich11
   
@@ -2532,13 +2524,11 @@ subroutine both_ellipsout(fname,n,at,xyz,r1,r2)
   use strucrd, only: i2e
   implicit none
 
-  integer            :: i,j
+  integer            :: i
   integer            :: n,at(n)
-  real(wp)           :: dum(3)
-  real(wp)           :: rx,ry,rz 
   real(wp)           :: xyz(3,n),r1(3)
   real(wp), optional :: r2(3)
-  real               :: x,y,z,f,rr
+  real(wp)           :: x,y,z,f,rr
   character(len=*)   :: fname
   integer            :: ich11  
   
@@ -2597,8 +2587,6 @@ subroutine get_interaction_E(env,solu,solv,clus,iter,E_inter)
 
   type(systemdata)            :: env 
   type(zmolecule), intent(in) :: solu, solv, clus
-  type(zmolecule)             :: dummy
-  character (len=10)          :: fname
   real(wp)                    :: e_cluster, e_solute, e_solvent
   real(wp)                    :: E_inter(env%nsolv)           ! interaction energy
   integer                     :: iter
@@ -2679,16 +2667,13 @@ subroutine aver(pr,env,runs,e_tot,S,H,G,sasa,a_present,a_tot)
   real(wp), intent(out)           :: sasa
 !---- Stack      
   logical, intent(in)             :: pr,a_present
-  integer                         :: i,j,jmin
+  integer                         :: j,jmin
   real(wp)                        :: A
   real(wp)                        :: e0
   real(wp), allocatable           :: de(:)
   real(wp), allocatable           :: p(:)
   real(wp)                        :: pmax
   real(wp)                        :: eav
-  real(wp)                        :: mv     ! mean value
-  real(wp)                        :: md     ! mean deviation
-  real(wp)                        :: sd     ! standard deviation
   real(wp)                        :: area
   real(wp)                        :: beta
   real(wp)                        :: temp
@@ -2778,7 +2763,7 @@ subroutine fill_take(n2,n12,rabc,ipos)
   integer, intent(in)   :: n2,n12
   real(wp),intent(in)   :: rabc(3)
   integer, intent(out)  :: ipos
-  integer               :: i,j,m,n21
+  integer               :: i,m,n21
   integer               :: at2(n2),at12(n12)
   integer               :: counter
   real(wp)              :: xyz2(3,n2),xyz12(3,n12)
@@ -2787,13 +2772,13 @@ subroutine fill_take(n2,n12,rabc,ipos)
   real(wp)              :: cma2(3)
   real(wp),allocatable  :: dist(:)
   
-  dist=0
   eabc=0
   counter=0
   n21=n12-n2+1
   call rdxtbiffE('xtbscreen.xyz',m,n12,etmp)
   
   allocate(dist(m),source=0.0d0)
+  dist=0.0d0
   
   do i=1,m
      call rdxmolselec('xtbscreen.xyz',i,n12,at12,xyz12)
@@ -2858,7 +2843,7 @@ subroutine sort_ensemble(ens,e_ens,fname)
   implicit none
   type(ensemble)       :: ens
   real(wp)             :: e_ens(ens%nall),dum(ens%nall)
-  character(len=30)    :: fname
+  character(len=*)     :: fname
   integer              :: ich
   integer              :: i,e_min
 
@@ -2965,14 +2950,13 @@ subroutine qcg_restart(env,progress,solu,solv,clus,solu_ens,solv_ens,clus_backup
   type(ensemble)             :: solu_ens,solv_ens
   integer                    :: progress
 
-  integer                    :: r,io,f,g,h
   integer                    :: i
-  character(len=512)         :: thispath,resultspath,tmppath,tmppath2
-  character(len=80)          :: to
+  character(len=512)         :: thispath
   character(len=6)           :: counter
   character(len=7)           :: counter2
   character(len=8)           :: counter3
-  logical                    :: grow, solu_ensemble, solv_ensemble, solv_cff, solv_present, freq, tmp, ex
+  logical                    :: grow, solu_ensemble, solv_ensemble
+  logical                    :: solv_cff, solv_present, freq, tmp, ex
   real(wp),allocatable       :: xyz (:,:)
   real(wp),parameter         :: eh = 627.509541d0
 
@@ -3149,7 +3133,7 @@ subroutine check_prog_path_iff(env)
   use crest_data
   implicit none
   type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
-  character(len=256)           :: prog
+  character(len=512)           :: prog
   character(len=256)           :: str
   character(len=256)           :: path
   integer                      :: ios,io

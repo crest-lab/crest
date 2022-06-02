@@ -129,8 +129,7 @@ subroutine xtbopt(env)
          use strucrd
          implicit none
          type(systemdata) :: env
-         !type(options)    :: opt
-         character(len=80) :: fname,pipe,solv
+         character(len=80) :: fname,pipe
          character(len=512) :: jobcall
          logical :: fin
          character(len=256) :: atmp
@@ -253,7 +252,6 @@ subroutine MetaMD(env,nr,mdtime,fac,expo,dumplist)
          use strucrd, only: wrc0,rdensembleparam,rdensemble
          implicit none
          type(systemdata) :: env
-         !type(options)    :: opt
 
          real(wp) :: mdtime
 
@@ -263,17 +261,9 @@ subroutine MetaMD(env,nr,mdtime,fac,expo,dumplist)
          integer   :: nr
 
          character(len=20)  :: fname
-         character(len=80)  :: solv,pipe
          character(len=256) :: basename,dirname
-         character(len=512) :: tmppath,thispath,str
-
+         character(len=512) :: tmppath,thispath
          integer :: r
-         logical :: verbose,parallel,ex
-
-         real(wp),allocatable :: confs(:,:,:),eread(:)
-         integer,allocatable ::  ats(:)
-         integer :: nall2,iz1,iz2
-         integer :: i,j,k,l
  
          associate( nat => env%nat, hmass => env%hmass, mdtemp => env%mdtemp,    &
          & mdstep => env%mdstep, shake => env%shake, mddumpxyz => env%mddumpxyz, &
@@ -329,14 +319,12 @@ subroutine MetaMD_para_OMP(env)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
 
-      integer :: i,j,k,l
-      integer :: ACTIVE,DONE,TOTAL,vz
+      integer :: i,vz
       real(wp) :: time
       character(len=512) :: thispath,tmppath
       character(len=512) :: jobcall
-      character(len=80)  :: fname,pipe,solv,atmp,btmp
+      character(len=80)  :: fname,pipe,atmp,btmp
       integer :: dum,io
       logical :: ex
 
@@ -428,23 +416,20 @@ subroutine MDopt_para(env,ensnam,multilev)
          use strucrd, only: rdensembleparam,rdensemble,wrxyz
          implicit none
          type(systemdata) :: env
-         !type(options)    :: opt
          character(len=*),intent(in)  :: ensnam
          integer,intent(in) :: multilev
-         character(len=80)  :: solv,fname,pipe
-         character(len=256) :: btmp,ctmp
-         character(len=512) :: str,dg
+         character(len=80)  :: fname,pipe
+         character(len=256) :: ctmp
          character(len=512) :: thispath,optpath
          character(len=40),allocatable :: origin(:)
-         real(wp) :: lev
 
          real(wp),allocatable :: eread(:)
          real(wp),allocatable :: xyz(:,:,:)
          integer,allocatable  :: at(:)
          
-         integer :: i,j,k,l
+         integer :: i,l
          integer :: ich,r
-         integer :: iz1,iz2,nall
+         integer :: nall
 
          logical :: verbose,l1
        
@@ -594,12 +579,10 @@ subroutine multilevel_opt(env,modus)
      character(len=512) :: thispath,filename
      character(len=:),allocatable :: olev
      character(len=:),allocatable :: headder
-     real(wp)  :: time
      real(wp)  :: newthr
      real(wp)  :: ewinbackup,rthrbackup
      real(wp),allocatable :: backupthr(:)
- 
-     integer :: modus,nremain
+     integer :: modus
 
      call getcwd(thispath)
 
@@ -737,7 +720,6 @@ subroutine  setMDrun2(fname,hmass,mdtime,mdtemp,mdstep,shake,mddumpxyz, &
     integer  :: nvt
     integer :: ich,iost
     character(len=256):: atmp
-    logical :: ex
 
     !--- coord setup section
     open(newunit=ich,file=fname)
@@ -809,7 +791,7 @@ subroutine setMetadyn2(fname,fac,expo,dumplist)
          integer   :: dumplist
          character(len=256) :: atmp
          character(len=256),allocatable :: mdyn(:)
-         integer :: i,j
+         integer :: i
          integer :: ich,ich2,iost,lz
 
          allocate(mdyn(10))
@@ -864,13 +846,8 @@ subroutine cross2(env)
       use iomod
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
-
-      logical  :: better
-      real(wp) :: ewin,ewinbackup
+      real(wp) :: ewinbackup
       integer  :: i,imax,tmpconf,nremain
-      logical  :: ex
-      character(len=80)  :: str
       character(len=128) :: inpnam,outnam
       character(len=512) :: thispath,tmppath
 
@@ -1036,12 +1013,11 @@ end subroutine collect_trj_skipfirst
 !------------------------------------------------------------------------
 ! writes the Input coord to the first position of crest_rotamers_*.xyz
 !------------------------------------------------------------------------
-subroutine append_INPUT_to(fnam,nat,newtag)
+subroutine append_INPUT_to(fnam,newtag)
       use iomod
       use crest_data
       use strucrd, only: coord2xyz
       implicit none
-      integer :: nat
       character(len=*)  :: fnam
       character(len=80) :: tmpnam,inam,onam    
       character(len=*) :: newtag
@@ -1064,10 +1040,10 @@ end subroutine append_INPUT_to
 subroutine remaining_in(filename,ewin,nall)
       use strucrd, only: rdensembleparam,rdensemble
       implicit none
-      integer :: iz1,iz2,nall,remain
+      integer :: nall
       real*8 :: ewin
       character(len=*) :: filename
-      integer :: i,j,k,nat
+      integer :: k,nat
 
       open(newunit=k,file=trim(filename))
       read(k,*)nat
@@ -1097,17 +1073,12 @@ subroutine sort_and_check(env,filename)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
-
-      integer :: iz1,iz2,nall,remain
-      real(wp) :: ewin,thresh(8)
+      real(wp) :: ewin
       character(len=*) :: filename
-      integer :: i,j,k,nallin,nallout,nallthr
+      integer :: nallin,nallout,nallthr
       real(wp) :: nthr,increase
      
       character(len=80) :: inpnam,outnam
-
-      real(wp),allocatable :: dummythr(:)
 
       increase=1.5d0  ! factor 1.5 increase 
       nthr=0.05d0     ! 5%
@@ -1434,7 +1405,7 @@ subroutine emtdcheckempty(env,empty,nbias)
     type(systemdata) :: env
     logical :: empty
     integer :: nbias
-    integer :: i,j,k,nall
+    integer :: i,nall
     character(len=128) :: atmp,btmp
     call checkname_xyz(crefile,atmp,btmp)
     call rdensembleparam(trim(atmp),i,nall)
@@ -1472,7 +1443,7 @@ subroutine XHorient(env,infile)
     character(len=:),allocatable :: newfile
     newfile='oh_ensemble.xyz'
     !--- shouldn't cost much
-      call ohflip_ensemble(env,infile,env%maxflip)
+      call ohflip_ensemble(infile,env%maxflip)
       call rdensembleparam(newfile,nat,nall)
     !--- only proceed if there are potential new structures
       if(nall>0)then
