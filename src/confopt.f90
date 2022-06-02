@@ -196,9 +196,6 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
       use iomod
       implicit none
 
-      !type(systemdata) :: env
-      !!type(options)    :: opt
-
       integer :: TMPCONF
       character(len=1024) :: jobcall
       character(len=*) :: base
@@ -214,8 +211,6 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
 
       character(len=512) :: tmppath
 
-
-      !niceprint=env%niceprint
       if(niceprint)then
         call printemptybar()
       endif
@@ -228,9 +223,9 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
          vz=i
       !$omp task firstprivate( vz ) private( tmppath,io )
          call initsignal()
+      !$omp critical
          write(tmppath,'(a,i0)')trim(base),vz
-         !write(str,'("cd ",a," && ",a)')trim(tmppath),trim(jobcall)
-         !write(*,*) trim(str)
+      !$omp end critical
          call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
       !$omp critical
         k=k+1
@@ -266,6 +261,7 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
          use crest_data
          use iomod
          use strucrd
+      !$ use omp_lib
          implicit none
 
          type(systemdata) :: env
@@ -389,10 +385,12 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
          vz=i
          !$omp task firstprivate( vz ) private( tmppath,ctmp,io,ich,xo,btmp,at0 )
          call initsignal()
-         write(tmppath,'(''TMPCONF'',i0)')vz
+         !$omp critical
+         tmppath=""
+         write(tmppath,'(a,i0)')"TMPCONF",vz
          io = makedir(trim(tmppath))
          ich = vz + 1000
-         !$omp critical
+         !!$omp critical
          ctmp=trim(tmppath)//'/'//trim(fname)
          open(unit=ich,file=ctmp)
               call wrxyz(ich,nat,at,xyz(:,:,vz))

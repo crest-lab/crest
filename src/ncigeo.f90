@@ -26,7 +26,6 @@ subroutine wallpot(env)
   use strucrd,only:rdnat,rdcoord,wrc0
   use axis_module
   implicit none
-  !type(options) :: opt
   type(systemdata) :: env
 
   integer :: nat

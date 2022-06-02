@@ -26,12 +26,10 @@ subroutine scrdir(env)
       use iomod
 
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
 
       integer :: ich,io
 
       if(len_trim(env%scratchdir).lt.1)then
-         !call system('mktemp -d > tmpconf 2>/dev/null')
          call execute_command_line('mktemp -d > tmpconf 2>/dev/null', exitstat=io)
          open(newunit=ich,file='tmpconf')
          read(ich,'(a)',iostat=io) env%scratchdir

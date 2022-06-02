@@ -95,7 +95,6 @@ subroutine prepentropy(env,fname,percent)
       use iomod
       use strucrd, only: rdensembleparam,rdensemble,wrxyz
       implicit none
-      !type(options) :: opt
       type(systemdata) :: env
       character(len=*) :: fname
       real(wp) :: percent
@@ -404,7 +403,6 @@ subroutine testtopo(fname,env,tmode)
     use atmasses
     use zdata
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     character(len=*) :: fname
     character(len=:),allocatable :: wbofile

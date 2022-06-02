@@ -287,7 +287,6 @@ subroutine DFTprocessing(env,TMPCONF,nat,at)
       use crest_data
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       integer :: TMPCONF
       integer :: at(nat)
       integer :: nat
@@ -348,10 +347,8 @@ subroutine cutDFTpop(env,pop,TMPCONF)!,eread)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
       integer          :: TMPCONF
       real(wp)         :: pop(TMPCONF)
-      !real(wp)         :: eread(TMPCONF)
 
       integer  :: maxs
       real(wp) :: popthr,popsum
@@ -404,7 +401,6 @@ subroutine cefine_setup(env,TMPCONF)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
       integer          :: TMPCONF
 
       integer :: i,k
@@ -418,14 +414,9 @@ subroutine cefine_setup(env,TMPCONF)
       character(len=:),allocatable  :: cefine
 
       if(env%autothreads)then
-        call ompautoset(env%threads,7,env%omp,env%MAXRUN,TMPCONF) !to enforce serial performance replace TMPCONF by 1
+        call ompautoset(env%threads,7,env%omp,env%MAXRUN,TMPCONF) 
       endif
-      !write(*,*) env%omp,env%MAXRUN
-      !call ompprint_intern()
-      !call ompprint()
       call TMparnodes(env%omp)
-      !call getenv('PARNODES',val)
-      !write(*,*)'Parnodes=',trim(val)
 
       call getcwd(thispath)
 
@@ -470,7 +461,6 @@ subroutine ridft_turbomole(env,TMPCONF)
       use crest_data
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       integer          :: TMPCONF
       character(len=:),allocatable :: jobcall
       real(wp),allocatable :: pop(:)
@@ -496,7 +486,6 @@ subroutine aoforce_turbomole(env,TMPCONF)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
       integer          :: TMPCONF
       
       real(wp),allocatable :: pop(:)

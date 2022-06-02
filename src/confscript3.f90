@@ -298,7 +298,6 @@ subroutine MTDsample(env,tim)
     use iomod
     use strucrd
     implicit none
-    !type(options)    :: opt
     type(systemdata) :: env
     type(timer)      :: tim
     type(ensemble) :: ens

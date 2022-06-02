@@ -568,7 +568,6 @@ subroutine crest_dry(env)
       implicit none
 
       type(systemdata),intent(inout) :: env
-      !type(options),intent(inout)    :: opt
       character(len=1024) :: dumstr
       character(len=:),allocatable :: dum
       logical :: cregenpr = .false.
@@ -784,7 +783,6 @@ subroutine checkbinary(env)
         use syscheck
         implicit none
         type(systemdata) :: env
-        !type(options) :: opt
         integer :: r
 
         r = 0

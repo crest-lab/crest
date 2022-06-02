@@ -134,8 +134,10 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       real(wp),intent(in)  :: e(n)  ! Molecule energies
       real(wp),intent(out) :: p(n)  ! Population
 
-      real(wp),parameter :: kh = 3.1668114d-6  ! Boltzman constant k in Eh/K
-      real(wp),parameter :: T = 298.15_wp      ! Temperature
+      !> Boltzman constant k in Eh/K
+      real(wp),parameter :: kh = 3.1668114d-6 
+      !> Room temperature 
+      real(wp),parameter :: T = 298.15_wp     
 
       real(wp) :: val
       real(wp) :: denom

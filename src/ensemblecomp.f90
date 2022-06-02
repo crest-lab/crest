@@ -31,7 +31,6 @@ subroutine compare_ensembles(env)
          implicit none
 
          type(systemdata) :: env
-         !type(options)    :: opt
 
          integer :: i,j,k,l,kk,ll
          integer :: be,ed

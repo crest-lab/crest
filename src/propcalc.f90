@@ -29,7 +29,6 @@ subroutine protreffrag(env)
       use strucrd, only: rdnat,rdcoord
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       integer,allocatable  :: molvec(:)
       integer,allocatable  :: at(:)
       real(wp),allocatable :: xyz(:,:)
@@ -54,7 +53,6 @@ subroutine propcalc(iname,imode,env,tim)
       implicit none
  
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)      :: tim
       integer :: imode
 
@@ -711,7 +709,6 @@ subroutine autoir(TMPCONF,imode,env)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
 
       integer,intent(in) :: TMPCONF
       integer :: imode
@@ -884,7 +881,7 @@ subroutine rdvibs(fname,nmodes,freq,inten)
       real(wp),intent(out) :: inten(nmodes)   !intensities
 
       integer :: k
-      integer :: ich,io
+      integer :: ich,io,n
       character(len=256) :: atmp
       real(wp) :: floats(10)
       logical :: ex 
@@ -906,7 +903,7 @@ subroutine rdvibs(fname,nmodes,freq,inten)
              if(io<0)exit rdfile
              if(index(atmp,'$end').ne.0)exit rdfile
              if(index(atmp,'#').ne.0)cycle rdblock !skip comment lines
-             call readline3(atmp,floats) !split line
+             call readl(atmp, floats, n)
              freq(k)=floats(2)
              inten(k)=floats(3)
              k=k+1

@@ -25,7 +25,6 @@ subroutine inpsdf(env,fname)
       use crest_data
       use strucrd
       implicit none
-      !type(options) :: opt
       type(systemdata) :: env
       character(len=*) :: fname
       integer :: i

@@ -279,7 +279,6 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
     use iomod
     use strucrd
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     logical,intent(in) :: pr
     integer,intent(in) :: nat
@@ -414,7 +413,7 @@ subroutine rdfreq(fname,nmodes,freq)
       character(len=*),intent(in) :: fname
       integer,intent(in)   :: nmodes
       real(wp),intent(out) :: freq(nmodes)    !frequencies
-      integer :: k,ich,io
+      integer :: k,ich,io,n
       character(len=256) :: atmp
       real(wp) :: floats(10)
       logical :: ex
@@ -440,7 +439,7 @@ subroutine rdfreq(fname,nmodes,freq)
              if(io<0)exit rdfile
              if(index(atmp,'$end').ne.0)exit rdfile
              if(index(atmp,'#').ne.0)cycle rdblock !skip comment lines
-             call readline3(atmp,floats) !split line
+             call readl(atmp,floats,n)
              freq(k)=floats(2)
              k=k+1
            enddo rdblock
@@ -461,7 +460,6 @@ subroutine calcSrrhoav(env,ensname)
     use strucrd
     use iomod
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     character(len=*) :: ensname
 
@@ -536,7 +534,6 @@ subroutine calcSrrhoav(env,ensname)
     if(ex)then
       open(newunit=ich,file='cre_degen2')
       read(ich,*) atmp 
-      write(*,*) trim(atmp),nall
       do i=1,nall
          read(ich,*,iostat=io)j,g(i)
          if(io < 0) exit

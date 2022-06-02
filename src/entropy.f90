@@ -199,7 +199,6 @@ subroutine newentropyextrapol(env)
     use crest_data
     use strucrd
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
 
     integer :: i,j,k,l

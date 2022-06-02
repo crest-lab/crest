@@ -27,7 +27,6 @@ subroutine compress(env, tim)
   use strucrd, only: rdensembleparam,rdensemble
   implicit none
 
-  !type(options) :: opt
   type(systemdata) :: env
   type(timer) :: tim
 

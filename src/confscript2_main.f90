@@ -28,7 +28,6 @@ subroutine confscript2i(env,tim)
   use strucrd,only:coord2xyz,xyz2coord
   implicit none
   type(systemdata) :: env
-  !type(options) :: opt
   type(timer)   :: tim
   integer :: i,k,m
   integer :: eit,eit2
@@ -447,7 +446,6 @@ subroutine iV2defaultGF(env)
   implicit none
 
   type(systemdata) :: env
-  !type(options)    :: opt
 
   integer  :: ia,ik,na,nk,m,nmtdyn,nmtdynmax,nrem
   real(wp) :: alp,k
@@ -668,7 +666,6 @@ end subroutine iV2defaultGF
 subroutine adjustnormmd(env)
   use crest_data
   implicit none
-  !type(options) :: opt
   type(systemdata) :: env
   integer :: ndum
 

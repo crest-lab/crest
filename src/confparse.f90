@@ -481,8 +481,6 @@ subroutine parseflags(env,arg,nra)
         env%crestver = crest_msreac
         env%preopt = .false.
         env%presp = .true.
-      case ('-logkow','-kow')
-        env%crestver = 11
       case ('-splitfile')
         ctmp = trim(arg(i + 1))
         k = huge(j)
@@ -2010,7 +2008,6 @@ subroutine parseRC2(env,bondconst)
   implicit none
 
   type(systemdata),intent(inout) :: env
-  !type(options),intent(inout)    :: opt
 
   integer :: i,j,k
   character(len=512),allocatable :: cfiles(:)

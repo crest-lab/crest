@@ -42,7 +42,6 @@ subroutine tautomerize(env,tim)
       use strucrd, only: coord2xyz
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)      :: tim
       type(protobj)    :: taut
 
@@ -196,7 +195,6 @@ subroutine protsmall(env,prot,tim)
       use strucrd, only: coord2xyz
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(protobj)    :: prot
       type(timer)      :: tim
 
@@ -395,7 +393,6 @@ subroutine protens(ens,env,prot,tim)
       use strucrd, only: coord2xyz,wrc0,rdensembleparam,rdensemble
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(protobj)    :: prot
       type(timer)      :: tim
 
@@ -580,7 +577,6 @@ subroutine tautomerize_blacklist(env,fname,nat,atlist)
      use crest_data
      use strucrd, only : rdcoord
      implicit none
-     !type(options) :: opt
      type(systemdata) :: env
      integer :: nat
      character(len=*) :: atlist
@@ -671,7 +667,6 @@ subroutine tautomerize_ext(ensemb,env,tim)
       implicit none
       character(len=*) :: ensemb
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)      :: tim
       type(protobj)    :: taut
 
@@ -889,10 +884,8 @@ subroutine PDT_constraints(env)
       use zdata
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(zmolecule) :: zmol
    !-- a default for the force constant (quite strong already)
-      !real(wp),parameter :: forceconst = 0.05_wp    
 
       logical,parameter :: vverbose = .false.
       integer :: i,h,nh

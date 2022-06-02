@@ -26,7 +26,6 @@ subroutine xtbsp(env,xtblevel)
          use crest_data
          implicit none
          type(systemdata) :: env
-         !type(options)    :: opt
          integer,optional :: xtblevel
          character(len=80) :: fname,xtbflag
          character(len=512) :: jobcall
@@ -93,7 +92,6 @@ subroutine xtbsp2(fname,env)
          implicit none
          character(len=*) :: fname
          type(systemdata) :: env
-         !type(options)    :: opt
          character(len=512) :: jobcall
          character(*),parameter :: pipe=' > xtbcalc.out 2>/dev/null'
          integer :: io
@@ -572,8 +570,6 @@ subroutine multilevel_opt(env,modus)
      implicit none
 
      type(systemdata) :: env
-     !type(options)    :: opt
- 
 
      character(len=128) :: inpnam,outnam
      character(len=512) :: thispath,filename
@@ -928,7 +924,6 @@ subroutine confg_chk3(env)
       use crest_data
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
 
       associate(aut => env%autothreads, th => env%threads, omp => env%omp, &
       &         MX => env%MAXRUN )
@@ -1148,7 +1143,6 @@ subroutine elowcheck(lower,env)
        use strucrd, only: xyz2coord
        implicit none
        type(systemdata) :: env
-       !type(options) :: opt
        real(wp) :: ediff,ethr,ewin
        real(wp),parameter :: autokcal = 627.509541d0
        logical :: lower
@@ -1205,7 +1199,6 @@ subroutine catchdiatomic(env)
     use strucrd
     use iomod
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     type(coord) :: strc
     integer :: ich
@@ -1238,7 +1231,6 @@ subroutine emtdcopy(env,iter,stopiter,broken)
     use iomod
     use strucrd
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     integer :: iter,iter2
     logical :: stopiter
@@ -1377,7 +1369,6 @@ subroutine emtdcopy(env,iter,stopiter,broken)
 contains
 subroutine writesdata(env,nall,inum)
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     integer :: nall
     integer :: inum
@@ -1401,7 +1392,6 @@ subroutine emtdcheckempty(env,empty,nbias)
     use strucrd
     use iomod
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     logical :: empty
     integer :: nbias

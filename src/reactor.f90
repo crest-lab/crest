@@ -46,7 +46,6 @@ subroutine reactor(env, tim)
   logical:: are_zequals_different
 
   type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
-  !type(options):: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
   type(timer):: tim
 
   !--- declarations by Tim
@@ -252,7 +251,6 @@ subroutine reactor_setup(env)
   use axis_module 
   implicit none
   type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
-  !type(options):: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
   integer:: nat                   !# of atoms
   integer, allocatable  :: at(:)    !atom types
   real(wp), allocatable:: xyz(:,:)  ! coordinates
@@ -629,7 +627,6 @@ subroutine reactorreopt(env,nat,at,nall,xyz,taken,frags,ndirs)
     use strucrd, only: wrxyz
     implicit none
     type(systemdata) :: env
-    !type(options) :: opt
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
     integer,intent(in) :: nall

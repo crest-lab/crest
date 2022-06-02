@@ -33,7 +33,6 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       use strucrd
       use zdata
       implicit none
-      !type(options) :: opt
       type(systemdata) :: env
       character(len=*) :: acidfile
       character(len=*) :: basefile
@@ -200,7 +199,6 @@ end subroutine acidbase
 subroutine ab_singlepoint(fname,env,bhess)
      use crest_data
      implicit none
-     !type(options) :: opt
      type(systemdata) :: env
      logical :: bhess
      character(len=*) :: fname

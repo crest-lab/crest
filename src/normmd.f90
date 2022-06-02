@@ -509,7 +509,6 @@ subroutine entropyMD(fname,env,nr,newtemp,newtime,k,alpha)
          implicit none
 
          type(systemdata) :: env
-         !type(options)    :: opt
          real(wp) :: newtemp
          real(wp) :: newtime
          character(len=*)  :: fname

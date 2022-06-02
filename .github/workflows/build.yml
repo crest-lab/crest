@@ -52,7 +52,7 @@ jobs:
       run: pip3 install meson==0.55.3 ninja
 
     - name: Configure meson build
-      run: meson setup ${{ env.BUILD_DIR }} --prefix=/ -Dfortran_args=-qopenmp
+      run: meson setup ${{ env.BUILD_DIR }} --prefix=/
 
     - name: Build project
       run: ninja -C ${{ env.BUILD_DIR }}

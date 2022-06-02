@@ -48,7 +48,6 @@ subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
       implicit none
 
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
 
       logical,intent(in)   :: pr
       logical,intent(in)   :: pr2

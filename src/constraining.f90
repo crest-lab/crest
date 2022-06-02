@@ -727,7 +727,6 @@ subroutine mtdatoms(filname,env)
   use crest_data
   use strucrd
   use zdata
-  !type(options) :: opt
   type(systemdata) :: env
   type(coord) :: mol
   type(zmolecule) :: zmol
@@ -782,7 +781,6 @@ subroutine rdrcontrol(fname,env)
   use filemod
   implicit none
 
-  !type(options) :: opt
   type(systemdata) :: env
   character(len=*) :: fname
 
@@ -832,7 +830,6 @@ subroutine rd_cbonds(fname,env)
   use filemod
   implicit none
 
-  !type(options) :: opt
   type(systemdata) :: env
   character(len=*) :: fname
 

@@ -185,7 +185,6 @@ subroutine deprot_correction(env,iname)
     use crest_data
     use strucrd
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     character(len=*) :: iname
     integer :: nat,nall

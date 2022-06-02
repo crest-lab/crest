@@ -27,7 +27,6 @@ subroutine confcross(env,maxgen,kk)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
 
       real(wp),allocatable::xyz(:,:,:),new(:,:),er(:),c0(:,:),c1(:,:),tmp3(:,:)
       real(wp),allocatable::coord(:,:),tmp(:,:,:),cn(:),c2(:,:),cnref(:)

@@ -254,11 +254,11 @@ subroutine newcregen(env,quickset)
       deallocate(xyz,comments,at)
       return
 end subroutine newcregen
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 !  CREGEN DATA SECTION
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 
 !============================================================!
 ! subroutine cregen_files
@@ -271,7 +271,6 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
     use iomod
     implicit none
     type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-    !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
     character(len=*) :: fname
     character(len=*) :: oname
     character(len=*) :: cname
@@ -340,7 +339,6 @@ subroutine cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
     use iomod
     implicit none
     type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-    !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
     integer,intent(in) :: simpleset
     logical,intent(out) :: pr1,pr2,pr3,pr4
     
@@ -377,7 +375,6 @@ subroutine cregen_director(env,simpleset,checkbroken,sorte,sortRMSD,sortRMSD2, &
     use iomod
     implicit none
     type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-    !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
     integer,intent(in) :: simpleset
     logical,intent(out) :: checkbroken
     logical,intent(out) :: sorte,sortRMSD,sortRMSD2
@@ -462,7 +459,6 @@ subroutine cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
     use crest_data
     implicit none
     type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-    !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
     real(wp),intent(out) :: ewin,rthr,ethr,bthr,athr,pthr,T,couthr
     !--------------------------------------------------------------------
     ewin = env%ewin          !ensemble energy window in kcal/mol
@@ -518,11 +514,11 @@ subroutine cregen_groupinfo(nall,ng,group,degen)
     return
 end subroutine cregen_groupinfo
 
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 !  CREGEN SUBROUTINES
-!=====================================================================================================!
-!=====================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 
 !============================================================!
 ! subroutine discardbroken
@@ -535,7 +531,6 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
     use strucrd
     implicit none
     type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-    !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
     integer :: ch ! printout channel
     integer :: nat,nall
     integer :: at(nat)
@@ -2450,7 +2445,6 @@ subroutine cregen_conffile(env,cname,nat,nall,at,xyz,comments,ng,degen)
     use iomod
     implicit none
     type(systemdata) :: env
-    !type(options) :: opt
     character(len=*) :: cname
     integer :: nat,nall
     integer :: at(nat)
@@ -2599,7 +2593,6 @@ subroutine cregen_setthreads(ch,env,pr)
     use crest_data
     implicit none
     type(systemdata) :: env
-    !type(options) :: opt
     integer :: ch
     logical :: pr
     integer :: TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
@@ -2626,7 +2619,6 @@ subroutine cregen_pr1(ch,env,nat,nall,rthr,bthr,pthr,ewin)
       implicit none
       integer :: ch
       type(systemdata) :: env
-      !type(options) :: opt
       integer :: nat
       integer :: nall
       real(wp) :: rthr,bthr,pthr,ewin
@@ -2649,7 +2641,6 @@ subroutine enso_duplicates(env,nall,double)
     use crest_data
     implicit none
     type(systemdata) :: env
-    !type(options) :: opt
     integer :: nall
     integer :: double(nall)
     integer :: i,j,ich

@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2018-2020 Philipp Pracht
+! Copyright (C) 2018-2022 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -17,23 +17,15 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!===================================================================================================!
+!=========================================================================================!
 !  This is the code of the Conformer-Rotamer Ensemble Sampling Tool (CREST).
-!  The program functions as a parallelized driver for the "xtb" program,
-!  of which a binary later than version 6.1 is required.
-!  For application of GFN-FF calculations an xtb version > 6.3.1 is required.
-!  For application of the ALPB solvation model xtb version > 6.3.3 is required.
-! 
-!  P.Pracht, 2019/20
-! 
-!==================================================================================================!
+!=========================================================================================!
 program CREST
       use iso_fortran_env, wp => real64
       use crest_data
       use iomod
 
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
       type(timer)   :: tim
       
       integer :: i,j,l,args
@@ -46,12 +38,12 @@ program CREST
 
       call initsignal() !SIGTERM catcher
 
-!===================================================================================================!
-!  Initialize system clock time
+!=========================================================================================!
+!>  Initialize system clock time
       call tim%init(20)
 
-!===================================================================================================!
-      !set defaults and pars flags
+!=========================================================================================!
+!> set defaults and pars flags
       args = iargc()
       l=len_trim(cmd)
       allocate(arg(args), source=repeat(' ',l))
@@ -61,17 +53,17 @@ program CREST
       call parseflags(env,arg,args)
       deallocate(arg)
 
-!===================================================================================================!
-!c scratch dir handling
+!=========================================================================================!
+!> scratch dir handling
 
       if(env%scratch)then
       call getcwd(thisdir)
       call scrdir(env)
       endif
 
-!===================================================================================================!
-!c   OMP_NUM_THREAD handling
-!===================================================================================================!
+!=========================================================================================!
+!>   OMP_NUM_THREAD handling
+!=========================================================================================!
       if(.not.env%autothreads)then
           call ompquickset(env%omp)
       else
@@ -82,17 +74,17 @@ program CREST
          call ompautoset(env%threads,0,env%omp,env%MAXRUN,0)   !<--- default
       endif
 
-!===================================================================================================!
-!c   DRY run stop
-!===================================================================================================!
+!=========================================================================================!
+!>   DRY run stop
+!=========================================================================================!
       if(env%dryrun)then
        call crest_dry(env)
       endif
      
-!===================================================================================================!
-!c SOME I/O STUFF
-!===================================================================================================!
-!---- check for the coord file in the working directory
+!=========================================================================================!
+!> SOME I/O STUFF
+!=========================================================================================!
+!>--- check for the coord file in the working directory
       if (env%crestver.eq.crest_solv) then
          inquire(file='solute',exist=ex1)
          inquire(file='solvent',exist=ex2)
@@ -109,7 +101,7 @@ program CREST
       end if
 
 
-!---- call zsort subroutine?
+!>--- call zsort subroutine?
       if(env%autozsort)then
          write(*,'(''-------------------------'')')
          write(*,'(''Starting z-matrix sorting'')')
@@ -127,11 +119,11 @@ program CREST
          call rmrf('*.zmat')
       end if
 
-!===================================================================================================!
-!c        PRE-CONFSEARCH PROPERTY CALCS
-!===================================================================================================!
+!=========================================================================================!
+!>        PRE-CONFSEARCH PROPERTY CALCS
+!=========================================================================================!
      select case( env%properties )
-  !---- only CREGEN routine
+  !>--- only CREGEN routine
        case( p_cregen )
            call tim%start(1,'CREGEN')
            write(*,*)'Using only the cregen sorting routine.'
@@ -156,11 +148,11 @@ program CREST
            endif
            call tim%stop(1)
            call propquit(tim)
-  !---- only ensemble comparison
+  !>--- only ensemble comparison
        case( p_compare )
         call compare_ensembles(env)         !compare ensembles
         call propquit(tim)
-  !---- protonation tool
+  !>--- protonation tool
        case( p_protonate )
         call protonate(env,tim)
         if(env%relax)then
@@ -170,7 +162,7 @@ program CREST
           call relaxensemble('protonated.xyz',env,tim)
         endif  
         call propquit(tim)
-  !---- deprotonation
+  !>--- deprotonation
        case( p_deprotonate )
         call deprotonate(env,tim)
         if(env%relax)then
@@ -180,47 +172,47 @@ program CREST
            call relaxensemble('deprotonated.xyz',env,tim)
         endif
         call propquit(tim)
-  !---- tautomerization
+  !>--- tautomerization
        case( p_tautomerize )
         call tautomerize(env,tim)
         if(env%relax)then
            call relaxensemble('tautomers.xyz',env,tim)
         endif
         call propquit(tim)
-  !---- extended tautomerization
+  !>--- extended tautomerization
        case( p_tautomerize2 )
         call tautomerize_ext(env%ensemblename,env,tim)
         call propquit(tim)
-  !---- stereoisomerization
+  !>--- stereoisomerization
        case( p_isomerize )
         call stereoisomerize(env,tim)
         call propquit(tim)    
 
-  !--- reactor setup
+  !>--- reactor setup
        case( p_reactorset )
         call reactor_setup(env)
 
         stop
-  !---- enhanched ensemble entropy
+  !>--- enhanched ensemble entropy
        case( p_CREentropy )
         call entropic(env,.true.,.true.,.false.,env%ensemblename, &
         &    env%tboltz,dumfloat,dumfloat2)
         call propquit(tim)
-  !--- calculate hessians and average thermo. contrib
+  !>--- calculate hessians and average thermo. contrib
        case( p_rrhoaverage )
          call tim%start(4,'freq+thermo')
          call calcSrrhoav(env,env%ensemblename)  
          call tim%stop(4)
          call propquit(tim)
-  !--- to PCA and k-Means clustering for given file
+  !>--- to PCA and k-Means clustering for given file
        case( p_cluster )
         call ccegen(env,.true.,env%ensemblename) 
         call propquit(tim)
-  !---- properties for enesemble file
+  !>--- properties for enesemble file
        case( p_propcalc )
         call propcalc(env%ensemblename,env%properties2,env,tim)        
         call propquit(tim)
-  !---- calculate potential correction for acid/base reaction
+  !>--- calculate potential correction for acid/base reaction
        case( p_acidbase )
          call tim%start(4,'acid/base')
          if(env%ptb%pka_mode==0)then
@@ -231,61 +223,58 @@ program CREST
          endif
          call tim%stop(4)
          call propquit(tim)  
-  !---- calculate potential correction for acid/base reaction
+  !>--- calculate potential correction for acid/base reaction
        case( p_ligand )
          call tim%start(4,'')
          call ligandtool(env%ptb%infile,env%ptb%newligand, &
          &    env%ptb%centeratom,env%ptb%ligand)
          call tim%stop(4)
          call propquit(tim)  
-  !---- wrapper for the thermo routine       
+  !>--- wrapper for the thermo routine       
        case( p_thermo )
          call tim%start(4,'')
          call thermo_mini(env)
          call tim%stop(4)
          call propquit(tim)  
-  !---- ensemble merging tool
+  !>--- ensemble merging tool
        case( p_gesc1,p_gesc2 )
          call tim%start(9,'')
          call biasmerge(env)
          call tim%stop(9)
         if( env%properties == -9224) call propquit(tim)
-  !---- QCG-runtype
-        case( p_qcg )
-!          env%NCI = .true.
-  !---- do nothing here
+  !>--- do nothing here
        case default
          continue
      end select
-!===================================================================================================!
-!c         PRE-OPTIMIZATION OF THE GEOMETRY
-!===================================================================================================!
+!=========================================================================================!
+!>         PRE-OPTIMIZATION OF THE GEOMETRY
+!=========================================================================================!
       if(env%preopt)then
          call xtbopt(env)
       else if(env%presp)then
          call xtbsp(env)
       endif
-!===================================================================================================!
-!c         CONFORMATION SEARCH CALLS START HERE
-!===================================================================================================!
+!=========================================================================================!
+!>         CONFORMATION SEARCH CALLS START HERE
+!=========================================================================================!
       select case( env%crestver )
         case( crest_mfmdgc )
-           call confscript1(env,tim)  !MF-MD-GC algo
+           call confscript1(env,tim)  !> MF-MD-GC algo
         case( crest_imtd,crest_imtd2 )
-           call confscript2i(env,tim) !MTD-GC algo
+           call confscript2i(env,tim) !> MTD-GC algo
         case( crest_mdopt )
-           call mdopt(env,tim)  !MDOPT
+           call mdopt(env,tim)        !> MDOPT
         case( crest_screen )
-           call screen(env,tim)  !SCREEN
+           call screen(env,tim)       !> SCREEN
         case( crest_nano )                      
-           call reactor(env,tim)     !NANO-REACTOR
+           call reactor(env,tim)      !> NANO-REACTOR
         case( crest_compr )                                        
-           call compress(env,tim)     !MTD COMPRESS mode   
+           call compress(env,tim)     !> MTD COMPRESS mode   
         case( crest_msreac ) 
-           call msreact_handler(env,tim) !MSREACT sub-program   
+           call msreact_handler(env,tim) !> MSREACT sub-program   
         case( crest_pka )
            call pkaquick(env,tim)   
-        case( crest_solv )  !microsolvation tools   
+        case( crest_solv )             !> microsolvation tools   
            call crest_solvtool(env, tim) 
         case default
            continue
@@ -295,14 +284,13 @@ program CREST
          call wrsdfens(env%sdf,conformerfile,conformerfilebase//'.sdf')
       endif
 
-!===================================================================================================!
-!c        POST-CONFSEARCH PROPERTY CALCS
-!===================================================================================================!
+!=========================================================================================!
+!>        POST-CONFSEARCH PROPERTY CALCS
+!=========================================================================================!
      if(env%npq .gt. 0)then
      infile="crest_rotamers.xyz"    
      do i=1,env%npq
        j=env%pqueue(i)
-       !select case( env%properties )
        select case( j )
          case( 1:8,10,20,100 )
            call propcalc(conformerfile,j,env,tim)  
@@ -323,23 +311,23 @@ program CREST
      enddo
      endif
 
-!===================================================================================================!
-!c go back from scratch directory
+!=========================================================================================!
+!> go back from scratch directory
      if(env%scratch)then
        call chdir(thisdir)
        call scrend(env)
      endif
 
 
-!===================================================================================================!
-!c Evaluate and print timings
+!=========================================================================================!
+!> Evaluate and print timings
       call eval_timer(tim)
       write(*,*)
       write(*,*)'CREST terminated normally.'
-!c end of main program
+!> end of main program
 end program CREST
 
-!===================================================================================================!
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!===================================================================================================!
+!=========================================================================================!
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!=========================================================================================!

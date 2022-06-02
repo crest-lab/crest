@@ -396,7 +396,6 @@ subroutine confg_chk(env,m,better)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
 
       integer :: m,io
       logical :: better

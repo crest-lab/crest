@@ -23,7 +23,6 @@ subroutine xtbmodef(env,s,e,n,u,l,o,x)
       use crest_data
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       integer :: x  !1=normal mode, 2=local mode
       integer :: s  !start mode
       integer :: e  !end mode
