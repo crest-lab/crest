@@ -29,10 +29,8 @@ subroutine splitfile(fname,up,low)
       implicit none
       character(len=*) :: fname
       integer :: up,low
-      integer :: nref
 
       character(len=512) :: thispath,tmppath1,tmppath2
-      character(len=128) :: atmp,btmp
 
       real(wp),allocatable :: xyz(:,:,:)
       integer :: nat,nall
@@ -97,24 +95,18 @@ subroutine prepentropy(env,fname,percent)
       use iomod
       use strucrd, only: rdensembleparam,rdensemble,wrxyz
       implicit none
-      !type(options) :: opt
       type(systemdata) :: env
       character(len=*) :: fname
       real(wp) :: percent
-      integer :: nref
-
-      character(len=512) :: thispath,tmppath1,tmppath2
-      character(len=128) :: atmp,btmp
 
       real(wp),allocatable :: xyz(:,:,:)
       integer :: nat,nall
-      integer :: nc
       integer,allocatable :: at(:)
       integer,allocatable :: degen(:,:)
       character(len=128),allocatable :: comment(:)
       integer :: ng,ns
       real(wp) :: nsf
-      integer :: i,j,k,l,r
+      integer :: i,j,k,l
       logical,allocatable :: incl(:)
       integer :: ich
       logical :: ex
@@ -206,7 +198,7 @@ subroutine printaniso(fname,bmin,bmax,bshift)
     real(wp) :: bmin,bmax,bshift
     real(wp) :: thr
     real(wp) :: dum
-    integer :: i,j,k,l
+    integer :: i
 
     call ens%open(fname)
     nat=ens%nat
@@ -256,7 +248,7 @@ subroutine prbweight(fname,Targ)
     real(wp),allocatable :: g(:)
     real(wp),allocatable :: p(:)
     real(wp) :: xx(10)
-    real(wp) :: eav,elow
+    real(wp) :: elow
 
     !-- parse temperature from argument
     Targ = trim(adjustl(Targ))
@@ -343,7 +335,7 @@ subroutine calceav(fname,T,eav,verbose)
     real(wp),allocatable :: g(:)
     real(wp),allocatable :: p(:)
     real(wp) :: dum
-    integer :: i,j
+    integer :: i
     call ens%open(fname)
     allocate(elist(ens%nall),erel(ens%nall),g(ens%nall),p(ens%nall))
     elist = ens%er
@@ -381,9 +373,7 @@ subroutine getelow(fname,elow,verbose)
     logical :: verbose
     type(ensemble) :: ens
     real(wp),allocatable :: elist(:)
-    real(wp),allocatable :: erel(:)
-    real(wp) :: dum
-    integer :: i,j
+    integer :: i
 
     call ens%open(fname)
     allocate(elist(ens%nall))
@@ -413,7 +403,6 @@ subroutine testtopo(fname,env,tmode)
     use atmasses
     use zdata
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
     character(len=*) :: fname
     character(len=:),allocatable :: wbofile
@@ -424,10 +413,7 @@ subroutine testtopo(fname,env,tmode)
     real(wp) :: dum
     integer,allocatable :: inc(:)
     real(wp) :: flex
-    real(wp) :: rabc(3),avmom
-    real(wp) :: molmass,symnum
-    character(len=3) :: symchar
-    integer :: nt,i,j,k,l
+    integer :: nt,i
     logical :: l1
     real(wp),allocatable :: temps(:)
     real(wp),allocatable :: et(:)
@@ -539,7 +525,7 @@ subroutine ensemble_analsym(fname,pr)
        real(wp),allocatable :: c0(:,:)
        real(wp),allocatable :: er(:)
        integer,allocatable  :: at(:)
-       integer :: i,j,k,io,ich
+       integer :: i,ich
        character(len=4) :: sfsym,sfsm
        real(wp),parameter :: desy = 0.1_wp
        integer,parameter  :: maxat = 200

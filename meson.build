@@ -17,7 +17,7 @@
 project(
   'crest',
   'fortran', 'c',
-  version: '2.11.0',
+  version: '2.12.0',
   meson_version: '>=0.55',
   default_options: [
     'buildtype=debugoptimized',

@@ -22,7 +22,7 @@
 !=============================================================!
 recursive subroutine quicksort(n,arr)
       implicit none
-      integer :: n,arr(n),i,j,k,e,m
+      integer :: n,arr(n),i,j,k,m
       integer :: pivot
       integer,allocatable :: R(:),L(:)
       integer :: rr,ll,rc,lc,pp
@@ -82,7 +82,7 @@ end subroutine quicksort
 !=============================================================!
 recursive subroutine revquicksort(n,arr)
       implicit none
-      integer :: n,arr(n),i,j,k,e,m
+      integer :: n,arr(n),i,j,k,m
       integer :: pivot
       integer,allocatable :: R(:),L(:)
       integer :: rr,ll,rc,lc,pp
@@ -169,7 +169,7 @@ recursive subroutine qqsort(a, first, last)
   implicit none
   real*8 a(*), x, t
   integer first, last
-  integer i, j, ii
+  integer i, j
 
   x = a( (first+last) / 2 )
   i = first
@@ -223,7 +223,6 @@ recursive subroutine matqsort(adim,nall,a,adum,first, last, mask)
   implicit none
   integer :: adim,nall
   real*8 a(adim,nall),adum(adim)
-  real*8 t
   integer x
   integer mask(nall)
   integer first, last

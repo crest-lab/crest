@@ -106,7 +106,6 @@ subroutine xtb_iff(env,file_lmo1,file_lmo2,solu,clus)
 
          type(systemdata)                :: env
          type(zmolecule), intent(in)     :: solu, clus
-         character(len=64)               :: frag1, frag2
          character(len=80)               :: pipe
          character(len=512)              :: jobcall
          character(len=*)                :: file_lmo1, file_lmo2
@@ -155,10 +154,8 @@ subroutine opt_cluster(env,solu,clus,fname)
          type(systemdata)                :: env
          type(zmolecule), intent(in)     :: solu, clus
          character(len=*),intent(in)     :: fname
-         character(len=80)               :: pipe,solv
+         character(len=80)               :: pipe
          character(len=512)              :: jobcall
-         character(len=256)              :: atmp
-         integer                         :: ich,iost
 
 
       if(env%niceprint)then
@@ -221,11 +218,9 @@ subroutine ensemble_lmo(env,fname,self,NTMP,TMPdir,conv)
   character(len=*),intent(in)     :: TMPdir     !directory name
   integer,intent(in)              :: NTMP       !number of structures to be optimized
   integer,intent(in)              :: conv(env%nqcgclust+1)
-  integer                         :: i,j,k,l,m,n
+  integer                         :: i,k
   integer                         :: vz
-  character(len=20)               :: optl,pipe
-  character(len=80)               :: solv
-  character(len=256)              :: tmpname,oname         
+  character(len=20)               :: pipe
   character(len=512)              :: thispath,tmppath 
   character(len=1024)             :: jobcall       
   character(len=52)               :: bar
@@ -297,12 +292,9 @@ subroutine ensemble_iff(env,outer_ell_abc,nfrag1,frag1_file,frag2_file,NTMP,TMPd
   integer,intent(in)              :: conv(env%nqcgclust+1)
   real(wp),intent(in)             :: outer_ell_abc(env%nqcgclust,3)
 
-  type(zmolecule)                 :: tmpclus
-  integer                         :: i,j,k,l,m,n
+  integer                         :: i,k
   integer                         :: vz
-  character(len=20)               :: optl,pipe
-  character(len=80)               :: solv
-  character(len=256)              :: tmpname,oname         
+  character(len=20)               :: pipe
   character(len=512)              :: tmppath 
   character(len=1024)             :: jobcall       
   character(len=52)               :: bar
@@ -371,11 +363,10 @@ subroutine cff_opt(postopt,env,fname,n12,NTMP,TMPdir,conv,nothing_added)
   integer,intent(inout)           :: conv(env%nqcgclust+1)
   logical,intent(in)              :: postopt
   logical,intent(in)              :: nothing_added(env%nqcgclust)
-  integer                         :: i,j,k,l,m,n,n12
+  integer                         :: i,k,n12
   integer                         :: vz
   integer                         :: ich31
-  character(len=20)               :: optl,pipe
-  character(len=256)              :: tmpname,oname         
+  character(len=20)               :: pipe
   character(len=512)              :: thispath,tmppath 
   character(len=1024)             :: jobcall       
   character(len=52)               :: bar
@@ -531,16 +522,13 @@ subroutine ens_sp(env,fname,NTMP,TMPdir)
   character(len=*),intent(in)     :: fname      !file base name
   character(len=*),intent(in)     :: TMPdir     !directory name
   integer,intent(inout)           :: NTMP       !number of structures to be optimized
-!  real(wp),intent(in)             :: outer_ell_abc(NTMP,3),inner_ell_abc(NTMP,3)
 
-  integer                         :: i,j,k,l,m,n,n12
+  integer                         :: i,k
   integer                         :: vz
-  character(len=20)               :: optl,pipe
-  character(len=256)              :: tmpname,oname         
+  character(len=20)               :: pipe
   character(len=512)              :: thispath,tmppath 
   character(len=1024)             :: jobcall       
   character(len=52)               :: bar
-  character(len=2)                :: flag
   real(wp)                        :: percent
 
 ! setting the threads for correct parallelization
@@ -618,16 +606,13 @@ subroutine ens_freq(env,fname,NTMP,TMPdir)
   character(len=*),intent(in)     :: fname      !file base name
   character(len=*),intent(in)     :: TMPdir     !directory name
   integer,intent(inout)           :: NTMP       !number of structures to be optimized
-!  real(wp),intent(in)             :: outer_ell_abc(NTMP,3),inner_ell_abc(NTMP,3)
 
-  integer                         :: i,j,k,l,m,n,n12
+  integer                         :: i,k
   integer                         :: vz
-  character(len=20)               :: optl,pipe
-  character(len=256)              :: tmpname,oname         
+  character(len=20)               :: pipe
   character(len=512)              :: thispath,tmppath 
   character(len=1024)             :: jobcall       
   character(len=52)               :: bar
-  character(len=2)                :: flag
   real(wp)                        :: percent
 
 ! setting the threads for correct parallelization
@@ -709,7 +694,6 @@ subroutine rdxtbiffE(fname,m,n,e)
     character*128 :: line
     real*8 :: xx(10)
     integer :: ich,i,j,nn
-    integer :: get_file_unit
 
     open(newunit=ich,file=fname)
 
@@ -754,7 +738,7 @@ subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut
   character(len=*),intent(in) :: fname_cluster, fname_solu_cut,fname_solv_cut
   character (len=256)         :: atmp
   character (len=2)           :: a2   
-  integer                     :: ich,i,j,k,stat,io
+  integer                     :: ich,i,k,stat,io
 
   
   ich=142
@@ -788,12 +772,11 @@ subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut
 end subroutine wr_cluster_cut 
 
 
-subroutine check_iff(env,neg_E)
+subroutine check_iff(neg_E)
   use iso_fortran_env, only : wp => real64
   use crest_data
 
   implicit none
-  type(systemdata)     :: env
   integer              :: io, ich
   real(wp)             :: int_E
   character(len=50)    :: tmp

@@ -42,7 +42,6 @@ subroutine tautomerize(env,tim)
       use strucrd, only: coord2xyz
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)      :: tim
       type(protobj)    :: taut
 
@@ -53,7 +52,7 @@ subroutine tautomerize(env,tim)
       character(len=128) :: inpnam,outnam
       character(len=128) :: dummy
 
-      integer :: ich,i,j,k,l
+      integer :: ich,i
       integer :: natp,nallout,refchrg
 
       logical :: ex
@@ -196,13 +195,11 @@ subroutine protsmall(env,prot,tim)
       use strucrd, only: coord2xyz
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(protobj)    :: prot
       type(timer)      :: tim
 
       integer :: ich,natp,nallout
 
-      character(len=32)  :: dirn
       character(len=64)  :: protname
       character(len=256) :: thispath
       character(len=256) :: filename
@@ -288,12 +285,10 @@ subroutine deprotens(ens,env,prot,tim)
       use strucrd, only: rdensembleparam,rdensemble,i2e
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(protobj)    :: prot
       type(timer)      :: tim
 
-      integer :: ich,natp,nallout
-      integer :: iz1,iz2
+      integer :: ich,nallout
       integer :: nat,nall
       integer :: i,j,k,l
 
@@ -302,8 +297,6 @@ subroutine deprotens(ens,env,prot,tim)
       character(len=256) :: thispath
       character(len=256) :: filename
       character(len=128) :: inpnam,outnam
-
-      logical :: ex
 
       real(wp),allocatable :: xyz(:,:,:),eread(:)
       integer,allocatable  :: at(:)
@@ -400,29 +393,25 @@ subroutine protens(ens,env,prot,tim)
       use strucrd, only: coord2xyz,wrc0,rdensembleparam,rdensemble
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(protobj)    :: prot
       type(timer)      :: tim
 
       integer :: ich,natp,nallout
-      integer :: iz1,iz2
       integer :: nat,nall
-      integer :: i,j,k,l,r
+      integer :: i,k,r
       integer :: vz,io,refchrg
 
       real(wp) :: percent
 
       character(len=*)   :: ens
       character(len=32)  :: dirn
-      character(len=64)  :: protname
       character(len=256) :: thispath,tmppath
       character(len=256) :: filename
       character(len=128) :: inpnam,outnam
-      character(len=80)  :: solv
       character(len=512) :: jobcall
       character(len=52) :: bar
 
-      logical :: ex,niceprint
+      logical :: niceprint
 
       real(wp),allocatable :: xyz(:,:,:),eread(:)
       integer,allocatable  :: at(:)
@@ -588,7 +577,6 @@ subroutine tautomerize_blacklist(env,fname,nat,atlist)
      use crest_data
      use strucrd, only : rdcoord
      implicit none
-     !type(options) :: opt
      type(systemdata) :: env
      integer :: nat
      character(len=*) :: atlist
@@ -679,7 +667,6 @@ subroutine tautomerize_ext(ensemb,env,tim)
       implicit none
       character(len=*) :: ensemb
       type(systemdata) :: env
-      !type(options)    :: opt
       type(timer)      :: tim
       type(protobj)    :: taut
 
@@ -696,8 +683,7 @@ subroutine tautomerize_ext(ensemb,env,tim)
       integer :: smax,s,sc
       real(wp),allocatable :: c0(:,:)
 
-      integer :: ich,i,j,k,l
-      integer :: io
+      integer :: ich,i,io
       integer :: natp,nallout,refchrg
       integer,allocatable :: atmaps(:,:)
       logical :: ex
@@ -898,10 +884,8 @@ subroutine PDT_constraints(env)
       use zdata
       implicit none
       type(systemdata) :: env
-      !type(options)    :: opt
       type(zmolecule) :: zmol
    !-- a default for the force constant (quite strong already)
-      !real(wp),parameter :: forceconst = 0.05_wp    
 
       logical,parameter :: vverbose = .false.
       integer :: i,h,nh
@@ -925,7 +909,7 @@ subroutine PDT_constraints(env)
          write(*,'(1x,a,f8.4,a)') 'Selected force constant:',env%forceconst,' Eh'
 
       !-- analyse sorted coord and write bondlength constraint 
-         call autoHeavyConstraint('coord',env%forceconst,'')
+         call autoHeavyConstraint('coord',env%forceconst)
 
       !-- read (only) the bondlength file as constraint
          call read_constrainbuffer('bondlengths',env%cts)

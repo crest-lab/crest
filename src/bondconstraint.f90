@@ -88,20 +88,19 @@ end subroutine autoMetalConstraint
 !> A file "bondlengths" is written with a constraint on each bond.
 !> The input argument is the required force constant.
 !==========================================================================!
-subroutine autoHeavyConstraint(filename,forceconstant,wbofile)
-  use iso_fortran_env,wp => real64
-  use zdata
-  implicit none
-  character(len=*) :: filename
-  character(len=*) :: wbofile
-  real(wp) :: forceconstant
-  type(zmolecule) :: zmol
-  !--- get topology
-  call simpletopo_file(filename,zmol,.false.,.false.,'')
-  !--- get bond matrix and write "bondlengths" file
-  call getbmat(zmol,3,forceconstant)
-  call zmol%deallocate()
-  return
+subroutine autoHeavyConstraint(filename,forceconstant)
+     use iso_fortran_env, wp => real64
+     use zdata
+     implicit none
+     character(len=*) :: filename
+     real(wp) :: forceconstant
+     type(zmolecule) :: zmol
+   !--- get topology
+     call simpletopo_file(filename,zmol,.false.,.false.,'')
+   !--- get bond matrix and write "bondlengths" file
+     call getbmat(zmol,3,forceconstant)
+     call zmol%deallocate()
+     return
 end subroutine autoHeavyConstraint
 
 !=========================================================================================!
@@ -112,164 +111,166 @@ end subroutine autoHeavyConstraint
 !> A file "bondlengths" is written with a constraint on each bond.
 !> The input argument is the required force constant.
 !==========================================================================!
-subroutine autoHydrogenConstraint(filename,forceconstant,wbofile)
-  use iso_fortran_env,wp => real64
-  use zdata
-  implicit none
-  character(len=*) :: filename
-  character(len=*) :: wbofile
-  real(wp) :: forceconstant
-  type(zmolecule) :: zmol
-  !--- get topology
-  call simpletopo_file(filename,zmol,.false.,.false.,'')
-  !--- get bond matrix and write "bondlengths" file
-  call getbmat(zmol,4,forceconstant)
-  call zmol%deallocate()
-  return
+subroutine autoHydrogenConstraint(filename,forceconstant)
+     use iso_fortran_env, wp => real64
+     use zdata
+     implicit none
+     character(len=*) :: filename
+     real(wp) :: forceconstant
+     type(zmolecule) :: zmol
+   !--- get topology
+     call simpletopo_file(filename,zmol,.false.,.false.,'')
+   !--- get bond matrix and write "bondlengths" file
+     call getbmat(zmol,4,forceconstant)
+     call zmol%deallocate()
+     return
 end subroutine autoHydrogenConstraint
 
 !=========================================================================================!
 !> Some routines related to the Bond matrix (BMAT)
 !===========================================================================!
 subroutine getbmat(zmol,r,force)
-  use iso_fortran_env,wp => real64
-  use zdata
-  implicit none
-  type(zmolecule) :: zmol
-  integer :: r
-  integer :: nat
-  real(wp) :: force
-  real(wp),allocatable :: xyz(:,:)
-  real(wp),allocatable :: bmat(:,:)
-  integer,allocatable :: at(:)
-  integer,allocatable :: bonds(:,:)
-  integer :: i,j,k,l,nb
+     use iso_fortran_env, wp => real64
+     use zdata
+     implicit none
+     type(zmolecule) :: zmol
+     integer :: r
+     integer :: nat
+     real(wp) :: force
+     real(wp),allocatable :: xyz(:,:)
+     real(wp),allocatable :: bmat(:,:)
+     integer,allocatable :: at(:)
+     integer,allocatable :: bonds(:,:)
+     integer :: i,j,nb
 
-  integer,parameter :: cbonds = 1
-  integer,parameter :: cmetal = 2
-  integer,parameter :: cheavy = 3
-  integer,parameter :: chydro = 4
-  integer,parameter :: cistrans = 5
-  integer,parameter :: countbonds = 6
+     integer,parameter :: cbonds = 1
+     integer,parameter :: cmetal = 2
+     integer,parameter :: cheavy = 3
+     integer,parameter :: chydro = 4
+     integer,parameter :: cistrans = 5
+     integer,parameter :: countbonds = 6
 
-  real(wp),parameter :: bohr = 0.52917726_wp
+     real(wp),parameter :: bohr = 0.52917726_wp
 
-  nat = zmol%nat
-  at = zmol%at
-  allocate (xyz(3,nat),bmat(nat,nat),source=0.0_wp)
+     nat = zmol%nat
+     allocate(at(nat), source=0)
+     at = zmol%at
+     allocate(xyz(3,nat),bmat(nat,nat), source = 0.0_wp)
+    
+     do i=1,nat
+        xyz(:,i)=zmol%zat(i)%cart(:)
+     enddo
 
-  do i = 1,nat
-    xyz(:,i) = zmol%zat(i)%cart(:)
-  end do
+     nb = 0
+     do i=1,nat
+        do j=1,nat
+          if(any(zmol%zat(i)%ngh(:) .eq. j))then  !only include bonds from the neighbour lists
+            bmat(i,j) = zmol%distmat(i,j)
+            bmat(i,j) = bmat(i,j)*bohr   !BMAT is in Angstroem!
+            nb = nb +1
+          else
+           cycle
+          endif
+        enddo
+     enddo
 
-  nb = 0
-  do i = 1,nat
-    do j = 1,nat
-      if (any(zmol%zat(i)%ngh(:) .eq. j)) then  !only include bonds from the neighbour lists
-        bmat(i,j) = zmol%distmat(i,j)
-        bmat(i,j) = bmat(i,j) * bohr   !BMAT is in Angstroem!
-        nb = nb + 1
-      else
-        cycle
-      end if
-    end do
-  end do
+     !--- write the constrain file
+     if(r == cbonds)then
+     call writeBmatconstr(nat,bmat,force)
+     endif
+     if(r == cmetal)then
+      call writeMetalconstr(nat,at,bmat,force)
+     endif
+     if(r == cheavy)then
+      call writeHeavyconstr(nat,at,bmat,force)
+     endif
+     if(r == chydro)then
+      call writeHydrogenconstr(nat,at,bmat,force)
+     endif
+     if(r == cistrans)then
+      call writeBmatconstr_withEZ(zmol,nat,bmat,force)
+     endif
 
-  !--- write the constrain file
-  if (r == cbonds) then
-    call writeBmatconstr(nat,bmat,force)
-  end if
-  if (r == cmetal) then
-    call writeMetalconstr(nat,at,bmat,force)
-  end if
-  if (r == cheavy) then
-    call writeHeavyconstr(nat,at,bmat,force)
-  end if
-  if (r == chydro) then
-    call writeHydrogenconstr(nat,at,bmat,force)
-  end if
-  if (r == cistrans) then
-    call writeBmatconstr_withEZ(zmol,nat,bmat,force)
-  end if
+     !--- utility
+     if(r == countbonds)then
+       allocate(bonds(2,nb), source=0)  
+       nb=0  
+       do i=1,nat
+         do j=1,i
+           if(bmat(i,j) > 1d-6)then
+            nb=nb+1
+            bonds(1,nb) = j
+            bonds(2,nb) = i
+           endif    
+         enddo
+       enddo
+      deallocate(bonds)
+     endif
 
-  !--- utility
-  if (r == countbonds) then
-    allocate (bonds(2,nb),source=0)
-    nb = 0
-    do i = 1,nat
-      do j = 1,i
-        if (bmat(i,j) > 1d-6) then
-          nb = nb + 1
-          bonds(1,nb) = j
-          bonds(2,nb) = i
-        end if
-      end do
-    end do
-    deallocate (bonds)
-  end if
 
-  deallocate (bmat,xyz,at)
-  return
+     deallocate(bmat,xyz,at)
+     return
 end subroutine getbmat
 
 !====================================================!
 !> Write a constraint file with all bonds
 !====================================================!
 subroutine writeBmatconstr(nat,bmat,force)
-  use iso_fortran_env,wp => real64
-  implicit none
-  integer :: nat
-  real(wp) :: bmat(nat,nat)
-  integer :: i,j,k,l,ich
-  real(wp) :: force
-  character(len=20) :: dumm
+     use iso_fortran_env, wp => real64
+     implicit none
+     integer :: nat
+     real(wp) :: bmat(nat,nat)
+     integer :: i,j,ich
+     real(wp) :: force
+     character(len=20) :: dumm
 
-  open (newunit=ich,file='bondlengths')
-  write (ich,'(a)') '$constrain'
-  write (dumm,'(f16.4)') force
-  write (ich,'(3x,a,a)') 'force constant=',adjustl(trim(dumm))
-  do i = 1,nat
-    do j = i + 1,nat
-      if (bmat(i,j) .gt. 0.1_wp) then
-        write (ich,'(3x,a,1x,i0,a,1x,i0,a,1x,f8.5)') 'distance:',i,',',j,',',bmat(i,j)
-      end if
-    end do
-  end do
-  write (ich,'(a)') '$end'
-  close (ich)
-  return
+
+     open(newunit=ich,file='bondlengths')
+     write(ich,'(a)') '$constrain'
+     write(dumm,'(f16.4)') force
+     write(ich,'(3x,a,a)')'force constant=',adjustl(trim(dumm))
+     do i=1,nat
+        do j=i+1,nat
+           if(bmat(i,j).gt.0.1_wp)then
+             write(ich,'(3x,a,1x,i0,a,1x,i0,a,1x,f8.5)') 'distance:',i,',',j,',',bmat(i,j)
+           endif
+        enddo
+     enddo
+     write(ich,'(a)') '$end'
+     close(ich)
+     return
 end subroutine writeBmatconstr
 
 !====================================================!
 !> Write a constraint file with all TM bonds
 !====================================================!
 subroutine writeMetalconstr(nat,at,bmat,force)
-  use iso_fortran_env,wp => real64
-  implicit none
-  integer :: nat
-  integer :: at(nat)
-  real(wp) :: bmat(nat,nat)
-  integer :: i,j,k,l,ich
-  real(wp) :: force
-  character(len=20) :: dumm
-  logical :: isTMetal  !this is a function
+     use iso_fortran_env, wp => real64
+     implicit none
+     integer :: nat
+     integer :: at(nat)
+     real(wp) :: bmat(nat,nat)
+     integer :: i,j,ich
+     real(wp) :: force
+     character(len=20) :: dumm
+     logical :: isTMetal  !this is a function
 
-  open (newunit=ich,file='bondlengths')
-  write (ich,'(a)') '$constrain'
-  write (dumm,'(f16.4)') force
-  write (ich,'(3x,a,a)') 'force constant=',adjustl(trim(dumm))
-  do i = 1,nat
-    do j = i + 1,nat
-      if (bmat(i,j) .gt. 0.1_wp) then
-        if (isTMetal(at(i)) .or. isTMetal(at(j))) then
-          write (ich,'(3x,a,1x,i0,a,1x,i0,a,1x,f8.5)') 'distance:',i,',',j,',',bmat(i,j)
-        end if
-      end if
-    end do
-  end do
-  write (ich,'(a)') '$end'
-  close (ich)
-  return
+     open(newunit=ich,file='bondlengths')
+     write(ich,'(a)') '$constrain'
+     write(dumm,'(f16.4)') force
+     write(ich,'(3x,a,a)')'force constant=',adjustl(trim(dumm))
+     do i=1,nat
+        do j=i+1,nat
+           if(bmat(i,j).gt.0.1_wp)then
+             if(isTMetal(at(i)) .or. isTMetal(at(j)))then
+             write(ich,'(3x,a,1x,i0,a,1x,i0,a,1x,f8.5)') 'distance:',i,',',j,',',bmat(i,j)
+             endif
+           endif
+        enddo
+     enddo
+     write(ich,'(a)') '$end'
+     close(ich)
+     return
 end subroutine writeMetalconstr
 
 logical function isTMetal(i)
@@ -286,63 +287,61 @@ end function isTMetal
 !> Write a constraint file with all bonds except X-H
 !====================================================!
 subroutine writeHeavyconstr(nat,at,bmat,force)
-  use iso_fortran_env,wp => real64
-  implicit none
-  integer :: nat
-  integer :: at(nat)
-  real(wp) :: bmat(nat,nat)
-  integer :: i,j,k,l,ich
-  real(wp) :: force
-  character(len=20) :: dumm
-  logical :: isTMetal  !this is a function
+     use iso_fortran_env, wp => real64
+     implicit none
+     integer :: nat
+     integer :: at(nat)
+     real(wp) :: bmat(nat,nat)
+     integer :: i,j,ich
+     real(wp) :: force
+     character(len=20) :: dumm
 
-  open (newunit=ich,file='bondlengths')
-  write (ich,'(a)') '$constrain'
-  write (dumm,'(f16.4)') force
-  write (ich,'(3x,a,a)') 'force constant=',adjustl(trim(dumm))
-  do i = 1,nat
-    do j = i + 1,nat
-      if (bmat(i,j) .gt. 0.1_wp) then
-        if ((at(i) .ne. 1) .and. (at(j) .ne. 1)) then
-          write (ich,'(3x,a,1x,i0,a,1x,i0,a,1x,f8.5)') 'distance:',i,',',j,',',bmat(i,j)
-        end if
-      end if
-    end do
-  end do
-  write (ich,'(a)') '$end'
-  close (ich)
-  return
+     open(newunit=ich,file='bondlengths')
+     write(ich,'(a)') '$constrain'
+     write(dumm,'(f16.4)') force
+     write(ich,'(3x,a,a)')'force constant=',adjustl(trim(dumm))
+     do i=1,nat
+        do j=i+1,nat
+           if(bmat(i,j).gt.0.1_wp)then
+             if((at(i).ne.1) .and. (at(j).ne.1))then
+             write(ich,'(3x,a,1x,i0,a,1x,i0,a,1x,f8.5)') 'distance:',i,',',j,',',bmat(i,j)
+             endif
+           endif
+        enddo
+     enddo
+     write(ich,'(a)') '$end'
+     close(ich)
+     return
 end subroutine writeHeavyconstr
 !====================================================!
 !> Write a constraint file with all X-H bonds
 !====================================================!
 subroutine writeHydrogenconstr(nat,at,bmat,force)
-  use iso_fortran_env,wp => real64
-  implicit none
-  integer :: nat
-  integer :: at(nat)
-  real(wp) :: bmat(nat,nat)
-  integer :: i,j,k,l,ich
-  real(wp) :: force
-  character(len=20) :: dumm
-  logical :: isTMetal  !this is a function
+     use iso_fortran_env, wp => real64
+     implicit none
+     integer :: nat
+     integer :: at(nat)
+     real(wp) :: bmat(nat,nat)
+     integer :: i,j,ich
+     real(wp) :: force
+     character(len=20) :: dumm
 
-  open (newunit=ich,file='bondlengths')
-  write (ich,'(a)') '$constrain'
-  write (dumm,'(f16.4)') force
-  write (ich,'(3x,a,a)') 'force constant=',adjustl(trim(dumm))
-  do i = 1,nat
-    do j = i + 1,nat
-      if (bmat(i,j) .gt. 0.1_wp) then
-        if ((at(i) .eq. 1) .or. (at(j) .eq. 1)) then
-          write (ich,'(3x,a,1x,i0,a,1x,i0,a,1x,f8.5)') 'distance:',i,',',j,',',bmat(i,j)
-        end if
-      end if
-    end do
-  end do
-  write (ich,'(a)') '$end'
-  close (ich)
-  return
+     open(newunit=ich,file='bondlengths')
+     write(ich,'(a)') '$constrain'
+     write(dumm,'(f16.4)') force
+     write(ich,'(3x,a,a)')'force constant=',adjustl(trim(dumm))
+     do i=1,nat
+        do j=i+1,nat
+           if(bmat(i,j).gt.0.1_wp)then
+             if((at(i).eq.1) .or. (at(j).eq.1))then
+             write(ich,'(3x,a,1x,i0,a,1x,i0,a,1x,f8.5)') 'distance:',i,',',j,',',bmat(i,j)
+             endif
+           endif
+        enddo
+     enddo
+     write(ich,'(a)') '$end'
+     close(ich)
+     return
 end subroutine writeHydrogenconstr
 
 !====================================================!
@@ -474,12 +473,6 @@ subroutine autoconstraint_internal(env)
 
   if (alldihed > 0) then
   end if
-
-  !if(l>0)then
-  !call env%calc%printconstraints
-  !endif
-
-  !stop
 
   return
 end subroutine autoconstraint_internal

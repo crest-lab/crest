@@ -17,9 +17,9 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!======================================================================================================!
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
-!======================================================================================================!
+!=========================================================================================!
+!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
+!=========================================================================================!
 !===============================================================================!
 !
 !  This is the CCEGEN routine, used for clustering a conformational ensemble
@@ -48,14 +48,13 @@ subroutine CCEGEN(env,pr,fname)
       type(zequal) :: subgroups
       integer,allocatable :: inc(:)
       logical :: heavyonly
-      logical :: ex
       integer :: i,j,k,l,ich,c
       real(wp) :: dum,dum2
       type(ensemble) :: zens
 
       character(len=:),allocatable :: measuretype
 
-      !--- SVD params
+      !>--- SVD params
       integer :: ntaken
       integer :: nallnew
       real(wp),allocatable :: xyznew(:,:,:)
@@ -76,7 +75,7 @@ subroutine CCEGEN(env,pr,fname)
       real(wp),allocatable :: geo(:,:)
       integer,allocatable :: na(:),nb(:),nc(:)
 
-      !--- CLUSTERING params
+      !>--- CLUSTERING params
       character(len=:),allocatable :: clusteralgo
       integer :: nclust                    !number of clusters
       integer :: nclustiter                !iterator for nclust
@@ -95,11 +94,10 @@ subroutine CCEGEN(env,pr,fname)
       integer,allocatable :: clustbest(:),ind(:)
       real(wp),allocatable :: statistics(:,:)
       logical,allocatable :: extrema(:,:)
-      logical :: minic
       logical :: autolimit
       real(wp) :: fraclimit
 
-      !--- printout and params
+      !>--- printout and params
       real(wp) :: emin,erel
       real(wp),parameter :: kcal = 627.5095d0
       real(wp),parameter :: pi =  3.14159265358979D0
@@ -120,7 +118,7 @@ subroutine CCEGEN(env,pr,fname)
 !=========================================================!
 ! Prepare a coordinate ensemble for the clustering
 !=========================================================!      
-   !--- 0. Set defaults, read ensemble
+   !>--- 0. Set defaults, read ensemble
        call zens%open(fname) !read in the ensemble
        if(zens%nall<1)then
           error stop "Ensemble is empty! must stop"
@@ -152,7 +150,7 @@ subroutine CCEGEN(env,pr,fname)
                           !(only for predefined clustersizes with "-cluster N" )
        fraclimit = 0.25d0 !if autolimit=true, 1/4 of the ensemble is taken
 
-   !--- 1. topology for reference strucuture
+   !>--- 1. topology for reference strucuture
       if(env%wbotopo)then
          env%wbofile='wbo'
       else   
@@ -166,7 +164,7 @@ subroutine CCEGEN(env,pr,fname)
 !===========================================================!
  if(measuretype.ne.'dihedral')then
 !===========================================================!
-   !--- 2. read nuclear equivalencies
+   !>--- 2. read nuclear equivalencies
       if(pr)then
         write(*,*)
         call smallhead('READING NUCLEAR EQUIVALENCIES')
@@ -177,7 +175,7 @@ subroutine CCEGEN(env,pr,fname)
         write(*,'(1x,a)') 'Unlisted nuclei (groups) are unique.'
       endif
 
-   !--- 3. distribute groups into subgroups basedon topology
+   !>--- 3. distribute groups into subgroups basedon topology
       if(pr)then
         write(*,*)
         call smallhead('ANALYZING EQUIVALENCIES')
@@ -185,12 +183,12 @@ subroutine CCEGEN(env,pr,fname)
       call distsubgr(zmol,groups,subgroups,inc,pr)
 
 
-   !--- 4. Equivalent atoms must be excluded in clustering to reduce noise
+   !>--- 4. Equivalent atoms must be excluded in clustering to reduce noise
       if(pr)then
         write(*,*)
         call smallhead('DETERMINE ATOMS TO INCLUDE IN PCA')
       endif
-      call excludeFromRMSD(zmol,subgroups,inc)
+      call excludeFromRMSD(zmol,inc)
       if(sum(inc)==0)then
           if(pr)then
           write(*,*) 'WARNING: No atoms included in PCA'
@@ -208,11 +206,11 @@ subroutine CCEGEN(env,pr,fname)
              endif
           enddo
       endif
-      !-- exclude user set atoms
+      !>-- exclude user set atoms
       if(env%pcaexclude)then
          call excludeSelected(zmol,inc,env%atlist)
       endif
-      !-- exclude H atoms
+      !>-- exclude H atoms
       if(heavyonly)then
          call excludeLight(zmol,inc)
       endif
@@ -224,7 +222,7 @@ subroutine CCEGEN(env,pr,fname)
           enddo
       endif
       ntaken = sum(inc)
-      !--- if we have too few, include the heav atoms at least
+      !>--- if we have too few, include the heav atoms at least
       if(ntaken <= 3)then
           do i=1,zmol%nat
             if(zmol%at(i) /= 1 )then
@@ -237,7 +235,7 @@ subroutine CCEGEN(env,pr,fname)
 
       call zmol%deallocate
 
-      !-- for very large ensemble files limit the clustering
+      !>-- for very large ensemble files limit the clustering
       if(autolimit)then
           if((env%nclust /= 0).and.(env%nclust*100 < zens%nall))then
               dum = float(zens%nall) * fraclimit
@@ -250,7 +248,7 @@ subroutine CCEGEN(env,pr,fname)
           nallnew = zens%nall
       endif
 
-   !--- 5. Transfer the relevant atoms to a new array   
+   !>--- 5. Transfer the relevant atoms to a new array   
       allocate(xyznew(3,ntaken,nallnew))!,atnew(ntaken))
       do i=1,nallnew
          k = 0
@@ -295,7 +293,7 @@ subroutine CCEGEN(env,pr,fname)
 !===================================================================================================!
 ! do the SVD to get the principal components
 !===================================================================================================!
-      if(ntaken > 3)then !all of this only makes sense if we have something to compare
+      if(ntaken > 3)then !> all of this only makes sense if we have something to compare
           call ctimer%start(1,'PCA')
           if(pr)then
               write(*,*)
@@ -309,9 +307,9 @@ subroutine CCEGEN(env,pr,fname)
                if(pr)then
                    write(*,'(1x,a)')'Using CMA DISTANCES as descriptors:'
                endif
-           !-- all structures should have been shifted to the CMA by CREGEN
-           !   therefore assume the CMA is at (0,0,0).
-           !   somewhat robust measure, but provides less information.
+           !>-- all structures should have been shifted to the CMA by CREGEN
+           !>   therefore assume the CMA is at (0,0,0).
+           !>   somewhat robust measure, but provides less information.
              mn = min(ntaken,mm)
              allocate(measure(mn,mm),pc(mn),pcvec(mm,mn))
              do i=1,mm
@@ -327,8 +325,8 @@ subroutine CCEGEN(env,pr,fname)
                if(pr)then
                    write(*,'(1x,a)')'Using CARTESIAN COORDINATES as descriptors:'
                endif
-           !-- all Cartesian components of the selected atoms
-           !   REQUIRES PERFECT ALIGNMENT(!), hence not very robust
+           !>-- all Cartesian components of the selected atoms
+           !>   REQUIRES PERFECT ALIGNMENT(!), hence not very robust
              mn = min(ntaken*3,mm)
              allocate(measure(mn,mm),pc(mn),pcvec(mm,mn))
              do i=1,mm
@@ -345,10 +343,10 @@ subroutine CCEGEN(env,pr,fname)
               if(pr)then
                write(*,'(1x,a)')'Using ZMATRIX as descriptors:'
              endif
-           !-- dihedral angles  
-             mn = ntaken - 3 !--- first three dihedral angles are zero
-             mn = min(mm,mn) !--- no more descriptors than structures for SVD!
-             if(mn < 1)then !we need at least 2 dihedral angles, and therefore 5 descriptors
+           !>-- dihedral angles  
+             mn = ntaken - 3 !>--- first three dihedral angles are zero
+             mn = min(mm,mn) !>--- no more descriptors than structures for SVD!
+             if(mn < 1)then !> we need at least 2 dihedral angles, and therefore 5 descriptors
                 if(pr)then
                     write(*,*) "Not enough descriptors for PCA!"
                     return
@@ -369,7 +367,7 @@ subroutine CCEGEN(env,pr,fname)
              deallocate(nc,nb,na,geo)
           !=========================================================================!   
           case( 'dihedral' )   
-              mn = min(mm,ntaken) !--- no more descriptors than structures for SVD!
+              mn = min(mm,ntaken) !>--- no more descriptors than structures for SVD!
               allocate(measure(mn,mm),diedr(ndied))
               if(pr)then
                 write(*,'(1x,a)') 'Using DIHEDRAL ANGLES as descriptors:' 
@@ -398,9 +396,9 @@ subroutine CCEGEN(env,pr,fname)
               write(*,'(1x,a,i0,a,i0,a)') 'Performing SVD for ', & 
         &          mm,' structures and ',mn,' props'
           endif
-      !--- do the SVD  ! MM must not be smaller than MN !
+      !>--- do the SVD  ! MM must not be smaller than MN !
           call SVD_to_PC(measure,mm,mn,pc,pcvec,.false.)
-!===================================================================================================!
+!=========================================================================================!
           call ctimer%stop(1)
       else
          write(*,*)'There are not enough descriptors for a PCA!'
@@ -413,15 +411,15 @@ subroutine CCEGEN(env,pr,fname)
          close(ich)
          return
       endif
- !===================================================================================================!     
+!========================================================================================!
       if(allocated(measure))deallocate(measure)
       if(allocated(xyznew))deallocate(xyznew)
       if(allocated(inc))deallocate(inc)
 
-      !--- normalize PC eigenvalues
+      !>--- normalize PC eigenvalues
       pcsum = sum(pc)
       pc = pc / pcsum
-      !--- get the contributing principal components
+      !>--- get the contributing principal components
       pcsum=0.0d0
       npc = 0
       do i=1,mn
@@ -430,7 +428,7 @@ subroutine CCEGEN(env,pr,fname)
          npc = npc + 1
          if(pcsum .ge. pcthr) exit
       enddo
-      !npc = max(npc,2) !-- at least 2 principal components should be used
+      !npc = max(npc,2) !>-- at least 2 principal components should be used
       npc = min(npc,pccap)
       pcsum=0.0d0
       do i=1,npc
@@ -455,13 +453,13 @@ subroutine CCEGEN(env,pr,fname)
         write(*,'(1x,a)') 'ensembles unique structural features and are used for the clustering'  
       endif
 
-      !--- use some less memory and rearrange the eigenvectors (COLUMNS AND ROWS ARE SWAPPED)
-      !    untaken PCs are not considered further
+      !>--- use some less memory and rearrange the eigenvectors (COLUMNS AND ROWS ARE SWAPPED)
+      !>    untaken PCs are not considered further
       allocate(pcdum(npc,mm))
       do i=1,mm
          pcdum(1:npc,i) = pcvec(i,1:npc)
       enddo
-      call move_alloc(pcdum,pcvec)  !THIS CHANGES THE SHAPE OF pcvec (COLUMNS AND ROWS ARE SWAPPED)
+      call move_alloc(pcdum,pcvec)  !>THIS CHANGES THE SHAPE OF pcvec (COLUMNS AND ROWS ARE SWAPPED)
 
 !=========================================================!
 ! do the Clustering
@@ -474,8 +472,8 @@ subroutine CCEGEN(env,pr,fname)
 
       allocate(member(mm), source=0)
 
-      !--- get Euclidean distances (packed matrix) between all structures
-      !ndist = (mm*(mm+1))/2 ! overflows for large ensembles
+      !>--- get Euclidean distances (packed matrix) between all structures
+      !> ndist = (mm*(mm+1))/2 ! overflows for large ensembles
       ndist=mm
       ndist=ndist*(mm+1)
       ndist=ndist/2
@@ -491,18 +489,18 @@ subroutine CCEGEN(env,pr,fname)
             q(1:npc) = pcvec(1:npc,j)
             dum = eucdist(npc,p,q)
             klong = lina(i,j)
-            dist(klong) = dum
+            dist(klong) = real(dum, sp)
          enddo
 !$OMP END DO
 !$OMP END PARALLEL         
       enddo
 
-      !-- NOTE
-      !-- different clustering algorithms exist, but what is common
-      !-- among them is, that no optimal number of clusters is known
-      !-- at the beginning. The lower bound for the number of
-      !-- clusters is the number of investigated PCs, the upper
-      !-- bound is the number of structures
+      !>-- NOTE
+      !>-- different clustering algorithms exist, but what is common
+      !>-- among them is, that no optimal number of clusters is known
+      !>-- at the beginning. The lower bound for the number of
+      !>-- clusters is the number of investigated PCs, the upper
+      !>-- bound is the number of structures
       if(pr)then
           select case(clusteralgo)
             case( 'means','kmeans' )
@@ -534,7 +532,7 @@ subroutine CCEGEN(env,pr,fname)
       if(env%nclust == 0)then
           nclustmin = 1
       else
-      !-- predefined number of clusters    
+      !>-- predefined number of clusters    
           nclust =min(mm,env%nclust)
           nclustmin = nclust
           nclustmax = nclust   
@@ -543,9 +541,9 @@ subroutine CCEGEN(env,pr,fname)
       allocate(statistics(3,nclustmax) ,source =0.0d0)
       CLUSTERSIZES : do nclustiter=nclustmin,nclustmax
 
-        !-- regular case: test continuous cluster sizes
+        !>-- regular case: test continuous cluster sizes
         nclust = nclustiter
-        !-- special case: test cluster sizes incrementally (good for large ensembles)
+        !>-- special case: test cluster sizes incrementally (good for large ensembles)
         if( env%clustlev >= 10 )then
             dum = float(mm)/float(nclustmax)
             dum2= dum * float(nclustiter)
@@ -593,7 +591,7 @@ subroutine CCEGEN(env,pr,fname)
          call ctimer%start(3,'statistics')
          call statanal(k,nclustmax,statistics,extrema,pr)
          if(pr)  call statwarning(fname)
-     !-- determine a suggested cluster size (smallest suggested cluster with good SSR/SST)
+     !>-- determine a suggested cluster size (smallest suggested cluster with good SSR/SST)
          do i=2,k    
             if((extrema(1,i).or.extrema(2,i)).and.(statistics(3,i) > csthr))then
                 nclust=i
@@ -606,7 +604,7 @@ subroutine CCEGEN(env,pr,fname)
            write(*,*)
            write(*,'(1x,a,f4.2,a,i0)') 'Suggested (SSR/SST >',csthr,') cluster count: ',nclust
          endif
-     !-- calculate the determined partition into clusters again for final file
+     !>-- calculate the determined partition into clusters again for final file
          allocate(centroid(npc,nclust), source = 0.0_ap)
          select case(clusteralgo)
           case( 'means','kmeans' )
@@ -623,13 +621,13 @@ subroutine CCEGEN(env,pr,fname)
       deallocate(statistics)    
 
       deallocate(q,p,dist)
-      !-- finally, assign a representative structure to each group (based on lowest energy)
-      !-- and write the new ensemble file
+      !>-- finally, assign a representative structure to each group (based on lowest energy)
+      !>-- and write the new ensemble file
       call PCA_grpwrite(nclust,npc,mm,pcvec,member)
 
       !ncb=maxval(member,1) !--total number of cluster
       ncb = nclust
-      ancb = ncb           !--actual number of clusters
+      ancb = ncb           !>--actual number of clusters
 
       if(ancb.le.1) return
 
@@ -653,7 +651,7 @@ subroutine CCEGEN(env,pr,fname)
                  endif
              endif
           enddo
-          !-- if there are clusters without structures 
+          !>-- if there are clusters without structures 
           if(c == 0 )then
               clustbest(i) = -1
               ancb = ancb - 1
@@ -663,7 +661,6 @@ subroutine CCEGEN(env,pr,fname)
       emin=minval(eclust,1)
       open(newunit=ich, file=clusterfile)
       do i=1,ncb
-        !write(*,*) ind(i)
         k=clustbest(ind(i))
         if(k > 0)then
          dum = zens%er(k)
@@ -702,7 +699,6 @@ subroutine clustleveval(env,maxclust,csthr,SSRSSTthr)
       use crest_data
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
       integer :: clev
       integer :: maxclust
       real(wp) :: csthr
@@ -773,7 +769,7 @@ subroutine excludeLight(zmol,inc)
       implicit none
       type(zmolecule) :: zmol
       integer :: inc(zmol%nat)
-      integer :: i,j
+      integer :: i
       do i=1,zmol%nat
          if(zmol%at(i) == 1 )then
              inc(i) = 0
@@ -792,7 +788,7 @@ subroutine excludeSelected(zmol,inc,atlist)
       type(zmolecule) :: zmol
       integer :: inc(zmol%nat)
       character(len=*) :: atlist   !a string containing atom numbers, needs parsing
-      integer :: i,j,ncon
+      integer :: i,ncon
       integer,allocatable :: inc2(:)
       allocate(inc2(zmol%nat),source=0)
       call parse_atlist_new(atlist,ncon,zmol%nat,zmol%at,inc2)
@@ -819,8 +815,7 @@ subroutine svd_to_pc(measure,m,n,sig,U,pr)
       real(wp) :: measure(n,m)
       real(wp) :: sig(n)
       real(wp) :: U(m,n)
-      real(wp) :: xx(10),eigsum,eigtot
-      integer :: i,j,k,p,kk,nn,info,lwork
+      integer :: i,j,info,lwork
       real(wp),allocatable :: mean(:),tmp(:)
       integer, allocatable :: ind(:)
       real(wp),allocatable :: X(:,:), V(:,:), work(:)
@@ -849,7 +844,7 @@ subroutine svd_to_pc(measure,m,n,sig,U,pr)
       if(pr)then
          call PRMAT(6,X,m,n,'X')
       endif
-!--- LAPACKs' DGEJSV
+!>--- LAPACKs' DGEJSV
       call DGEJSV ( 'C' , 'U' , 'V' , 'N' , 'N' , 'N' , &
      &              m,n,X,m,sig,U,m,V,n,                &
      &              WORK, LWORK, IWORK, INFO )
@@ -905,23 +900,22 @@ subroutine kmeans(nclust,npc,mm,centroid,pcvec,ndist,dist,member)
 
     allocate(refmember(mm), source = 0)
 
-    !-- determine seeds for the centroids (i.e., initial positions)
+    !>-- determine seeds for the centroids (i.e., initial positions)
     call  kmeans_seeds(nclust,npc,mm,centroid,pcvec,ndist,dist)
 
     do
-    !-- determine cluster membership for all structures 
-    !   (by shortest Euc. distance to the respective centroid)
+    !>-- determine cluster membership for all structures 
+    !>   (by shortest Euc. distance to the respective centroid)
        member = 0 !reset
        call kmeans_assign(nclust,npc,mm,centroid,pcvec,member)
 
-    !-- check if memberships changed w.r.t. previous memberships
-       !write(*,*)refmember
+    !>-- check if memberships changed w.r.t. previous memberships
        if(all(member==refmember))then
            exit
        else
            refmember = member
        endif    
-    !-- update centroids if necessary
+    !>-- update centroids if necessary
        call kmeans_recenter(nclust,npc,mm,centroid,pcvec,member)
     enddo
 
@@ -941,15 +935,14 @@ subroutine kmeans_seeds(nclust,npc,mm,centroid,pcvec,ndist,dist)
     real(sp) :: dist(ndist)
     real(sp) :: ddum
     integer(idp) :: k,kiter
-    integer(idp) :: lina !this is a function
     integer :: i,j,l,c
     real(wp) :: distsum,maxdistsum
     real(ap) :: eucdist !this is a function
     real(ap),allocatable :: p(:),q(:)
     integer,allocatable :: taken(:)
 
-    !--- first two centroids are located at the most apart points
-    !    in the PC space
+    !>--- first two centroids are located at the most apart points
+    !>    in the PC space
     !k = maxloc(dist,1)
     ddum=0.0_sp
     do kiter=1,ndist
@@ -957,15 +950,15 @@ subroutine kmeans_seeds(nclust,npc,mm,centroid,pcvec,ndist,dist)
           k=kiter
        endif
     enddo
-    call revlin(k,j,i) !reverse of the lin function, get indices i and j
+    call revlin(k,j,i) !> reverse of the lin function, get indices i and j
 
     centroid(1:npc,1) = pcvec(1:npc,i)
     centroid(1:npc,2) = pcvec(1:npc,j)
 
-    if(nclust.le.2)return !-- if we only need two centroids, return
+    if(nclust.le.2)return !>-- if we only need two centroids, return
 
-    !-- If more centroids are needed, search for one point which has the maximal sum of
-    !-- the distances between the already determined centroids and itself. 
+    !>-- If more centroids are needed, search for one point which has the maximal sum of
+    !>-- the distances between the already determined centroids and itself. 
     allocate(p(npc),q(npc),taken(nclust))
     taken=0
     taken(1) = i
@@ -1000,11 +993,7 @@ subroutine kmeans_seeds(nclust,npc,mm,centroid,pcvec,ndist,dist)
        else
         centroid(1:npc,i) = pcvec(1:npc,c)
        endif
-       !write(*,*) 'structure',c
     enddo   
-
-    !write(*,*)'Initial centroids at position of these structures:'
-    !write(*,*)taken
 
     deallocate(taken,q,p)
 
@@ -1021,7 +1010,7 @@ subroutine kmeans_assign(nclust,npc,mm,centroid,pcvec,member)
     real(wp) :: pcvec(npc,mm)
     integer :: member(mm)
     real(ap) :: eucdist  !this is a function
-    integer :: i,j,l,c
+    integer :: i,j,c
     real(ap),allocatable :: centdist(:)
     real(ap),allocatable :: p(:),q(:)
 
@@ -1056,9 +1045,7 @@ subroutine kmeans_recenter(nclust,npc,mm,centroid,pcvec,member)
     real(ap) :: centroid(npc,nclust)
     real(wp) :: pcvec(npc,mm)
     integer :: member(mm)
-    integer(idp) :: k
-    integer(idp) :: lina !this is a function
-    integer :: i,j,l,c
+    integer :: i,j,c
     real(ap),allocatable :: p(:),q(:)
 
     allocate(p(npc),q(npc))
@@ -1105,9 +1092,7 @@ subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
     real(wp),allocatable :: DBmat(:,:)
     real(ap) :: eucdist !this is a function
     real(wp) :: d,Rij,maxDB
-    integer :: i,j,c,k,c2
-    integer :: nclust2
-    integer :: lin !this is a function
+    integer :: i,c,k,c2
     
     DBI= 0.0d0
     pSF = 0.0d0
@@ -1117,7 +1102,7 @@ subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
 
     allocate(p(npc),q(npc))
 
-    !-- Sum of squares error
+    !>-- Sum of squares error
     SSE = 0.0d0
     do c=1,nclust
        p(1:npc) = centroid(1:npc,c)
@@ -1131,7 +1116,7 @@ subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
     enddo
     SSE = SSE
 
-    !-- Total sum of squares
+    !>-- Total sum of squares
     SST = 0.0d0
     p = 0.0d0
     do c=1,nclust
@@ -1145,13 +1130,13 @@ subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
     enddo
     SST = SST
 
-    !-- Sum of squares regression
+    !>-- Sum of squares regression
     SSR = SST - SSE
 
-    !-- SSR/SST ratio
+    !>-- SSR/SST ratio
     SSRSST = SSR / SST
 
-    !-- pseudo-F statistic
+    !>-- pseudo-F statistic
     if(nclust>1)then
       pSF = (SSR/(float(nclust)-1.0d0))
       if(mm==nclust)then
@@ -1163,7 +1148,7 @@ subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
       pSF = 0.0d0
     endif  
 
-    !-- Davies-Bouldin index (DBI)
+    !>-- Davies-Bouldin index (DBI)
     allocate(compact(nclust),source=0.0d0) !cluster compactness
     do c=1,nclust
        p(1:npc) = centroid(1:npc,c)
@@ -1215,28 +1200,27 @@ subroutine statanal(n,nmax,statistics,extrema,pr)
     integer :: n,nmax
     real(wp) :: statistics(3,nmax)
     logical,intent(inout) :: extrema(2,n)
-    logical :: pr,dum
+    logical :: pr
     real(wp) :: last,next,current
-    integer :: i,j,k
+    integer :: i
 
     extrema=.false.
-!--- identify local extrema of the DBI and pSF
+!>--- identify local extrema of the DBI and pSF
     do i=2,n-1
-    !-- DBI 
+    !>-- DBI 
        last = statistics(1,i-1)
        next = statistics(1,i+1)
        current = statistics(1,i)
        if((current<last) .and. (current<next))then
           extrema(1,i) = .true.
        endif
-    !-- pSF
+    !>-- pSF
        last = statistics(2,i-1)
        next = statistics(2,i+1)
        current = statistics(2,i)
        if((current>last) .and. (current>next))then
           extrema(2,i) = .true.
        endif
-       !write(*,'(i0,1x,f8.2,f8.2,f8.2,l)')i,last,current,next,extrema(2,i)
     enddo
 
     if(pr)then
@@ -1297,7 +1281,7 @@ subroutine getdiederatoms(zmol,nat,inc,nb,diedat,ndied)
       integer :: diedat(4,nb)
       integer,intent(out) :: ndied
       integer :: a,b,c,d
-      integer :: i,j,k,l
+      integer :: i,j,k
 
       ndied = 0
       do i=1,nb
@@ -1309,8 +1293,8 @@ subroutine getdiederatoms(zmol,nat,inc,nb,diedat,ndied)
          if(zmol%zat(b)%nei==1)cycle !terminal atom?
          if(zmol%methyl(a))cycle !methyl C?
          if(zmol%methyl(b))cycle !methyl C?
-         !-- passed all checks, so let's get atoms
-         !-- a neighbour for a
+         !>-- passed all checks, so let's get atoms
+         !>-- a neighbour for a
          do j=1,zmol%zat(a)%nei
             c = zmol%zat(a)%ngh(j)
             if(c == b)then
@@ -1319,7 +1303,7 @@ subroutine getdiederatoms(zmol,nat,inc,nb,diedat,ndied)
                 exit
             endif
          enddo
-         !-- a neighbour for b
+         !>-- a neighbour for b
          do k=1,zmol%zat(b)%nei
             d = zmol%zat(b)%ngh(k)
             if( d == a)then
@@ -1329,8 +1313,8 @@ subroutine getdiederatoms(zmol,nat,inc,nb,diedat,ndied)
             endif
          enddo
          ndied = ndied + 1
-         !the bond is between a and b
-         !c is a neighbour of a, d is a neighbour of b
+         !>the bond is between a and b
+         !>c is a neighbour of a, d is a neighbour of b
          diedat(2,ndied) = a
          diedat(3,ndied) = b
          diedat(1,ndied) = c 
@@ -1346,11 +1330,11 @@ subroutine calc_dieders(nat,xyz,ndied,diedat,diedr)
       use zdata
       use strucrd
       implicit none
-      integer :: nat,nall,ndied
+      integer :: nat,ndied
       real(wp) :: xyz(3,nat)
       integer :: diedat(4,ndied)
       real(wp),intent(out) :: diedr(ndied)
-      integer :: i,j,k,l
+      integer :: i
       integer :: a,b,c,d
       real(wp) :: coords(3,4)
       real(wp) :: angle

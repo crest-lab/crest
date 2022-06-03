@@ -27,7 +27,6 @@ subroutine confcross(env,maxgen,kk)
       implicit none
 
       type(systemdata) :: env
-      !type(options)    :: opt
 
       real(wp),allocatable::xyz(:,:,:),new(:,:),er(:),c0(:,:),c1(:,:),tmp3(:,:)
       real(wp),allocatable::coord(:,:),tmp(:,:,:),cn(:),c2(:,:),cnref(:)
@@ -37,27 +36,25 @@ subroutine confcross(env,maxgen,kk)
       real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:),ydum(:)  !rmsd dummy stuff
       real*4  ,allocatable :: csave(:,:,:),cint(:,:,:) ! save some mem because list can be long
 
-      real(wp) :: autokcal,cthr,rthr,ewin,de,dr,bthr,ddum,rmsdav
-      real(wp) :: elow,dum,aa,bb,cc,eref,athr,pi,sd,rthrbohr
+      real(wp) :: cthr,rthr,ewin,rmsdav
+      real(wp) :: dum,sd,rthrbohr
       real(wp) :: cnorm
-      real(wp) :: thresholds(8)
       real(wp) :: percent,pcount
 
-      parameter (autokcal=627.509541d0)
-      parameter (pi =  3.14159265358979D0)
+      real(wp),parameter :: autokcal=627.509541d0
+      real(wp),parameter :: pi =  3.14159265358979D0
 
-      integer :: i,j,k,l,m,nall,n,ig,ng,m1,ierr,nmax,nl,kl,kk
-      integer :: maxgen,r,n2,nk,ident,nmaxmax,ii
+      integer :: i,j,k,l,m,nall,n,ierr,nmax,kl,kk
+      integer :: maxgen,n2,ident,nmaxmax,ii
       integer :: io,ich
-      integer TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM, nproc
       integer, external :: lin
 
       character(len=512) :: thispath
-      character(len=80) :: atmp,btmp,ctmp,fname,oname
+      character(len=80) :: btmp,ctmp,fname,oname
       character(len=52) :: bar
       character(len=3) :: a3            
 
-      logical debug,error,ldum,ex,fail
+      logical :: error,ldum,fail
       
       associate( thresholds => env%thresholds, cgf => env%cgf)
 
@@ -174,7 +171,7 @@ subroutine confcross(env,maxgen,kk)
 ! all internals 
       do i=1,nmax
          call XYZGEO(XYZ(1,1,i),N,NA,NB,NC,1.0d0,c1)
-         cint(1:3,1:n,i)=c1(1:3,1:n)              
+         cint(1:3,1:n,i)=real( c1(1:3,1:n), 4)
       enddo
 ! first built them all
       cstat=0
@@ -198,7 +195,7 @@ subroutine confcross(env,maxgen,kk)
             call ycoord2(n,rcov,at,coord,cnref,100.d0,cthr,ldum)  !SG check clash and skip directly
             if(ldum) cstat(l)=1 
             if(cstat(l).eq.0) then
-               csave(1:3,1:n,l)=coord(1:3,1:n) ! take it
+               csave(1:3,1:n,l)=real(coord(1:3,1:n), 4) ! take it
                call rmsd(n,tmp3,coord,0,Udum,xdum,ydum,dum,.false.,gdum) ! w.r.t. first
                if(dum > 0.0_wp)then
                  rms(l)=dum

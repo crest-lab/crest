@@ -27,10 +27,7 @@ subroutine addorigin(filename,origin)
         implicit none
         character(len=*),intent(in) :: filename
         character(len=*),intent(in) :: origin        
-        integer :: i,j
-        integer :: io,from,to
-        character(len=128) :: atmp
-        character(len=1) :: digit
+        integer :: i
         integer :: nat,nall
         integer,allocatable :: at(:)
         real(wp),allocatable :: xyz(:,:,:)
@@ -108,11 +105,10 @@ subroutine addtimestamp(filename,nsplit)
         character(len=*),intent(in) :: filename
         integer,intent(in) :: nsplit
 
-        integer :: i,j
-        integer :: iz1,nat,nall
+        integer :: i
+        integer :: nat,nall
         integer :: tag3
         real(wp) :: tag1,tag2
-        character(len=512) :: atmp
         character(len=40),allocatable :: stamp(:)
 
         call rdensembleparam(filename,nat,nall)

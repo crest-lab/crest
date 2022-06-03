@@ -66,9 +66,6 @@ subroutine freqmass(amss,param)
       real(wp),intent(inout) :: amss(118) 
       character(len=*) :: param
  
-      integer :: ich
-      real(wp) :: scal
-
       select case( param )
        case( 'gfn2' )
           amss=amss*1.016_wp

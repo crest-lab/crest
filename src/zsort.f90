@@ -16,26 +16,24 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
-subroutine zsort
-  use iomod
-  use strucrd,only:rdnat,rdcoord,wrc0
-  implicit none
-  integer n
-  real*8,allocatable :: xyz(:,:) ! comment out if subroutine
-  real*8,allocatable :: xyznew(:,:)
-  real*8,allocatable :: cn(:),tmp(:,:),tmpgeo(:,:)
-  real*8,allocatable :: geo(:,:) ! comment out if subroutine
-  integer,allocatable :: nat_mols(:),mvec(:),itmp(:),atnew(:)
-  integer,allocatable :: na(:),nb(:),nc(:),at(:) ! comment out if subroutine
-  integer,allocatable :: tmpna(:),tmpnb(:),tmpnc(:)
-  real*8,allocatable :: rcov(:),xx(:)
+subroutine zsort  
+      use iomod
+      use strucrd, only: rdnat,rdcoord,wrc0
+      implicit none
+      integer n
+      real*8,allocatable::xyz(:,:)                             ! comment out if subroutine
+      real*8,allocatable::xyznew(:,:)
+      real*8,allocatable :: tmp(:,:),tmpgeo(:,:)
+      real*8,allocatable::geo(:,:)                             ! comment out if subroutine
+      integer,allocatable::nat_mols(:),mvec(:),itmp(:),atnew(:)        
+      integer,allocatable::na(:),nb(:),nc(:),at(:)             ! comment out if subroutine
+      integer,allocatable::tmpna(:),tmpnb(:),tmpnc(:)          
+      real*8,allocatable :: rcov(:),xx(:)     
 
-  integer :: i,j,k,l,nn,nmol,refmol
-  integer :: i1,i2,fail,try,zmatcnt,zmatstart
+      integer :: i,j,k,nn,nmol,refmol
+      integer :: zmatcnt,zmatstart
 
-  character(len=80) :: fname
-
-  logical ex
+      logical ex
 
 !      write(*,*)
 !      write(*,'(7x,''========================================'')')

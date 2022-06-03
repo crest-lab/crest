@@ -62,7 +62,6 @@ subroutine V2cleanup(restartopt)
       implicit none
       logical :: restartopt
       character(len=12),parameter :: pipe =' 2>/dev/null'
-      character(len=80) :: atmp,btmp
 
       call rmrf('.tmpxtbmodef hessian .xtboptok')
       call rmrf('xtbrestart xtbmdok')

@@ -23,11 +23,6 @@
 ! On Input:  nconf     - number of conformers
 !            energies  - energy of each conformer
 !            nrot      - number of rotamers for each conformer 
-!            sym       - the point group of each conformer
-!            rotc      - rotational constants A,B,C for each 
-!                        conformer in MHz
-!            occurence - array to trac which conformer stems
-!                        from which timeframe
 !            corefac   - degeneracy arising from enantiomers
 !            tlen      - total MTD length in ps
 !            T         - temperature in K
@@ -37,7 +32,7 @@
 !            Cp - molecular heat capacity
 !
 !==============================================================!
-subroutine calculateEntropy(nconf_tot,energies,nrot,sym, &
+subroutine calculateEntropy(nconf_tot,energies,nrot, &
     &                       corefac,T,S,Cp,Hconf,pr,pr2)
      use iso_fortran_env, wp => real64, idp => int64
      implicit none
@@ -45,29 +40,24 @@ subroutine calculateEntropy(nconf_tot,energies,nrot,sym, &
      integer,intent(in)  :: nconf_tot
      real(wp),intent(in) :: energies(nconf_tot)
      integer(idp),intent(in)  :: nrot(nconf_tot)
-     character(len=3)    :: sym(nconf_tot)
+     !character(len=3)    :: sym(nconf_tot)
      !real(wp),intent(in) :: rotc(3,nconf_tot)
      real(wp),intent(in) :: corefac(nconf_tot)
      logical,intent(in)  :: pr
      logical,intent(in) :: pr2
 
      real(wp) :: S, T
-     real(wp) :: srrho, sconf, hconf, cp
-     real(wp) :: dum1,dum2,stest,serr1,serr2,w_extra,x
-     real(wp) :: rot(3)
+     real(wp) :: sconf, hconf, cp
+     real(wp) :: dum1,dum2
      real(wp),allocatable  :: e (:)
      real(wp),allocatable  :: sr(:)
      real(wp),allocatable  :: g (:)
      real(wp),allocatable  :: p (:)
-     integer, allocatable  :: ncslot(:)
 
      character(len=16) :: nmbr
      character(len=26) :: prnt
-     integer :: i,j,k,l,ii
-     integer :: ich
+     integer :: i,ii
      integer :: nconf
-
-     logical :: ex
 
      real(wp),parameter ::expo=0
 
@@ -164,7 +154,7 @@ subroutine entropy_S(n,T,expo,e,g,s,cp,htmh0)
 
 
       real(wp),parameter :: R  = 8.31446261815324/4.184
-      real(wp) :: f,esum,esum2,esum3,gi,pi,sump
+      real(wp) :: f,esum,esum2,esum3,gi,pi
       integer :: i
       
       f = 1.0d0 / (T * R * 0.001d0)
@@ -209,7 +199,6 @@ subroutine newentropyextrapol(env)
     use crest_data
     use strucrd
     implicit none
-    !type(options) :: opt
     type(systemdata) :: env
 
     integer :: i,j,k,l
@@ -228,8 +217,7 @@ subroutine newentropyextrapol(env)
     character(len=64) :: btmp2
     character(len=16) :: nmbr
     character(len=26) :: prnt
-    real(wp) :: s,cp
-    real(wp) :: avs,dum1,dum2,val
+    real(wp) :: dum2,val
     real(wp) :: p3,pmin,rmsd,rmin
     logical  :: ok,okmin
     integer  :: nall
@@ -472,16 +460,14 @@ end subroutine entropyprintout
 ! Use by:
 ! crest -redoextrapol .data
 !===============================================================!
-subroutine redo_extrapol(env,fname,rtin)
+subroutine redo_extrapol(fname,rtin)
     use iso_fortran_env, wp=>real64
     use crest_data
     implicit none
-    type(systemdata) :: env
     character(len=*) :: fname
     integer :: ich
-    integer :: i,j,k,l
+    integer :: i,j,k
     integer :: iter,nt,rt,rtin
-    real(wp) :: T
     real(wp),allocatable :: temps(:)
     real(wp),allocatable :: slist(:,:)
     integer,allocatable  :: nalls(:)

@@ -489,7 +489,6 @@ subroutine smallhead(str)
       implicit none
       character(len=*) :: str
       integer :: strlen
-      integer :: i,j
       character(len=:),allocatable :: str2
       strlen=len_trim(str)
       str2=repeat('-',strlen) 
@@ -512,7 +511,6 @@ subroutine underline(str)
       implicit none
       character(len=*) :: str
       integer :: strlen
-      integer :: i,j
       character(len=:),allocatable :: str2
       strlen=len_trim(str)
       str2=repeat('-',strlen) 
@@ -614,12 +612,10 @@ subroutine crest_dry(env)
       implicit none
 
       type(systemdata),intent(inout) :: env
-      !type(options),intent(inout)    :: opt
       character(len=1024) :: dumstr
       character(len=:),allocatable :: dum
       logical :: cregenpr = .false.
       logical :: mdsetpr  = .false.
-      logical :: constpr  = .false.
       logical :: jobpr    = .true.
       logical :: xtbpr    = .true.
       logical :: techpr   = .true.
@@ -814,7 +810,7 @@ subroutine cat_mod(ch,pre,fname,post)
        character(len=*) :: fname
        character(len=*) :: post
        character(len=256) :: adum
-       integer :: ich,i,j,k,l,io
+       integer :: ich,io
            
        open(newunit=ich,file=fname)
        do
@@ -831,7 +827,6 @@ subroutine checkbinary(env)
         use syscheck
         implicit none
         type(systemdata) :: env
-        !type(options) :: opt
         integer :: r
 
         r = 0

@@ -28,7 +28,7 @@ subroutine rdcontrol(fname,oname,method,freqmode)
      character(len=*) :: oname
      character(len=*) :: method
      type(filetype) :: ctrl
-     integer :: i,j,k,l,m,n
+     integer :: i,j,k,l,m
      integer :: block(2)
      integer :: ml
      logical :: ex
@@ -201,7 +201,7 @@ subroutine getatmss(mass,amv,ause)
      logical :: ause(107)
      logical :: ex
      type(filetype) :: mfile
-     integer :: i,j,k,l
+     integer :: i,j,k
      character(len=:),allocatable :: dum
      character(len=:),allocatable :: at
      amv=ams(1:107) !from module atmasses
@@ -247,7 +247,7 @@ subroutine add_mass_xtb(fname)
      type(filetype) :: coord
      real(wp),allocatable :: amv(:)
      logical,allocatable :: ause(:)
-     integer :: n,i,j,k
+     integer :: n,i
      integer,allocatable :: at(:)
      real(wp),allocatable :: xyz(:,:)
      character(len=64) :: dum

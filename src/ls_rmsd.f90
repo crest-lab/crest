@@ -91,9 +91,9 @@ CONTAINS
     integer :: i,j
     real(dp),dimension(3,n) :: x,y
     real(dp),dimension(n) :: xi,yi
-    real(dp) :: x_norm,y_norm,lambda,y1,y2,y3
+    real(dp) :: x_norm,y_norm,lambda
     real(dp),dimension(3,3) :: Rmatrix
-    real(dp),dimension(4,4) :: S,dS
+    real(dp),dimension(4,4) :: S
     real(dp),dimension(4) :: q
     real(dp) :: tmp(3)
     integer :: io

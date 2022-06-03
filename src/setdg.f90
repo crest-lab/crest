@@ -20,7 +20,6 @@ subroutine get_set_arg(line,argument)
         character(len=*) :: line
         character(len=*) :: argument
 
-        character(len=256) :: dummy
         character(len=1) :: digit
         integer :: i,j
 
@@ -51,7 +50,6 @@ subroutine setdg_subr_real(fnam,dg,tmp2)
       character(len=512) :: tmp
       character(len=64)  :: argum
       integer :: ich,och,io
-      integer :: i,j,k,nn
       real*8 :: tmp2
 
       write(dg2,'(a,f14.4)')trim(dg),tmp2
@@ -121,7 +119,6 @@ subroutine setdg_subr_int(fnam,dg,tmp2)
       character(len=512) :: tmp
       character(len=64)  :: argum
       integer :: ich,och,io
-      integer :: i,j,k,nn
       integer :: tmp2
 
       write(dg2,'(a,i10)')trim(dg),tmp2
@@ -192,7 +189,6 @@ subroutine setdg_subr_string(fnam,dg,tmp2)
       character(len=512) :: tmp
       character(len=64)  :: argum
       integer :: ich,och,io
-      integer :: i,j,k,nn
 
       write(dg2,'(a,4x,a)')trim(dg),trim(tmp2)
 
@@ -263,7 +259,6 @@ subroutine setdg_constr(fnam,dg,tmp2)
       character(len=512) :: tmp
       character(len=64)  :: argum
       integer :: ich,och,io
-      integer :: i,j,k,nn
 
       write(dg2,'(a,4x,a)')trim(dg),trim(tmp2)
 
@@ -316,7 +311,6 @@ subroutine setdg_subr_metadyn(fnam,dg,tmp2,tmp3,tmp4)
       character(len=512) :: tmp
       character(len=64)  :: argum
       integer :: ich,och,io
-      integer :: i,j,k,nn
 
       write(dg2,'(a,1x,f10.5,1x,f10.5,3x,i0)')trim(dg),tmp2,tmp3,tmp4
 
@@ -384,7 +378,6 @@ subroutine setdg_optlev(fnam,optlev)
       character(len=512) :: tmp
       character(len=64)  :: argum
       integer :: ich,och,io
-      integer :: i,j,k,nn
 
       write(dg2,'(''optlev'',i5)')nint(optlev)
 
@@ -450,7 +443,6 @@ subroutine setdg_block_plain(fnam,dg)
       character(len=*),intent(in) :: dg
       character(len=512) :: tmp
       integer :: ich,och,io
-      integer :: i,j,k,nn
 
       open(newunit=ich,file=trim(fnam))
       open(newunit=och,file='.setdgtmp')
@@ -501,7 +493,6 @@ subroutine setdg_block_key(fnam,key,dg)
       character(len=*),intent(in) :: dg
       character(len=512) :: tmp
       integer :: ich,och,io
-      integer :: i,j,k,nn
 
       open(newunit=ich,file=trim(fnam))
       open(newunit=och,file='.setdgtmp')
@@ -561,7 +552,6 @@ subroutine clear_end(fnam)
       character(len=*),intent(in) :: fnam
       character(len=512) :: tmp
       integer :: ich,och,io
-      integer :: i,j,k,nn
 
       open(newunit=ich,file=trim(fnam))
       open(newunit=och,file='.setdgtmp')

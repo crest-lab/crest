@@ -48,7 +48,6 @@ subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
       implicit none
 
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
 
       logical,intent(in)   :: pr
       logical,intent(in)   :: pr2
@@ -70,13 +69,11 @@ subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
       real(wp),allocatable :: enantiofac(:) !factor for backbones
       real(wp),allocatable :: rotconst(:,:)  !rotational constants for each conformer
       real(wp),allocatable :: energies(:)    !energy for each conformer
-      integer,allocatable :: occurence(:)
       character(len=3),allocatable :: symsym(:) !symmetry group symbol for each conformer
       integer,allocatable :: inc(:)
-      logical :: ex
-      integer :: i,j,k,l,nt
-      real(wp) :: dum,tlen,dum2
-      real(wp) :: tdum,tstep,sdum,cpdum,hdum,srotav
+      integer :: i,k,nt
+      real(wp) :: dum2
+      real(wp) :: tdum,sdum,cpdum,hdum
 
       integer :: maxrotfac !this is a function
       
@@ -143,7 +140,7 @@ subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
       endif
       allocate(corefac(zens%nconf),source=1.0_wp)
       allocate(enantiofac(zens%nconf),source=1.0_wp)
-      call excludeFromRMSD(zmol,subgroups,inc)
+      call excludeFromRMSD(zmol,inc)
       call intraconfRMSD(zens,inc,symsym,corefac,enantiofac,.false.)   
       !open(newunit=l,file='corefac.list')
       !do i=1,zens%nconf
@@ -183,7 +180,7 @@ subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
 
    !--- 8. calculating entropy  
       call calculateEntropy(zens%nconf,energies,introtscal, &
-     &   symsym,enantiofac,T,S,Cp,Hdum,pr,pr2)
+     &   enantiofac,T,S,Cp,Hdum,pr,pr2)
 
    !--- 9. temperature dependence
       if( env%properties == -45)then
@@ -208,7 +205,7 @@ subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
              tdum = env%thermo%temps(i)
              sdum=0.0d0
              cpdum=0.0d0
-             call calculateEntropy(zens%nconf,energies,introtscal,symsym, &
+             call calculateEntropy(zens%nconf,energies,introtscal, &
              &   enantiofac,tdum,Sdum,Cpdum,Hdum,.false.,.false.)
              !tdum = tdum + tstep
              if(allocated(env%emtd%soft))then
@@ -280,13 +277,12 @@ subroutine degeneracies(nconf,rotscal,introtscal,n,rotfac,corefac,symfac,pr,xh3)
      real(wp) :: corefac(nconf)  !factor arising from number of core fragements per conformer
      real(wp) :: symfac(nconf)   !factor from the symmetry of the conformer
      logical :: pr
-     integer :: i,j,k,l
+     integer :: i,k,l
      integer(idp) :: factotal !this is a function
      integer(idp) :: bigint
      real(wp) :: rf,sf
      real(wp) :: xh3
      character(len=8) :: dum
-     character(len=64) :: str
      rotscal(:) = 1.0_wp !reset
      introtscal(:) = 1
      if(pr)then
@@ -319,7 +315,7 @@ subroutine degeneracies(nconf,rotscal,introtscal,n,rotfac,corefac,symfac,pr,xh3)
      XH3 = float(rotfac(3))
      endif
      !--- total rot. factor
-     l=factotal(rotfac,n)
+     l=int(factotal(rotfac,n), 4)
      rf=float(l)
      if(pr) write(*,'(1x,a,i0)') 'Total factor:  *',l
 
@@ -406,7 +402,7 @@ subroutine readequals(fname,zmol,groups)
       character(len=:),allocatable :: line
 
       integer :: linc
-      integer :: i,j,k,l
+      integer :: i,j,k
       integer :: ng,nm
 
       logical :: ex
@@ -497,10 +493,9 @@ subroutine distsubgr(zmol,groups,rotgr,exclude,pr)
       logical :: pr
 
       type(zgrp)      :: grp    !a single group
-      type(zgrp)      :: newgrp   
       integer :: i,j,k,l
       integer :: atk,atl,cent,ring
-      integer :: ng,nsg,nm,nms
+      integer :: ng,nsg,nms
       integer :: R
 
       integer,allocatable :: gref(:)  !-- tracking of groups
@@ -751,7 +746,7 @@ integer function auxgetgroup(atm,grps)
       implicit none
       type(zequal) :: grps
       integer :: atm
-      integer :: i,j
+      integer :: i
       auxgetgroup = 0
       do i=1,grps%ng
         if(any(grps%grp(i)%mem(:) .eq. atm))then
@@ -907,7 +902,6 @@ logical function  specialgrpring(zmol,grp,gref,d)
      integer :: grefnewindex !this is a function
      type(zring) :: zr
      integer :: i,j
-     logical :: rotagroup
      integer :: m,km,k,at
      integer :: rtot
      logical,allocatable :: mask(:)
@@ -999,7 +993,7 @@ subroutine intraconfRMSD(zens,inc,symsym,fac,enantiofac,pr)
       logical :: pr
       logical :: enantio
 
-      integer :: i,j,k,l
+      integer :: i,j,k
       real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:), ydum(:)  ! rmsd dummy stuff
       integer :: n,rednat,nall,nrot,nconf
 
@@ -1157,17 +1151,15 @@ end subroutine intraconfRMSD
 ! Routines related to tracking array that indicates if atoms
 ! are to be taken out from RMSD
 !=====================================================================!
-subroutine excludeFromRMSD(zmol,grp,inc)
+subroutine excludeFromRMSD(zmol,inc)
       use iso_fortran_env, wp => real64
       use zdata
       implicit none
       type(zmolecule) :: zmol
-      type(zequal) :: grp
       integer :: inc(zmol%nat)
-      integer :: i,j      
-      integer :: n
+      integer :: i      
 
-!--- invert include array (up to this point it has only the atoms which shall be excluded)
+!>--- invert include array (up to this point it has only the atoms which shall be excluded)
       do i=1,zmol%nat
         if(inc(i).eq.1)then
           inc(i) = 0
@@ -1176,12 +1168,10 @@ subroutine excludeFromRMSD(zmol,grp,inc)
         endif
       enddo
 
-!--- as a test remove the hydrogen atoms
+!>--- as a test remove the hydrogen atoms
 !      do i=1,zmol%nat
 !        if(zmol%at(i).eq.1) inc(i) = 0 
 !      enddo
-
-      !!write(*,*) inc
 
       return
 end subroutine excludeFromRMSD
@@ -1251,7 +1241,7 @@ subroutine allsym(zens,grps,fac,symbol,pr)
       real(wp),allocatable :: xyz(:,:)
       real(wp) :: sf
       character(len=4) :: sfsm
-      integer :: i,j,k,l
+      integer :: i,j,l
 
       if(zens%nat.gt.200)then
          if(pr)then
@@ -1311,10 +1301,8 @@ subroutine analsym(zmol,fac,pr)
       integer :: nat
       real(wp),allocatable :: xyz(:,:)
       integer,allocatable  :: at(:)
-      integer :: i,io
-      real(wp) :: ax
+      integer :: i
       character(len=4) :: sfsym
-      character(len=1) :: str
       real(wp),parameter :: desy = 0.1_wp
       integer,parameter  :: maxat = 200
       fac = 1.0_wp
@@ -1346,7 +1334,6 @@ subroutine analsym_geo(grp,nat,xyz,at,fac,pr,sfsm)
       integer :: nat
       real(wp) :: xyz(3,nat)
       integer  :: at(nat)
-      integer :: i,io
       character(len=4) :: sfsym
       character(len=4),intent(out) :: sfsm
       real(wp),external :: symfactor
@@ -1386,7 +1373,7 @@ real(wp) function symfactor(grps,sfsym)
       character(len=*) :: sfsym !schoenflies group lable
       character(len=1) :: str
       real(wp) :: ax
-      integer :: i,io
+      integer :: io
       real(wp) :: ngrps,div
       symfactor = 1.0_wp !default
       str = sfsym(1:1)
@@ -1439,10 +1426,9 @@ subroutine nconfRot(zens,rotconst,pr)
       real(wp) :: rotconst(3,zens%nconf)
       logical :: pr
 
-      integer :: i,j,k,l
-      integer :: n,rednat,nall,nrot,nconf
+      integer :: i,k
+      integer :: n,nall,nconf
 
-      integer :: co,low,up
       real(wp),allocatable :: xyz(:,:)
       integer,allocatable :: at(:)
 
@@ -1475,9 +1461,9 @@ subroutine nconfRot(zens,rotconst,pr)
 end subroutine nconfRot
 
 
-!=====================================================================================================!
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
-!=====================================================================================================!
+!=========================================================================================!
+!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
+!=========================================================================================!
 !======================================================!
 ! Read ensemble into memory, and also get 
 ! 
@@ -1494,7 +1480,7 @@ subroutine creread(fname,zens)
       character(len=*),intent(in) :: fname
       type(zensemble) :: zens
       integer :: nat,nall
-      integer :: i,j,iz1,k
+      integer :: i,j,k
       integer :: ich,io
       call rdensembleparam(fname,nat,nall)
       call zens%allocate(nat,nall)

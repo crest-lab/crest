@@ -742,8 +742,7 @@ end subroutine pqueue_hybrid
 subroutine pqueue_removehybrid(self)
    implicit none
    class(systemdata) :: self
-   integer :: i,pjob,n,k
-   integer,allocatable :: qdum(:)
+   integer :: i,pjob,n
    n=self%npq
    if(self%npq .gt. 1)then
            do i=1,n

@@ -20,11 +20,11 @@ module iomod
       use iso_fortran_env, only : wp => real64
       use iso_c_binding
       implicit none
-      integer :: i,j,k,l,ich,och
+      integer :: ich,och
       logical :: ex
 
       private :: wp
-      private :: i,j,k,l,ich,och
+      private :: ich,och
       private :: ex
 
       interface
@@ -40,7 +40,6 @@ module iomod
       interface
          integer(kind=c_int) function c_setenv(c_name,c_VALUE) bind(c,name="setenv")
          use iso_c_binding
-         import c_int, c_char
          character(kind=c_char)   :: c_name(*)
          character(kind=c_char)   :: c_VALUE(*)
          end function
@@ -54,7 +53,6 @@ module iomod
       interface
          integer(kind=c_int) function c_symlink(c_from,c_to) bind(c,name="symlink")
          use iso_c_binding
-         import c_int, c_char
          character(kind=c_char)   :: c_from(*)
          character(kind=c_char)   :: c_to(*)
          end function
@@ -190,7 +188,6 @@ end subroutine copysub
       implicit none
       character(len=*) :: from
       character(len=*) :: to
-      integer :: io
       inquire(file=from,exist=ex)
       if(ex) then
         call remove(to)
@@ -352,7 +349,7 @@ subroutine grepval(fil,str,bool,val)
       logical :: bool
       character(len=*) :: fil
       character(len=*) :: str
-      character(len=512) :: tmp,dum
+      character(len=512) :: tmp
       real(wp) :: val
       integer :: io
       bool=.false.
@@ -383,10 +380,9 @@ subroutine wrshort_int(fname,var)
       implicit none
       character(len=*) :: fname
       integer :: var
-      integer :: io
-       open(newunit=ich,file=fname)
-       write(ich,*)var
-       close(ich)
+      open(newunit=ich,file=fname)
+      write(ich,*)var
+      close(ich)
 end subroutine wrshort_int
 
 !--------------------------------------------------------------------------------------
@@ -396,10 +392,9 @@ subroutine wrshort_real(fname,var)
       implicit none
       character(len=*) :: fname
       real(wp) :: var
-      integer :: io
-       open(newunit=ich,file=fname)
-       write(ich,*)var
-       close(ich)
+      open(newunit=ich,file=fname)
+      write(ich,*)var
+      close(ich)
 end subroutine wrshort_real
 
 !--------------------------------------------------------------------------------------
@@ -409,7 +404,6 @@ subroutine wrshort_string(fname,var)
       implicit none
       character(len=*) :: fname
       character(len=*) :: var
-      integer :: io
       open(newunit=ich,file=fname)
       write(ich,'(a)')var
       close(ich)
@@ -583,7 +577,7 @@ subroutine clear_setblock(fname)
       implicit none
       character(len=*) :: fname
       character(len=512) :: atmp
-      integer :: i,j,k,iost
+      integer :: iost
       integer :: ich,ich2
 
       open(newunit=ich,file=fname)

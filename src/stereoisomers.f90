@@ -30,7 +30,6 @@ subroutine stereoisomerize(env,tim)
      implicit none
 
      type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-     !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
      type(timer)   :: tim
 
      type(zmolecule) :: zmol    !molecule object for topology storage
@@ -39,7 +38,7 @@ subroutine stereoisomerize(env,tim)
 
      call smallheadline('TOPOLOGY SETUP')
      call tim%start(1,'topology setup')
-     call identify_stereocenters('coord',zmol)
+     call identify_stereocenters(env%inputcoords,zmol)
      call tim%stop(1)
 
      call smallheadline('GENERATION OF STEREOISOMERS')
@@ -81,7 +80,7 @@ subroutine isstereo(zmol)
       implicit none
       type(zmolecule) :: zmol
 
-      integer :: i,j,k,l
+      integer :: i,k
       integer :: nat
       logical :: teststereo
       logical :: ster
@@ -125,14 +124,13 @@ subroutine stereocond1(i,zmol,teststereo,ster)
       use iso_fortran_env, only : wp => real64
       use zdata
       implicit none
-      integer :: nat
       type(zmolecule) :: zmol
-      type(zatom) :: za,zb
+      type(zatom) :: za
       integer,intent(in)  :: i
       logical,intent(out) :: teststereo
       logical,intent(out) :: ster
 
-      integer :: k,l,m
+      integer :: k,l
       real(wp) :: dum
 
       logical :: con1,con2,con3,con4,con5
@@ -225,7 +223,6 @@ subroutine RorS(zmol,i)
       integer,intent(in) :: i  !central atom
       type(zmolecule) :: zmol
       real(wp),allocatable :: coords(:,:)
-      real(wp),allocatable :: polar(:,:)
       character(len=2),allocatable :: ele(:)
       integer :: k,l,m,n
       real(wp),parameter :: pi = 3.14159265359_wp
@@ -316,7 +313,6 @@ subroutine cip_spherecomp(zmol,i)
       integer :: s,nat
       logical :: equi
       integer :: pri
-      integer :: n1,n2
       integer :: p,q
 
       integer,allocatable :: dumprio(:),dum2(:)
@@ -346,7 +342,7 @@ subroutine cip_spherecomp(zmol,i)
            n = sum(sphereB)
            call arrcomp(nat,sphereA,nat,sphereB,equi)
            if(.not.equi)then
-             call  arrprio(nat,sphereA,nat,sphereB,pri)
+             call  arrprio(nat,sphereA,sphereB,pri)
              exit  !we got a prio, exit the loop
            endif
            if(m.eq.0 .or. n.eq.0) exit  !if n or m are 0 then there is no s-th sphere
@@ -377,7 +373,7 @@ subroutine cip_spherecomp(zmol,i)
              n = sum(sphereB)
              call arrcomp(nat,sphereA,nat,sphereB,equi)
              if(.not.equi)then
-               call  arrprio(nat,sphereA,nat,sphereB,pri)
+               call  arrprio(nat,sphereA,sphereB,pri)
                exit  !we got a prio, exit the loop
              endif
              if(m.eq.0 .or. n.eq.0) exit  !if n or m are 0 then there is no s-th sphere
@@ -433,8 +429,7 @@ subroutine cip_sphere(zmol,k,i,s,sphere)
       type(zmolecule) :: zmol
       integer,intent(inout) :: sphere(zmol%nat)
       integer,allocatable :: sphereold(:)
-
-      integer :: j,m,n,dummy
+      integer :: j,dummy
 
       allocate(sphereold(zmol%nat), source=0)
 
@@ -474,7 +469,7 @@ recursive subroutine cip_getsphere(zmol,k,i,s,sref,sphere,sphereold)
       integer,allocatable :: sphereref(:)
 
       integer :: l,y,m,n
-      integer :: p,q,r,t
+      integer :: p,q,r
       integer :: sn
 
       y=1
@@ -541,15 +536,13 @@ end subroutine cip_getsphere
 !  compare two arrays and check which of them has the higher "priority".
 !  arrays must be sorted!
 !=======================================================================!
-subroutine arrprio(n,narr,m,marr,pri)
+subroutine arrprio(n,narr,marr,pri)
       implicit none
       integer :: n
       integer :: narr(*)
-      integer :: m
       integer :: marr(*)
       integer :: pri
-      logical,allocatable :: mask(:)
-      integer :: i,j,k,l
+      integer :: i
       pri = 0
       do i=1,n
          if(narr(i) .eq. marr(i)) cycle
@@ -576,18 +569,13 @@ subroutine stereoinvert(zmol)
 
      integer :: i,j,k,l,m
 
-     real(wp),allocatable :: xyz(:,:),xyzdum(:,:)
-     integer,allocatable :: at(:)
-     integer,allocatable :: dumarray(:)
-
      logical :: ster
-     integer :: nat,nall
+     integer :: nat
      integer :: ich
 
      real(wp),allocatable :: vector(:)
      integer :: selected(2)
      integer,allocatable :: path1(:),path2(:)
-     integer :: nstereomers
 
      logical,allocatable :: book(:)
      logical,allocatable :: checkcounter(:)
@@ -753,7 +741,7 @@ subroutine whichinvert(zmol,i,these,vec)
      real(wp),intent(out) :: vec(3)   !--- vector of the inversion axis
 
      integer :: sref
-     integer :: j,k,l,m
+     integer :: j,k,l
  
      real(wp),allocatable :: weights(:)
      real(wp),allocatable :: coords(:,:)
@@ -855,7 +843,7 @@ subroutine appendarr(i,arr1,atm)
      integer :: i
      integer :: arr1(i)
      integer :: atm
-     integer :: j,k,l
+     integer :: k
      if(any(arr1.eq.atm))return
      do k=1,i
         if(arr1(k).ne.0)cycle
@@ -912,7 +900,7 @@ subroutine buildstruc(zmol,book,ch)
       logical :: book(zmol%nstereo)
       integer :: ch
       real(wp),allocatable :: xyz(:,:),dum(:)
-      integer :: i,j,k,l     
+      integer :: i,j,k     
       real(wp) :: axis(3) 
       integer :: m,p,q,r
  
@@ -980,7 +968,7 @@ subroutine buildstruc2(zmol,book,ch)
       logical :: book(zmol%nstereo)
       integer :: ch
       real(wp),allocatable :: xyz(:,:),dum(:)
-      integer :: i,j,k,l
+      integer :: i,j,k
       real(wp) :: axis(3)
       integer :: m,p,q,r
       integer,allocatable :: at(:)
@@ -1047,8 +1035,8 @@ subroutine optstruc(nat,at,xyz)
       integer :: nat
       integer :: at(nat)
       real(wp) :: xyz(3,nat)
-      integer :: i,r,l,ich,io
-      character(len=512) :: thispath,tmppath
+      integer :: r,l,io
+      character(len=512) :: thispath
       character(len=:),allocatable :: jobcall
 
       !call system('rm -r DUMMY 2>/dev/null')

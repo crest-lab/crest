@@ -87,7 +87,7 @@ end subroutine mreclm
 !==================================================================================!
 recursive subroutine neighbours(i,xyz,iat,taken,nat,cn,bond,molvec,molcnt)
       implicit none
-      real*8 xyz(3,nat),r,tr,xi(3),cntmp,cn(nat),bond(nat,nat)
+      real*8 xyz(3,nat),tr,xi(3),cn(nat),bond(nat,nat)
       integer i,nat, molcnt,molvec(nat),j,iat(nat),icn,k
       logical taken(nat)
       tr=2.0d0
@@ -111,7 +111,7 @@ end subroutine neighbours
 !================================================================================!
 subroutine xcoord(natoms,iz,xyz,cn,bond)
       implicit none
-      integer iz(natoms),natoms,i,j,k1
+      integer iz(natoms),natoms,i,k1
       real*8 xyz(3,natoms),cn(natoms)
       real*8 cn_thr,bond(natoms,natoms)
       integer iat
@@ -156,8 +156,8 @@ subroutine ycoord2(natoms,rcov,iz,xyz,cn,cn_thr,cthr,clash)
       real*8 k1,k3
       parameter (k1     =16)
       parameter (k3     =-4)
-      integer iz(*),natoms,i,max_elem
-      real*8 xyz(3,*),cn(*),rcov(94),input
+      integer iz(*),natoms,i
+      real*8 xyz(3,*),cn(*),rcov(94)
       real*8 cn_thr,cthr
       logical clash
 
@@ -196,8 +196,8 @@ subroutine ycoord(natoms,rcov,iz,xyz,cn,cn_thr)
       real*8 k1,k3
       parameter (k1     =16)
       parameter (k3     =-4)
-      integer iz(*),natoms,i,max_elem
-      real*8 xyz(3,*),cn(*),rcov(94),input
+      integer iz(*),natoms,i
+      real*8 xyz(3,*),cn(*),rcov(94)
       real*8 cn_thr
 
       integer iat    
@@ -230,7 +230,7 @@ subroutine ycoord3(natoms,iz,xyz,cn,cn_thr,bond)
       implicit none
       integer :: natoms      ! = n
       integer :: iz(natoms)  ! = at
-      integer :: i,j,k1
+      integer :: i,k1
       real*8 xyz(3,natoms),cn(natoms)
       real*8 cn_thr,bond(natoms,natoms)
       integer iat
@@ -278,8 +278,8 @@ subroutine ncoord(natoms,rcov,iz,xyz,cn,cn_thr)
       real*8 :: k1,k3
       parameter (k1     =16)
       parameter (k3     =-4)
-      integer :: iz(*),natoms,i,max_elem
-      real*8 :: xyz(3,*),cn(*),rcov(94),input
+      integer :: iz(*),natoms,i
+      real*8 :: xyz(3,*),cn(*),rcov(94)
       real*8 :: cn_thr
 
       integer :: iat    

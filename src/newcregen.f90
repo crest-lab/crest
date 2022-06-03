@@ -52,16 +52,11 @@ subroutine newcregen(env,quickset)
   !>--- dummy ensemble arguments
   integer :: nallref
   integer :: nallnew
-  real(wp),allocatable :: eref(:)
   real(wp),allocatable :: xyzref(:,:,:)
-  real(wp),allocatable :: c0(:,:)
   !>--- sorting arguments
-  integer,allocatable :: order(:)
-  integer,allocatable :: gref(:),glist(:),group(:)
+  integer,allocatable :: gref(:),group(:)
   integer :: ng
   integer,allocatable :: degen(:,:)
-  !>--- integer data
-  integer :: i,j,k,l
 
   !>--- float data
   real(wp) :: ewin
@@ -74,7 +69,6 @@ subroutine newcregen(env,quickset)
   real(wp) :: couthr
 
   !>--- boolean data
-  logical :: ex
   logical :: checkbroken
   logical :: topocheck
   logical :: checkez
@@ -111,7 +105,7 @@ subroutine newcregen(env,quickset)
 
 !--- DATA SECTION
   call cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
-  call cregen_filldata2(env,simpleset,ewin)
+  call cregen_filldata2(simpleset,ewin)
 
 !--- setting the threads for OMP parallel usage
   call cregen_setthreads(prch,env,.false.)
@@ -196,7 +190,7 @@ subroutine newcregen(env,quickset)
     end if
     !--- repair the order
     if (repairord) then
-      call cregen_repairorder(prch,env,nat,nall,at,xyz,comments,group)
+      call cregen_repairorder(nat,nall,xyz,comments,group)
     end if
     !--- get group info to degen
     ng = group(0)
@@ -209,7 +203,7 @@ subroutine newcregen(env,quickset)
   end if
 
 !--- align all structures to the first structure using the RMSD
-  call cregen_rmsdalign(env,nat,nall,at,xyz)
+  call cregen_rmsdalign(nat,nall,at,xyz)
 
 !--- write new file with ALL remaining structures
   if (newfile) then
@@ -227,13 +221,13 @@ subroutine newcregen(env,quickset)
 
 !--- additional files for entropy mode
   if (bonusfiles) then
-    call cregen_bonusfiles(env,nat,nall,comments,ng,degen)
+    call cregen_bonusfiles(ng,degen)
   end if
 
 !--- several printouts
   if (pr2) then
     allocate (er(nall))
-    call cregen_pr2(prch,env,nat,nall,comments,ng,degen,er)
+    call cregen_pr2(prch,env,nall,comments,ng,degen,er)
     call cregen_econf_list(prch,nall,er,ng,degen)
     deallocate (er)
   end if
@@ -276,7 +270,6 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
   use iomod
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-  !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
   character(len=*) :: fname
   character(len=*) :: oname
   character(len=*) :: cname
@@ -293,7 +286,7 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
   call remove(outfile)
   if (simpleset > 0) then
     select case (simpleset)
-    case (6,9,12)
+    case (6,9)
       iounit = output_unit
     case default
       open (newunit=iounit,file=outfile)
@@ -305,28 +298,18 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
     open (newunit=iounit,file=outfile)
   end if
 
-  
-  !>--- input file selection
-  select case (simpleset)
-  case (12) !> mecp search sorting  
-    fname = mecpensemble
-    oname = trim(fname)//'.sorted'
-    cname = ensemblefile
-  case default
+  fname = trim(env%ensemblename)
+  if (env%confgo .and. (index(trim(fname),'none selected') .eq. 0)) then
     fname = trim(env%ensemblename)
-    if (env%confgo .and. (index(trim(fname),'none selected') .eq. 0)) then
-      fname = trim(env%ensemblename)
-      oname = trim(env%ensemblename)//'.sorted'
-      cname = ensemblefile !'crest_ensemble.xyz'
-      if (env%fullcre) then
-        env%ensemblename = trim(oname)
-      end if
-    else !internal mode for conformational search
-      call checkname_xyz(crefile,fname,oname)
-      cname = conformerfile
+    oname = trim(env%ensemblename)//'.sorted'
+    cname = 'crest_ensemble.xyz'
+    if (env%fullcre) then
+      env%ensemblename = trim(oname)
     end if
-  end select
-  !>--- associated printouts
+  else !internal mode for conformational search
+    call checkname_xyz(crefile,fname,oname)
+    cname = conformerfile
+  end if
   write (iounit,*) 'input  file name : ',trim(fname)
   select case (simpleset)
   case (9)
@@ -355,7 +338,6 @@ subroutine cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
   use iomod
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-  !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
   integer,intent(in) :: simpleset
   logical,intent(out) :: pr1,pr2,pr3,pr4
 
@@ -392,7 +374,6 @@ subroutine cregen_director(env,simpleset,checkbroken,sorte,sortRMSD,sortRMSD2, &
   use iomod
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-  !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
   integer,intent(in) :: simpleset
   logical,intent(out) :: checkbroken
   logical,intent(out) :: sorte,sortRMSD,sortRMSD2
@@ -495,20 +476,19 @@ subroutine cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
   couthr = env%couthr      ! coulomb sorting threshold
   return
 end subroutine cregen_filldata1
-subroutine cregen_filldata2(env,simpleset,ewin)
+subroutine cregen_filldata2(simpleset,ewin)
   use iso_fortran_env,wp => real64
   use crest_data
   implicit none
-  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
   integer,intent(in) :: simpleset
   real(wp),intent(out) :: ewin
   !--------------------------------------------------------------------
   if (simpleset == 6) then
     ewin = 100000
   end if
-  if(simpleset == 12)then
-  ewin = huge(ewin)
-  endif  
+  if (simpleset == 12) then
+    ewin = huge(ewin)
+  end if
   return
 end subroutine cregen_filldata2
 
@@ -557,7 +537,6 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
   use strucrd
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-  !type(options) :: opt       ! MAIN STORAGE OF BOOLEAN SETTINGS
   integer :: ch ! printout channel
   integer :: nat,nall
   integer :: at(nat)
@@ -572,7 +551,7 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
   real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
   integer :: frag,frag0
   real(wp) :: erj
-  integer :: i,j,k
+  integer :: j
   logical :: substruc
   logical :: distok,distcheck
   real(wp) :: cnorm
@@ -635,8 +614,8 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
     end if
 
 !    if (dissoc .or. (abs(erj) .lt. 1.0d-6) .or. &
-     if(dissoc .or. &
-   &   (cnorm .lt. 1.0d-6) .or. (.not. distok)) then
+    if (dissoc .or. &
+  &   (cnorm .lt. 1.0d-6) .or. (.not. distok)) then
       !>--- move broken structures to the end of the matrix
       orderref(j) = llan
       llan = llan - 1
@@ -688,16 +667,14 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
   integer,intent(out) :: newnall
   integer :: llan
   integer,allocatable :: order(:),orderref(:)
-  integer :: nat0
   real(wp),allocatable :: cref(:,:),c1(:,:)
-  integer,allocatable  :: at0(:),atdum(:)
+  integer,allocatable  :: atdum(:)
   real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
   integer,allocatable :: toporef(:)
   integer,allocatable :: topo(:)
   logical,allocatable :: neighmat(:,:)
   integer :: nbonds
-  integer :: frag,frag0
-  integer :: i,j,k,l
+  integer :: j,l
   integer :: ntopo,ncc,ccfail
   logical :: discard
   integer,allocatable :: ezat(:,:)
@@ -724,7 +701,11 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
   !do i=1,nat
   !   write(*,*) i,i2e(at(i),'nc'),nint(cn(i))
   !enddo
-  call bondtotopo(nat,at,bond,cn,ntopo,toporef,neighmat)
+  if (allocated(env%excludeTOPO)) then
+    call bondtotopo_excl(nat,at,bond,cn,ntopo,toporef,neighmat,env%excludeTOPO)
+  else
+    call bondtotopo(nat,at,bond,cn,ntopo,toporef,neighmat)
+  end if
 
   nbonds = sum(toporef)
   write (ch,'('' # bonds in reference structure :'',i6)') nbonds
@@ -737,7 +718,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
       allocate (ezat(4,ncc))
       allocate (ezdihedref(ncc),ezdihed(ncc),source=0.0d0)
       call ezccat(nat,atdum,cref,cn,ntopo,toporef,ncc,ezat)
-      call ezccdihed(nat,atdum,cref,ncc,ezat,ezdihedref)
+      call ezccdihed(nat,cref,ncc,ezat,ezdihedref)
       !do i=1,ncc
       !  write(*,'(1x,a,4i4,a,f6.2)') 'C=C bond atoms:',ezat(1:4,i)," angle: ",ezdihedref(i)
       !enddo
@@ -757,7 +738,11 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
     cn = 0.0d0
     bond = 0.0d0
     call xcoord2(nat,at,c1,rcov,cn,400.0_wp,bond)
-    call bondtotopo(nat,at,bond,cn,ntopo,topo,neighmat)
+    if (allocated(env%excludeTOPO)) then
+      call bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighmat,env%excludeTOPO)
+    else
+      call bondtotopo(nat,at,bond,cn,ntopo,topo,neighmat)
+    end if
     do l = 1,ntopo
       if (toporef(l) .ne. topo(l)) then
         !call revlin(int(l,kind=8),k,i)
@@ -770,7 +755,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
     !--- get E/Z info of C=C, discard isomers
     if (checkez .and. .not. discard .and. ncc > 0) then
       c1 = c1 * bohr
-      call ezccdihed(nat,at,c1,ncc,ezat,ezdihed)
+      call ezccdihed(nat,c1,ncc,ezat,ezdihed)
       do l = 1,ncc
         winkeldiff = ezdihedref(l) - ezdihed(l)
         winkeldiff = abs(winkeldiff)
@@ -836,7 +821,7 @@ contains
     integer,intent(in)  :: topo(ntopo)
     integer,intent(out) :: ncc
     real(wp) :: dist
-    integer :: i,j,k,l
+    integer :: l
     integer :: ci,cj,lin
     real(wp),parameter :: distcc = 1.384_wp
     ncc = 0
@@ -920,15 +905,14 @@ contains
   !=================================================!
   ! Check which atoms can be used for C=C dihedral angles
   !=================================================!
-  subroutine ezccdihed(nat,at,xyz,ncc,ezat,ezdihed)
+  subroutine ezccdihed(nat,xyz,ncc,ezat,ezdihed)
     use iso_fortran_env,only:wp => real64
     integer,intent(in)  :: nat
-    integer,intent(in)  :: at(nat)
     real(wp),intent(in) :: xyz(3,nat)
     integer,intent(in)  :: ncc
     integer,intent(in) :: ezat(4,ncc)
     real(wp),intent(out) :: ezdihed(ncc)
-    integer :: i,j,k,l
+    integer :: i,k
     integer :: a,b,c,d
     real(wp) :: winkel
     real(wp),parameter :: pi = 3.14159265359_wp
@@ -948,7 +932,6 @@ contains
     end do
     return
   end subroutine ezccdihed
-
 end subroutine cregen_topocheck
 
 !============================================================!
@@ -1068,7 +1051,7 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
   !>--- energy data
   real(wp),allocatable :: er(:)
   integer,allocatable :: orderref(:),order(:)
-  real(wp) :: de,emax
+  real(wp) :: de
   !>--- dummy structure data
   integer,allocatable :: includeRMSD(:)
   real(wp),allocatable :: c0(:,:),c1(:,:),cdum(:,:)
@@ -1090,18 +1073,11 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
   logical :: l1,l2,l3
   !>--- CRE comparison data
   integer,allocatable :: double(:)
-  logical :: equalrot,equalrotall !these are functions
-  logical :: equalrotmean,equalrotallrel !these are functions
-  logical :: equalrotaniso !this is a function
+  logical :: equalrotaniso !> this is a function
   logical,allocatable :: mask(:)
-  real(wp) :: couthr,courel
+  real(wp) :: couthr
   real(wp),allocatable :: enuc(:)
   real(wp),allocatable :: ecoul(:)
-  real(wp),allocatable :: rcov(:)
-  real(wp),allocatable :: bond(:,:)
-  real(wp),allocatable :: cn(:)
-  real(wp),allocatable :: cref(:,:)
-  real(wp) :: ecrel
   real(wp) :: r
   integer :: i,j,k,l,natnoh
   logical :: heavy
@@ -1230,7 +1206,7 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
               rdum2 = rdum
             end if
             klong = linr(rmap1(i),rmap2(i),j)
-            rmat(klong) = min(rdum,rdum2)
+            rmat(klong) = real(min(rdum,rdum2),sp)
           end if
         end do
 !$OMP END DO
@@ -1259,7 +1235,7 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
               rdum2 = rdum
             end if
             klong = linr(rmap1(i),rmap2(i),j)
-            rmat(klong) = min(rdum,rdum2)
+            rmat(klong) = real(min(rdum,rdum2),sp)
           end if
         end do
 !$OMP END DO
@@ -1287,7 +1263,7 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
             rdum2 = rdum
           end if
           klong = linr(rmap1(i),rmap2(i),j)
-          rmat(klong) = min(rdum,rdum2)
+          rmat(klong) = real(min(rdum,rdum2),sp)
         end if
       end do
 !$OMP END DO
@@ -1310,7 +1286,7 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
       !>-- very small RMSD --> same structure
       if (dr .lt. rthr) then
         double(i) = j !-- "i" is the same structure as "j"
-      !>-- slightly larger RMSD, but same rot. constants --> same structure
+        !>-- slightly larger RMSD, but same rot. constants --> same structure
       elseif (dr .lt. 2.0_wp * rthr) then
         l1 = equalrotaniso(i,j,nall,rot,0.5d0 * bthr,env%bthrmax,env%bthrshift)
         if (l1) then
@@ -1408,8 +1384,6 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
     end if
   end do
   group(0) = k !-- total number of groups
-
-  !write(*,*) group
 
   deallocate (enuc,c1,double)
   deallocate (order,orderref)
@@ -1517,59 +1491,50 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
   integer,intent(inout) :: group(0:nall)
   character(len=*) :: comments(nall)
   integer :: nallout
-  logical :: enantio = .true.   !check for enantiomers?
+  logical :: enantio = .true.   !> check for enantiomers?
 
-  !--- float data
+  !>--- float data
   real(wp) :: ewin,rthr,bthr,pthr,ethr,athr,T
-  !--- energy data
+  !>--- energy data
   real(wp),allocatable :: er(:)
   integer,allocatable :: orderref(:),order(:)
-  real(wp) :: de,emax
-  !--- dummy structure data
-  integer,allocatable :: includeRMSD(:)
-  real(wp),allocatable :: c0(:,:),c1(:,:),cdum(:,:)
+  real(wp) :: de
+  !>--- dummy structure data
+  real(wp),allocatable :: c0(:,:),c1(:,:)
   real(wp),allocatable :: c0h(:,:),c1h(:,:)
   integer,allocatable  :: maskheavy(:)
   integer,allocatable :: at0(:)
-  logical :: substruc
   integer :: nat0
   real(wp),allocatable :: rot(:,:)
-  real(wp) :: rotdum(3),bdum
-  !--- RMSD data
-  real(sp),allocatable :: rmat(:) !SINGLE PRECISION
+  real(wp) :: bdum
+  !>--- RMSD data
+  real(sp),allocatable :: rmat(:) !> SINGLE PRECISION
   real(wp) :: rdum,dr,rdum2
-  real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:),ydum(:) !dummy tensors
+  real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:),ydum(:) !> dummy tensors
   integer(id) :: klong
-  integer(id) :: lina  !this is a function
+  integer(id) :: lina  !> this is a function
   integer(id),allocatable :: rmap1(:)
   integer,allocatable :: rmap2(:)
   logical :: l1,l2,l3
-  !--- CRE comparison data
+  !>--- CRE comparison data
   integer,allocatable :: double(:)
-  logical :: equalrot,equalrotall !these are functions
-  logical :: equalrotmean,equalrotallrel !these are functions
-  logical :: equalrotaniso !this is a function
+  logical :: equalrotaniso !> this is a function
   logical,allocatable :: mask(:)
   real(wp),allocatable :: enuc(:)
   real(wp) :: couthr
   real(wp),allocatable :: ecoul(:)
-  real(wp),allocatable :: rcov(:)
-  real(wp),allocatable :: bond(:,:)
-  real(wp),allocatable :: cn(:)
-  real(wp),allocatable :: cref(:,:)
-  real(wp) :: ecrel
   real(wp) :: r
-  integer :: i,j,k,l,natnoh
+  integer :: i,j,k,natnoh
   logical :: heavy
   real(wp),parameter :: autokcal = 627.509541_wp
 
-!--- set parameters
+!>--- set parameters
   call cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
   if (env%entropic) enantio = .false.
   heavy = env%heavyrmsd
   allocate (rot(3,nall))
 
-!--- get energies from the comment line
+!>--- get energies from the comment line
   allocate (er(nall))
   allocate (orderref(nall),order(nall))
   do i = 1,nall
@@ -1642,7 +1607,7 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
           end if
           !klong=linr(rmap1(i),rmap2(i),j)
           klong = lina(i,j)
-          rmat(klong) = min(rdum,rdum2)
+          rmat(klong) = real(min(rdum,rdum2),sp)
         end if
       end do
 !$OMP END DO
@@ -1672,7 +1637,7 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
           end if
           !klong=linr(rmap1(i),rmap2(i),j)
           klong = lina(i,j)
-          rmat(klong) = min(rdum,rdum2)
+          rmat(klong) = real(min(rdum,rdum2),sp)
         end if
       end do
 !$OMP END DO
@@ -1855,7 +1820,7 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
   real(wp),allocatable :: dist(:,:,:)
   integer,allocatable  :: relat(:,:)
   real(wp),allocatable :: tmp2(:)
-  integer :: m,m1,m2,s1,s2,iat,j1,j2,k2
+  integer :: m,m1,m2,s1,s2,iat,j1,k2
 
   !-- further NMR-mode related data
   integer,allocatable :: nmract(:)
@@ -2232,29 +2197,23 @@ end subroutine cregen_nmract
 ! On Input: ch - printout channel
 !           nat - number of atoms
 !           nall - number of structure in ensemble
-!           at   - atom types
 !           xyz  - Cartesian coordinates
 !           comments - commentary lines containing the energy
 !           group - to which group does every strucutre belong
 ! On Output: resorted xyz and comments
 !============================================================!
-subroutine cregen_repairorder(ch,env,nat,nall,at,xyz,comments,group)
+subroutine cregen_repairorder(nat,nall,xyz,comments,group)
   use iso_fortran_env,only:wp => real64,id => int64,sp => real32
   use crest_data
   use strucrd
   implicit none
-  type(systemdata) :: env
-  !type(options) :: opt
-  integer,intent(in) :: ch
   integer,intent(in) :: nat
   integer,intent(in) :: nall
-  integer,intent(in) :: at(nat)
   real(wp),intent(inout) :: xyz(3,nat,nall)
   integer,intent(inout) :: group(0:nall)
   character(len=*) :: comments(nall)
   real(wp),allocatable :: cdum(:,:)
   integer,allocatable :: order(:),orderref(:)
-  character(len=40) :: atmp
   character(len=128) :: btmp
   real(wp) :: edum
   logical :: ttag
@@ -2349,7 +2308,7 @@ recursive subroutine xyzqsort(nat,nall,xyz,c0,ord,first,last)
   integer :: ord(nall)
   integer :: first,last
   integer :: x,t
-  integer :: i,j,ii
+  integer :: i,j
   x = ord((first + last) / 2)
   i = first
   j = last
@@ -2385,7 +2344,7 @@ subroutine maskedxyz(n,nm,c,cm,at,atm,mask)
   integer,intent(in) :: at(n)
   integer,intent(out) :: atm(nm)
   integer,intent(in) :: mask(n)
-  integer :: i,j,k
+  integer :: i,k
   k = 1
   do i = 1,n
     if (mask(i) .gt. 0) then
@@ -2404,7 +2363,7 @@ subroutine maskedxyz2(n,nm,c,cm,mask) !without at arraay
   real(wp),intent(in) :: c(3,n)
   real(wp),intent(out) :: cm(3,nm)
   integer,intent(in) :: mask(n)
-  integer :: i,j,k
+  integer :: i,k
   k = 1
   do i = 1,n
     if (mask(i) .gt. 0) then
@@ -2477,7 +2436,6 @@ subroutine cregen_conffile(env,cname,nat,nall,at,xyz,comments,ng,degen)
   use iomod
   implicit none
   type(systemdata) :: env
-  !type(options) :: opt
   character(len=*) :: cname
   integer :: nat,nall
   integer :: at(nat)
@@ -2487,7 +2445,7 @@ subroutine cregen_conffile(env,cname,nat,nall,at,xyz,comments,ng,degen)
   integer :: degen(3,ng)
   character(len=128) :: newcomment
   integer :: ich,ich3,ichenso
-  integer :: i,j,k,l
+  integer :: i,k
   real(wp),allocatable :: c0(:,:)
   real(wp),allocatable :: er(:)
   allocate (er(nall))
@@ -2538,20 +2496,17 @@ end subroutine cregen_conffile
 ! Algin all structures in xyz to the first structure in the ensemble
 ! based on the heavy-atom RMSD
 !====================================================================================!
-subroutine cregen_rmsdalign(env,nat,nall,at,xyz)
+subroutine cregen_rmsdalign(nat,nall,at,xyz)
   use iso_fortran_env,only:wp => real64
   use crest_data
   use ls_rmsd
   use iomod
   implicit none
-  type(systemdata) :: env
-  !type(options) :: opt
   integer :: nat,nall
   integer :: at(nat)
   real(wp),intent(inout) :: xyz(3,nat,nall)
   integer :: nath
-  integer :: ich,ich3
-  integer :: i,j,k,l
+  integer :: i,j,k
   real(wp),allocatable :: c0(:,:)
   real(wp),allocatable :: c1(:,:)
   real(wp),allocatable :: c2(:,:)
@@ -2564,7 +2519,7 @@ subroutine cregen_rmsdalign(env,nat,nall,at,xyz)
   allocate (c0(3,nath),c1(3,nath),source=0.0d0)
 
   allocate (c2(3,nat))
-  !--- get the reference structure (the first one)
+  !>--- get the reference structure (the first one)
   i = 0
   do j = 1,nat
     if (at(j) > 2) then
@@ -2574,7 +2529,7 @@ subroutine cregen_rmsdalign(env,nat,nall,at,xyz)
   end do
 
   do k = 2,nall
-    !--- and the other strucutres into c1
+    !>--- and the other strucutres into c1
     i = 0
     do j = 1,nat
       if (at(j) > 2) then
@@ -2596,21 +2551,13 @@ end subroutine cregen_rmsdalign
 !=============================================!
 ! write the time tag and degeneracy file
 !=============================================!
-subroutine cregen_bonusfiles(env,nat,nall,comments,ng,degen)
+subroutine cregen_bonusfiles(ng,degen)
   use iso_fortran_env,wp => real64
   use crest_data
   implicit none
-  type(systemdata) :: env
-  !type(options) :: opt
-  integer :: nat,nall
-  character(len=*) :: comments(nall)
   integer :: ng
   integer :: degen(3,ng)
-  integer :: i,k
-  integer :: ich,ich3
-  integer,allocatable :: timetag(:)
-  logical :: ttag
-  character(len=128) :: atmp
+  integer :: i,ich
 
   !--- how many rotamers per conformer
   open (newunit=ich,file='cre_degen')
@@ -2633,7 +2580,6 @@ subroutine cregen_setthreads(ch,env,pr)
   use crest_data
   implicit none
   type(systemdata) :: env
-  !type(options) :: opt
   integer :: ch
   logical :: pr
   integer :: TID,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM,nproc
@@ -2659,7 +2605,6 @@ subroutine cregen_pr1(ch,env,nat,nall,rthr,bthr,pthr,ewin)
   implicit none
   integer :: ch
   type(systemdata) :: env
-  !type(options) :: opt
   integer :: nat
   integer :: nall
   real(wp) :: rthr,bthr,pthr,ewin
@@ -2673,11 +2618,12 @@ subroutine cregen_pr1(ch,env,nat,nall,rthr,bthr,pthr,ewin)
   write (ch,'('' RMSD threshold                 :'',f9.4)') rthr
   write (ch,'('' Bconst threshold               :'',f9.4)') bthr
   write (ch,'('' population threshold           :'',f9.4)') pthr
-  if(ewin < 9999.9_wp)then 
-  write (ch,'('' conformer energy window  /kcal :'',f9.4)') ewin
+  if (ewin < 9999.9_wp) then
+    write (ch,'('' conformer energy window  /kcal :'',f9.4)') ewin
   else
-  write (ch,'('' conformer energy window  /kcal :'',6x,a)') '+∞'
-  endif 
+    write (ch,'('' conformer energy window  /kcal :'',6x,a)') '+∞'
+  end if
+
   return
 end subroutine cregen_pr1
 
@@ -2686,11 +2632,9 @@ subroutine enso_duplicates(env,nall,double)
   use crest_data
   implicit none
   type(systemdata) :: env
-  !type(options) :: opt
   integer :: nall
   integer :: double(nall)
-  integer :: i,j,k
-  integer :: ich
+  integer :: i,j,ich
 
   if (.not. env%ENSO .or. .not. env%confgo) return
 
@@ -2712,8 +2656,7 @@ end subroutine enso_duplicates
 subroutine create_anmr_dummy(nat)
   implicit none
   integer :: nat
-  integer :: i,j,k
-  integer :: ich
+  integer :: i,ich
 
   open (newunit=ich,file='anmr_nucinfo')
   write (ich,*) nat
@@ -2729,7 +2672,7 @@ subroutine create_anmr_dummy(nat)
   return
 end subroutine create_anmr_dummy
 
-subroutine cregen_pr2(ch,env,nat,nall,comments,ng,degen,er)
+subroutine cregen_pr2(ch,env,nall,comments,ng,degen,er)
   use iso_fortran_env,only:wp => real64
   use crest_data
   use strucrd
@@ -2737,15 +2680,13 @@ subroutine cregen_pr2(ch,env,nat,nall,comments,ng,degen,er)
   implicit none
   integer :: ch
   type(systemdata) :: env
-  !type(options) :: opt
-  integer :: nat,nall
+  integer :: nall
   character(len=*) :: comments(nall)
   integer :: ng
   integer :: degen(3,ng)
   real(wp) :: er(nall)
-  character(len=128) :: newcomment
   integer :: ich,chref
-  integer :: i,j,k,l
+  integer :: i,j,k
   real(wp),allocatable :: erel(:),egrp(:)
   real(wp),allocatable :: p(:),pg(:)
   real(wp) :: eref,T
@@ -2958,7 +2899,6 @@ subroutine cregen_pr4(ch,infile,nall,group)
   character(len=*) :: infile
   integer :: nall
   integer :: group(0:nall)
-  real(wp) :: dE
   integer :: i,ich
   integer :: maxgroup
   !write(ch,*) group(1:nall)
