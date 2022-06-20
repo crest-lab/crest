@@ -22,7 +22,7 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date='  Thu 19. Mai 16:32:32 CEST 2022'
+      character(len=40),parameter:: date='  Mo 20. Jun 12:32:33 BST 2022'
       character(len=10),parameter:: version='2.12  '
       logical :: niceprint
       
@@ -52,6 +52,11 @@ subroutine confscript_head
       write(*,'(3x,a)')'C.Bannwarth, F.Bohle, S.Ehlert, S.Grimme,'
       write(*,'(3x,a)')'C.Plett, P.Pracht, S.Spicher'
       write(*,*)
+
+      write(*,'(3x,a)')'Online documentation is available at'
+      write(*,'(3x,a)')'https://crest-lab.github.io/crest-docs/'
+      write(*,*)
+
 
       call disclaimer()
 
@@ -285,7 +290,7 @@ subroutine confscript_help()
   write(*,*)
       write(*,*) 'View literature references with [--cite]'
       write(*,*) 'Also refer to:'
-      write(*,*) 'https://xtb-docs.readthedocs.io/en/latest/crest.html'
+      write(*,*) 'https://crest-lab.github.io/crest-docs/'
       write(*,*)
 
       stop '   [-h] displayed. exit.'
