@@ -172,6 +172,10 @@ contains
         env%preopt = .false.
         env%crestver = crest_mecp
         env%runver   = crest_mecp
+      case ( 'numhess','numerical hessian')
+        env%preopt = .false.
+        env%crestver = crest_numhessian
+        env%runver   = crest_numhessian
       case default
         env%crestver = crest_imtd
       end select

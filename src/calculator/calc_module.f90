@@ -248,7 +248,7 @@ contains
 !========================================================================================!
 !> subroutine numhess
 !> routine to perform a numerical hessian calculation
-  subroutine numhess(nat,at,xyz,calc,hess)
+  subroutine numhess(nat,at,xyz,calc,hess,io)
     implicit none
 
     integer,intent(in) :: nat
@@ -256,14 +256,16 @@ contains
     real(wp),intent(in) :: xyz(3,nat)
     type(calcdata) :: calc
     real(wp),intent(out) :: hess(nat * 3,nat * 3)
+    integer,intent(out)  :: io    
 
     type(coord) :: mol !> coord type, so that the input remains unchanged
     real(wp) :: energy,el,er
     real(wp),allocatable :: gradr(:,:),gradl(:,:)
     real(wp),parameter :: step = 0.00001_wp,step2 = 0.5_wp / step
-    integer :: i,j,k,l,ii,jj,io
+    integer :: i,j,k,l,ii,jj
 
     hess = 0.0_wp
+    io = 0
     mol%nat = nat
     mol%at = at
     mol%xyz = xyz
@@ -318,7 +320,7 @@ contains
     real(wp) :: energy,el,er
     real(wp),allocatable :: hess(:,:)
     logical :: consgeo
-    integer :: i,j,k,n3
+    integer :: i,j,k,n3,io
 
     if (calc%nconstraints <= 0) return
     !>--- skip if only nonadiabatic constraints
@@ -330,7 +332,7 @@ contains
     n3 = nat * 3
     allocate (hess(n3,n3),source=0.0_wp)
 
-    call numhess(nat,at,xyz,dummycalc,hess)
+    call numhess(nat,at,xyz,dummycalc,hess,io)
 
     k = 0
     do i = 1,n3

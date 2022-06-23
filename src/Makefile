@@ -125,6 +125,7 @@ MAINFILES += optimization.o
 MAINFILES += dynamics.o
 MAINFILES += msreact.o
 MAINFILES += pka.o
+MAINFILES += numhess.o
 MAINFILES += playground.o
 MAINFILES += crest_main.o 
 
