@@ -45,6 +45,11 @@ subroutine confscript_head
       write(*,'(3x,a)')'C.Plett, P.Pracht, S.Spicher'
       write(*,*)
 
+      write(*,'(3x,a)')'Online documentation is available at'
+      write(*,'(3x,a)')'https://crest-lab.github.io/crest-docs/'
+      write(*,*)
+
+
       call disclaimer()
 
 contains
@@ -329,7 +334,7 @@ subroutine confscript_help()
   write(*,*)
       write(*,*) 'View literature references with [--cite]'
       write(*,*) 'Also refer to:'
-      write(*,*) 'https://xtb-docs.readthedocs.io/en/latest/crest.html'
+      write(*,*) 'https://crest-lab.github.io/crest-docs/'
       write(*,*)
 
       stop '   [-h] displayed. exit.'
