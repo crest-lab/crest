@@ -106,6 +106,9 @@ contains
         case (10) !-- xtb system call
           !write(*,*) i,calc%calcs(i)%calcspace
           call xtb_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+        case( 20 ) !-- gfn0 api
+          
+
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
             read (calc%calcs(i)%other,*) dum1,dum2
