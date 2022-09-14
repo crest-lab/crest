@@ -112,7 +112,9 @@ subroutine create_neigh(nat, xyz_rad, neigh_list, neigh_index, neigh_type)
          neigh_index(i + 1) = neigh_index(i)
       !--- Neighbors
       else
-         neigh_index(i + 1) = neigh_index(i) + neigh_list(i)
+         if(i < nat) then
+            neigh_index(i + 1) = neigh_index(i) + neigh_list(i)
+         end if
          do j = 1, neigh_list(i)
             neigh_type(neigh_index(i) + j - 1) = neigh_tmp(j)
          end do
