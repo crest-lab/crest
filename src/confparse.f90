@@ -2199,7 +2199,7 @@ subroutine inputcoords(env,arg)
   integer :: i
 
 !>--- Redirect for QCG input reading
-  if (env%crestver == crest_solv) then
+  if (env%QCG) then
     arg2 = env%solv_file
     call inputcoords_qcg(env,arg,arg2)
     return
@@ -2236,7 +2236,7 @@ subroutine inputcoords(env,arg)
   !call rdnat('coord',env%nat)
   call mol%open('coord')
   !> shift to CMA and align according to rot.const.
-  call axis(mol%nat,mol%at,mol%xyz)
+  if(env%crestver /= crest_solv) call axis(mol%nat,mol%at,mol%xyz)
   !> overwrite coord
   call mol%write('coord')
 
