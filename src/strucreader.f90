@@ -167,7 +167,7 @@ module strucrd
            procedure :: write => writecoord !write
            procedure :: append => appendcoord !append
            procedure :: get => getcoord !allocate & fill with data
-
+           procedure :: appendlog  !append .log file with coordinates and energy
    end type coord
 !=========================================================================================!
    !ensemble class. contains all structures of an ensemble
@@ -312,21 +312,28 @@ subroutine rdensemble_conf1(fname,nat,nall,at,xyz,eread)
       integer :: dum
       character(len=512) :: line
       character(len=6) :: sym
- 
       eread = 0.0_wp
-      
+      xyz = 0.0_wp
       open(newunit=ich,file=fname)
       do i=1,nall
         read(ich,*,iostat=io) dum
           if( io < 0 ) exit
           if( io > 0 ) cycle
+        if(dum .ne. nat)then
+         call ensemble_strucskip(ich,nat,io)
+         if( io < 0 ) exit
+        endif
         read(ich,'(a)',iostat=io) line
           if( io < 0 ) exit
           eread(i) = grepenergy(line)
         do j=1,dum
           read(ich,'(a)',iostat=io)line
           if(io < 0) exit
-          call coordline(line,sym,xyz(1:3,j,i))
+          call coordline(line,sym,xyz(1:3,j,i),io)
+          if(io .ne. 0)then
+            backspace(ich)
+            exit
+          endif
           at(j) = e2i(sym)
         enddo
       enddo
@@ -354,21 +361,30 @@ subroutine rdensemble_conf2(fname,nat,nall,at,xyz)
       real(wp) :: xyz(3,nat,nall)
       integer :: i,j
       integer :: io,ich
-      integer :: dum
+      integer :: dum,nallnew
       character(len=512) :: line
       character(len=6) :: sym
       io=0
+      xyz = 0.0_wp
       open(newunit=ich,file=fname)
       do i=1,nall
         read(ich,*,iostat=io) dum
           if( io < 0 ) exit
           if( io > 0 ) cycle
+        if(dum .ne. nat)then
+         call ensemble_strucskip(ich,nat,io)
+         if( io < 0 ) exit
+        endif
         read(ich,'(a)',iostat=io) line
           if( io < 0 ) exit
         do j=1,dum
           read(ich,'(a)',iostat=io)line
           if(io < 0) exit
-          call coordline(line,sym,xyz(1:3,j,i))
+          call coordline(line,sym,xyz(1:3,j,i),io)
+          if(io .ne. 0)then
+            backspace(ich)
+            exit
+          endif
           at(j) = e2i(sym)
         enddo
       enddo
@@ -394,28 +410,40 @@ subroutine rdensemble_conf3(fname,nat,nall,at,xyz,comments)
       integer,intent(in) :: nat
       integer,intent(in) :: nall
       integer :: at(nat)
+      integer,allocatable :: atdum(:)
       real(wp) :: xyz(3,nat,nall)
       character(len=*) :: comments(nall)
-      integer :: i,j
+      integer :: i,j,k
       integer :: io,ich
-      integer :: dum
+      integer :: dum,nallnew
       character(len=512) :: line
       character(len=6) :: sym
       io=0
+      xyz = 0.0_wp
+      k= 0
       open(newunit=ich,file=fname)
       do i=1,nall
         read(ich,*,iostat=io) dum
           if( io < 0 ) exit
           if( io > 0 ) cycle
+        if(dum .ne. nat)then
+         call ensemble_strucskip(ich,nat,io)
+         if( io < 0 ) exit
+        endif
         read(ich,'(a)',iostat=io) line
           if( io < 0 ) exit
           comments(i)=trim(line)
         do j=1,dum
+          k = k + 1
           read(ich,'(a)',iostat=io)line
           if(io < 0) exit
-          call coordline(line,sym,xyz(1:3,j,i))
-          at(j) = e2i(sym)
-        enddo
+          call coordline(line,sym,xyz(1:3,j,i),io)
+          if(io .ne. 0)then
+            backspace(ich)     
+            exit
+          endif
+           at(j) = e2i(sym)
+        enddo 
       enddo
       close(ich)
 
@@ -425,6 +453,24 @@ subroutine rdensemble_conf3(fname,nat,nall,at,xyz,comments)
 
       return
 end subroutine rdensemble_conf3
+
+subroutine ensemble_strucskip(ich,nat,io)
+      implicit none
+      integer,intent(in) :: ich
+      integer,intent(in) :: nat
+      integer,intent(out) :: io
+      integer :: io2,dum,k
+      io = 0
+      dum = 0
+      k = 0
+      do while (dum .ne. nat)
+        read(ich,*,iostat=io) dum
+          if( io < 0 ) exit
+          k = k + 1
+          if( io > 0 ) cycle
+      enddo
+end subroutine ensemble_strucskip
+
 
 
 !==================================================================!
@@ -457,7 +503,8 @@ subroutine rdensemble_mixed2(fname,natmax,nall,nats,ats,xyz)
         do j=1,dum
           read(ich,'(a)',iostat=io)line
           if(io < 0) exit
-          call coordline(line,sym,xyz(1:3,j,i))
+          call coordline(line,sym,xyz(1:3,j,i),io)
+          if(io < 0) exit
           ats(j,i) = e2i(sym)
         enddo
       enddo
@@ -845,7 +892,11 @@ subroutine rdtmcoord(fname,nat,at,xyz)
        if(io < 0) exit
        atmp = adjustl(atmp) 
        if(atmp(1:1) == '$') exit
-       call coordline(atmp,sym,xyz(1:3,i))
+       call coordline(atmp,sym,xyz(1:3,i),io)
+       if(io < 0)then
+         write(*,*) 'error while reading coord line. EOF'
+         exit
+       endif
        at(i) = e2i(sym)
      enddo
      close(ich)
@@ -886,7 +937,11 @@ subroutine rdxmol(fname,nat,at,xyz,comment)
        read(ich,'(a)',iostat=io) atmp
        if(io < 0) exit
        atmp = adjustl(atmp) 
-       call coordline(atmp,sym,xyz(1:3,i))
+       call coordline(atmp,sym,xyz(1:3,i),io)
+       if(io < 0)then
+         write(*,*) 'error while reading coord line. EOF'
+         exit
+       endif
        at(i) = e2i(sym)
      enddo
      close(ich)
@@ -928,7 +983,11 @@ subroutine rdsdf(fname,nat,at,xyz,comment)
        read(ich,'(a)',iostat=io) atmp
        if(io < 0) exit
        atmp = adjustl(atmp) 
-       call coordline(atmp,sym,xyz(1:3,i))
+       call coordline(atmp,sym,xyz(1:3,i),io)
+       if(io < 0)then
+         write(*,*) 'error while reading coord line. EOF'
+         exit
+       endif
        at(i) = e2i(sym)
      enddo
      close(ich)
@@ -992,7 +1051,11 @@ subroutine rdsdfV3000(fname,nat,at,xyz,comment)
        atmp = atmp(j:k)
        atmp = adjustl(atmp) 
        atmp = atmp(l:k)
-       call coordline(atmp,sym,xyz(1:3,i))
+       call coordline(atmp,sym,xyz(1:3,i),io)
+       if(io < 0)then
+         write(*,*) 'error while reading coord line. EOF'
+         exit
+       endif
        at(i) = e2i(sym)
      enddo
      close(ich)
@@ -1089,7 +1152,11 @@ subroutine rdxmolselec(fname,m,nat,at,xyz,comment)
          read(ich,'(a)',iostat=io) atmp
          if(io < 0) exit
          atmp = adjustl(atmp) 
-         call coordline(atmp,sym,xyz(1:3,i))
+         call coordline(atmp,sym,xyz(1:3,i),io)
+         if(io < 0)then
+           write(*,*) 'error while reading coord line. EOF'
+           exit
+         endif
          at(i) = e2i(sym)
        enddo
      end do
@@ -1488,15 +1555,37 @@ subroutine appendcoord(self,io)
       implicit none
       class(coord) :: self
       integer :: io
+      character(len=64) :: atmp
         self%xyz=self%xyz*bohr !to Angström
         if(allocated(self%comment))then
             call wrxyz(io,self%nat,self%at,self%xyz,trim(self%comment))
+        else if(self%energy .ne. 0.0_wp)then
+            write(atmp,'(a,f22.10)')' Etot= ',self%energy
+            call wrxyz(io,self%nat,self%at,self%xyz,trim(atmp))
         else
             call wrxyz(io,self%nat,self%at,self%xyz)
         endif
         self%xyz = self%xyz/bohr !back
       return
 end subroutine appendcoord
+
+subroutine appendlog(self,io,energy,gnorm)
+      implicit none
+      class(coord) :: self
+      integer :: io
+      real(wp) :: energy
+      real(wp),optional :: gnorm
+      character(len=64) :: atmp
+        self%xyz=self%xyz*bohr !to Angström
+        if(present(gnorm))then
+        write(atmp,'(a,f22.10,a,f16.8)')' Etot= ',energy,' grad.norm.= ',gnorm
+        else
+        write(atmp,'(a,f22.10)')' Etot= ',energy
+        endif
+        call wrxyz(io,self%nat,self%at,self%xyz,trim(atmp))
+        self%xyz = self%xyz/bohr !back
+      return
+end subroutine appendlog
 
 !=========================================================================================!
 !=========================================================================================!
@@ -1508,19 +1597,20 @@ end subroutine appendcoord
 ! read a line of coordinates and determine by itself
 ! if the format is x,y,z,at or at,x,y,z
 !============================================================!
-subroutine coordline(line,sym,xyz)
+subroutine coordline(line,sym,xyz,io)
       implicit none
       character(len=*) :: line
       character(len=*) :: sym
       real(wp) :: xyz(3)
-      integer :: io
+      integer,intent(out) :: io
 
+      io = 0
       read(line,*,iostat=io) xyz(1:3),sym
       if(io.ne.0)then
         read(line,*,iostat=io) sym,xyz(1:3)
-        if(io.ne.0)then
-          error stop 'error while reading coord line'
-        endif
+        !if(io.ne.0)then
+        !  error stop 'error while reading coord line'
+        !endif
       endif    
 
       return
