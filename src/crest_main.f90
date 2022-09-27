@@ -267,7 +267,6 @@ program CREST
 
       if((any((/crest_mfmdgc,crest_imtd,crest_imtd2/)==env%crestver)) &
       &  .and.( env%outputsdf .or. env%sdfformat) )then    
-         !call wrsdfens(env%sdf,conformerfile,conformerfilebase//'.sdf')
          call new_wrsdfens(env,conformerfile,conformerfilebase//'.sdf',.false.)
       endif
 

@@ -2232,8 +2232,10 @@ subroutine inputcoords(env,arg)
   !>--- if the input was a SDF file, special handling
   env%sdfformat = .false.
   call checkcoordtype(inputfile,i)
-  if (i == 31 .or. i == 32) then
-    call inpsdf(env,inputfile)
+  if (any((/31,32/) == i)) then
+    !call inpsdf(env,inputfile)
+     env%sdfformat = .true.
+     env%outputsdf = .true.
   end if
 
   !>--- after this point there should always be an coord file present
