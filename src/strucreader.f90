@@ -1656,7 +1656,7 @@ contains
     character(len=*) :: iname
     character(len=*) :: oname
     type(coord) :: struc
-    call struc%open(iname)
+    call struc%open(trim(iname))
     struc%xyz = struc%xyz * bohr !to Angström
     call wrxyz(oname,struc%nat,struc%at,struc%xyz)
     call struc%deallocate()

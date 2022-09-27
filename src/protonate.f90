@@ -130,7 +130,7 @@ subroutine protonate(env,tim)
         call rename('OPTIM'//'/'//'opt.xyz',trim(filename))
         call rmrf('OPTIM')
         !write(*,*) trim(filename)
-        call copy(trim(filename),'ensemble-test.xyz')
+        !call copy(trim(filename),'ensemble-test.xyz')
         if(prot%ABcorrection)then
             call prot_correction(env,trim(filename))
         endif

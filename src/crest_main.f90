@@ -265,9 +265,13 @@ program CREST
            continue
       end select
 
-      if((any((/crest_mfmdgc,crest_imtd,crest_imtd2/)==env%crestver)) &
-      &  .and.( env%outputsdf .or. env%sdfformat) )then    
+      if(env%outputsdf .or. env%sdfformat) then
+        if(any((/crest_mfmdgc,crest_imtd,crest_imtd2/)==env%crestver))then    
          call new_wrsdfens(env,conformerfile,conformerfilebase//'.sdf',.false.)
+        endif
+        if(any((/crest_screen,crest_mdopt/)==env%crestver))then
+         call new_wrsdfens(env,'crest_ensemble.xyz','crest_ensemble.sdf',.false.) 
+        endif
       endif
 
 !=========================================================================================!
