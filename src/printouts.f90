@@ -22,7 +22,7 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date='  Mo 20. Jun 12:32:33 BST 2022'
+      character(len=40),parameter:: date='Tue 27. Sep 01:07:11 BST 2022'
       character(len=10),parameter:: version='2.12  '
       logical :: niceprint
       
@@ -38,7 +38,7 @@ subroutine confscript_head
       write(*,'(7x,''|          Universitaet Bonn, MCTC           |'')')
       write(*,'(7x,''=============================================='')')
       write(*,'(7x,''Version '',a,'', '',a)')trim(version),trim(date)
-      write(*,'(2x,''Using the xTB program. Compatible with xTB version 6.4.0'')')
+      write(*,'(1x,''Using the xTB program. Compatible with xTB versions >6.4.0'')')
       write(*,*)
       write(*,'(3x,''Cite work conducted with this code as'')')
       write(*,'(/,3x,''• P.Pracht, F.Bohle, S.Grimme, PCCP, 2020, 22, 7169-7192.'')')

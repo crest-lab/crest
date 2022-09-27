@@ -480,6 +480,7 @@ module crest_data
       logical :: noconst=.false.   ! no constrain of solute during QCG Growth
       logical :: onlyZsort         ! do only the ZSORT routine ?
       logical :: optpurge = .false. !MDOPT purge application
+      logical :: outputsdf = .false. ! write output ensemble as sdf?
       logical :: pcaexclude = .false. ! exclude user set atoms from PCA?
       logical :: pclean            ! cleanup option for property mode
       logical :: performCross      ! perform the GC in V1/V2 ?
@@ -507,7 +508,7 @@ module crest_data
       logical :: scallen           ! scale the automatically determined MD length by some factor?
       logical :: scratch           ! use scratch directory
       logical :: setgcmax = .false.! adjust the maxmimum number of structures taken into account for GC?
-      logical :: sdfformat         ! was the SDF format used as input file?
+      logical :: sdfformat = .false. ! was the SDF format used as input file?
       logical :: slow              ! slowmode (counterpart to quick mode)
       logical :: solv_md = .false. !switches on QCG-ensemblerun instead of CFF
       logical :: staticmtd = .false. ! do a static MTD instead of normal MDs

@@ -1292,6 +1292,10 @@ subroutine parseflags(env,arg,nra)
         if (io == 0 .and. (index(arg(i + 1),'-') .eq. 0)) then
           env%maxflip = nint(rdum)
         end if
+      case ('-osdf')
+        env%outputsdf = .true.
+        write(*,'(2x,a," :",1x,a)') trim(arg(i)), &
+        & "output ensemble requested in sdf format"
 !========================================================================================!
 !------ flags for parallelization / disk space
 !========================================================================================!
@@ -1827,7 +1831,8 @@ subroutine parseflags(env,arg,nra)
       case ('-pclean')                           !cleanup option for property mode, i.e., remove PROP/
         env%pclean = .true.
 !========================================================================================!
-      case ('-scratch')                          !use a scratch directory to perform the calculation in
+      case ('-scratch') 
+        !use a scratch directory to perform the calculation in
         env%scratch = .true.
         atmp = ''
         if (nra .ge. (i + 1)) atmp = adjustl(arg(i + 1))

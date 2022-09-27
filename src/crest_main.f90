@@ -155,29 +155,14 @@ program CREST
   !>--- protonation tool
        case( p_protonate )
         call protonate(env,tim)
-        if(env%relax)then
-          env%chrg=env%chrg + 1
-          env%nat = env%nat + 1
-          env%rednat = env%rednat +1
-          call relaxensemble('protonated.xyz',env,tim)
-        endif  
         call propquit(tim)
   !>--- deprotonation
        case( p_deprotonate )
         call deprotonate(env,tim)
-        if(env%relax)then
-           env%chrg=env%chrg-1
-           env%nat = env%nat - 1
-           env%rednat = env%rednat - 1
-           call relaxensemble('deprotonated.xyz',env,tim)
-        endif
         call propquit(tim)
   !>--- tautomerization
        case( p_tautomerize )
         call tautomerize(env,tim)
-        if(env%relax)then
-           call relaxensemble('tautomers.xyz',env,tim)
-        endif
         call propquit(tim)
   !>--- extended tautomerization
        case( p_tautomerize2 )
@@ -280,8 +265,10 @@ program CREST
            continue
       end select
 
-      if(env%sdfformat.and.(any((/1,2,22/)==env%crestver)))then    
-         call wrsdfens(env%sdf,conformerfile,conformerfilebase//'.sdf')
+      if((any((/crest_mfmdgc,crest_imtd,crest_imtd2/)==env%crestver)) &
+      &  .and.( env%outputsdf .or. env%sdfformat) )then    
+         !call wrsdfens(env%sdf,conformerfile,conformerfilebase//'.sdf')
+         call new_wrsdfens(env,conformerfile,conformerfilebase//'.sdf',.false.)
       endif
 
 !=========================================================================================!
