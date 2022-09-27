@@ -3,7 +3,7 @@ on: [push, pull_request]
 
 env:
   BUILD_DIR: _build
-  XTB_VERSION: 6.4.0
+  XTB_VERSION: 6.5.0
 
 jobs:
   intel-meson-build:
@@ -49,7 +49,7 @@ jobs:
         printenv >> $GITHUB_ENV
 
     - name: Install meson
-      run: pip3 install meson==0.55.3 ninja
+      run: pip3 install meson==0.60.1 ninja
 
     - name: Configure meson build
       run: meson setup ${{ env.BUILD_DIR }} --prefix=/
@@ -73,14 +73,14 @@ jobs:
         owner: grimme-lab
         repo: xtb
         tag: v${{ env.XTB_VERSION }}
-        file: '/xtb-\d+\.tar\.xz/'
+        file: '/xtb-${{ env.XTB_VERSION }}-linux-x86_64\.tar\.xz/'
 
     - name: Add xtb to path
       run: |
         tar xvf xtb-*.tar.xz
         echo ${{ env.PWD }}/xtb-${{ env.XTB_VERSION }}/bin >> $GITHUB_PATH
 
-    - name: Run example 0
-      run: |
-        bash run.sh
-      working-directory: examples/expl-0
+#    - name: Run example 0
+#      run: |
+#        bash run.sh
+#      working-directory: examples/expl-0

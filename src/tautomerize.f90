@@ -183,6 +183,18 @@ subroutine tautomerize(env,tim)
      call sort_ens(taut,'tautomers.xyz',.true.)
      call tim%stop(2)
 
+
+!>--- (optional) post-processing
+      if(env%relax)then
+        call relaxensemble('tautomers.xyz',env,tim)
+      endif
+
+      if(env%outputsdf)then
+       call new_wrsdfens(env,'tautomers.xyz','tautomers.sdf',.true.)
+      endif
+
+
+
 end subroutine tautomerize
 
 !--------------------------------------------------------------------------------------------

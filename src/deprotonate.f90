@@ -161,6 +161,16 @@ subroutine deprotonate(env,tim)
      call sort_ens(deprot,'deprotonated.xyz',.true.)
      call tim%stop(2)
 
+!>--- (optional) post-processing
+     if(env%relax)then
+       env%rednat = env%rednat - 1
+       call relaxensemble('deprotonated.xyz',env,tim)
+     endif
+
+     if(env%outputsdf)then
+     call new_wrsdfens(env,'deprotonated.xyz','deprotonated.sdf',.true.)
+     endif
+
 !--- reset data for main dir
      env%chrg = refchrg
      if(env%chrg .eq. 0) then
