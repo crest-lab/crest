@@ -1539,7 +1539,6 @@ contains
     else if(chrg .ne. 0)then
       write(ch, '(a, *(i3, 1x, i3, 1x, i3))') "M  CHG", 1, 1, chrg
     endif
-    
     write(ch,'(a)') 'M  END'
     write(ch,'(a)') '$$$$'
     return

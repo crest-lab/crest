@@ -127,5 +127,4 @@ contains
      enddo
      return 
    end subroutine set_prot_icharges
-
 end subroutine new_wrsdfens
