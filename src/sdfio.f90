@@ -56,18 +56,20 @@ subroutine new_wrsdfens(env,fname,oname,conf)
       real(wp),allocatable :: xyz(:,:,:)
       real(wp),allocatable :: c0(:,:)
       real(wp),allocatable :: wbo(:,:)
+      real(wp),allocatable :: icharges(:)
       integer :: i,j,ich
       real(wp) :: er
-      logical :: ex,loopwbo
+      logical :: ex,loopwbo,atmchrg
       character(len=120) :: sdfcomment
       loopwbo = .false.
+      atmchrg = .false.
       if(present(conf))loopwbo=conf
-    !---- read existing ensemble
+     !>--- read existing ensemble
       call rdensembleparam(fname,nat,nall)
       allocate(at(nat),eread(nat),xyz(3,nat,nall))
       call rdensemble(fname,nat,nall,at,xyz,eread)
       allocate(wbo(nat,nat), c0(3,nat), source=0.0_wp)
-    !>--- determine how to obtain wbos
+     !>--- determine how to obtain wbos
       wbo = 0.0_wp
       inquire(file='wbo',exist=ex)
       if(ex .and. .not.loopwbo)then
@@ -76,6 +78,10 @@ subroutine new_wrsdfens(env,fname,oname,conf)
         call xtbsp(env,0) !> gfn0 singlepoint 
         call readwbo('wbo',nat,wbo) 
       endif
+     !>--- (optional) some special settings
+      if(env%properties == p_protonate) atmchrg = .true.
+     
+      if( atmchrg ) allocate(icharges(nat), source=0.0_wp) 
 
      !>--- open sdf output file
       open(newunit=ich,file=oname)
@@ -88,9 +94,38 @@ subroutine new_wrsdfens(env,fname,oname,conf)
          call xtbsp2('tmpstruc.xyz',env) !> singlepoint for wbos
          call readwbo('wbo',nat,wbo)
         endif  
-        call wrsdf(ich,nat,at,c0,er,env%chrg,wbo,sdfcomment)
+        if(atmchrg)then
+         if(env%properties == p_protonate)then
+         call set_prot_icharges(nat,wbo,icharges)
+         endif
+         call wrsdf(ich,nat,at,c0,er,env%chrg,wbo,sdfcomment,icharges)
+        else
+         call wrsdf(ich,nat,at,c0,er,env%chrg,wbo,sdfcomment)
+        endif
       enddo 
       close(ich)
 
+      if(allocated(icharges))deallocate(icharges)
       deallocate(c0,wbo,xyz,eread,at)
+
+contains
+   subroutine set_prot_icharges(nat,wbo,icharges)
+   !>--- special routine for protonation mode
+   !     find the atom on which the proton was set
+   !     and set its charge to 1. The added proton is
+   !     always the last in the list, k=nat
+     integer,intent(in) :: nat
+     real(wp),intent(in) :: wbo(nat,nat) 
+     real(wp),intent(out) :: icharges(nat)
+     integer :: i,j,k
+     icharges = 0.0_wp
+     k = nat
+     do i=1,nat
+       if( nint(wbo(i,k)) .ne. 0)then
+         icharges(i) = 1.0_wp
+       endif 
+     enddo
+     return 
+   end subroutine set_prot_icharges
+
 end subroutine new_wrsdfens
