@@ -738,7 +738,7 @@ subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut
   character(len=*),intent(in) :: fname_cluster, fname_solu_cut,fname_solv_cut
   character (len=256)         :: atmp
   character (len=2)           :: a2   
-  integer                     :: ich,i,k,stat,io
+  integer                     :: ich,i,k,stat,io,io2
 
   
   ich=142
@@ -749,8 +749,7 @@ subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut
      read(ich,'(a)',iostat=io) atmp
      if(io < 0) exit
        atmp = adjustl(atmp) 
-       call coordline(atmp,a2,xyz1(1:3,k),io)
-       if(io < 0) exit
+       call coordline(atmp,a2,xyz1(1:3,k),io2)
        at1(k) = e2i(a2)
      k=k+1
   end do
@@ -759,8 +758,7 @@ subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut
      read(ich,'(a)',iostat=io) atmp
      if(io < 0) exit
        atmp = adjustl(atmp) 
-       call coordline(atmp,a2,xyz2(1:3,k),io)
-       if(io < 0) exit
+       call coordline(atmp,a2,xyz2(1:3,k),io2)
        at2(k) = e2i(a2)
      k=k+1
   end do

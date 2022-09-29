@@ -35,8 +35,8 @@ subroutine xtbsp(env,xtblevel)
          !pipe=' > xtb.out 2>/dev/null'
          call remove('gfnff_topo')
          call remove('energy')
+         call remove('wbo')
          if(.not.env%chargesfile)call remove('charges')
-         call remove('xtbrestart')
 !---- (OPTIONAL) select xtb level and set flag
          if(present(xtblevel))then
              select case(xtblevel)
@@ -63,8 +63,6 @@ subroutine xtbsp(env,xtblevel)
          call copy('coord',fname)
          call clear_setblock(fname)
 !---- jobcall
-!         write(jobcall,'(a,1x,a,1x,a," --sp ",a)') &
-!         &     trim(env%ProgName),trim(fname),trim(xtbflag),trim(env%solv)
          jobcall = ""
          jobcall = trim(jobcall)//trim(env%ProgName)
          jobcall = trim(jobcall)//" "//trim(fname)//" --sp"
@@ -94,6 +92,7 @@ subroutine xtbsp2(fname,env)
          type(systemdata) :: env
          character(len=512) :: jobcall
          character(*),parameter :: pipe=' > xtbcalc.out 2>/dev/null'
+         character(len=4) :: chrgstr
          integer :: io
          call remove('gfnff_topo')
          call remove('energy')
@@ -104,9 +103,20 @@ subroutine xtbsp2(fname,env)
             call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
          endif
 !---- jobcall
-         write(jobcall,'(a,1x,a,1x,a,'' --sp --wbo '',a,1x,a,a)') &
-         &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
-         !call system(trim(jobcall))
+         jobcall = ""
+         jobcall = trim(jobcall)//trim(env%ProgName)
+         jobcall = trim(jobcall)//" "//trim(fname)//" --sp --wbo"
+         jobcall = trim(jobcall)//" "//trim(env%gfnver)
+         jobcall = trim(jobcall)//" "//trim(env%solv)
+         if( env%chrg /= 0 )then
+           write(chrgstr,'(i0)') env%chrg
+           jobcall = trim(jobcall)//" --chrg "//trim(chrgstr)
+         endif
+         if( env%uhf /= 0 )then
+           write(chrgstr,'(i0)') env%uhf
+           jobcall = trim(jobcall)//" --uhf "//trim(chrgstr)
+         endif
+         jobcall = trim(jobcall)//pipe
          call execute_command_line(trim(jobcall), exitstat=io)
 !---- cleanup
          call remove('xtbcalc.out')

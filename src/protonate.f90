@@ -130,7 +130,7 @@ subroutine protonate(env,tim)
         call rename('OPTIM'//'/'//'opt.xyz',trim(filename))
         call rmrf('OPTIM')
         !write(*,*) trim(filename)
-        call copy(trim(filename),'ensemble-test.xyz')
+        !call copy(trim(filename),'ensemble-test.xyz')
         if(prot%ABcorrection)then
             call prot_correction(env,trim(filename))
         endif
@@ -173,6 +173,19 @@ subroutine protonate(env,tim)
      call sort_ens(prot,'protonated.xyz',.true.)
      call tim%stop(2)
 
+
+
+!>--- (optional) post-processing
+     if(env%relax)then
+       env%rednat = env%rednat +1
+       call relaxensemble('protonated.xyz',env,tim)
+     endif
+     
+     if(env%outputsdf)then
+     call new_wrsdfens(env,'protonated.xyz','protonated.sdf',.true.)
+     endif  
+
+
 !--- reset data for main dir
      env%chrg = refchrg
      if(env%chrg .eq. 0) then
@@ -183,7 +196,6 @@ subroutine protonate(env,tim)
        close(ich)
      endif
      env%nat=natp - 1 !reset nat
-     !call chdir(thispath)
 end subroutine protonate
 
 !--------------------------------------------------------------------------------------------
@@ -195,11 +207,10 @@ subroutine xtblmo(env)
          use crest_data
          implicit none
          type(systemdata) :: env
-         character(len=80) :: fname,pipe
+         character(len=80) :: fname
          character(len=512) :: jobcall
          integer :: io
-!---- some options
-         pipe=' > xtb.out 2>/dev/null'
+         character(len=*),parameter :: pipe = ' > xtb.out 2>/dev/null'
 
 !---- setting threads
          if(env%autothreads)then
@@ -212,8 +223,9 @@ subroutine xtblmo(env)
 !---- jobcall
          write(*,*)
          write(*,'('' LMO calculation ... '')',advance='no')
-         write(jobcall,'(a,1x,a,1x,a,'' --sp --lmo '',a,1x,a,a)') &
-         &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
+         write(jobcall,'(a,1x,a,1x,a,'' --sp --lmo'',1x,a)') &
+         &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv)
+         jobcall = trim(jobcall)//trim(pipe)
          !call system(trim(jobcall))
          call execute_command_line(trim(jobcall), exitstat=io)
          write(*,'(''done.'')')

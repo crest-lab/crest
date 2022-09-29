@@ -859,9 +859,9 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   call rdcoord('solvent_shell.coord',clus%nat,clus%at,clus%xyz)
   end if
 
-  env%crestver=crest_imtd2
+  env%QCG = .false. !For newcregen: If env%crestver .eq. crest_solv .and. .not. env%QCG then conffile .eq. .true.
+
   call inputcoords(env,'crest_input')
-  env%crestver=crest_solv
   call defaultGF(env)         !Setting MTD parameter
 
 !--- Special constraints for gff to safeguard stability
@@ -897,9 +897,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
 
       env%iterativeV2 = .true.  !Safeguards more precise ensemble search
       write(*,*) 'Starting ensemble cluster generation by CREST routine'
-      env%QCG = .false. !For newcregen: If env%crestver .eq. crest_solv .and. .not. env%QCG then conffile .eq. .true.
       call confscript2i(env,tim) !Calling ensemble search
-      env%QCG = .true.
       call copy('crest_rotamers.xyz','crest_rotamers_0.xyz')
 
     case( 1:2 ) ! Single MD or MTD
@@ -1101,15 +1099,15 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
          call dum%deallocate
          call chdir(tmppath2)
          call wrc0('coord',clus%nat,clus%at,clus%xyz)
-         env%crestver=crest_imtd2
          call inputcoords(env,'coord') !Necessary
-         env%crestver=crest_solv
 
 !--- Optimization
          call print_qcg_opt
          if(env%gfnver .eq. '--gfn2') call multilevel_opt(env,99)    
 
   end select
+
+  env%QCG = .true.
 
 !--- Optimization with gfn2 if necessary
   gfnver_tmp = env%gfnver

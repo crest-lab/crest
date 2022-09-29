@@ -27,201 +27,70 @@ subroutine inpsdf(env,fname)
       implicit none
       type(systemdata) :: env
       character(len=*) :: fname
+      type(coord) :: mol
       integer :: i
       env%sdfformat = .true.
       call checkcoordtype(fname,i)
-      if(i==31)then  
-        call rdsdf(env%sdf,fname)
-      elseif( i==32) then
-        call  rdsdf3000(env%sdf,fname)
+      if(any( (/31,32/) == i))then  
+        call mol%open(fname)
+      else
+        error stop 'file not in sdf format'
       endif
       return
 end subroutine inpsdf
 
-!----------------------------------------------------------------------------------
-subroutine rdsdf(sdf,fname)
+subroutine new_wrsdfens(env,fname,oname,conf)
       use iso_fortran_env, only: wp => real64
       use iomod
       use crest_data
       use strucrd
-      use filemod
+      use zdata, only: readwbo
       implicit none
-      type(sdfobj) :: sdf
-      type(filetype) :: myfile
+      type(systemdata) :: env
       character(len=*),intent(in) :: fname
-      integer  :: nat
-      integer :: i,j,k,l
-      character(len=256) :: atmp,btmp
-
-    !--- data and some allocation
-      sdf%V3000 = .false.
-      call rdnat(fname,nat)
-      allocate(sdf%hblock(4))
-      allocate(sdf%cblock(nat))
-      sdf%nat = nat
-
-    !--- read the file
-      call myfile%open(fname)  
-
-    !--- transfer header block  
-      do i=1,4
-         sdf%hblock(i) = ''
-         sdf%hblock(i) = trim(myfile%line(i))
-      enddo
-
-    !--- transfer atom info block  
-      do i=1,nat
-        k =  i+4
-        btmp = trim(myfile%line(k))
-        atmp = getlarg(btmp,4)
-        l = index(btmp,trim(atmp)) + 1
-        j = len_trim(btmp)
-        sdf%cblock(i) = trim(btmp(l:j))
-      enddo
-
-    !-- check number of lines for misc-block
-      k = 4 + nat + 1   
-      l = 0
-      do i=k,myfile%nlines
-        l = l + 1
-        atmp = myfile%line(i)
-        if(index(atmp,'M').ne.0 .and. &
-        &  index(atmp,'END').ne.0)then
-          exit
-        endif 
-      enddo  
-      allocate(sdf%miscblock(l))
-      sdf%nmisc = l
-      j=0
-      do i=k,l+k-1
-        j = j+1
-        sdf%miscblock(j) = trim(myfile%line(i))
-      !  write(*,*) trim(sdf%miscblock(j))
-      enddo
-      call myfile%close()
-     return
-end subroutine rdsdf
-
-subroutine rdsdf3000(sdf,fname)
-      use iso_fortran_env, only: wp => real64
-      use iomod
-      use crest_data
-      use strucrd
-      use filemod
-      implicit none
-      type(sdfobj) :: sdf
-      type(filetype) :: myfile
-      character(len=*),intent(in) :: fname
-      integer  :: nat
-      integer :: i,j,k,l
-      character(len=256) :: atmp,btmp
-
-    !--- data and some allocation
-      sdf%V3000 = .true.
-      call rdnat(fname,nat)
-      allocate(sdf%hblock(4))
-      allocate(sdf%cblock(nat))
-      sdf%nat = nat
-
-    !--- read the file
-      call myfile%open(fname)  
-
-    !--- transfer header block  
-      do i=1,4
-         sdf%hblock(i) = trim(myfile%line(i))
-      enddo
-
-    !--- read counts line
-    sdf%countsline  = trim(myfile%line(6))
-
-    !--- transfer atom info block  
-      do i=1,nat
-        k =  i+7
-        btmp = trim(myfile%line(k))
-        call clinex(btmp,7)
-        sdf%cblock(i) = trim(btmp)
-      !  write(*,*) trim(btmp)
-      enddo
-
-    !-- check number of lines for misc-block
-      k = 7 + nat + 2
-      l = 0
-      do i=k,myfile%nlines
-        l = l + 1
-        atmp = myfile%line(i)
-        if(index(atmp,'M').ne.0 .and. &
-        &  index(atmp,'END').ne.0 .and. &
-        &  index(atmp,'V30').eq.0 )then
-          exit
-        endif 
-      enddo  
-      allocate(sdf%miscblock(l))
-      sdf%nmisc = l
-      j=0
-      do i=k,l+k-1
-        j = j+1
-        sdf%miscblock(j) = trim(myfile%line(i))
-      !  write(*,*) trim(sdf%miscblock(j))
-      enddo
-      call myfile%close()
-     return
-end subroutine rdsdf3000
-
-subroutine wrsdfens(sdf,fname,oname)
-      use iso_fortran_env, only: wp => real64
-      use iomod
-      use crest_data
-      use strucrd, only: rdensembleparam,rdensemble,i2e
-      implicit none
-      type(sdfobj) :: sdf
-      character(len=*),intent(in) :: fname
-      character(len=*) :: oname
+      character(len=*),intent(in) :: oname
+      logical,intent(in),optional :: conf
       integer  :: nat,nall
       integer,allocatable  :: at(:)
       real(wp),allocatable :: eread(:)
       real(wp),allocatable :: xyz(:,:,:)
+      real(wp),allocatable :: c0(:,:)
+      real(wp),allocatable :: wbo(:,:)
       integer :: i,j,ich
+      real(wp) :: er
+      logical :: ex,loopwbo
+      character(len=120) :: sdfcomment
+      loopwbo = .false.
+      if(present(conf))loopwbo=conf
     !---- read existing ensemble
       call rdensembleparam(fname,nat,nall)
       allocate(at(nat),eread(nat),xyz(3,nat,nall))
       call rdensemble(fname,nat,nall,at,xyz,eread)
+      allocate(wbo(nat,nat), c0(3,nat), source=0.0_wp)
+    !>--- determine how to obtain wbos
+      wbo = 0.0_wp
+      inquire(file='wbo',exist=ex)
+      if(ex .and. .not.loopwbo)then
+         call readwbo('wbo',nat,wbo)
+      elseif( .not.ex .and. .not.loopwbo)then
+        call xtbsp(env,0) !> gfn0 singlepoint 
+        call readwbo('wbo',nat,wbo) 
+      endif
 
-    !---- write ensemble
-      open(newunit=ich,file=trim(oname))
+     !>--- open sdf output file
+      open(newunit=ich,file=oname)
       do i=1,nall
-         do j=1,4
-           if(j.eq.1)then
-              write(ich,'(a,5x,a,i0)') trim(sdf%hblock(j)),'#',i
-           else
-              write(ich,'(a)') trim(sdf%hblock(j))
-           endif
-         enddo
-         if(.not.sdf%V3000)then  !--- V2000 format
-           do j=1,nat
-             write(ich,'(3f10.4,1x,a2,1x,a)')xyz(1:3,j,i),i2e(at(j),'nc'),trim(sdf%cblock(j))
-           enddo
-           do j=1,sdf%nmisc
-             write(ich,'(a)') trim(sdf%miscblock(j))
-           enddo
-           write(ich,'(a)') '$$$$'
-         else                   !--- V3000 format
-           write(ich,'("M V30 BEGIN CTAB")')  
-           write(ich,'(a)') trim(sdf%countsline)
-           write(ich,'("M V30 BEGIN ATOM")')  
-           do j=1,nat           
-             write(ich,'(a,1x,i0,1x,a,3f10.4,1x,a)') 'M V30',j, &
-             &     i2e(at(j),'nc'),xyz(1:3,j,i),trim(sdf%cblock(j))
-           enddo
-           write(ich,'("M V30 END ATOM")') 
-           do j=1,sdf%nmisc
-             write(ich,'(a)') trim(sdf%miscblock(j))
-           enddo
-           write(ich,'(a)') '$$$$'
-         endif
-      enddo
+        write(sdfcomment,'(a,i0,a,i0)') 'structure ',i,' of ',nall
+        c0(1:3,1:nat) = xyz(1:3,1:nat,i)
+        er = eread(i)
+        if(loopwbo)then
+         call wrxyz('tmpstruc.xyz',nat,at,c0)
+         call xtbsp2('tmpstruc.xyz',env) !> singlepoint for wbos
+         call readwbo('wbo',nat,wbo)
+        endif  
+        call wrsdf(ich,nat,at,c0,er,env%chrg,wbo,sdfcomment)
+      enddo 
+      close(ich)
 
-      deallocate(xyz,eread,at) 
-      call sdf%deallocate()
-      return
-end subroutine wrsdfens
-
+      deallocate(c0,wbo,xyz,eread,at)
+end subroutine new_wrsdfens

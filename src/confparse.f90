@@ -1287,6 +1287,10 @@ subroutine parseflags(env,arg,nra)
         if (io == 0 .and. (index(arg(i + 1),'-') .eq. 0)) then
           env%maxflip = nint(rdum)
         end if
+      case ('-osdf')
+        env%outputsdf = .true.
+        write(*,'(2x,a," :",1x,a)') trim(arg(i)), &
+        & "output ensemble requested in sdf format"
 !========================================================================================!
 !------ flags for parallelization / disk space
 !========================================================================================!
@@ -1822,7 +1826,8 @@ subroutine parseflags(env,arg,nra)
       case ('-pclean')                           !cleanup option for property mode, i.e., remove PROP/
         env%pclean = .true.
 !========================================================================================!
-      case ('-scratch')                          !use a scratch directory to perform the calculation in
+      case ('-scratch') 
+        !use a scratch directory to perform the calculation in
         env%scratch = .true.
         atmp = ''
         if (nra .ge. (i + 1)) atmp = adjustl(arg(i + 1))
@@ -2194,7 +2199,7 @@ subroutine inputcoords(env,arg)
   integer :: i
 
 !>--- Redirect for QCG input reading
-  if (env%crestver == crest_solv) then
+  if (env%QCG) then
     arg2 = env%solv_file
     call inputcoords_qcg(env,arg,arg2)
     return
@@ -2222,8 +2227,10 @@ subroutine inputcoords(env,arg)
   !>--- if the input was a SDF file, special handling
   env%sdfformat = .false.
   call checkcoordtype(inputfile,i)
-  if (i == 31 .or. i == 32) then
-    call inpsdf(env,inputfile)
+  if (any((/31,32/) == i)) then
+    !call inpsdf(env,inputfile)
+     env%sdfformat = .true.
+     env%outputsdf = .true.
   end if
 
   !>--- after this point there should always be an coord file present
@@ -2231,7 +2238,7 @@ subroutine inputcoords(env,arg)
   !call rdnat('coord',env%nat)
   call mol%open('coord')
   !> shift to CMA and align according to rot.const.
-  call axis(mol%nat,mol%at,mol%xyz)
+  if(env%crestver /= crest_solv) call axis(mol%nat,mol%at,mol%xyz)
   !> overwrite coord
   call mol%write('coord')
 

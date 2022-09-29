@@ -192,7 +192,10 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
        zmol%zat=zat    !list of atoms, including data
        zmol%at=at      !list of atom types (integer)
      endif
-     deallocate(zat)
+     do i=1,n
+        call zat(i)%deallocate()
+     enddo
+     !if(allocated(zat))deallocate(zat)
 
 !--- analyze system for fragments
      call zmol%mrec()

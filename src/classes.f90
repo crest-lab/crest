@@ -30,7 +30,6 @@ module crest_data
 
    public :: systemdata
    public :: timer
-   public :: sdfobj
    public :: protobj
    public :: constra
    public :: optlevflag
@@ -179,20 +178,6 @@ module crest_data
       logical :: alldivers = .false.  !use all structures of given ensemble for extended taut mode
       logical,allocatable :: blacklist(:) !a blacklist of atoms to disallow deprotonation from
    end type protobj
-
-!========================================================================================!
-
-   type :: sdfobj
-      logical :: v3000 = .false. 
-      integer :: nat
-      integer :: nmisc
-      character(len=128) :: countsline
-      character(len=128),allocatable :: hblock(:)  !sdf header block (3 lines + counts line)
-      character(len=128),allocatable :: cblock(:)  !coordinate block (nat lines)
-      character(len=128),allocatable :: miscblock(:)  !misc block    (until-EOF lines)
-    contains
-      procedure :: deallocate => deallocate_sdf
-   end type sdfobj
 
 !========================================================================================!
 
@@ -382,9 +367,6 @@ module crest_data
     !--- saved constraints
       type(constra) :: cts
 
-    !--- SDF input format object
-      type(sdfobj) :: sdf
-
     !--- NCI mode data
       real(wp) :: potscal
     
@@ -500,6 +482,7 @@ module crest_data
       logical :: noconst=.false.   ! no constrain of solute during QCG Growth
       logical :: onlyZsort         ! do only the ZSORT routine ?
       logical :: optpurge = .false. !MDOPT purge application
+      logical :: outputsdf = .false. ! write output ensemble as sdf?
       logical :: pcaexclude = .false. ! exclude user set atoms from PCA?
       logical :: pclean            ! cleanup option for property mode
       logical :: performCross      ! perform the GC in V1/V2 ?
@@ -527,7 +510,7 @@ module crest_data
       logical :: scallen           ! scale the automatically determined MD length by some factor?
       logical :: scratch           ! use scratch directory
       logical :: setgcmax = .false.! adjust the maxmimum number of structures taken into account for GC?
-      logical :: sdfformat         ! was the SDF format used as input file?
+      logical :: sdfformat = .false. ! was the SDF format used as input file?
       logical :: slow              ! slowmode (counterpart to quick mode)
       logical :: solv_md = .false. !switches on QCG-ensemblerun instead of CFF
       logical :: staticmtd = .false. ! do a static MTD instead of normal MDs
@@ -569,16 +552,6 @@ module crest_data
      procedure :: stop  => stop_timer
    end type timer
 
-!========================================================================================!
-!> allocatable string
-!   type :: filetype
-!      integer :: flen
-!      integer :: llen
-!      character(:),allocatable :: filecontent(:)
-!    contains
-!      procedure :: allocate => allocate_file
-!      procedure :: deallocate => deallocate_file
-!   end type filetype
 !========================================================================================!
 !========================================================================================!
 
@@ -664,29 +637,8 @@ subroutine stop_timer(self,n)
    call system_clock ( self%t(n,2) , dummy )
    self%t(n,3)=self%t(n,3) + (self%t(n,2)-self%t(n,1))
 end subroutine stop_timer
-!========================================================================================!
-subroutine deallocate_sdf(self)
-   implicit none
-   class(sdfobj) :: self
-   if (allocated( self%hblock)) deallocate( self%hblock )
-   if (allocated( self%cblock)) deallocate( self%cblock )
-   if (allocated( self%miscblock)) deallocate( self%miscblock )
-end subroutine deallocate_sdf
-!========================================================================================!
-!subroutine allocate_file(self,n)
-!   implicit none
-!   class(filetype) :: self
-!   integer,intent(in)  :: n
-!   self%flen      = n
-!   allocate( self%filecontent(n), source='')
-!end subroutine allocate_file
-!========================================================================================!
-!subroutine deallocate_file(self)
-!   implicit none
-!   class(filetype) :: self
-!   if (allocated( self%filecontent)) deallocate( self%filecontent )
-!end subroutine deallocate_file
-!========================================================================================!
+!----------------------------------------------------------------------------------------------------
+!----------------------------------------------------------------------------------------------------
 subroutine add_to_pqueue(self,pjob)
    implicit none
    class(systemdata) :: self
