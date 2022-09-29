@@ -15,7 +15,10 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'dynamics_module.f90',
-  'metadynamics_module.f90',
-  'shake_module.f90',
+  'confparse2.f90',
+  'parse_block.f90',
+  'parse_calcdata.f90',
+  'parse_datastruct.f90',
+  'parse_inputfile.f90',
+  'parse_keyvalue.f90',
 )

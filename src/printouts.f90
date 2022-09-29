@@ -20,22 +20,30 @@
 !===================================================================================================!
 ! Print Header
 !===================================================================================================!
-subroutine confscript_head
+subroutine confscript_head(vers)
       implicit none
-      character(len=40),parameter:: date='Thu 31. Mai 17:09:21 CEST 2022'
+      logical,intent(in) :: vers
+      character(len=40),parameter:: date='Thu 29. Sep 23:15:09 CEST 2022'
       character(len=10),parameter:: version='3.0dev'
       logical :: niceprint
-      
+ 
       niceprint=.true.
       call box3(version,date)
       write(*,*)
 
+      if(vers)then
+        write(*,*) "crest ",trim(version)
+        stop
+      endif
+
       write(*,'(3x,''Cite work conducted with this code as'')')
       write(*,'(/,3x,''• P.Pracht, F.Bohle, S.Grimme, PCCP, 2020, 22, 7169-7192.'')')
       write(*,'(  3x,''• S.Grimme, JCTC, 2019, 15, 2847-2862.'')')
-      write(*,'(/,3x,''and for works involving QCG as'')')
+      write(*,'(/,3x,''for works involving QCG cite'')')
       write(*,'(/,3x,''• S.Spicher, C.Plett, P.Pracht, A.Hansen, S.Grimme,'')')
       write(*,'(  3x,''  JCTC, 2022, 18 (5), 3174-3189.'')')
+      write(*,'(/,3x,''for works involving MECP screening cite'')')
+      write(*,'(/,3x,''• P.Pracht, C.Bannwarth, JCTC, 2022, doi:10.1021/acs.jctc.2c00578'')')
       write(*,*)
 
       write(*,'(3x,a)')'Original code'
@@ -352,6 +360,7 @@ subroutine crestcite
      write(*,'(/5x,''• P.Pracht, S.Grimme, Chem. Sci., 2021, 12, 6551-6568.'')')
      write(*,'(/5x,''• S.Spicher, C.Plett, P.Pracht, A.Hansen, S.Grimme,'')')
      write(*,'( 5x,''  JCTC, 2022, 18 (5), 3174-3189.'')')
+     write(*,'(/5x,''• P.Pracht, C.Bannwarth, JCTC, 2022, doi:10.1021/acs.jctc.2c00578'')')
      write(*,'(/,/)')
      write(*,'(4x,''GFNn-xTB references:'')')
      write(*,'(5x,''GFN1-xTB'')')
@@ -377,6 +386,8 @@ subroutine crestcite
      write(*,'(/5x,''• P.Pracht, R.Wilcken, A.Udvarhelyi, S.Rodde, S.Grimme,'')')
      write(*,'(5x, ''  JCAMD, 2018, 32, 1139-1149.'')')
      write(*,'(/5x,''• P.Pracht, S.Grimme, JPCA, 2021, 125, 5681-5692'')')
+     write(*,'(/5x,''• J.Gorges, S.Grimme, A.Hansen, P.Pracht,'')')
+     write(*,'(5x, ''  PCCP, 2022,24, 12249-12259.'')') 
  
 
      write(*,'(/,/)')

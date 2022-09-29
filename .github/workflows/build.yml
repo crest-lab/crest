@@ -80,7 +80,7 @@ jobs:
         tar xvf xtb-*.tar.xz
         echo ${{ env.PWD }}/xtb-${{ env.XTB_VERSION }}/bin >> $GITHUB_PATH
 
-    - name: Run example 0
-      run: |
-        bash run.sh
-      working-directory: examples/expl-0
+#    - name: Run example 0
+#      run: |
+#        bash run.sh
+#      working-directory: examples/expl-0

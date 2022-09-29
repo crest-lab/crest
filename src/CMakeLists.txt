@@ -14,6 +14,12 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
+
+add_subdirectory("parsing")
+add_subdirectory("optimize")
+add_subdirectory("calculator")
+add_subdirectory("algos")
+add_subdirectory("dynamics")
 add_subdirectory("qcg")
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -90,6 +96,7 @@ list(APPEND srcs
   "${dir}/symmetry_i.c"
   "${dir}/syscheck.f90"
   "${dir}/tautomerize.f90"
+  "${dir}/testmol.f90"
   "${dir}/thermocalc.f90"
   "${dir}/thermo.f90"
   "${dir}/trackorigin.f90"

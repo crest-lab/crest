@@ -68,12 +68,11 @@ subroutine parseflags(env,arg,nra)
 !> Set the defaults
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
-!--- check for the GUI option. this will change the program printout on several occasions
   do i = 1,nra
     if (any((/'--GUI','--gui'/) == trim(arg(i)))) gui = .true.
     if ('-niceprint' == trim(arg(i))) env%niceprint = .true.
     if (any((/character(9)::'-version','--version'/) == trim(arg(i)))) then
-      call confscript_head()
+      call confscript_head(.true.)
       stop
     end if
   end do
@@ -81,7 +80,7 @@ subroutine parseflags(env,arg,nra)
 !=========================================================================================!
 !>--- print the program header and command line input
   if (.not. gui) then
-    call confscript_head()
+    call confscript_head(.false.)
 
     write (*,'(/,1x,a)') 'Command line input:'
     call get_command(cmd)

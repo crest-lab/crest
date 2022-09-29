@@ -14,7 +14,13 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-srcs + = files(
-'calc_module.f90',
-'lj.f90',
+srcs += files(
+  'calc_module.f90',
+  'calc_type.f90',
+  'constraints.f90',
+  'gfn0_api.f90',
+  'lj.f90',
+  'nonadiabatic.f90',
+  'tblite_api.f90',
+  'xtb_sc.f90',
 )

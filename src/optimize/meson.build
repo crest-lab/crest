@@ -15,7 +15,10 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'dynamics_module.f90',
-  'metadynamics_module.f90',
-  'shake_module.f90',
+  'ancopt.f90',
+  'hessupdate.f90',
+  'modelhessian.f90',
+  'optimize_maths.f90',
+  'optimize_module.f90',
+  'type_anc.f90',
 )

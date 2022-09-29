@@ -26,7 +26,7 @@ module calc_type
   character(len=12),public,parameter :: dev0 = ' 2>/dev/null'
 
 !=========================================================================================!
-  !> data object that contains the data for a single calculation
+  !> data object that contains the data for a *SINGLE* calculation
   public :: calculation_settings
   type :: calculation_settings
 
@@ -63,7 +63,7 @@ module calc_type
 !=========================================================================================!
 
 !=========================================================================================!
-  !> data object that contains settings for all calculation and constraints.
+  !> data object that contains settings for *ALL* calculations and constraints.
   public :: calcdata
   type :: calcdata
     integer :: id = 0

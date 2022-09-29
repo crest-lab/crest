@@ -17,6 +17,9 @@
 subdir('qcg')
 subdir('dynamics')
 subdir('calculator')
+subdir('optimize')
+subdir('algos')
+subdir('parsing')
 
 srcs += files(
   'acidbase.f90',
@@ -90,6 +93,7 @@ srcs += files(
   'symmetry_i.c',
   'syscheck.f90',
   'tautomerize.f90',
+  'testmol.f90',
   'thermocalc.f90',
   'thermo.f90',
   'trackorigin.f90',

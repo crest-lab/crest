@@ -178,6 +178,7 @@ contains
     return
   end subroutine engrad_mol
 
+  !>--- wrapper for the engrad_mol routine 
   subroutine engrad_xyz(n,xyz,at,calc,energy,gradient,iostatus)
     implicit none
     integer,intent(in) :: n

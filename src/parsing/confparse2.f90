@@ -86,12 +86,14 @@ subroutine parseinputfile(env,fname)
     call parse_main_blk(env,blk)
   enddo
 !>--- check objects for a calculation setup
+!     i.e., all [calculation] and [[calculation.*]] blocks
   call parse_calculation_data(newcalc,dict,l1)
   if(l1)then
     env%calc = newcalc
   endif
 
 !>--- check for molecular dynamics setup
+!     i.e., all [dynamics] and [[dynamics.*]] blocks
   call parse_dynamics_data(mddat,dict,l1)
   if(l1)then
     env%mddat = mddat

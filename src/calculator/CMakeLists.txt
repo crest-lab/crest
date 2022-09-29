@@ -14,8 +14,25 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-srcs += files(
-  'dynamics_module.f90',
-  'metadynamics_module.f90',
-  'shake_module.f90',
+set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
+
+list(APPEND srcs
+  "${dir}/calc_module.f90"
+  "${dir}/calc_type.f90"
+  "${dir}/constraints.f90"
+  "${dir}/gfn0_api.f90"
+  "${dir}/lj.f90"
+  "${dir}/nonadiabatic.f90"
+  "${dir}/tblite_api.f90"
+  "${dir}/xtb_sc.f90"
 )
+
+set(srcs ${srcs} PARENT_SCOPE)
+
+
+
+
+
+
+
+
