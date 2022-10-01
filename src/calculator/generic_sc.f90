@@ -18,12 +18,12 @@
 !================================================================================!
 
 !====================================================!
-! module xtb_sc
+! module generic_sc
 ! A module containing routines for
-! system calls to the xtb code
+! system calls to a generic script
 !====================================================!
 
-module xtb_sc
+module generic_sc
 
   use iso_fortran_env,only:wp => real64
   use strucrd
@@ -37,18 +37,18 @@ module xtb_sc
   integer :: i,j,k,l,ich,och,io
   logical :: ex
 
-  integer,parameter :: nf = 3
-  character(len=20),parameter :: xtbfiles(nf) = [&
-          & 'charges','xtbinp.grad','xtbrestart']
-  character(len=3),parameter :: xtb = 'xtb'
-  character(len=10),parameter :: xyzn = 'xtbinp.xyz'
-  character(len=13),parameter :: gf = 'xtbinp.engrad'
+  integer,parameter :: nf = 2
+  character(len=20),parameter :: rmfiles(nf) = [&
+          & 'genericinp.grad','genericinp.engrad']
+  character(len=6),parameter :: runscript = 'run.sh'
+  character(len=14),parameter :: xyzn = 'genericinp.xyz'
+  character(len=17),parameter :: gf = 'genericinp.engrad'
 
-  public :: xtb_engrad
+  public :: generic_engrad
 
 contains
 !========================================================================================!
-  subroutine xtb_engrad(mol,calc,energy,grad,iostatus)
+  subroutine generic_engrad(mol,calc,energy,grad,iostatus)
     use iso_fortran_env,only:wp => real64
     use strucrd
     use calc_type
@@ -66,7 +66,7 @@ contains
     
     !>--- setup system call information
     !$omp critical
-    call xtb_setup(mol,calc)
+    call generic_setup(mol,calc)
     !$omp end critical
 
     !>--- do the systemcall
@@ -76,21 +76,21 @@ contains
 
     !>--- read energy and gradient
     !$omp critical
-    call rd_xtb_engrad(mol,calc,energy,grad,iostatus)
+    call rd_generic_engrad(mol,calc,energy,grad,iostatus)
     !$omp end critical
     if (iostatus /= 0) return
 
     !>--- read WBOs?
-    !$omp critical
-    call rd_xtb_wbo(mol,calc,iostatus)
-    !$omp end critical
-    if (iostatus /= 0) return
+    !!$omp critical
+    !call rd_generic_wbo(mol,calc,iostatus)
+    !!$omp end critical
+    !if (iostatus /= 0) return
 
     return
-  end subroutine xtb_engrad
+  end subroutine generic_engrad
 
 !========================================================================================!
-  subroutine xtb_setup(mol,calc)
+  subroutine generic_setup(mol,calc)
     use iso_fortran_env,only:wp => real64
     use strucrd
     use calc_type
@@ -103,6 +103,8 @@ contains
     integer :: l
     character(len=:),allocatable :: fname
     character(len=:),allocatable :: cpath
+    character(len=:),allocatable :: tmprelpath
+    character(len=512) :: thispath
     character(len=10) :: num
     integer :: i,j,k,ich,och,io
     logical :: ex
@@ -111,8 +113,19 @@ contains
 
     !>--- set default binary if not present
     if (.not. allocated(calc%binary)) then
-      calc%binary = xtb
+      calc%binary = runscript
     end if
+
+    !>--- important for generec calls:
+    !     check if the requested binary/script is in the current working directory
+    !     if so, convert to absolute path
+    tmprelpath = '.'//sep//trim(calc%binary)
+    inquire(file=tmprelpath,exist=ex)
+    if(ex)then
+      call getcwd(thispath)
+      calc%binary = trim(thispath)//sep//trim(calc%binary)
+    endif 
+    deallocate(tmprelpath)
 
     !>--- check for the calculation space
     if (allocated(calc%calcspace)) then
@@ -126,8 +139,8 @@ contains
     end if
     !>--- cleanup old files
     do i = 1,nf
-      !write(*,*) trim(cpath)//sep//trim(xtbfiles(i)) 
-      call remove(trim(cpath)//sep//trim(xtbfiles(i)))
+      !write(*,*) trim(cpath)//sep//trim(rmfiles(i)) 
+      call remove(trim(cpath)//sep//trim(rmfiles(i)))
     end do
     deallocate (cpath)
 
@@ -164,45 +177,29 @@ contains
 
     !>--- add other call information
     calc%systemcall = trim(calc%systemcall)//' '//xyzn
-    !>--- chrg and uhf
-    if (calc%chrg .ne. 0) then
-      write (num,'(i0)') calc%chrg
-      calc%systemcall = trim(calc%systemcall)//' '//'--chrg'
-      calc%systemcall = trim(calc%systemcall)//' '//trim(num)
-    end if
-    if (calc%uhf .ne. 0) then
-      write (num,'(i0)') calc%uhf
-      calc%systemcall = trim(calc%systemcall)//' '//'--uhf'
-      calc%systemcall = trim(calc%systemcall)//' '//trim(num)
-    end if
     !>--- user-set flags
     if (allocated(calc%other)) then
       calc%systemcall = trim(calc%systemcall)//' '//trim(calc%other)
     end if
-    !>--- don't miss the --grad flag!
-    if (index(calc%systemcall,'-grad') .eq. 0) then
-      calc%systemcall = trim(calc%systemcall)//' '//'--grad'
-    end if
 
     !>--- add printout information
-    calc%systemcall = trim(calc%systemcall)//' '//'> xtb.out'
+    calc%systemcall = trim(calc%systemcall)//' '//'> generic.out'
     calc%systemcall = trim(calc%systemcall)//dev0
 
     !write (*,*) calc%systemcall
     return
-  end subroutine xtb_setup
+  end subroutine generic_setup
 
 !========================================================================================!
-! subroutine rd_xtb_engrad
+! subroutine rd_generic_engrad
 ! read xtb's energy and Cartesian gradient from file
 ! xtb's *.engrad format is used for this
-  subroutine rd_xtb_engrad(mol,calc,energy,grad,iostatus)
+  subroutine rd_generic_engrad(mol,calc,energy,grad,iostatus)
     use iso_fortran_env,only:wp => real64
     use strucrd
     use calc_type
     use iomod,only:makedir,directory_exist,remove
-    use gradreader_module, only:rd_grad_engrad
-
+    use gradreader_module
     implicit none
     type(coord) :: mol
     type(calculation_settings) :: calc
@@ -212,6 +209,7 @@ contains
     integer :: n,c
     real(wp) :: dum
     character(len=128) :: atmp
+    character(len=512) :: tmpgradfile,tmpefile
 
     integer :: i,j,k,ich,och,io
     logical :: ex
@@ -219,32 +217,55 @@ contains
     call initsignal()
 
     iostatus = 0
-
+    tmpgradfile = ''
+    tmpefile = ''
     if (.not. allocated(calc%gradfile)) then
-      if (allocated(calc%calcspace)) then
-        calc%gradfile = trim(calc%calcspace)//sep//gf
-      else
-        calc%gradfile = gf
-      end if
+      calc%gradfile = gf
+    endif  
+    if (allocated(calc%calcspace)) then
+      tmpgradfile = trim(calc%calcspace)//sep//trim(calc%gradfile)
+      if(allocated(calc%efile)) &
+      & tmpefile  = trim(calc%calcspace)//sep//trim(calc%efile)
+    else
+      tmpgradfile = trim(calc%gradfile)
+      if(allocated(calc%efile)) &
+      & tmpefile  = trim(calc%efile)
     end if
 
-    inquire (file=calc%gradfile,exist=ex)
+    inquire (file=trim(tmpgradfile),exist=ex)
     if (.not. ex) then
       iostatus = 1
       return
     end if
 
-    c = 0
-    open (newunit=ich,file=calc%gradfile)
-    call rd_grad_engrad(ich,mol%nat,energy,grad,iostatus)
+    open (newunit=ich,file=trim(tmpgradfile))
+    select case( calc%gradtype )
+    case( gradtype%engrad )
+      call rd_grad_engrad(ich,mol%nat,energy,grad,iostatus)
+    case( gradtype%turbomole )
+       
+    case default
+      if(.not.allocated(calc%efile))then
+         iostatus = 1
+         return
+      endif
+      call rd_efile(trim(tmpefile),energy,iostatus)
+      if(allocated(calc%gradkey))then
+        call rd_grad_generic(ich,mol%nat,grad, &
+        & calc%gradkey,calc%gradfmt,iostatus)
+      else
+        call rd_grad_generic(ich,mol%nat,grad, &
+        & '',calc%gradfmt,iostatus)
+      endif 
+    end select
     close (ich)
 
     return
-  end subroutine rd_xtb_engrad
+  end subroutine rd_generic_engrad
 !========================================================================================!
-! subroutine rd_xtb_wbo
-! helper routine ro read xtb WBOs
-  subroutine rd_xtb_wbo(mol,calc,iostatus)
+! subroutine rd_generic_wbo
+! helper routine ro read generic WBOs
+  subroutine rd_generic_wbo(mol,calc,iostatus)
     implicit none
     type(coord) :: mol
     type(calculation_settings) :: calc
@@ -287,7 +308,7 @@ contains
     end do
     close (ich)
 
-  end subroutine rd_xtb_wbo
+  end subroutine rd_generic_wbo
 
 !========================================================================================!
-end module xtb_sc
+end module generic_sc

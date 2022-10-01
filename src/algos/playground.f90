@@ -76,15 +76,15 @@ subroutine crest_playground(env,tim)
 
 
   !>-- geopetry optimization
-  pr = .true. !> stdout printout
-  wr = .true. !> write crestopt.log
-  call optimize_geometry(mol,molnew,calc,energy,grad,pr,wr,io)
+  !pr = .true. !> stdout printout
+  !wr = .true. !> write crestopt.log
+  !call optimize_geometry(mol,molnew,calc,energy,grad,pr,wr,io)
 
-  if(io==0)then
-    write(*,*) 'geometry optimized!'
-    write(*,*)
-    call molnew%append(stdout)
-  endif
+  !if(io==0)then
+  !  write(*,*) 'geometry optimized!'
+  !  write(*,*)
+  !  call molnew%append(stdout)
+  !endif
  
   deallocate(grad)
 !========================================================================================!

@@ -25,6 +25,18 @@ module calc_type
   character(len=1),public,parameter :: sep = '/'
   character(len=12),public,parameter :: dev0 = ' 2>/dev/null'
 
+
+   !> job type enumerator
+   type ,private:: enum_jobtype
+      integer :: unknown   = 0
+      integer :: xtbsys    = 1
+      integer :: generic   = 2
+      integer :: turbomole = 3
+      integer :: orca      = 4
+      integer :: terachem  = 5
+   end type enum_jobtype
+   type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
+
 !=========================================================================================!
   !> data object that contains the data for a *SINGLE* calculation
   public :: calculation_settings
@@ -43,6 +55,12 @@ module calc_type
     character(len=:),allocatable :: binary
     character(len=:),allocatable :: systemcall
 
+    !>--- gradient format specifications
+    integer :: gradtype = 0
+    integer :: gradfmt = 0
+    character(len=:),allocatable :: gradkey
+    character(len=:),allocatable :: efile
+
     !>--- results/property requests
     real(wp) :: epot = 0.0_wp
     real(wp) :: efix = 0.0_wp
@@ -57,7 +75,7 @@ module calc_type
     real(wp),allocatable :: dipgrad(:,:,:)
 
   contains
-    procedure :: deallocate => calcdata_deallocate
+    procedure :: deallocate => calculation_settings_deallocate
 
   end type calculation_settings
 !=========================================================================================!
@@ -147,7 +165,7 @@ contains
     return
   end subroutine calculation_reset
 
-  subroutine calcdata_deallocate(self)
+  subroutine calculation_settings_deallocate(self)
     implicit none
     class(calculation_settings) :: self
 
@@ -160,6 +178,8 @@ contains
     if (allocated(self%systemcall)) deallocate (self%systemcall)
     if (allocated(self%wbo)) deallocate (self%wbo)
     if (allocated(self%dipgrad)) deallocate (self%dipgrad)
+    if (allocated(self%gradkey)) deallocate (self%gradkey)
+    if (allocated(self%efile)) deallocate (self%efile)
 
     self%id = 0
     self%chrg = 0
@@ -172,9 +192,11 @@ contains
     self%rddip = .false.
     self%dip = 0.0_wp
     self%rddipgrad = .false.
+    self%gradtype = 0
+    self%gradfmt = 0
 
     return
-  end subroutine calcdata_deallocate
+  end subroutine calculation_settings_deallocate
 
 !=========================================================================================!
 

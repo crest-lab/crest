@@ -22,5 +22,7 @@ srcs += files(
   'lj.f90',
   'nonadiabatic.f90',
   'tblite_api.f90',
+  'gradreader.f90',
   'xtb_sc.f90',
+  'generic_sc.f90',
 )

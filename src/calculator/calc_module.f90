@@ -18,13 +18,16 @@
 !================================================================================!
 
 module calc_module
-
+  !>--- types and readers
   use iso_fortran_env,only:wp => real64
   use strucrd
-  use constraints
   use calc_type
+  !>--- potentials
   use xtb_sc
+  use generic_sc
   use lj
+  !>--- other
+  use constraints
   use nonadiabatic_module
   implicit none
 
@@ -54,6 +57,8 @@ module calc_module
   public :: constrhess
 
 contains
+!========================================================================================!
+!========================================================================================!
 !========================================================================================!
 !> subroutine engrad
 !> main routine to perform some energy and gradient calculation
@@ -95,17 +100,22 @@ contains
 !==========================================================!
     !>--- Calculation
     if (n > 0) then
+
+      !==================================================================================!
       !>--- loop over all calculations to be done
       do i = 1,calc%ncalculations
-        !write(*,*) i,calc%calcs(i)%calcspace,calc%calcs(i)%id
         if (calc%which > 0) then
           if (i < calc%which) cycle
           if (i > calc%which) exit
         end if
         select case (calc%calcs(i)%id)
-        case (10) !-- xtb system call
-          !write(*,*) i,calc%calcs(i)%calcspace
+        case ( jobtype%xtbsys ) !-- xtb system call
           call xtb_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+  
+        case ( jobtype%generic ) !-- generic script/program call
+          call generic_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+ 
+
         case( 20 ) !-- gfn0 api
           
 
@@ -120,6 +130,8 @@ contains
           calc%grdtmp(:,:,i) = 0.0_wp
         end select
       end do
+
+      !==================================================================================! 
       !>--- switch case for what to to with the energies
       select case (calc%id)
       case default 
@@ -144,6 +156,8 @@ contains
       call calc_eprint(calc,energy,calc%etmp)
       !>--- deallocate
       !deallocate (etmp,grdtmp)
+
+
     end if
 
 !==========================================================!
@@ -201,6 +215,8 @@ contains
     return
   end subroutine engrad_xyz
 
+!========================================================================================!
+!========================================================================================!
 !========================================================================================!
 !> subroutine numgrad
 !> routine to perform a numerical gradient calculation

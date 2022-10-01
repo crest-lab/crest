@@ -19,8 +19,10 @@ MODULES1 += testmol.o
 
 SUBMOD += constraints.o
 SUBMOD += calc_type.o
+SUBMOD += gradreader.o
 SUBMOD += lj.o
 SUBMOD += xtb_sc.o
+SUBMOD += generic_sc.o
 SUBMOD += nonadiabatic.o
 SUBMOD += shake_module.o
 SUBMOD += calc_module.o

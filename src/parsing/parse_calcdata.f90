@@ -1,10 +1,11 @@
 
 module parse_calcdata
   use iso_fortran_env,only:wp => real64,sp => real64
-  use calc_type,only:calcdata,calculation_settings
+  use calc_type,only:calcdata,calculation_settings,jobtype
   use constraints
   use dynamics_module
   use metadynamics_module
+  use gradreader_module,only:gradtype,conv2gradfmt
 
   use parse_block,only:datablock
   use parse_keyvalue,only:keyvalue
@@ -173,22 +174,51 @@ contains
     character(len=*) :: key
     character(len=*) :: val
     select case (key)
-    case ('bin','binary')
+    case ('bin','binary','script')
       job%binary = val
     case ('flags')
       job%other = val
-      !> don't.
-      !case ('sys','syscall','systemcall')
-      !  job%systemcall = val
+   !> don't.
+   !case ('sys','syscall','systemcall')
+   !  job%systemcall = val
     case ('calcspace','dir')
       job%calcspace = val
     case ('method')
       select case (val)
       case ('gfn-xtb','gfn','xtb')
-        job%id = 10
+        job%id = jobtype%xtbsys
+      case ('generic')
+        job%id = jobtype%generic
+      case ('orca')
+        job%id = jobtype%orca
+      case ('turbomole','tm')
+        job%id = jobtype%turbomole
+      case ('terachem')
+        job%id = jobtype%terachem
+      case ('none')
+        job%id = jobtype%unknown
       case default
-        job%id = 0
+        job%id = jobtype%unknown
       end select
+     case ('gradfile')
+       job%gradfile = val
+     case ('gradtype')
+       select case (val)
+       case ('engrad','xtb','orca')
+        job%gradtype = gradtype%engrad
+       case ('turbomole','tm')
+        job%gradtype = gradtype%turbomole
+       case ('generic')
+        job%gradtype = gradtype%unknown
+       case default
+        job%gradtype = gradtype%unknown
+       end select
+     case ('gradkey')
+       job%gradkey = val
+     case ('gradmt' )
+       job%gradfmt = conv2gradfmt(val)
+     case ('efile')
+        job%efile = val 
     end select
     return
   end subroutine parse_setting_c
