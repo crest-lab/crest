@@ -71,7 +71,7 @@ if get_option('openmp')
       link_args: '-fopenmp',
     )
   endif
-  exe_deps += omp_dep
+  libs += omp_dep
 endif
 
 ## ======================================== ##
@@ -87,7 +87,7 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
 
   if get_option('default_library') == 'dynamic'
     mkl_rt_dep = cc.find_library('mkl_rt', required: true)
-    exe_deps += mkl_rt_dep
+    libs += mkl_rt_dep
   else
     if fc.get_id() == 'gcc'
       libmkl_exe = [cc.find_library('mkl_gf_lp64')]
@@ -109,7 +109,7 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
       libmkl_exe += cc.find_library('mkl_sequential')
     endif
     libmkl_exe += cc.find_library('mkl_core')
-    exe_deps += libmkl_exe
+    libs += libmkl_exe
   endif
 
 elif la_backend == 'mkl-rt'
@@ -117,10 +117,10 @@ elif la_backend == 'mkl-rt'
 
   mkl_rt_dep = fc.find_library('mkl_rt', required: true)
   if fc.get_id() == 'intel'
-    exe_deps += fc.find_library('ifcore')
+    libs += fc.find_library('ifcore')
   endif
 
-  exe_deps += mkl_rt_dep
+  libs += mkl_rt_dep
 
 elif la_backend == 'openblas'
   # search for OpenBLAS
@@ -128,7 +128,7 @@ elif la_backend == 'openblas'
   if not blas_dep.found()
     blas_dep = fc.find_library('openblas', required: true)
   endif
-  exe_deps += blas_dep
+  libs += blas_dep
   # some OpenBLAS versions can provide lapack, check if we can find dsygvd
   openblas_provides_lapack = fc.links(
     'external dsygvd; call dsygvd(); end',
@@ -140,12 +140,12 @@ elif la_backend == 'openblas'
     if not lapack_dep.found()
       lapack_dep = fc.find_library('lapack', required: true)
     endif
-    exe_deps += lapack_dep
+    libs += lapack_dep
   endif
 
 elif la_backend == 'custom'
   foreach lib: get_option('custom_libraries')
-    exe_deps += fc.find_library(lib)
+    libs += fc.find_library(lib)
   endforeach
 
 else
@@ -154,12 +154,29 @@ else
   if not blas_dep.found()
     blas_dep = fc.find_library('blas', required: true)
   endif
-  exe_deps += blas_dep
+  libs += blas_dep
   # Find LAPACK (usually netlib, but in conda also MKL)
   lapack_dep = dependency('lapack', required: false)
   if not lapack_dep.found()
     lapack_dep = fc.find_library('lapack', required: true)
   endif
-  exe_deps += lapack_dep
-
+  libss += lapack_dep
 endif
+
+## ========================================= ##
+## External subprojects
+## ========================================= ##  
+#tblite_dep = dependency(
+#  'tblite',
+#  version: '>=0.2',
+#  fallback: ['tblite', 'tblite_dep'],
+#  default_options: ['default_library=static', 'api=false'],
+#)
+#libs += tblite_dep
+
+#mctc_dep = dependency(
+#  'mctc-lib',
+#  fallback: ['mctc-lib', 'mctc_dep'],
+#  default_options: ['default_library=static'],
+#)
+#libs += mctc_dep
