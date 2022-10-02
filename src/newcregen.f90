@@ -286,7 +286,7 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
   call remove(outfile)
   if (simpleset > 0) then
     select case (simpleset)
-    case (6,9)
+    case (6,9,12)
       iounit = output_unit
     case default
       open (newunit=iounit,file=outfile)
@@ -310,6 +310,12 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
     call checkname_xyz(crefile,fname,oname)
     cname = conformerfile
   end if
+  if( simpleset == 12 ) then !> MECP files
+    fname = "crest_mecp_search.xyz"
+    oname = "crest_mecp_search.xyz.sorted"
+    cname = "crest_ensemble.xyz"
+  endif
+
   write (iounit,*) 'input  file name : ',trim(fname)
   select case (simpleset)
   case (9)

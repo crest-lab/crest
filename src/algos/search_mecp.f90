@@ -138,9 +138,11 @@ subroutine print_gapcons(calc)
       write (stdout,'(" σ=",f8.5," α=",f8.5)') calc%cons(i)%fc(1:2)
      case( -2 )
       ex = .true.
-      write (stdout,'(1x,a,1x,"[",a,"]")') 'nonadiabatic gap constraint', &
+      write (stdout,'(1x,a)') 'nonadiabatic gap constraint'
+      write (stdout,'(1x,"Vgap = [",a,"] with")') &
       &     'σ*(exp(-β|ΔE|)+C) * ΔE²/(|ΔE|+α)'
-      write (stdout,'(" σ=",f8.5," α=",f8.5," C=",f8.5," β=",f8.5)') calc%cons(i)%fc(1:3),27.2114_wp
+      write (stdout,'(" σ = ",f8.5,/," α = ",f8.5,/," C = ",f8.5,/," β = ",f8.5)') &
+      & calc%cons(i)%fc(1:3),27.2114_wp
      case default
        continue
      end select
