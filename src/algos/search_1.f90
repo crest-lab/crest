@@ -10,26 +10,19 @@ subroutine crest_search_1(env,tim)
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
-  type(coord) :: mol,molnew
-  integer :: i,j,k,l,io,ich,m
-  logical :: pr,wr
+  type(coord) :: mol
 !===========================================================!
-  type(calcdata) :: calc
   type(mddata) :: mddat
-  type(shakedata) :: shk
 
   type(mddata),allocatable :: mddats(:)
   integer :: nsim
 
-  real(wp) :: energy,gnorm
-  real(wp),allocatable :: grad(:,:)
   character(len=:),allocatable :: ensnam
   integer :: nat,nall
   real(wp),allocatable :: eread(:)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
   logical :: dump
-  character(len=80) :: atmp
 
 !===========================================================!
 !>--- printout header
@@ -56,7 +49,7 @@ subroutine crest_search_1(env,tim)
 
   call crest_search_multimd_init(env,mol,mddat,nsim)
   allocate (mddats(nsim), source=mddat)
-  call crest_search_multimd_init2(env,mol,mddats,nsim)
+  call crest_search_multimd_init2(env,mddats,nsim)
 
   call tim%start(2,'MD simulations')
   call crest_search_multimd(env,mol,mddats,nsim)
@@ -119,16 +112,12 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   type(mddata) :: mddats(nsim)
   integer :: nsim
   type(coord) :: mol,moltmp
-  integer :: i,j,k,l,io,ich
-  logical :: pr,wr,ex
+  integer :: i,j,io,ich
+  logical :: pr,ex
 !========================================================================================!
   type(calcdata) :: calc
   type(mddata) :: mddat
-  type(shakedata) :: shk
 
-  real(wp) :: energy,gnorm
-  real(wp),allocatable :: grad(:,:)
-  character(len=:),allocatable :: ensnam
   real(wp) :: percent
   character(len=52) :: bar
   character(len=80) :: atmp
@@ -228,7 +217,7 @@ subroutine collect(n,mddats)
     integer :: n
     type(mddata) :: mddats(n)
     logical :: ex
-    integer :: i,j,k,io,ich,ich2
+    integer :: i,io,ich,ich2
     character(len=:),allocatable :: atmp
     character(len=256) :: btmp
     open(newunit=ich,file='crest_dynamics.trj')
@@ -266,18 +255,16 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   implicit none
   type(systemdata),intent(inout) :: env
   type(mddata) :: mddat
-  type(coord) :: mol,moltmp
+  type(coord) :: mol
   integer,intent(out) :: nsim
-  integer :: i,j,k,l,io,ich
-  logical :: pr,wr,ex
+  integer :: i,io
+  logical :: pr
 !========================================================================================!
   type(calcdata) :: calc
   type(shakedata) :: shk
 
-  real(wp) :: energy,gnorm
+  real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
-  character(len=:),allocatable :: ensnam
-  character(len=80) :: atmp
   character(len=*),parameter :: mdir = 'MDFILES' 
  
 !========================================================================================!
@@ -324,7 +311,7 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
 
   return
 end subroutine crest_search_multimd_init
-subroutine crest_search_multimd_init2(env,mol,mddats,nsim)
+subroutine crest_search_multimd_init2(env,mddats,nsim)
   use iso_fortran_env,only:wp => real64,stdout => output_unit
   use crest_data
   use strucrd
@@ -339,15 +326,11 @@ subroutine crest_search_multimd_init2(env,mol,mddats,nsim)
   type(systemdata),intent(inout) :: env
   type(mddata) :: mddats(nsim)
   integer :: nsim
-  type(coord) :: mol,moltmp
-  integer :: i,j,k,l,io,ich
-  logical :: pr,wr,ex
+  integer :: i,io
+  logical :: ex
 !========================================================================================!
   type(mtdpot),allocatable :: mtds(:)
   
-  real(wp) :: energy,gnorm
-  real(wp),allocatable :: grad(:,:)
-  character(len=:),allocatable :: ensnam
   character(len=80) :: atmp
   character(len=*),parameter :: mdir = 'MDFILES' 
  

@@ -186,11 +186,11 @@ contains
     
     select case( i )
     case ( 1 )
-      if( any(rawa(1) == (/ 'all','allauto' /)))then
+      if( any(rawa(1) == (/character(7)::'all','allauto' /)))then
       call self%dummyconstraint(t)
       endif
     case (2) 
-      if( any(rawa(1) == (/ 'all','allauto' /)))then
+      if( any(rawa(1) == (/character(9)::'all','allauto' /)))then
       read(rawa(2),*) k
       call self%dummyconstraint(t,k)
       endif

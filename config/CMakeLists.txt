@@ -64,7 +64,8 @@ endif()
 # Compiler settings
 #
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
-  set(dialect "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
+#  set(dialect "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
+  set(dialect "-g -O0 -fbacktrace -ffree-line-length-none -fbacktrace")
   set(bounds "-fbounds-check")
 endif()
 if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")

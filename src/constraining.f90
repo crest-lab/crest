@@ -521,7 +521,7 @@ subroutine write_cts_NCI(ich,cts)
   integer :: ich
   integer :: i
 !---- do it only if constaints are given
-  if (cts%NCI) then
+  if (cts%NCI .and. allocated(cts%pots)) then
     do i = 1,10
       if (trim(cts%pots(i)) .ne. '') then
         write (ich,'(a)') trim(cts%pots(i))
@@ -542,7 +542,7 @@ subroutine write_cts_NCI_pr(ich,cts)
   integer :: ich
   integer :: i
 !---- do it only if constaints are given
-  if (cts%NCI) then
+  if (cts%NCI .and. allocated(cts%pots)) then
     do i = 1,10
       if (trim(cts%pots(i)) .ne. '') then
         write (ich,'(a,a)') '> ',trim(cts%pots(i))

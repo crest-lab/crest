@@ -1436,7 +1436,7 @@ subroutine calc_ecoul(nat,at,xyz,cn,atommask,ecoulomb)
   real(wp) :: cn(nat)
   integer :: atommask(nat) !contains 1 or 0
   real(wp) :: ecoulomb
-  integer :: i,j,k,l
+  integer :: i,j
   real(wp) :: cnexp,rexp,natexp
   real(wp) :: r,dum,zi,zj
   ecoulomb = 0.0_wp

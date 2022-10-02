@@ -32,6 +32,8 @@ if fc_id == 'gcc'
     '-fbacktrace',
     '-Wno-maybe-uninitialized',
     '-Wno-uninitialized',
+    '-Wno-unused-variable',
+    '-Wno-unused-dummy-argument',
     language: 'fortran',
   )
 elif fc_id == 'intel'

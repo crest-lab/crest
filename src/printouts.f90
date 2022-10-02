@@ -61,39 +61,39 @@ subroutine confscript_head(vers)
       call disclaimer()
 
 contains
- subroutine box1(version,date)
-    implicit none
-    character(len=*) :: version
-    character(len=*) :: date
-    write(*,*)
-    write(*,'(7x,''=============================================='')')
-    write(*,'(7x,''|                                            |'')')
-    write(*,'(7x,''|                 C R E S T                  |'')')
-    write(*,'(7x,''|                                            |'')')
-    write(*,'(7x,''|  Conformer-Rotamer Ensemble Sampling Tool  |'')')
-    write(*,'(7x,''|          based on the GFN methods          |'')')
-    write(*,'(7x,''|             P.Pracht, S.Grimme             |'')')
-    write(*,'(7x,''|          Universitaet Bonn, MCTC           |'')')
-    write(*,'(7x,''=============================================='')')
-    write(*,'(7x,''Version '',a,'', '',a)')trim(version),trim(date)
-    write(*,'(2x,''Using the xTB program. Compatible with xTB version 6.4.0'')')
- end subroutine box1
- subroutine box2(version,date)
-   implicit none
-   character(len=*) :: version
-   character(len=*) :: date
-      write(*,*)
-      write(*,'(7x,''╔════════════════════════════════════════════╗'')')
-      !write(*,'(7x,''║                                            ║'')')
-      write(*,'(7x,''║                 C R E S T                  ║'')')
-      write(*,'(7x,''║                                            ║'')')
-      write(*,'(7x,''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
-      write(*,'(7x,''║          based on the GFN methods          ║'')')
-      write(*,'(7x,''║         P.Pracht, RWTH Aachen, IPC         ║'')')
-      write(*,'(7x,''║     S.Grimme, Universität Bonn, MCTC       ║'')')
-      write(*,'(7x,''╚════════════════════════════════════════════╝'')')
-      write(*,'(7x,''Version '',a,'',  '',a)')trim(version),trim(date)
-   end subroutine box2
+! subroutine box1(version,date)
+!    implicit none
+!    character(len=*) :: version
+!    character(len=*) :: date
+!    write(*,*)
+!    write(*,'(7x,''=============================================='')')
+!    write(*,'(7x,''|                                            |'')')
+!    write(*,'(7x,''|                 C R E S T                  |'')')
+!    write(*,'(7x,''|                                            |'')')
+!    write(*,'(7x,''|  Conformer-Rotamer Ensemble Sampling Tool  |'')')
+!    write(*,'(7x,''|          based on the GFN methods          |'')')
+!    write(*,'(7x,''|             P.Pracht, S.Grimme             |'')')
+!    write(*,'(7x,''|          Universitaet Bonn, MCTC           |'')')
+!    write(*,'(7x,''=============================================='')')
+!    write(*,'(7x,''Version '',a,'', '',a)')trim(version),trim(date)
+!    write(*,'(2x,''Using the xTB program. Compatible with xTB version 6.4.0'')')
+! end subroutine box1
+! subroutine box2(version,date)
+!   implicit none
+!   character(len=*) :: version
+!   character(len=*) :: date
+!      write(*,*)
+!      write(*,'(7x,''╔════════════════════════════════════════════╗'')')
+!      !write(*,'(7x,''║                                            ║'')')
+!      write(*,'(7x,''║                 C R E S T                  ║'')')
+!      write(*,'(7x,''║                                            ║'')')
+!      write(*,'(7x,''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
+!      write(*,'(7x,''║          based on the GFN methods          ║'')')
+!      write(*,'(7x,''║         P.Pracht, RWTH Aachen, IPC         ║'')')
+!      write(*,'(7x,''║     S.Grimme, Universität Bonn, MCTC       ║'')')
+!      write(*,'(7x,''╚════════════════════════════════════════════╝'')')
+!      write(*,'(7x,''Version '',a,'',  '',a)')trim(version),trim(date)
+!   end subroutine box2
    subroutine box3(version,date)
    implicit none
    character(len=*) :: version

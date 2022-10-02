@@ -533,7 +533,7 @@ contains
 
     !> H * C for initialization
     call smwrite(n,lun1,C(:,1),1)
-    call sspmv('u',n,1.0_sp,Hp,C(:,1),1,0_sp,vecf2,1)
+    call sspmv('u',n,1.0_sp,Hp,C(:,1),1,0.0_sp,vecf2,1)
     call smwrite(n,lun2,vecf2,1)
 
     !> make array iideks

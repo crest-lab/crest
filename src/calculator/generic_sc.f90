@@ -38,8 +38,8 @@ module generic_sc
   logical :: ex
 
   integer,parameter :: nf = 2
-  character(len=20),parameter :: rmfiles(nf) = [&
-          & 'genericinp.grad','genericinp.engrad']
+  character(len=*),parameter :: rmfiles(nf) = [&
+          & 'genericinp.grad  ','genericinp.engrad']
   character(len=6),parameter :: runscript = 'run.sh'
   character(len=14),parameter :: xyzn = 'genericinp.xyz'
   character(len=17),parameter :: gf = 'genericinp.engrad'

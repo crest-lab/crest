@@ -550,8 +550,8 @@ contains
 !>     Aaug    Uaug       Uaug
 
 !>--- first, augment Hessian by gradient, everything packed, no blowup
-      Aaug(1:npvar) = anc%hess
-      Aaug(npvar + 1:npvar1 - 1) = gint
+      Aaug(1:npvar) = real(anc%hess(1:npvar),sp)
+      Aaug(npvar + 1:npvar1 - 1) = real(gint(1:anc%nvar),sp)
       Aaug(npvar1) = 0.0_sp
 
 !>--- choose solver
@@ -562,7 +562,7 @@ contains
         if (ii .eq. 1) then
           Uaug(:,1) = [-real(gint(1:anc%nvar),sp),1.0_sp]
           dsnrm = sqrt(sdot(nvar1,Uaug,1,Uaug,1))
-          Uaug = Uaug / dsnrm
+          Uaug = Uaug / real(dsnrm,sp)
         end if
         call solver_sdavidson(nvar1,r4dum,Aaug,Uaug,eaug,fail,.false.)
         !>--- if that failed, retry with better solver

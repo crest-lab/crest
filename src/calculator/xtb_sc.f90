@@ -38,8 +38,8 @@ module xtb_sc
   logical :: ex
 
   integer,parameter :: nf = 3
-  character(len=20),parameter :: xtbfiles(nf) = [&
-          & 'charges','xtbinp.grad','xtbrestart']
+  character(len=*),parameter :: xtbfiles(nf) = [&
+          & 'charges    ','xtbinp.grad','xtbrestart ']
   character(len=3),parameter :: xtb = 'xtb'
   character(len=10),parameter :: xyzn = 'xtbinp.xyz'
   character(len=13),parameter :: gf = 'xtbinp.engrad'

@@ -222,6 +222,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   c = 0
   k = 0
   z = 0
+  eread(:) = 0.0_wp 
   !>--- loop over ensemble
   !$omp parallel &
   !$omp shared(env,calculations,nat,nall,at,xyz,c,k,z,pr,wr,dump,percent,bar,ich,ich2)

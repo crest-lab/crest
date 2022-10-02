@@ -64,7 +64,7 @@ subroutine crest_search_mecp(env,tim)
 
   call crest_search_multimd_init(env,mol,mddat,nsim)
   allocate (mddats(nsim), source=mddat)
-  call crest_search_multimd_init2(env,mol,mddats,nsim)
+  call crest_search_multimd_init2(env,mddats,nsim)
 
   call tim%start(2,'MD simulations')
   call crest_search_multimd(env,mol,mddats,nsim)

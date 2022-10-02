@@ -15,9 +15,9 @@ end subroutine wsigterm
 subroutine initsignal()
   external :: wSIGINT
   external :: wSIGTERM
-  external :: exit
+!  external :: exit
 
-  call signal(2,exit)
+!  call signal(2,exit)
   call signal(2,wSIGINT)
   call signal(15,wSIGTERM)
   call signal(69,wSIGINT)

@@ -36,7 +36,7 @@ contains
 
     call dict%new()
 !>--- open file to read and remove comments
-    call file%open(fname)
+    call file%open(trim(fname))
     dict%filename = trim(file%filename)
     call remove_comments(file)
     

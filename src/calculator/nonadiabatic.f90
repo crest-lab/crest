@@ -144,7 +144,8 @@ contains
     real(wp),intent(in) :: grd1(3,nat),grd2(3,nat)
     real(wp),intent(out) :: efix
     real(wp),intent(out) :: gfix(3,nat)
-    integer :: i,j,b
+    integer :: i,j
+    real(wp) :: b
     real(wp) :: gap,efixgrd,gss,gssgrd,absfct
     real(wp) :: vfix,vgrd
     real(wp),parameter :: autoev = 27.2114_wp
