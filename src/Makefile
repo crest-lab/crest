@@ -17,6 +17,7 @@ MODULES1 += iomod.o
 MODULES1 += msmod.o
 MODULES1 += testmol.o
 
+SUBMOD += tblite_api.o
 SUBMOD += constraints.o
 SUBMOD += calc_type.o
 SUBMOD += gradreader.o

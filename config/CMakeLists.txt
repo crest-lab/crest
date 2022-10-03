@@ -49,16 +49,17 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/modules/crest-utils.cmake")
 set(fortran_minimal_versions "GNU;7.5" "Intel;19.0")
 check_minimal_compiler_version("Fortran" "${fortran_minimal_versions}")
 
-
-
 option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP" TRUE)
+
+option(WITH_TBLITE "Enable build with the lightweight tight-binding library" FALSE)
+
+
 if(NOT DEFINED "${PROJECT_NAME}-dependency-method")
   set(
     "${PROJECT_NAME}-dependency-method"
     "subproject" "cmake" "pkgconf" "fetch"
   )
 endif()
-
 
 #
 # Compiler settings

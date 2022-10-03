@@ -33,6 +33,7 @@ subroutine crest_playground(env,tim)
   use calc_type
   use calc_module
   use optimize_module
+  use tblite_api
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -41,9 +42,12 @@ subroutine crest_playground(env,tim)
   logical :: pr,wr
 !========================================================================================!
   type(calcdata) :: calc
+  type(wavefunction_type) :: wfn  
+  type(tblite_calculator) :: tbcalc  
 
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
+  integer :: xtblvl 
 !========================================================================================!
   call tim%start(14,'test implementation') 
 !========================================================================================!
@@ -74,6 +78,9 @@ subroutine crest_playground(env,tim)
   end do
   write(*,*)
 
+  xtblvl = 2
+  call tblite_setup(mol,env%chrg,env%uhf,xtblvl,wfn,tbcalc)
+ 
 
   !>-- geopetry optimization
   !pr = .true. !> stdout printout

@@ -72,6 +72,17 @@ list(
 #  )
 #endif()
 
+# tblite
+if(WITH_TBLITE)
+  find_package("tblite" REQUIRED)
+  add_definitions(-DWITH_TBLITE)
+  list(
+    APPEND libs
+    tblite::tblite
+  )
+endif()
+
+
 #
 # CREST sources
 #
