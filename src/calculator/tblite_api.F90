@@ -65,8 +65,10 @@ module tblite_api
   real(wp),parameter :: accuracy = 1.0_wp
 
   integer :: verbosity = 1
+  real(wp) :: etemp = 300.0_wp
 
-  public :: wavefunction_type,tblite_calculator,tblite_setup
+  public :: wavefunction_type,tblite_calculator
+  public :: tblite_setup,tblite_singlepoint
 
 !========================================================================================!
 !========================================================================================!
@@ -88,16 +90,22 @@ contains  !>--- Module routines start here
     type(context_type)   :: ctx
     type(error_type), allocatable :: error
     
+    real(wp) :: etemp_au,energy
+    real(wp),allocatable :: grad(:,:)
+
     ctx%unit = stdout
+
+    !>--- make an mctcmol object from mol
+    call tblite_mol2mol(mol,chrg,uhf,mctcmol)
 
     !>--- select parametrization and set up calculator 
     select case(lvl)
     case( xtblvl%gfn1 )
      call ctx%message("tblite> setting up GFN1-xTB calculation")
-     call new_gfn2_calculator(tbcalc, mctcmol)
+     call new_gfn1_calculator(tbcalc, mctcmol)
     case( xtblvl%gfn2 )
      call ctx%message("tblite> setting up GFN2-xTB calculation")
-     call new_gfn1_calculator(tbcalc, mctcmol)
+     call new_gfn2_calculator(tbcalc, mctcmol)
     case( xtblvl%ipea1 )
      call ctx%message("tblite> setting up IPEA1-xTB calculation")
      call new_ipea1_calculator(tbcalc, mctcmol) 
@@ -105,7 +113,13 @@ contains  !>--- Module routines start here
      call ctx%message("Error: Unknown method in tblite!")
      error stop 
     end select
-  
+ 
+    !>-- setup wavefunction object
+    etemp_au = etemp*ktoau
+    call new_wavefunction(wfn, mol%nat, tbcalc%bas%nsh,  &
+    &              tbcalc%bas%nao, verbosity, etemp_au) 
+
+    
 
 #else /* WITH_TBLITE */
     write(stdout,*) 'Error: Compiled without tblite support!'
@@ -114,14 +128,64 @@ contains  !>--- Module routines start here
 #endif
   end subroutine tblite_setup
 
+!========================================================================================!
+
+  subroutine tblite_singlepoint(mol,chrg,uhf,wfn,tbcalc,energy,gradient)
+    implicit none
+    type(coord),intent(in)  :: mol
+    integer,intent(in)      :: chrg
+    integer,intent(in)      :: uhf
+    type(wavefunction_type) :: wfn
+    type(tblite_calculator) :: tbcalc
+    real(wp),intent(out)    :: energy
+    real(wp),intent(out)    :: gradient(3,mol%nat)
+#ifdef WITH_TBLITE
+    type(structure_type) :: mctcmol
+    type(context_type)   :: ctx
+    type(error_type), allocatable :: error    
+    real(wp) :: sigma(3,3) 
+
+    ctx%unit = stdout
+
+    energy = 0.0_wp
+    gradient(:,:) = 0.0_wp
+
+    !>--- make an mctcmol object from mol
+    call tblite_mol2mol(mol,chrg,uhf,mctcmol)
+
+    !>--- call the singlepoint routine
+    call xtb_singlepoint(ctx, mctcmol, tbcalc, wfn, accuracy, energy, gradient, sigma, verbosity)
+
+#else /* WITH_TBLITE */
+    energy = 0.0_wp
+    gradient(:,:) = 0.0_wp
+    write(stdout,*) 'Error: Compiled without tblite support!'
+    write(stdout,*) 'Use -DWITH_TBLITE=true in the setup to enable this function'
+    error stop 
+#endif
+  end subroutine tblite_singlepoint
 
 
 !========================================================================================!
 #ifdef WITH_TBLITE
-  subroutine tblite_mol2mol(mol,mctcmol)
+  subroutine tblite_mol2mol(mol,chrg,uhf,mctcmol)
     implicit none
+    !> input & output
     type(coord) :: mol
-    type(structure_type) :: mctcmol
+    integer,intent(in) :: chrg
+    integer,intent(in) :: uhf
+    type(structure_type),intent(out) :: mctcmol
+    !> locals
+    real(wp) :: fchrg
+       
+    fchrg = real(chrg, wp)  
+
+    !>--- make an mctcmol object from mol
+    if(.not.allocated(mol%lat))then
+    call new(mctcmol, mol%at, mol%xyz, charge=fchrg, uhf=uhf)
+    else
+    call new(mctcmol, mol%at, mol%xyz, charge=fchrg, uhf=uhf, lattice=mol%lat)
+    endif
 
   end subroutine tblite_mol2mol
 #endif

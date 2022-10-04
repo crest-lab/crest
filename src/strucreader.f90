@@ -158,13 +158,29 @@ module strucrd
   !by convention coordinates are in Bohr for a single structure!
   type :: coord
 
-    !--- data
+    !> data that's typically used in coord type
+    !>-- number of atoms
     integer :: nat = 0
+    !>-- energy
     real(wp) :: energy = 0.0_wp
-    !--- arrays
-    integer,allocatable  :: at(:)    !atom types as integer, dimension will be at(nat)
-    real(wp),allocatable :: xyz(:,:) !coordinates, dimension will be xyz(3,nat)
-    character(len=:),allocatable :: comment !a comment line
+    !>-- atom types as integer, dimension will be at(nat)
+    integer,allocatable  :: at(:)
+    !>-- atomic coordinates, by convention in Bohrs
+    real(wp),allocatable :: xyz(:,:)
+    !>-- a comment line 
+    character(len=:),allocatable :: comment 
+
+    !> (optional) data, often not present
+    !>-- molecular charge
+    integer :: chrg = 0
+    !>-- multiplicity information
+    integer :: uhf = 0
+    !>-- number of bonds
+    integer :: nbd = 0
+    !>-- bond info
+    integer,allocatable :: bond(:,:) 
+    !>-- lattice vectors
+    real(wp),allocatable :: lat(:,:)
 
     !--- (optional) PDB data
     type(pdbdata) :: pdb

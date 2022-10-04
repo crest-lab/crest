@@ -81,6 +81,17 @@ subroutine crest_playground(env,tim)
   xtblvl = 2
   call tblite_setup(mol,env%chrg,env%uhf,xtblvl,wfn,tbcalc)
  
+  call tblite_singlepoint(mol,env%chrg,env%uhf,wfn,tbcalc,energy,grad)
+
+  write(*,*)
+  write (*,*) 'Energy: ',energy
+  write (*,*) 'Gradient:'
+  do i = 1,mol%nat
+     write (*,'(3f18.8)') grad(1:3,i)
+  end do
+  write(*,*)
+
+
 
   !>-- geopetry optimization
   !pr = .true. !> stdout printout
