@@ -44,6 +44,9 @@ subroutine crest_playground(env,tim)
   type(calcdata) :: calc
   type(wavefunction_type) :: wfn  
   type(tblite_calculator) :: tbcalc  
+  type(tblite_ctx)        :: ctx
+  real(wp) :: accuracy,etemp
+   
 
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
@@ -68,20 +71,26 @@ subroutine crest_playground(env,tim)
 
   allocate(grad(3,mol%nat),source=0.0_wp)
   calc = env%calc
-  call engrad(mol,calc,energy,grad,io)
+  !call engrad(mol,calc,energy,grad,io)
+!
+!  write(*,*)
+!  write (*,*) 'Energy: ',energy
+!  write (*,*) 'Gradient:'
+!  do i = 1,mol%nat
+!     write (*,'(3f18.8)') grad(1:3,i)
+!  end do
+!  write(*,*)
 
-  write(*,*)
-  write (*,*) 'Energy: ',energy
-  write (*,*) 'Gradient:'
-  do i = 1,mol%nat
-     write (*,'(3f18.8)') grad(1:3,i)
-  end do
-  write(*,*)
-
+  open(newunit=io, file='tblite.out')
+  ctx%unit = io
   xtblvl = 2
-  call tblite_setup(mol,env%chrg,env%uhf,xtblvl,wfn,tbcalc)
+  etemp = 300.0_wp
+  accuracy = 1.0_wp
+  call tblite_setup(mol,env%chrg,env%uhf,xtblvl,etemp,ctx,wfn,tbcalc)
  
-  call tblite_singlepoint(mol,env%chrg,env%uhf,wfn,tbcalc,energy,grad)
+  call tblite_singlepoint(mol,env%chrg,env%uhf,accuracy,ctx,wfn,tbcalc,energy,grad)
+
+  close(io)
 
   write(*,*)
   write (*,*) 'Energy: ',energy

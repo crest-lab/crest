@@ -20,6 +20,7 @@
 module calc_type
   use iso_fortran_env,only:wp => real64,stdout => output_unit
   use constraints
+  use tblite_api
   implicit none
 
   character(len=1),public,parameter :: sep = '/'
@@ -73,6 +74,15 @@ module calc_type
     real(wp) :: dip(3) = 0
     logical :: rddipgrad = .false.
     real(wp),allocatable :: dipgrad(:,:,:)
+
+    !>--- API constructs
+    integer :: tblitelvl = 2
+    real(wp) :: etemp = 300.0_wp
+    logical :: tbliteclean = .true.
+    type(wavefunction_type),allocatable :: wfn
+    type(tblite_calculator),allocatable :: tbcalc
+    type(tblite_ctx),allocatable        :: ctx 
+
 
   contains
     procedure :: deallocate => calculation_settings_deallocate
@@ -180,6 +190,9 @@ contains
     if (allocated(self%dipgrad)) deallocate (self%dipgrad)
     if (allocated(self%gradkey)) deallocate (self%gradkey)
     if (allocated(self%efile)) deallocate (self%efile)
+    if (allocated(self%wfn)) deallocate (self%wfn)
+    if (allocated(self%tbcalc)) deallocate(self%tbcalc)
+    if (allocated(self%ctx)) deallocate(self%ctx)
 
     self%id = 0
     self%chrg = 0

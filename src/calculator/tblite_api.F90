@@ -28,7 +28,7 @@ module tblite_api
 #ifdef WITH_TBLITE
   use mctc_env,only:error_type
   use mctc_io,only:structure_type,new
-  use tblite_context_type,only:context_type
+  use tblite_context_type,only:tblite_ctx => context_type
   use tblite_wavefunction_type,only:wavefunction_type,new_wavefunction
   use tblite_xtb_calculator,only:tblite_calculator => xtb_calculator
   use tblite_xtb_gfn2,only:new_gfn2_calculator
@@ -48,6 +48,9 @@ module tblite_api
   type :: tblite_calculator
     integer :: id = 0 
   end type tblite_calculator
+  type :: tblite_ctx
+    integer :: unit = stdout
+  end type tblite_ctx
 #endif
 
    !> Type enumerator
@@ -61,13 +64,10 @@ module tblite_api
 
   !> Conversion factor from Kelvin to Hartree
   real(wp),parameter :: ktoau = 3.166808578545117e-06_wp
-  !> Calculation accuracy
-  real(wp),parameter :: accuracy = 1.0_wp
 
   integer :: verbosity = 1
-  real(wp) :: etemp = 300.0_wp
 
-  public :: wavefunction_type,tblite_calculator
+  public :: wavefunction_type,tblite_calculator,tblite_ctx
   public :: tblite_setup,tblite_singlepoint
 
 !========================================================================================!
@@ -77,23 +77,22 @@ contains  !>--- Module routines start here
 !========================================================================================!
 
 
-  subroutine tblite_setup(mol,chrg,uhf,lvl,wfn,tbcalc)
+  subroutine tblite_setup(mol,chrg,uhf,lvl,etemp,ctx,wfn,tbcalc)
     implicit none
     type(coord),intent(in)  :: mol
     integer,intent(in)      :: chrg
     integer,intent(in)      :: uhf
     integer,intent(in)      :: lvl
+    real(wp),intent(in)     :: etemp
+    type(tblite_ctx)        :: ctx
     type(wavefunction_type) :: wfn
     type(tblite_calculator) :: tbcalc
 #ifdef WITH_TBLITE
     type(structure_type) :: mctcmol
-    type(context_type)   :: ctx
     type(error_type), allocatable :: error
     
     real(wp) :: etemp_au,energy
     real(wp),allocatable :: grad(:,:)
-
-    ctx%unit = stdout
 
     !>--- make an mctcmol object from mol
     call tblite_mol2mol(mol,chrg,uhf,mctcmol)
@@ -130,22 +129,21 @@ contains  !>--- Module routines start here
 
 !========================================================================================!
 
-  subroutine tblite_singlepoint(mol,chrg,uhf,wfn,tbcalc,energy,gradient)
+  subroutine tblite_singlepoint(mol,chrg,uhf,accuracy,ctx,wfn,tbcalc,energy,gradient)
     implicit none
     type(coord),intent(in)  :: mol
     integer,intent(in)      :: chrg
     integer,intent(in)      :: uhf
+    real(wp),intent(in)     :: accuracy
+    type(tblite_ctx)        :: ctx
     type(wavefunction_type) :: wfn
     type(tblite_calculator) :: tbcalc
     real(wp),intent(out)    :: energy
     real(wp),intent(out)    :: gradient(3,mol%nat)
 #ifdef WITH_TBLITE
     type(structure_type) :: mctcmol
-    type(context_type)   :: ctx
     type(error_type), allocatable :: error    
     real(wp) :: sigma(3,3) 
-
-    ctx%unit = stdout
 
     energy = 0.0_wp
     gradient(:,:) = 0.0_wp
