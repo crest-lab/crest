@@ -26,6 +26,7 @@ module calc_module
   use xtb_sc
   use generic_sc
   use lj
+  use api_engrad
   !>--- other
   use constraints
   use nonadiabatic_module
@@ -109,12 +110,15 @@ contains
           if (i > calc%which) exit
         end if
         select case (calc%calcs(i)%id)
-        case ( jobtype%xtbsys ) !-- xtb system call
+        case ( jobtype%xtbsys )  !>-- xtb system call
           call xtb_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
   
-        case ( jobtype%generic ) !-- generic script/program call
+        case ( jobtype%generic ) !>-- generic script/program call
           call generic_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
  
+        case ( jobtype%tblite )  !>-- tblite api call 
+          call tblite_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+
 
         case( 20 ) !-- gfn0 api
           

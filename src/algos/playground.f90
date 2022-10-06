@@ -38,7 +38,7 @@ subroutine crest_playground(env,tim)
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
   type(coord) :: mol,molnew
-  integer :: i,j,k,l,io 
+  integer :: i,j,k,l,io,ich 
   logical :: pr,wr
 !========================================================================================!
   type(calcdata) :: calc
@@ -71,35 +71,30 @@ subroutine crest_playground(env,tim)
 
   allocate(grad(3,mol%nat),source=0.0_wp)
   calc = env%calc
-  !call engrad(mol,calc,energy,grad,io)
-!
-!  write(*,*)
-!  write (*,*) 'Energy: ',energy
-!  write (*,*) 'Gradient:'
-!  do i = 1,mol%nat
-!     write (*,'(3f18.8)') grad(1:3,i)
-!  end do
-!  write(*,*)
 
-  open(newunit=io, file='tblite.out')
-  ctx%unit = io
-  xtblvl = 2
-  etemp = 300.0_wp
-  accuracy = 1.0_wp
-  call tblite_setup(mol,env%chrg,env%uhf,xtblvl,etemp,ctx,wfn,tbcalc)
+  write(*,*) 'job type',calc%calcs(1)%id
+  write(*,*) 'etemp',calc%calcs(1)%etemp
+  write(*,*) 'chrg',calc%calcs(1)%chrg,'uhf', calc%calcs(i)%uhf
+  call engrad(mol,calc,energy,grad,io)
+    
+
+   write(*,*)
+   write (*,*) 'Energy: ',energy
+   write (*,*) 'Gradient:'
+   do i = 1,mol%nat
+      write (*,'(3f18.8)') grad(1:3,i)
+   end do
+   write(*,*)
+
+  !open(newunit=ich, file='tblite.out')
+  !ctx%unit = ich
+  !xtblvl = 2
+  !etemp = 10000.0_wp
+  !accuracy = 1.0_wp
+  !call tblite_setup(mol,env%chrg,env%uhf,xtblvl,etemp,ctx,wfn,tbcalc)
  
-  call tblite_singlepoint(mol,env%chrg,env%uhf,accuracy,ctx,wfn,tbcalc,energy,grad)
-
-  close(io)
-
-  write(*,*)
-  write (*,*) 'Energy: ',energy
-  write (*,*) 'Gradient:'
-  do i = 1,mol%nat
-     write (*,'(3f18.8)') grad(1:3,i)
-  end do
-  write(*,*)
-
+  !call tblite_singlepoint(mol,env%chrg,env%uhf,accuracy,ctx,wfn,tbcalc,energy,grad,io)
+  !close(ich)
 
 
   !>-- geopetry optimization

@@ -142,14 +142,13 @@ contains
     type(calculation_settings) :: job
     character(len=*) :: key
     real(wp) :: val
-    !> calculation_settings actually has no
-    !> float arguments to be read
-    !> but maybe some were mistyped as such
     select case (key)
     case ('uhf')
       job%uhf = nint(val)
     case ('chrg','charge')
       job%chrg = nint(val)
+    case ( 'etemp' )
+      job%etemp = val
     end select
     return
   end subroutine parse_setting_float
@@ -195,6 +194,8 @@ contains
         job%id = jobtype%turbomole
       case ('terachem')
         job%id = jobtype%terachem
+      case ('tblite')
+        job%id = jobtype%tblite
       case ('none')
         job%id = jobtype%unknown
       case default
@@ -234,6 +235,8 @@ contains
       job%rddip = val
     case ('dipgrad')
       job%rddipgrad = val
+    case ('refresh')
+      job%tbliteclean = val
     end select
     return
   end subroutine parse_setting_bool

@@ -26,7 +26,7 @@
 
 module api_engrad
 
-  use iso_fortran_env,only:wp => real64
+  use iso_fortran_env,only:wp => real64,stdout=>output_unit
   use strucrd
   use calc_type
   use iomod,only:makedir,directory_exist,remove
@@ -57,23 +57,39 @@ contains    !>--- Module routines start here
     real(wp),intent(inout) :: grad(3,mol%nat)
     integer,intent(out) :: iostatus
 
+    character(len=:),allocatable :: cpath
     logical :: loadnew
     iostatus = 0
     
     !>--- setup system call information
     !$omp critical
     call tblite_init(calc,loadnew)
+    !> tblite printout handling
+    if(calc%ctx%unit .ne. stdout) close(calc%ctx%unit)
+    if (allocated(calc%calcspace)) then
+      ex = directory_exist(calc%calcspace)
+      if (.not. ex) then
+        io = makedir(trim(calc%calcspace))
+      end if
+      cpath = calc%calcspace//sep//'tblite.out'
+    else
+      cpath = 'tblite.out'
+    end if
+    open(newunit=calc%ctx%unit, file=cpath)
+    deallocate (cpath)
+    !> populate parameters and wavefunction
     if(loadnew)then
-    call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp, &
-    &    calc%ctx,calc%wfn,calc%tbcalc)
+      call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp, &
+      &    calc%ctx,calc%wfn,calc%tbcalc)
     endif
     !$omp end critical
 
     !>--- do the engrad call
     call initsignal()
-
-  
-
+    call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%accuracy, &
+    & calc%ctx,calc%wfn,calc%tbcalc,energy,grad,iostatus)
+    if(iostatus /= 0) return
+     
     !>--- postprocessing, getting other data
 
 

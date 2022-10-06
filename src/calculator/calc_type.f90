@@ -35,6 +35,7 @@ module calc_type
       integer :: turbomole = 3
       integer :: orca      = 4
       integer :: terachem  = 5
+      integer :: tblite    = 6
    end type enum_jobtype
    type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
 
@@ -78,6 +79,7 @@ module calc_type
     !>--- API constructs
     integer :: tblitelvl = 2
     real(wp) :: etemp = 300.0_wp
+    real(wp) :: accuracy = 1.0_wp 
     logical :: tbliteclean = .true.
     type(wavefunction_type),allocatable :: wfn
     type(tblite_calculator),allocatable :: tbcalc

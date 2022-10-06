@@ -129,7 +129,7 @@ contains  !>--- Module routines start here
 
 !========================================================================================!
 
-  subroutine tblite_singlepoint(mol,chrg,uhf,accuracy,ctx,wfn,tbcalc,energy,gradient)
+  subroutine tblite_singlepoint(mol,chrg,uhf,accuracy,ctx,wfn,tbcalc,energy,gradient,iostatus)
     implicit none
     type(coord),intent(in)  :: mol
     integer,intent(in)      :: chrg
@@ -140,11 +140,13 @@ contains  !>--- Module routines start here
     type(tblite_calculator) :: tbcalc
     real(wp),intent(out)    :: energy
     real(wp),intent(out)    :: gradient(3,mol%nat)
+    integer,intent(out)     :: iostatus
 #ifdef WITH_TBLITE
     type(structure_type) :: mctcmol
     type(error_type), allocatable :: error    
     real(wp) :: sigma(3,3) 
 
+    iostatus = 0 
     energy = 0.0_wp
     gradient(:,:) = 0.0_wp
 
@@ -154,7 +156,14 @@ contains  !>--- Module routines start here
     !>--- call the singlepoint routine
     call xtb_singlepoint(ctx, mctcmol, tbcalc, wfn, accuracy, energy, gradient, sigma, verbosity)
 
+    if (ctx%failed()) then
+      ! Tear down the error stack to send the actual error messages back
+      call ctx%message("tblite> Singlepoint calculation failed")
+      iostatus = 1
+    end if
+
 #else /* WITH_TBLITE */
+    iostatus = 0
     energy = 0.0_wp
     gradient(:,:) = 0.0_wp
     write(stdout,*) 'Error: Compiled without tblite support!'
