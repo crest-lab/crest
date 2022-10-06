@@ -31,5 +31,12 @@ option(
   'openmp',
   type: 'boolean',
   value: true,
+  yield: true,
   description: 'use OpenMP parallelisation',
+)
+option(
+  'WITH_TBLITE',
+  type: 'boolean',
+  value: true,
+  description: 'build with tblite integration',
 )

@@ -1,4 +1,2 @@
-[wrap-git]
-directory = mctc-lib
-url = https://github.com/grimme-lab/mctc-lib
-revision = v0.3.0
+[wrap-redirect]
+filename = tblite/subprojects/mctc-lib.wrap

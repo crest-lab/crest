@@ -37,13 +37,17 @@ if fc_id == 'gcc'
     language: 'fortran',
   )
 elif fc_id == 'intel'
-  add_project_link_arguments(
-    '-Wl,--allow-multiple-definition',
-    language: 'fortran',
-  )
+  #add_project_link_arguments(
+  #  '-Wl,--allow-multiple-definition',
+  #  language: 'fortran',
+  #)
   add_project_arguments(
     '-traceback',
     language: 'fortran',
+  )
+  add_project_arguments(
+    '-DLINUX',
+    language: 'c',
   )
 elif fc_id == 'pgi' or fc_id == 'nvidia_hpc'
   add_project_arguments(
@@ -87,7 +91,7 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
     add_project_link_arguments('-static', language: 'c') # icc will do linking
   endif
 
-  if get_option('default_library') == 'dynamic'
+  if get_option('default_library') == 'shared'
     mkl_rt_dep = cc.find_library('mkl_rt', required: true)
     libs += mkl_rt_dep
   else
@@ -162,19 +166,23 @@ else
   if not lapack_dep.found()
     lapack_dep = fc.find_library('lapack', required: true)
   endif
-  libss += lapack_dep
+  libs += lapack_dep
 endif
+
 
 ## ========================================= ##
 ## External subprojects
 ## ========================================= ##  
-#tblite_dep = dependency(
-#  'tblite',
-#  version: '>=0.2',
-#  fallback: ['tblite', 'tblite_dep'],
-#  default_options: ['default_library=static', 'api=false'],
-#)
-#libs += tblite_dep
+if get_option('WITH_TBLITE')
+ add_project_arguments('-DWITH_TBLITE', language: 'fortran')
+ tblite_dep = dependency(
+   'tblite',
+   version: '>=0.2',
+   fallback: ['tblite', 'tblite_dep'],
+   default_options: ['default_library=static', 'api=false'],
+ )
+ libs += tblite_dep
+endif
 
 #mctc_dep = dependency(
 #  'mctc-lib',

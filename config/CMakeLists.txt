@@ -79,4 +79,3 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
 endif()
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SCOPE)
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}" PARENT_SCOPE)
-

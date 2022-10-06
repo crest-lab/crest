@@ -23,10 +23,11 @@ project(
   default_options: [
     'buildtype=debugoptimized',
     'default_library=static',
+#    'c_link_args=-static',
+#    'fortran_link_args=-static',
   ],
 )
 install = not (meson.is_subproject() and get_option('default_library') == 'static')
-
 
 # General configuration information
 libs = []
