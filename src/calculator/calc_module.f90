@@ -143,7 +143,7 @@ contains
         energy = calc%etmp(1)
         gradient = calc%grdtmp(:,:,1)
       case (2:) 
-      !> take e+grd from one of the speciefied calculations
+      !> take e+grd from one of the specified calculations
         j = calc%id
         if (j <= calc%ncalculations) then
           energy = calc%etmp(j)
