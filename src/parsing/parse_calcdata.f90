@@ -6,6 +6,7 @@ module parse_calcdata
   use dynamics_module
   use metadynamics_module
   use gradreader_module,only:gradtype,conv2gradfmt
+  use tblite_api, only: xtblvl
 
   use parse_block,only:datablock
   use parse_keyvalue,only:keyvalue
@@ -149,6 +150,8 @@ contains
       job%chrg = nint(val)
     case ( 'etemp' )
       job%etemp = val
+    case ( 'accuracy' ) 
+      job%accuracy = val
     end select
     return
   end subroutine parse_setting_float
@@ -164,6 +167,10 @@ contains
       job%chrg = val
     case ('id')
       job%id = val
+    case ('maxscc')
+      job%maxscc = val
+    case ('tblite_level','tblite_hamiltonian')
+      job%tblitelvl = val
     end select
     return
   end subroutine parse_setting_int
@@ -173,15 +180,7 @@ contains
     character(len=*) :: key
     character(len=*) :: val
     select case (key)
-    case ('bin','binary','script')
-      job%binary = val
-    case ('flags')
-      job%other = val
-   !> don't.
-   !case ('sys','syscall','systemcall')
-   !  job%systemcall = val
-    case ('calcspace','dir')
-      job%calcspace = val
+
     case ('method')
       select case (val)
       case ('gfn-xtb','gfn','xtb')
@@ -201,25 +200,56 @@ contains
       case default
         job%id = jobtype%unknown
       end select
-     case ('gradfile')
+
+    case ('bin','binary','script')
+      job%binary = val
+
+    case ('flags')
+      job%other = val
+
+   !> don't.
+   !case ('sys','syscall','systemcall')
+   !  job%systemcall = val
+
+    case ('calcspace','dir')
+      job%calcspace = val
+
+    case ('gradfile')
        job%gradfile = val
-     case ('gradtype')
-       select case (val)
-       case ('engrad','xtb','orca')
-        job%gradtype = gradtype%engrad
-       case ('turbomole','tm')
-        job%gradtype = gradtype%turbomole
-       case ('generic')
-        job%gradtype = gradtype%unknown
+
+    case ('gradtype')
+      select case (val)
+      case ('engrad','xtb','orca')
+       job%gradtype = gradtype%engrad
+      case ('turbomole','tm')
+       job%gradtype = gradtype%turbomole
+      case ('generic')
+       job%gradtype = gradtype%unknown
+      case default
+       job%gradtype = gradtype%unknown
+      end select
+
+    case ('gradkey')
+      job%gradkey = val
+
+    case ('gradmt' )
+      job%gradfmt = conv2gradfmt(val)
+
+    case ('efile')
+      job%efile = val 
+
+    case ('tblite_level','tblite_hamiltonian')
+       select case(val) 
+       case('gfn2','gfn2-xtb')
+         job%tblitelvl = xtblvl%gfn2
+       case('gfn1','gfn1-xtb')
+         job%tblitelvl = xtblvl%gfn1
+       case('ipea1')
+         job%tblitelvl = xtblvl%ipea1  
        case default
-        job%gradtype = gradtype%unknown
+         job%tblitelvl = xtblvl%unknown
        end select
-     case ('gradkey')
-       job%gradkey = val
-     case ('gradmt' )
-       job%gradfmt = conv2gradfmt(val)
-     case ('efile')
-        job%efile = val 
+
     end select
     return
   end subroutine parse_setting_c

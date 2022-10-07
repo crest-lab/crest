@@ -81,13 +81,14 @@ contains    !>--- Module routines start here
     if(loadnew)then
       call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp, &
       &    calc%ctx,calc%wfn,calc%tbcalc)
+      call tblite_addsettings(calc%tbcalc,calc%maxscc)
     endif
     !$omp end critical
 
     !>--- do the engrad call
     call initsignal()
     call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%accuracy, &
-    & calc%ctx,calc%wfn,calc%tbcalc,energy,grad,iostatus)
+    & calc%ctx,calc%wfn,calc%tbcalc,energy,grad,calc%tbres,iostatus)
     if(iostatus /= 0) return
      
     !>--- postprocessing, getting other data
@@ -111,6 +112,10 @@ contains    !>--- Module routines start here
       if( .not.allocated(calc%ctx) )then
       allocate(calc%ctx)
       loadnew = .true.
+      endif
+      if( .not.allocated(calc%tbres) )then
+      allocate(calc%tbres)
+      loadnew=.true.
       endif
       if( calc%tbliteclean ) loadnew = .true.
     end subroutine tblite_init

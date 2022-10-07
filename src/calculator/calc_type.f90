@@ -81,10 +81,12 @@ module calc_type
     real(wp) :: etemp = 300.0_wp
     real(wp) :: accuracy = 1.0_wp 
     logical :: tbliteclean = .true.
-    type(wavefunction_type),allocatable :: wfn
-    type(tblite_calculator),allocatable :: tbcalc
-    type(tblite_ctx),allocatable        :: ctx 
-
+    integer :: maxscc = 500 
+    type(wavefunction_type),allocatable  :: wfn
+    type(tblite_calculator),allocatable  :: tbcalc
+    type(tblite_ctx),allocatable         :: ctx 
+    type(tblite_resultstype),allocatable :: tbres
+    type(wavefunction_type),allocatable  :: wfn_backup
 
   contains
     procedure :: deallocate => calculation_settings_deallocate
@@ -195,6 +197,8 @@ contains
     if (allocated(self%wfn)) deallocate (self%wfn)
     if (allocated(self%tbcalc)) deallocate(self%tbcalc)
     if (allocated(self%ctx)) deallocate(self%ctx)
+    if (allocated(self%tbres)) deallocate(self%tbres)
+    if (allocated(self%wfn_backup)) deallocate(self%wfn_backup)
 
     self%id = 0
     self%chrg = 0
@@ -209,6 +213,12 @@ contains
     self%rddipgrad = .false.
     self%gradtype = 0
     self%gradfmt = 0
+
+    self%tblitelvl = 2
+    self%etemp = 300.0_wp
+    self%accuracy = 1.0_wp
+    self%tbliteclean = .true.
+    self%maxscc = 500
 
     return
   end subroutine calculation_settings_deallocate

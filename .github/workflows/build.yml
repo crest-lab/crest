@@ -49,7 +49,7 @@ jobs:
         printenv >> $GITHUB_ENV
 
     - name: Install meson
-      run: pip3 install meson==0.60.1 ninja
+      run: pip3 install meson==0.63.3 ninja
 
     - name: Configure meson build
       run: meson setup ${{ env.BUILD_DIR }} --prefix=/

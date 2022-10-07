@@ -50,7 +50,6 @@ subroutine crest_playground(env,tim)
 
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
-  integer :: xtblvl 
 !========================================================================================!
   call tim%start(14,'test implementation') 
 !========================================================================================!
@@ -75,8 +74,10 @@ subroutine crest_playground(env,tim)
   write(*,*) 'job type',calc%calcs(1)%id
   write(*,*) 'etemp',calc%calcs(1)%etemp
   write(*,*) 'chrg',calc%calcs(1)%chrg,'uhf', calc%calcs(i)%uhf
+  write(*,*) 'accuracy',calc%calcs(1)%accuracy
+  write(*,*) 'maxscc',calc%calcs(1)%maxscc
   call engrad(mol,calc,energy,grad,io)
-    
+  write(*,*) 'iostatus',io  
 
    write(*,*)
    write (*,*) 'Energy: ',energy
