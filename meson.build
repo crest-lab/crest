@@ -23,17 +23,18 @@ project(
   default_options: [
     'buildtype=debugoptimized',
     'default_library=static',
+    'c_link_args=-static',
+    'fortran_link_args=-static',
   ],
 )
 install = not (meson.is_subproject() and get_option('default_library') == 'static')
 
-
 # General configuration information
-libs = []
+exe_deps = []
 subdir('config')
 
 # Documentation
-subdir('docs')
+#subdir('docs')
 
 # Collect source of the project
 prog = []
@@ -45,7 +46,7 @@ subdir('src')
 crest_lib = library(
   meson.project_name(),
   sources: srcs,
-  dependencies: libs,
+  dependencies: exe_deps,
 #  include_directories: include_directories('include'),
 )
 
@@ -54,7 +55,7 @@ crest_inc = crest_lib.private_dir_include()
 crest_dep = declare_dependency(
   link_with: crest_lib,
   include_directories: crest_inc,
-  dependencies: libs,
+  dependencies: exe_deps,
 )
 
 

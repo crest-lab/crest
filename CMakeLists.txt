@@ -19,6 +19,7 @@ project(
   VERSION "3.0"
 )
 
+
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 

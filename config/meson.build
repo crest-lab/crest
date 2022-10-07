@@ -45,6 +45,10 @@ elif fc_id == 'intel'
     '-traceback',
     language: 'fortran',
   )
+  add_project_arguments(
+    '-DLINUX',
+    language: 'c',
+  )
 elif fc_id == 'pgi' or fc_id == 'nvidia_hpc'
   add_project_arguments(
     '-Mbackslash',
@@ -73,7 +77,7 @@ if get_option('openmp')
       link_args: '-fopenmp',
     )
   endif
-  libs += omp_dep
+  exe_deps += omp_dep
 endif
 
 ## ======================================== ##
@@ -87,9 +91,9 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
     add_project_link_arguments('-static', language: 'c') # icc will do linking
   endif
 
-  if get_option('default_library') == 'dynamic'
+  if get_option('default_library') == 'shared'
     mkl_rt_dep = cc.find_library('mkl_rt', required: true)
-    libs += mkl_rt_dep
+    exe_deps += mkl_rt_dep
   else
     if fc.get_id() == 'gcc'
       libmkl_exe = [cc.find_library('mkl_gf_lp64')]
@@ -111,7 +115,7 @@ if la_backend == 'mkl' or la_backend == 'mkl-static'
       libmkl_exe += cc.find_library('mkl_sequential')
     endif
     libmkl_exe += cc.find_library('mkl_core')
-    libs += libmkl_exe
+    exe_deps += libmkl_exe
   endif
 
 elif la_backend == 'mkl-rt'
@@ -119,10 +123,10 @@ elif la_backend == 'mkl-rt'
 
   mkl_rt_dep = fc.find_library('mkl_rt', required: true)
   if fc.get_id() == 'intel'
-    libs += fc.find_library('ifcore')
+    exe_deps += fc.find_library('ifcore')
   endif
 
-  libs += mkl_rt_dep
+  exe_deps += mkl_rt_dep
 
 elif la_backend == 'openblas'
   # search for OpenBLAS
@@ -130,7 +134,7 @@ elif la_backend == 'openblas'
   if not blas_dep.found()
     blas_dep = fc.find_library('openblas', required: true)
   endif
-  libs += blas_dep
+  exe_deps += blas_dep
   # some OpenBLAS versions can provide lapack, check if we can find dsygvd
   openblas_provides_lapack = fc.links(
     'external dsygvd; call dsygvd(); end',
@@ -142,12 +146,12 @@ elif la_backend == 'openblas'
     if not lapack_dep.found()
       lapack_dep = fc.find_library('lapack', required: true)
     endif
-    libs += lapack_dep
+    exe_deps += lapack_dep
   endif
 
 elif la_backend == 'custom'
   foreach lib: get_option('custom_libraries')
-    libs += fc.find_library(lib)
+    exe_deps += fc.find_library(lib)
   endforeach
 
 else
@@ -156,29 +160,33 @@ else
   if not blas_dep.found()
     blas_dep = fc.find_library('blas', required: true)
   endif
-  libs += blas_dep
+  exe_deps += blas_dep
   # Find LAPACK (usually netlib, but in conda also MKL)
   lapack_dep = dependency('lapack', required: false)
   if not lapack_dep.found()
     lapack_dep = fc.find_library('lapack', required: true)
   endif
-  libss += lapack_dep
+  exe_deps += lapack_dep
 endif
+
 
 ## ========================================= ##
 ## External subprojects
 ## ========================================= ##  
-#tblite_dep = dependency(
-#  'tblite',
-#  version: '>=0.2',
-#  fallback: ['tblite', 'tblite_dep'],
-#  default_options: ['default_library=static', 'api=false'],
-#)
-#libs += tblite_dep
+if get_option('WITH_TBLITE')
+ add_project_arguments('-DWITH_TBLITE', language: 'fortran')
+ tblite_dep = dependency(
+   'tblite',
+   version: '>=0.2',
+   fallback: ['tblite', 'tblite_dep'],
+   default_options: ['default_library=static', 'api=false'],
+ )
+ exe_deps += tblite_dep
+endif
 
 #mctc_dep = dependency(
 #  'mctc-lib',
 #  fallback: ['mctc-lib', 'mctc_dep'],
 #  default_options: ['default_library=static'],
 #)
-#libs += mctc_dep
+#exe_deps += mctc_dep
