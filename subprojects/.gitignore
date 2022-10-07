@@ -6,4 +6,7 @@ multicharge.wrap
 s-dftd3.wrap
 toml-f.wrap
 mctc-lib.wrap
-!packagefiles/tblite/*
+
+!packagefiles
+!packagefiles/tblite
+!packagefiles/tblite/rm_app_test.patch
