@@ -6,3 +6,4 @@ multicharge.wrap
 s-dftd3.wrap
 toml-f.wrap
 mctc-lib.wrap
+!packagefiles/tblite/*
