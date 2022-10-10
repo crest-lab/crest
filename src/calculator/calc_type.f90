@@ -77,11 +77,12 @@ module calc_type
     real(wp),allocatable :: dipgrad(:,:,:)
 
     !>--- API constructs
-    integer :: tblitelvl = 2
+    integer  :: tblitelvl = 2
     real(wp) :: etemp = 300.0_wp
     real(wp) :: accuracy = 1.0_wp 
-    logical :: tbliteclean = .true.
-    integer :: maxscc = 500 
+    logical  :: tbliteclean = .true.
+    integer  :: maxscc = 500 
+    logical  :: saveint = .false.
     type(wavefunction_type),allocatable  :: wfn
     type(tblite_calculator),allocatable  :: tbcalc
     type(tblite_ctx),allocatable         :: ctx 
@@ -142,10 +143,13 @@ module calc_type
     procedure :: printconstraints => calculation_print_constraints
     procedure :: removeconstraint => calculation_remove_constraint
   end type calcdata
-!=========================================================================================!
 
-contains
-!=========================================================================================!
+
+!========================================================================================!
+!========================================================================================!
+contains  !>--- Module routines start here
+!========================================================================================!
+!========================================================================================!
 
   subroutine calculation_reset(self)
     implicit none
@@ -219,6 +223,7 @@ contains
     self%accuracy = 1.0_wp
     self%tbliteclean = .true.
     self%maxscc = 500
+    self%saveint = .false.
 
     return
   end subroutine calculation_settings_deallocate

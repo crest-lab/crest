@@ -21,6 +21,7 @@ add_subdirectory("calculator")
 add_subdirectory("algos")
 add_subdirectory("dynamics")
 add_subdirectory("qcg")
+add_subdirectory("qmhelpers")
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 

@@ -86,6 +86,16 @@ subroutine crest_playground(env,tim)
       write (*,'(3f18.8)') grad(1:3,i)
    end do
    write(*,*)
+   if(calc%calcs(1)%rdwbo .and. allocated(calc%calcs(1)%wbo))then
+   write(*,*) 'WBOs:'
+   do i=1,mol%nat
+     do j=i+1,mol%nat
+       if(calc%calcs(1)%wbo(i,j) .gt. 0.05_wp)then
+         write(*,*),i,j,calc%calcs(1)%wbo(i,j)
+       endif
+     enddo
+   enddo
+   endif
 
   !open(newunit=ich, file='tblite.out')
   !ctx%unit = ich

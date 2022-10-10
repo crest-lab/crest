@@ -20,6 +20,7 @@ subdir('calculator')
 subdir('optimize')
 subdir('algos')
 subdir('parsing')
+subdir('qmhelpers')
 
 srcs += files(
   'acidbase.f90',

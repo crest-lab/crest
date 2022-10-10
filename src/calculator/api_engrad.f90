@@ -48,6 +48,7 @@ module api_engrad
 contains    !>--- Module routines start here
 !=========================================================================================!
 !=========================================================================================!
+
   subroutine tblite_engrad(mol,calc,energy,grad,iostatus)
     implicit none
     type(coord) :: mol
@@ -81,7 +82,7 @@ contains    !>--- Module routines start here
     if(loadnew)then
       call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp, &
       &    calc%ctx,calc%wfn,calc%tbcalc)
-      call tblite_addsettings(calc%tbcalc,calc%maxscc)
+      call tblite_addsettings(calc%tbcalc,calc%maxscc,calc%rdwbo,calc%saveint)
     endif
     !$omp end critical
 
@@ -92,7 +93,9 @@ contains    !>--- Module routines start here
     if(iostatus /= 0) return
      
     !>--- postprocessing, getting other data
-    !> tbd
+    !$omp critical
+    call tblite_wbos(calc,mol,iostatus)
+    !$omp end critical
 
     return
   contains
@@ -119,6 +122,17 @@ contains    !>--- Module routines start here
       endif
       if( calc%tbliteclean ) loadnew = .true.
     end subroutine tblite_init
+    subroutine tblite_wbos(calc,mol,iostatus)      
+      implicit none
+      type(calculation_settings),intent(inout) :: calc
+      type(coord),intent(in) :: mol
+      integer,intent(out) :: iostatus
+      iostatus = 0  
+      if(.not.calc%rdwbo) return
+      if(allocated(calc%wbo))deallocate(calc%wbo)
+      allocate(calc%wbo( mol%nat, mol%nat), source=0.0_wp)
+      call tblite_getwbos(calc%tbcalc,calc%wfn,calc%tbres,mol%nat,calc%wbo)
+    end subroutine tblite_wbos
   end subroutine tblite_engrad
 
 

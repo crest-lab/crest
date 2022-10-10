@@ -37,6 +37,7 @@ module tblite_api
   use tblite_xtb_singlepoint,only:xtb_singlepoint
   use tblite_results, only : tblite_resultstype => results_type
 #endif
+  use wiberg_mayer, only: get_wbo
   implicit none
   private
  
@@ -74,6 +75,7 @@ module tblite_api
   public :: wavefunction_type,tblite_calculator
   public :: tblite_ctx,tblite_resultstype
   public :: tblite_setup,tblite_singlepoint,tblite_addsettings
+  public :: tblite_getwbos
 
 !========================================================================================!
 !========================================================================================!
@@ -162,7 +164,7 @@ contains  !>--- Module routines start here
     !>--- call the singlepoint routine
     call xtb_singlepoint(ctx, mctcmol, tbcalc, wfn, accuracy, energy, gradient, & 
     & sigma, verbosity, results=tbres)
-
+ 
     if (ctx%failed()) then
       ! Tear down the error stack to send the actual error messages back
       call ctx%message("tblite> Singlepoint calculation failed")
@@ -206,13 +208,36 @@ contains  !>--- Module routines start here
 !========================================================================================!
 !> tblite_addsettings is used to add other settings from
 !> CRESTs calculation object to the tblite_calculator 
-  subroutine tblite_addsettings(tbcalc,maxscc)
+  subroutine tblite_addsettings(tbcalc,maxscc,rdwbo,saveint)
     implicit none
     type(tblite_calculator),intent(inout) :: tbcalc
     integer,intent(in) :: maxscc
+    logical,intent(in) :: rdwbo
+    logical,intent(in) :: saveint
 #ifdef WITH_TBLITE
      tbcalc%max_iter = maxscc
+     tbcalc%save_integrals = (rdwbo .or. saveint)
 #endif    
   end subroutine tblite_addsettings
+!========================================================================================!
+!> tblite_addsettings is used to add other settings from
+!> CRESTs calculation object to the tblite_calculator 
+  subroutine tblite_getwbos(tbcalc,wfn,tbres,nat,wbo)
+    implicit none
+    type(tblite_calculator),intent(in) :: tbcalc
+    type(wavefunction_type)  :: wfn
+    type(tblite_resultstype),intent(in) :: tbres
+    integer,intent(in) :: nat
+    real(wp),intent(out) :: wbo(nat,nat)
+
+    wbo = 0.0_wp
+#ifdef WITH_TBLITE
+    call get_wbo(nat, tbcalc%bas%nao, wfn%density, &
+    &         tbres%overlap, tbcalc%bas%ao2at, wbo)
+#endif    
+  end subroutine tblite_getwbos
+
+
+
 !========================================================================================!
 end module tblite_api
