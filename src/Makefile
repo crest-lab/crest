@@ -1,4 +1,4 @@
-PROG = ~/bin/crest/devel/crest
+PROG = ~/bin/crest
 
 OBJDIR = build
 #--------------------------------------------------------------------------
