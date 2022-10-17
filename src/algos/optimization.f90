@@ -1,6 +1,24 @@
+!================================================================================!
+! This file is part of crest.
+!
+! Copyright (C) 2022 Philipp Pracht
+!
+! crest is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! crest is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with crest.  If not, see <https://www.gnu.org/licenses/>.
+!================================================================================!
 
 subroutine crest_optimization(env,tim)
-  use iso_fortran_env,only:wp => real64,stdout => output_unit
+  use crest_parameters,only:wp,stdout
   use crest_data
   use strucrd
   use calc_type
@@ -76,7 +94,7 @@ end subroutine crest_optimization
 !>
 !>------------------------------------------------------
 subroutine crest_ensemble_optimization(env,tim)
-  use iso_fortran_env,only:wp => real64,stdout => output_unit
+  use crest_parameters,only:wp,stdout
   use crest_data
   use strucrd
   use calc_type
@@ -149,160 +167,3 @@ subroutine crest_ensemble_optimization(env,tim)
   return
 end subroutine crest_ensemble_optimization
 
-!========================================================================================!
-
-subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
-  use iso_fortran_env,only:wp => real64,stdout => output_unit
-  use omp_lib
-  use crest_data
-  use strucrd
-  use calc_type
-  use calc_module
-  use optimize_module
-  use iomod,only:makedir,directory_exist,remove
-  implicit none
-  type(systemdata),intent(inout) :: env
-  real(wp),intent(inout) :: xyz(3,nat,nall)
-  integer,intent(in)  :: at(nat)
-  real(wp),intent(inout) :: eread(nall)
-  integer,intent(in) :: nat,nall
-  logical,intent(in) :: dump
-
-  type(coord) :: mol,molnew
-  integer :: i,j,k,l,io,ich,ich2,c,z,job_id
-  logical :: pr,wr,ex
-!========================================================================================!
-  type(calcdata),allocatable :: calculations(:)
-  type(calcdata) :: calc
-
-  real(wp) :: energy,gnorm
-  real(wp),allocatable :: grad(:,:)
-  integer :: thread_id,vz,job
-  character(len=80) :: atmp
-  real(wp) :: percent
-  character(len=52) :: bar
-
-  !>--- check if we have any calculation settings allocated
-  calc = env%calc
-  if (calc%ncalculations < 1) then
-    write (stdout,*) 'no calculations allocated'
-    return
-  end if
-
-  !>--- prepare objects for parallelization
-  allocate (calculations(env%threads),source=env%calc)
-  do i = 1,env%threads
-    do j = 1,calc%ncalculations
-      calculations(i)%calcs(j) = env%calc%calcs(j)
-      !>--- directories
-      ex = directory_exist(env%calc%calcs(j)%calcspace)
-      if (.not. ex) then
-        io = makedir(trim(env%calc%calcs(j)%calcspace))
-      end if
-      write (atmp,'(a,"_",i0)') sep,i
-      calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
-    end do
-    calculations(i)%pr_energies = .false.
-  end do
-
-  !>--- printout directions
-  pr = .false. !> stdout printout
-  wr = .false. !> write crestopt.log
-  if (dump)then
-     open (newunit=ich,file=ensemblefile)
-     open (newunit=ich2,file=ensembleelog)
-  endif
-  if (env%niceprint) then
-      percent = 0.0_wp
-      call progbar(percent,bar)
-      call printprogbar(percent,bar)
-  endif
-  !>--- shared variables
-  allocate (grad(3,nat),source=0.0_wp)
-  c = 0
-  k = 0
-  z = 0
-  eread(:) = 0.0_wp 
-  !>--- loop over ensemble
-  !$omp parallel &
-  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,z,pr,wr,dump,percent,bar,ich,ich2)
-  !$omp single
-  do i = 1,nall
-
-    call initsignal()
-    vz = i
-    !$omp task firstprivate( vz ) private(j,job,mol,molnew,calc,energy,grad,io,atmp,gnorm,thread_id)
-    call initsignal()
-
-    thread_id = OMP_GET_THREAD_NUM()
-    job = thread_id + 1
-    !>--- modify calculation spaces
-    !$omp critical
-    allocate (mol%at(nat),mol%xyz(3,nat))
-    allocate (molnew%at(nat),molnew%xyz(3,nat))
-
-    z = z+1
-    mol%nat = nat
-    mol%at(:) = at(:)
-    mol%xyz(:,:) = xyz(:,:,z)
-
-    molnew%nat = nat
-    molnew%at(:) = at(:)
-    molnew%xyz(:,:) = xyz(:,:,z)
-    !$omp end critical
-
-    !>--- first energy&gradient calculation
-    call engrad(mol,calculations(job),energy,grad,io)
-
-    !>-- geopetry optimization
-    call optimize_geometry(mol,molnew,calculations(job),energy,grad,pr,wr,io)
-
-    !$omp critical
-    if (io == 0) then
-      !>--- successful optimization (io==0)
-      c = c + 1
-      if (dump) then
-        gnorm = norm2(grad)
-        write (atmp,'(1x,"Etot=",f16.10,1x,"g norm=",f12.8)') energy,gnorm
-        molnew%comment = trim(atmp)
-        call molnew%append(ich)
-        call calc_eprint(calculations(job),energy,calculations(job)%etmp,ich2)
-      end if
-    end if
-    k = k + 1
-    if (env%niceprint) then
-      percent = float(k) / float(nall) * 100.0_wp
-      call progbar(percent,bar)
-      call printprogbar(percent,bar)
-    else
-      write (stdout,'(1x,i0)',advance='no') k
-      flush (stdout)
-    end if
-
-    deallocate(mol%xyz,molnew%xyz,mol%at,molnew%at)
-    !$omp end critical
-    !$omp end task
-  end do
-  !$omp taskwait
-  !$omp end single
-  !$omp end parallel
-
-  if (.not. env%niceprint) then
-    write (stdout,'(/,1x,a)') 'done.'
-  else
-    write (stdout,*)
-  end if
- 
-  write(stdout,'(1x,i0,a,i0,a)')c,' of ',nall,' structures successfully optimized.' 
-
-  if (dump)then
-     close (ich)
-     close(ich2)
-  endif 
-
-  deallocate (grad)
-  !deallocate (molnew%xyz,molnew%at)
-  !deallocate (mol%xyz,mol%at)
-  deallocate (calculations)
-  return
-end subroutine crest_oloop

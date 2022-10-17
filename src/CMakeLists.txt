@@ -44,6 +44,7 @@ list(APPEND srcs
   "${dir}/confscript3.f90"
   "${dir}/constraining.f90"
   "${dir}/cregen.f90"
+  "${dir}/crest_pars.f90"
   "${dir}/data.f90"
   "${dir}/deprotonate.f90"
   "${dir}/dft_propcalc.f90"

@@ -41,6 +41,7 @@ srcs += files(
   'confscript3.f90',
   'constraining.f90',
   'cregen.f90',
+  'crest_pars.f90',
   'data.f90',
   'deprotonate.f90',
   'dft_propcalc.f90',

@@ -248,8 +248,12 @@ program CREST
       select case( env%crestver )
         case( crest_mfmdgc )
            call confscript1(env,tim)  !> MF-MD-GC algo
-        case( crest_imtd,crest_imtd2 )
-           call confscript2i(env,tim) !> MTD-GC algo
+        case( crest_imtd,crest_imtd2 ) !> MTD-GC algo
+           if(env%legacy)then
+             call confscript2i(env,tim) 
+           else
+             call crest_search_imtdgc(env,tim)
+           endif 
         case( crest_mdopt )
            call mdopt(env,tim)        !> MDOPT
         case( crest_screen )

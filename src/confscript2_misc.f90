@@ -935,34 +935,18 @@ subroutine confg_chk3(env)
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
 
-      associate(aut => env%autothreads, th => env%threads, omp => env%omp, &
-      &         MX => env%MAXRUN )
-
-      if(aut)then
-         call ompautoset(th,4,omp,MX,0) !mode=4 --> Program intern Threads max
-         if(.not.env%newcregen)then
-             call cregen2(env)
-         else
-             !--- Special handling qcg, no RMSD, because a CMA transformed structure would cause wrong wall pot.
-             if(env%crestver .eq. crest_solv) then
-                call newcregen(env,6)
-             else
-                call newcregen(env,0)
-             end if
-         endif
-         call ompautoset(th,5,omp,MX,0) !mode=5 --> Program intern Threads min
+      call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) !mode=4 --> Program intern Threads max
+      if(.not.env%newcregen)then
+        call cregen2(env)
       else
-         if(.not.env%newcregen)then
-             call cregen2(env)
-         else
-             if(env%crestver .eq. crest_solv) then
-                call newcregen(env,6)
-             else
-                call newcregen(env,0)
-            end if
-         endif
+      !--- Special handling qcg, no RMSD, because a CMA transformed structure would cause wrong wall pot.
+        if(env%crestver .eq. crest_solv) then
+          call newcregen(env,6)
+        else
+          call newcregen(env,0)
+        end if
       endif
-      end associate
+      call ompautoset(env%threads,5,env%omp,env%MAXRUN,0) !mode=5 --> Program intern Threads min
 end subroutine confg_chk3
 
 !---------------------------------------------------------------------
@@ -1057,7 +1041,7 @@ subroutine remaining_in(filename,ewin,nall)
       call rdensembleparam(trim(filename),nat,nall)
 
       if(nall.lt.1)then
-        write(*,*) 'No conformer was left. Something must be something seriously wrong.'
+        write(*,*) 'No conformer was left. Something must be seriously wrong.'
         write(*,*) 'Terminating the run.'
         error stop
       endif

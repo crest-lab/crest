@@ -174,6 +174,11 @@ contains
         env%preopt = .false.
         env%crestver = crest_mecp
         env%runver   = crest_mecp
+      case ('imtd-gc' )
+        env%preopt = .false.
+        env%crestver = crest_imtd
+        env%runver   = 1
+        env%legacy = .false.
       case ( 'numhess','numerical hessian')
         env%preopt = .false.
         env%crestver = crest_numhessian

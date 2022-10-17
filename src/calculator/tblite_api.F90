@@ -70,7 +70,9 @@ module tblite_api
   !> Conversion factor from Kelvin to Hartree
   real(wp),parameter :: ktoau = 3.166808578545117e-06_wp
 
-  integer :: verbosity = 1
+  integer :: verbosity = 0 !> IMPORTANT: tblite is not entirely thread-safe
+                           !> if verbosity is >0. We'll have to turn it off.
+                           !> At least for statically compiled binaries  
 
   public :: wavefunction_type,tblite_calculator
   public :: tblite_ctx,tblite_resultstype

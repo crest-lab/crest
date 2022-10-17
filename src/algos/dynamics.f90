@@ -1,3 +1,22 @@
+!================================================================================!
+! This file is part of crest.
+!
+! Copyright (C) 2022 Philipp Pracht
+!
+! crest is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! crest is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with crest.  If not, see <https://www.gnu.org/licenses/>.
+!================================================================================!
+
 
 subroutine crest_moleculardynamics(env,tim)
   use iso_fortran_env,only:wp => real64,stdout => output_unit
@@ -48,12 +67,6 @@ subroutine crest_moleculardynamics(env,tim)
     write (stdout,*) 'MD requested, but no calculation settings present.'
     return
   end if
-
-  !>--- modify calculation spaces
-  !> write (atmp,'("_",i0)') mddat%md_index
-  !> do i = 1,calc%ncalculations
-  !>   calc%calcs(i)%calcspace = calc%calcs(i)%calcspace//trim(atmp)
-  !> end do
 
   !>--- init SHAKE?
   if (mddat%shake) then

@@ -473,6 +473,7 @@ module crest_data
       logical :: iru               ! re-use previously found conformers as bias in iterative approach
       logical :: keepModef         ! keep MODEF* dirs in V1 ?
       logical :: keepScratch = .false. ! keep scratch directory or delete it?
+      logical :: legacy = .true.   ! switch between the original system call routines of crest and newer, e.g. tblite implementations
       logical :: metadynset        ! is the number of MTDs already set (V2) ?
       logical :: methautocorr      ! try to automatically include Methyl equivalencies in CREGEN ?
       logical :: multilevelopt     ! perform the multileveloptimization

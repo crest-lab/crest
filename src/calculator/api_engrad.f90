@@ -66,7 +66,10 @@ contains    !>--- Module routines start here
     !$omp critical
     call tblite_init(calc,loadnew)
     !> tblite printout handling
-    if(calc%ctx%unit .ne. stdout) close(calc%ctx%unit)
+    inquire(unit=calc%ctx%unit, opened=ex)
+    if((calc%ctx%unit .ne. 6) .and. ex)then
+      close(calc%ctx%unit)
+    endif
     if (allocated(calc%calcspace)) then
       ex = directory_exist(calc%calcspace)
       if (.not. ex) then
@@ -76,7 +79,9 @@ contains    !>--- Module routines start here
     else
       cpath = 'tblite.out'
     end if
-    open(newunit=calc%ctx%unit, file=cpath)
+    !write(*,*) 'here', calc%ctx%unit,trim(cpath),stdout
+    open(newunit=calc%ctx%unit, file=cpath, status='replace')
+    !write(*,*) 'doe',calc%ctx%unit
     deallocate (cpath)
     !> populate parameters and wavefunction
     if(loadnew)then
@@ -85,13 +90,16 @@ contains    !>--- Module routines start here
       call tblite_addsettings(calc%tbcalc,calc%maxscc,calc%rdwbo,calc%saveint)
     endif
     !$omp end critical
-
+    !inquire(unit=calc%ctx%unit, opened=ex)
+    !write(*,*) 'foo',calc%ctx%unit,ex
     !>--- do the engrad call
     call initsignal()
     call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%accuracy, &
     & calc%ctx,calc%wfn,calc%tbcalc,energy,grad,calc%tbres,iostatus)
+    !inquire(unit=calc%ctx%unit, opened=ex) 
+    !write(*,*) 'bar',calc%ctx%unit,ex
     if(iostatus /= 0) return
-     
+
     !>--- postprocessing, getting other data
     !$omp critical
     call tblite_wbos(calc,mol,iostatus)

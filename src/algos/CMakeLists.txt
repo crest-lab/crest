@@ -23,6 +23,8 @@ list(APPEND srcs
   "${dir}/playground.f90"
   "${dir}/search_1.f90"
   "${dir}/search_mecp.f90"
+  "${dir}/search_imtdgc.f90"
+  "${dir}/parallel.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)
