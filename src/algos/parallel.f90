@@ -270,10 +270,24 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     moltmps(job)%at = mol%at
     moltmps(job)%xyz = mol%xyz
 
+    if(mddats(vz)%simtype == type_md)then
     write (stdout,'(a,i4,a)') 'Starting MD',vz,' with the settings:'
+    else if(mddats(vz)%simtype == type_mtd)then
+    write (stdout,'(a,i4,a)') 'Starting MTD',vz,' with the settings:'
+    endif 
     write (stdout,'(''     MD time /ps        :'',f8.1)') mddats(vz)%length_ps
     write (stdout,'(''     dt /fs             :'',f8.1)') mddats(vz)%tstep
     write (stdout,'(''     dumpstep(trj) /fs  :'',f8.1)') mddats(vz)%dumpstep
+    if(mddats(vz)%simtype == type_mtd)then
+      if(mddats(vz)%cvtype(1) == cv_rmsd)then
+        write (stdout,'(''     dumpstep(Vbias) /ps:'',f8.2)') &
+        & mddats(vz)%mtd(1)%cvdump_fs/1000.0_wp
+        write (stdout,'(''     Vbias factor k /Eh :'',f8.4)') &
+        &  mddats(vz)%mtd(1)%kpush
+        write (stdout,'(''     Vbias exp α /bohr⁻²:'',f8.4)') &
+        &  mddats(vz)%mtd(1)%alpha
+      endif
+    endif
     !$omp end critical
 
     !>--- the acutal MD call
@@ -343,7 +357,7 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   type(systemdata),intent(inout) :: env
   type(mddata) :: mddat
   type(coord) :: mol
-  integer,intent(out) :: nsim
+  integer,intent(inout) :: nsim
   integer :: i,io
   logical :: pr
 !========================================================================================!
@@ -385,16 +399,20 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   !>--- complete real-time settings to steps
   call mdautoset(mddat,io)
 
-  !>--- MTD initial setup
-  call defaultGF(env)
-  write(stdout,*)'list of applied metadynamics Vbias parameters:'
-  do i=1,env%nmetadyn
-     write(stdout,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(i)/env%rednat,env%metadexp(i)
-  enddo
-  write(stdout,*)
+  !>--- (optional)  MTD initial setup
+  if( nsim < 0 )then
+    mddat%simtype = type_mtd  !>-- set runtype to MTD
 
-  !>--- how many simulations
-  nsim = env%nmetadyn 
+    call defaultGF(env)
+    write(stdout,*)'list of applied metadynamics Vbias parameters:'
+    do i=1,env%nmetadyn
+       write(stdout,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(i)/env%rednat,env%metadexp(i)
+    enddo
+    write(stdout,*)
+
+    !>--- how many simulations
+    nsim = env%nmetadyn 
+  endif
 
   return
 end subroutine crest_search_multimd_init
@@ -438,16 +456,18 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
 
   allocate(mtds(nsim))
   do i=1,nsim
-  mddats(i)%simtype = type_mtd 
-  mtds(i)%kpush = env%metadfac(i)/env%rednat
-  mtds(i)%alpha = env%metadexp(i)
-  mtds(i)%cvdump_fs = float(env%mddump)
-  mtds(i)%mtdtype = cv_rmsd 
+   if(mddats(i)%simtype == type_mtd)then
+     mtds(i)%kpush = env%metadfac(i)/env%rednat
+     mtds(i)%alpha = env%metadexp(i)
+     mtds(i)%cvdump_fs = float(env%mddump)
+     mtds(i)%mtdtype = cv_rmsd 
 
-  mddats(i)%npot = 1
-  allocate(mddats(i)%mtd(1), source=mtds(i))
-  allocate(mddats(i)%cvtype(1), source=cv_rmsd)
+     mddats(i)%npot = 1
+     allocate(mddats(i)%mtd(1), source=mtds(i))
+     allocate(mddats(i)%cvtype(1), source=cv_rmsd)
+   endif 
   enddo
+  if(allocated(mtds))deallocate(mtds) 
 
   return
 end subroutine crest_search_multimd_init2

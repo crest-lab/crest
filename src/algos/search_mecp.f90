@@ -62,6 +62,7 @@ subroutine crest_search_mecp(env,tim)
   write(stdout,'(1x,a)') 'Molecular Dynamics Simulations'
   write(stdout,'(1x,a)') '------------------------------'
 
+  nsim = -1 !>--- enambles automatic MTD setup in init routines
   call crest_search_multimd_init(env,mol,mddat,nsim)
   allocate (mddats(nsim), source=mddat)
   call crest_search_multimd_init2(env,mddats,nsim)

@@ -50,8 +50,9 @@ subroutine crest_search_imtdgc(env,tim)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
   logical :: dump,ex
-  character(len=80) :: atmp
+  character(len=80) :: atmp,btmp,str
   logical :: multilevel(6)
+  logical :: start,lower
 !===========================================================!
 !>--- printout header
   write (stdout,*)
@@ -68,38 +69,94 @@ subroutine crest_search_imtdgc(env,tim)
   write (stdout,*)
 
 !===========================================================!
-!>--- Dynamics
+!>--- Start mainloop 
+  env%nreset = 0
+  start = .true.
+  MAINLOOP : do
+    call printiter
+    if (.not. start) then
+      call clean_V2i  !--- clean Dir for new iterations
+      env%nreset = env%nreset + 1
+    else !--at the beginning clean existing backup-ensembles
+      call rmrfw('.cre_')
+    end if
+!===========================================================!
+!>--- Meta-dynamics loop
+  mtdloop: do i = 1,env%Maxrestart
 
-  write(stdout,*)
-  write(stdout,'(1x,a)') '------------------------------'
-  write(stdout,'(1x,a)') 'Molecular Dynamics Simulations'
-  write(stdout,'(1x,a)') '------------------------------'
+    write(stdout,*)
+    write(stdout,'(1x,a)') '------------------------------'
+    write(stdout,'(1x,a,i0)') 'Meta-Dynamics Iteration ',i
+    write(stdout,'(1x,a)') '------------------------------'
 
-  call crest_search_multimd_init(env,mol,mddat,nsim)
-  allocate (mddats(nsim), source=mddat)
-  call crest_search_multimd_init2(env,mddats,nsim)
+    nsim = -1 !>--- enambles automatic MTD setup in init routines
+    call crest_search_multimd_init(env,mol,mddat,nsim)
+    allocate (mddats(nsim), source=mddat)
+    call crest_search_multimd_init2(env,mddats,nsim)
 
-  call tim%start(2,'MD simulations')
-  call crest_search_multimd(env,mol,mddats,nsim)
-  call tim%stop(2)
-  !>--- a file called crest_dynamics.trj should have been written
-  ensnam = 'crest_dynamics.trj'
+    call tim%start(2,'MTD simulations')
+    call crest_search_multimd(env,mol,mddats,nsim)
+    call tim%stop(2)
+    !>--- a file called crest_dynamics.trj should have been written
+    ensnam = 'crest_dynamics.trj'
+    !>--- deallocate for next iteration
+    if(allocated(mddats))deallocate(mddats)
 
 !==========================================================!
 !>--- Reoptimization of trajectories
-  call tim%start(3,'geom. optimization')
-  multilevel = .true.
-  multilevel(5) = .true.
-  multilevel(2) = .true.
-  call crest_multilevel_oloop(env,ensnam,multilevel)
-  call tim%stop(3)
+    call tim%start(3,'geom. optimization')
+    multilevel = .false.
+    multilevel(5) = .true.
+    multilevel(2) = .true.
+    call crest_multilevel_oloop(env,ensnam,multilevel)
+    call tim%stop(3)
 
+    !>--- save the CRE under a backup name
+    call checkname_xyz(crefile,atmp,str)
+    call checkname_xyz('.cre',str,btmp)
+    call rename(atmp,btmp)
+    !>--- save cregen output
+    call checkname_tmp('cregen',atmp,btmp)
+    call rename('cregen.out.tmp',btmp)
+
+!=========================================================!
+!>--- cleanup after first iteration and prepare next
+    if (i .eq. 1 .and. start) then
+      start = .false.
+      !>-- obtain a first lowest energy as reference
+      env%eprivious = env%elowest
+      !>-- remove the two extreme-value MTDs
+      if (.not. env%readbias .and.  env%runver .ne. 33 .and. &
+      &   env%runver .ne. 787878 ) then
+        env%nmetadyn = env%nmetadyn - 2
+      end if
+      !>-- the cleanup 
+      call clean_V2i   
+      !>-- and always do two cycles of MTDs
+      cycle mtdloop 
+    endif
+!=========================================================!
+!>--- Check for lowest energy
+    call elowcheck(lower,env)
+    if (.not. lower) then
+      exit mtdloop
+    end if
+  enddo mtdloop
+
+!==========================================================!
+!>--- exit mainloop
+   exit MAINLOOP
+  enddo MAINLOOP
 
 !==========================================================!
 !>--- rename ensemble and sort
   call rename(ensemblefile,mecpensemble)
   call newcregen(env,12)
  
+
+!==========================================================!
+!>--- print CREGEN results and clean up Directory a bit
+    call V2terminating()
 
 !==========================================================!
   return
@@ -168,6 +225,10 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
        endif
        allocate (xyz(3,nat,nall),at(nat),eread(nall))
        call rdensemble(trim(inpnam),nat,nall,at,xyz,eread)
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+       !>--- Important: crest_oloop requires coordinates in Bohrs
+       xyz = xyz / bohr
+       !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
     endif
   enddo
 
