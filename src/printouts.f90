@@ -469,15 +469,16 @@ end subroutine qcg_head
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 !convert a string in a small header printout
 subroutine smallhead(str)
+      use crest_parameters, only:stdout
       implicit none
       character(len=*) :: str
       integer :: strlen
       character(len=:),allocatable :: str2
       strlen=len_trim(str)
       str2=repeat('-',strlen) 
-      write(*,'(1x,a)') trim(str2)
-      write(*,'(1x,a)') trim(str)
-      write(*,'(1x,a)') trim(str2)
+      write(stdout,'(1x,a)') trim(str2)
+      write(stdout,'(1x,a)') trim(str)
+      write(stdout,'(1x,a)') trim(str2)
       return
 end subroutine smallhead
 subroutine smallheadline(line)

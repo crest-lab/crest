@@ -359,8 +359,8 @@ subroutine V2mdlength(env)
 
   settingBool:associate (quick => env%quick,QCG => env%QCG,V2i => env%iterativeV2,NCI => env%NCI)
 
-  minimum = 5.0d0                    !at least 5ps per MTD
-  lenthr = 200.0d0     ! Maximum of 200 ps, longer runs can only be conducted by user input
+  minimum = 5.0d0      !> at least 5ps per MTD
+  lenthr = 200.0d0     !> Maximum of 200 ps, longer runs can only be conducted by user input
 
   write (*,*)
   write (*,'(''------------------------------------------------'')')

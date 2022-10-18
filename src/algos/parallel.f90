@@ -184,6 +184,7 @@ end subroutine crest_oloop
 !========================================================================================!
 
 subroutine crest_search_multimd(env,mol,mddats,nsim)
+!> this runs nsim MDs on the same structure
   use crest_parameters,only:wp,stdout
   use crest_data
   use strucrd
@@ -297,7 +298,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     if (io == 0) then
       write (stdout,'(a,i0,a)') '*MD ',vz,' completed successfully'
     else
-      write (stdout,'(a,i0,a)') '*MD ',vz,' terminated with error'
+      write (stdout,'(a,i0,a)') '*MD ',vz,' terminated early'
     end if
     !deallocate(moltmp%at,moltmp%xyz)
     !$omp end critical
@@ -399,7 +400,7 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   !>--- complete real-time settings to steps
   call mdautoset(mddat,io)
 
-  !>--- (optional)  MTD initial setup
+  !>--- (optional)  MTD initialization
   if( nsim < 0 )then
     mddat%simtype = type_mtd  !>-- set runtype to MTD
 
@@ -445,7 +446,6 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
     call rmrf(mdir)
   endif
   io = makedir(mdir)
-  !allocate (mddats(nsim))!,source=mddat)
   do i = 1,nsim
     mddats(i)%md_index = i
     write (atmp,'(a,i0,a)') 'crest_',i,'.trj'
@@ -471,4 +471,163 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
 
   return
 end subroutine crest_search_multimd_init2
+!========================================================================================!
+subroutine crest_search_multimd2(env,mols,mddats,nsim)
+!> this runs nsim MDs on nsim different structures
+  use crest_parameters,only:wp,stdout
+  use crest_data
+  use strucrd
+  use calc_type
+  use calc_module
+  use dynamics_module
+  use shake_module
+  use iomod,only:makedir,directory_exist,remove
+  use omp_lib
+  implicit none
+  type(systemdata),intent(inout) :: env
+  type(mddata) :: mddats(nsim)
+  integer :: nsim
+  type(coord) :: mols(nsim)
+  type(coord),allocatable :: moltmps(:)
+  integer :: i,j,io,ich
+  logical :: pr,ex
+  type(calcdata) :: calc
+  type(mddata) :: mddat
+  integer :: T
+  real(wp) :: percent
+  character(len=52) :: bar
+  character(len=80) :: atmp
+  character(len=*),parameter :: mdir = 'MDFILES' 
+ 
+  type(calcdata),allocatable :: calculations(:)
+  integer :: vz,job,thread_id
+!===========================================================!
+  !>--- set threads
+  if (env%autothreads) then
+    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nsim)
+  end if
 
+  !>--- check if we have any MD & calculation settings allocated
+  mddat = env%mddat
+  calc = env%calc
+  if (.not. mddat%requested) then
+    write (stdout,*) 'MD requested, but no MD settings present.'
+    return
+  else if (calc%ncalculations < 1) then
+    write (stdout,*) 'MD requested, but no calculation settings present.'
+    return
+  end if
+
+  !>--- prepare calculation objects for parallelization (one per thread)
+  T = env%threads
+  allocate (calculations( T ),source=env%calc)
+  allocate (moltmps( T ), source=mols(1) )
+  do i = 1,T
+    do j = 1,calc%ncalculations
+      calculations(i)%calcs(j) = env%calc%calcs(j)
+      !>--- directories
+      ex = directory_exist(env%calc%calcs(j)%calcspace)
+      if (.not. ex) then
+        io = makedir(trim(env%calc%calcs(j)%calcspace))
+      end if
+      write (atmp,'(a,"_",i0)') sep,i
+      calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+    end do
+    calculations(i)%pr_energies = .false.
+  end do
+
+  !>--- other settings
+  pr = .false.
+
+  !>--- run the MDs
+  !$omp parallel &
+  !$omp shared(env,calculations,mddats,mols,pr,percent,bar,ich, moltmps)
+  !$omp single
+  do i = 1,nsim
+
+    call initsignal()
+    vz = i
+    !$omp task firstprivate( vz ) private( job,thread_id,io,ex )
+    call initsignal()
+
+    thread_id = OMP_GET_THREAD_NUM()
+    job = thread_id + 1
+    !$omp critical
+    moltmps(job)%nat = mols(vz)%nat
+    moltmps(job)%at  = mols(vz)%at
+    moltmps(job)%xyz = mols(vz)%xyz
+
+    if(mddats(vz)%simtype == type_md)then
+    write (stdout,'(a,i4,a)') 'Starting MD',vz,' with the settings:'
+    else if(mddats(vz)%simtype == type_mtd)then
+    write (stdout,'(a,i4,a)') 'Starting MTD',vz,' with the settings:'
+    endif 
+    write (stdout,'(''     MD time /ps        :'',f8.1)') mddats(vz)%length_ps
+    write (stdout,'(''     target T /K        :'',f8.1)') mddats(vz)%tsoll
+    write (stdout,'(''     dt /fs             :'',f8.1)') mddats(vz)%tstep
+    write (stdout,'(''     dumpstep(trj) /fs  :'',f8.1)') mddats(vz)%dumpstep
+    if(mddats(vz)%simtype == type_mtd)then
+      if(mddats(vz)%cvtype(1) == cv_rmsd)then
+        write (stdout,'(''     dumpstep(Vbias) /ps:'',f8.2)') &
+        & mddats(vz)%mtd(1)%cvdump_fs/1000.0_wp
+        write (stdout,'(''     Vbias factor k /Eh :'',f8.4)') &
+        &  mddats(vz)%mtd(1)%kpush
+        write (stdout,'(''     Vbias exp α /bohr⁻²:'',f8.4)') &
+        &  mddats(vz)%mtd(1)%alpha
+      endif
+    endif
+    !$omp end critical
+
+    !>--- the acutal MD call
+    call dynamics(moltmps(job),mddats(vz),calculations(job),pr,io)
+
+    !$omp critical
+    if (io == 0) then
+      write (stdout,'(a,i0,a)') '*MD ',vz,' completed successfully'
+    else
+      write (stdout,'(a,i0,a)') '*MD ',vz,' terminated with early'
+    end if
+    !deallocate(moltmp%at,moltmp%xyz)
+    !$omp end critical
+    !$omp end task
+  end do
+  !$omp taskwait
+  !$omp end single
+  !$omp end parallel
+
+  !>--- collect trajectories into one
+  call collect(nsim,mddats)
+
+  deallocate (calculations)
+  if(allocated(moltmps)) deallocate(moltmps)
+  return
+contains
+subroutine collect(n,mddats)
+    implicit none
+    integer :: n
+    type(mddata) :: mddats(n)
+    logical :: ex
+    integer :: i,io,ich,ich2
+    character(len=:),allocatable :: atmp
+    character(len=256) :: btmp
+    open(newunit=ich,file='crest_dynamics.trj')
+    do i=1,n
+      atmp = mddats(i)%trajectoryfile
+      inquire(file=atmp,exist=ex)
+      if(ex)then
+        open(newunit=ich2,file=atmp)
+        io=0
+        do while( io == 0 )
+          read(ich2,'(a)',iostat=io) btmp
+          if(io == 0)then
+          write(ich,'(a)') trim(btmp)
+          endif
+        enddo
+        close(ich2) 
+      endif 
+    enddo
+    close(ich)
+    return
+end subroutine collect
+end subroutine crest_search_multimd2
+!========================================================================================!

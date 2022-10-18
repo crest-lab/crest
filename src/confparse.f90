@@ -195,7 +195,7 @@ subroutine parseflags(env,arg,nra)
 !>--- Mixed MD settings required by iMTD-GC (V2)
   env%hmass = 2.0d0       ! if hmass=0, hmass is taken from the .xtbrc
   env%mdtemp = 300.d0     ! Due to Guiding Force the Temperature is not so important
-  env%nmdtemp = -1.0d0    ! dummy temperature for additional normal MDs (set to 400K if not set by user)
+  env%nmdtemp = 400.0d0   ! base temperature for additional normal MDs 
   env%mdstep = 5.0d0      ! 4 fs
   env%shake = 2           ! shake 1 makes it more stable but requires mdstep 2.0
   env%mddumpxyz = 100     ! if not set by the user mddumpxyz is adjusted in subroutine

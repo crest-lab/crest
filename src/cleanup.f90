@@ -125,6 +125,7 @@ subroutine clean_V2i
       call rmrfw('METADYN')
       call rmrfw('NORM')
       call rmrfw('STATICMTD')
+      call rmrfw('MDFILES')
       call rmrfw(crefile)
       return
 end subroutine clean_V2i

@@ -40,7 +40,7 @@ subroutine crest_search_imtdgc(env,tim)
   type(shakedata) :: shk
 
   type(mddata),allocatable :: mddats(:)
-  integer :: nsim
+  integer :: nsim,nallout
 
   real(wp) :: energy,gnorm
   real(wp),allocatable :: grad(:,:)
@@ -105,9 +105,7 @@ subroutine crest_search_imtdgc(env,tim)
 !==========================================================!
 !>--- Reoptimization of trajectories
     call tim%start(3,'geom. optimization')
-    multilevel = .false.
-    multilevel(5) = .true.
-    multilevel(2) = .true.
+    multilevel = (/.true.,.false.,.false.,.false.,.true.,.false./)
     call crest_multilevel_oloop(env,ensnam,multilevel)
     call tim%stop(3)
 
@@ -142,6 +140,38 @@ subroutine crest_search_imtdgc(env,tim)
       exit mtdloop
     end if
   enddo mtdloop
+!=========================================================!
+!>--- collect all ensembles from mtdloop and merge
+  write(stdout,*)
+  write (stdout,'(''========================================'')')
+  write (stdout,'(''           MTD Simulations done         '')')
+  write (stdout,'(''========================================'')')
+  write (stdout,'(1x,''Collecting ensmbles.'')')
+  !>-- collecting all ensembles saved as ".cre_*.xyz"
+  call collectcre(env)                      
+  call newcregen(env,0)
+  call checkname_xyz(crefile,atmp,btmp)
+  !>--- remaining number of structures
+  call remaining_in(atmp,env%ewin,nallout) 
+
+!=========================================================!
+!>--- (optional) Perform additional MDs on the lowest conformers
+  if (env%rotamermds) then
+    call tim%start(4,'MD simulations')
+    call crest_rotamermds(env,conformerfile)
+    call tim%stop(4)
+
+    call elowcheck(lower,env)
+    if (lower) then
+      call checkname_xyz(crefile,atmp,str)
+      call checkname_xyz('.cre',str,btmp)
+      call rename(atmp,btmp)
+      cycle MAINLOOP
+    end if
+  end if
+
+
+
 
 !==========================================================!
 !>--- exit mainloop
@@ -152,7 +182,6 @@ subroutine crest_search_imtdgc(env,tim)
 !>--- rename ensemble and sort
   call rename(ensemblefile,mecpensemble)
   call newcregen(env,12)
- 
 
 !==========================================================!
 !>--- print CREGEN results and clean up Directory a bit
@@ -180,12 +209,26 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
   integer,allocatable  :: at(:)
   logical :: dump
   character(len=128) :: inpnam,outnam
-  integer :: i
+  integer :: i,l
+  real(wp) :: ewinbackup,rthrbackup
+  real(wp) :: hlowbackup
+  integer :: microbackup
+  integer :: optlevelbackup
 
+  !>--- save backup thresholds
+  ewinbackup     = env%ewin
+  rthrbackup     = env%rthr
+  optlevelbackup = env%calc%optlev
+  hlowbackup     = env%calc%hlow_opt
+  microbackup    = env%calc%micro_opt
+
+  l = count(multilevel)
+  if( l > 1 )then
   write(stdout,*)
-  write(stdout,'(1x,a)') '--------------------------------'
-  write(stdout,'(1x,a)') 'Multilevel Ensemble Optimization'
-  write(stdout,'(1x,a)') '--------------------------------'
+  write(stdout,'(1x,a)') '======================================'
+  write(stdout,'(1x,a)') '|  Multilevel Ensemble Optimization  |'
+  write(stdout,'(1x,a)') '======================================'
+  endif
 
   !>--- read ensemble
   call rdensembleparam(ensnam,nat,nall)
@@ -205,10 +248,12 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
 
 !>--- sequential optimizations of ensembles
   dump = .true. !> optimized structures will be written to crest_ensemble.xyz
-  do i=6,1,-1
+  do i=1,6
     if(multilevel(i))then
      !>--- set threads
        call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
+     !>--- set optimization parameters
+       call set_multilevel_options(env,i)
      !>--- run parallel optimizations
        call crest_oloop(env,nat,nall,at,xyz,eread,dump)
      !>--- rename ensemble and sort
@@ -229,15 +274,147 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
        !>--- Important: crest_oloop requires coordinates in Bohrs
        xyz = xyz / bohr
        !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+     !>--- restore default sorting thresholds
+       env%ewin        = ewinbackup
+       env%rthr        = rthrbackup
+       env%calc%optlev = optlevelbackup
+       env%calc%hlow_opt  = hlowbackup
+       env%calc%micro_opt = microbackup
     endif
   enddo
-
-
-
 
   if(allocated(eread)) deallocate(eread)
   if(allocated(at))  deallocate(at)
   if(allocated(xyz)) deallocate(xyz)
   return
+contains
+  subroutine set_multilevel_options(env,i)
+    implicit none
+    type(systemdata) :: env
+    integer,intent(in) :: i
+    
+    env%calc%hlow_opt  = env%hlowopt
+    env%calc%micro_opt = nint(env%microopt)
+
+    select case( i )  
+    case( 1 )
+     call smallhead('crude pre-optimization')
+     env%calc%optlev =  -3
+     !> larger thresholds
+     env%rthr = env%rthr * 2.0d0
+     env%ewin = aint(env%ewin * 2.0d0)
+    case( 2 )
+     call smallhead('optimization with very loose thresholds')
+     env%calc%optlev =  -2
+     env%rthr = env%rthr *1.5d0
+     env%ewin = aint(env%ewin * 2.0d0)
+    case( 3 )
+     call smallhead('optimization with loose thresholds')
+     env%calc%optlev =  -1
+      env%ewin = aint(env%ewin*(10.0d0/6.0d0))
+    case( 4 )
+     call smallhead('optimization with regular thresholds')
+     env%calc%optlev =  0
+    case( 5 )
+     call smallhead('optimization with tight thresholds')
+     env%calc%optlev =  1
+    case( 6 )
+     call smallhead('optimization with very tight thresholds')
+     env%calc%optlev =  2
+    case default
+     call smallhead('optimization with default thresholds')
+     env%ewin        = 6.0_wp
+     env%rthr        = 0.125_wp
+     env%calc%optlev = 0
+    end select
+
+  end subroutine set_multilevel_options
 end subroutine crest_multilevel_oloop
+
+!========================================================================================!
+subroutine crest_rotamermds(env,ensnam)
+  use crest_parameters, only: wp,stdout
+  use crest_data
+  use strucrd
+  use calc_type
+  use calc_module
+  use dynamics_module
+  use shake_module
+  implicit none
+  type(systemdata),intent(inout) :: env
+  character(len=*),intent(in) :: ensnam
+
+  integer :: nsim
+  type(mddata) :: mddat
+  type(mddata),allocatable :: mddats(:)
+  type(coord) :: mol 
+  type(coord),allocatable :: mols(:)
+  integer :: nat,nall
+  real(wp),allocatable :: eread(:)
+  real(wp),allocatable :: xyz(:,:,:)
+  integer,allocatable  :: at(:)
+  integer :: nstrucs,i,j,k,io
+  real(wp) :: temp,newtemp
+  character(len=80) :: atmp
+  
+  !>--- coord setup
+  call env%ref%to(mol)
+  call rdensembleparam(ensnam,nat,nall)
+  if (nall .lt. 1) then
+    write(stdout,*) 'empty ensemble file',trim(ensnam)
+    return
+  endif
+
+  !>--- determine how many MDs need to be run and setup
+  call adjustnormmd(env)
+  nstrucs = min(nall, env%nrotammds)
+  nsim = nstrucs * env%temps 
+  call crest_search_multimd_init(env,mol,mddat,nsim)
+  allocate (mddats(nsim), source=mddat)
+  call crest_search_multimd_init2(env,mddats,nsim)
+  !>--- adjust T's and runtimes
+  k = 0
+  do i=1,env%temps
+    !> each T block 100K higher
+    temp = env%nmdtemp + (i-1)*100.0_wp
+    do j=1,nstrucs
+      k= k + 1
+      mddats(k)%tsoll = temp
+      !> reduce runtime by 50% compared to MTDs
+      mddats(k)%length_ps = mddats(k)%length_ps * 0.5_wp
+      call mdautoset(mddats(k),io)
+    enddo
+  enddo 
+
+  !>--- read ensemble and prepare mols
+  allocate (xyz(3,nat,nall),at(nat),eread(nall))
+  call rdensemble(ensnam,nat,nall,at,xyz,eread)
+  !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+  !>--- Important: mols must be in Bohrs
+  xyz = xyz / bohr
+  !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+  allocate(mols(nsim), source=mol) 
+  k = 0
+  do i=1,env%temps
+    do j=1,nstrucs
+      k = k + 1
+      mols(k)%at = at
+      mols(k)%xyz(:,:) = xyz(:,:,j)
+    enddo
+  enddo
+  deallocate(eread,at,xyz)
+  
+  !>--- print what we are doing
+  write(stdout,*)
+  write(atmp,'(''Additional regular MDs on lowest '',i0,'' conformer(s)'')')nstrucs
+  call smallheadline(trim(atmp)) 
+
+  !>--- and finally, run the MDs
+  call crest_search_multimd2(env,mols,mddats,nsim)
+
+  if(allocated(mols))deallocate(mols)
+  if(allocated(mddats))deallocate(mddats) 
+  return
+end subroutine crest_rotamermds
+
 
