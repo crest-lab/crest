@@ -140,6 +140,52 @@ end subroutine xtb_iff
 
 !___________________________________________________________________________________
 !
+! An xTB docking on all available threads
+!___________________________________________________________________________________
+
+subroutine xtb_dock(env,fnameA,fnameB,solu,clus)
+   use iso_fortran_env, only : wp => real64
+   use iomod
+   use crest_data
+   use zdata
+
+   implicit none
+
+   type(systemdata)                :: env
+   type(zmolecule), intent(in)     :: solu, clus
+   character(len=*),intent(in)     :: fnameA, fnameB
+   character(len=80)               :: pipe
+   character(len=512)              :: jobcall
+
+   call remove('xtb_dock.out')
+   call remove('xcontrol')
+
+   pipe=' 2>/dev/null'
+
+!---- writing wall pot in xcontrol
+   call write_wall(env,solu%nat,solu%ell_abc,clus%ell_abc,'xcontrol')
+
+!--- Setting threads
+!   if(env%autothreads)then
+     call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
+!   endif
+
+   !--- Jobcall docking
+   write(jobcall,'(a,1x,''dock'',1x,a,1x,a,1x,a,1x,f4.2,1x,''--nfrag1'',1x,i0,1x,&
+           & ''--input xcontrol --qcg > xtb_dock.out'',a)') &
+   &     trim(env%ProgName),trim(fnameA),trim(fnameB),trim(env%gfnver),env%optlev,solu%nat,trim(pipe)
+   call system(trim(jobcall))
+
+! cleanup
+   call remove('wbo')
+   call remove('charges')
+   call remove('xtbrestart')
+
+end subroutine xtb_dock
+
+
+!___________________________________________________________________________________
+!
 ! An xTB optimization on all available threads
 !___________________________________________________________________________________
 
@@ -342,6 +388,103 @@ frag2='solvent.lmo'
 !___________________________________________________________________________________
 
 end subroutine ensemble_iff
+
+
+!___________________________________________________________________________________
+!
+! xTB docking calculation performed in parallel
+!___________________________________________________________________________________
+
+subroutine ensemble_dock(env,outer_ell_abc,nfrag1,frag1_file,frag2_file,n_shell&
+        &,n_solvent,NTMP,TMPdir,conv)
+  use iso_fortran_env, only : wp => real64
+  use iomod
+  use crest_data
+  use zdata
+
+  implicit none
+  type(systemdata)                :: env
+
+  character(len=*),intent(in)     :: TMPdir     !directory name
+  integer,intent(in)              :: NTMP       !number of structures to be optimized
+  integer,intent(in)              :: nfrag1     !#atoms of larger fragment
+  integer,intent(in)              :: conv(env%nqcgclust+1)
+  real(wp),intent(in)             :: outer_ell_abc(env%nqcgclust,3)
+  integer,intent(in)              :: n_shell, n_solvent
+
+  integer                         :: i,j,k
+  integer                         :: vz
+  character(len=20)               :: pipe
+  character(len=1024)             :: jobcall       
+  character(len=512)              :: thispath,tmppath 
+  character(len=52)               :: bar
+  character(len=*),intent(in)     :: frag1_file
+  character(len=*),intent(in)     :: frag2_file
+  character(len=64)               :: frag1
+  character(len=64)               :: frag2
+  real(wp)                        :: percent
+  character(len=2)                :: flag
+  integer                         :: ich31
+
+! some options
+  pipe='2>/dev/null'
+  frag1='solvent_cluster.coord'
+  frag2='solvent'
+  call getcwd(thispath)
+
+! setting the threads for correct parallelization
+  if(env%autothreads)then
+    call ompautoset(env%threads,7,env%omp,env%MAXRUN,NTMP)
+  endif  
+
+  write(jobcall,'(a,1x,''dock'',1x,a,1x,a,1x,a,1x,f4.2,1x,''--nfrag1'',1x,i0,1x,&
+          & ''--input xcontrol --fast > xtb_dock.out '',a)') &
+          & trim(env%ProgName),trim(frag1_file),trim(frag2_file),&
+          & trim(env%gfnver),env%optlev,nfrag1,trim(pipe)
+
+  flag='$'
+  do i=1, NTMP
+     vz=i
+     write(tmppath,'(a,i0)')trim(TMPdir),conv(i)
+     call chdir(trim(tmppath))
+     open(newunit=ich31,file='xcontrol')
+     write(ich31,'(a,"fix")') trim(flag)
+     write(ich31,'(3x,"atoms: 1-",i0)') n_shell !Initial number of atoms (starting solvent shell)
+     write(ich31,'(a,"wall")') trim(flag)
+     write(31,'(3x,"potential=polynomial")')
+     write(ich31,'(3x,"ellipsoid:",1x,3(g0,",",1x),i0,"-",i0)') outer_ell_abc(conv(vz),:), &
+             & n_shell+1, n_shell+n_solvent !Initial number of atoms (starting solvent shell)
+     close(ich31)
+     call chdir(trim(thispath))
+  end do
+
+  k=0 !counting the finished jobs
+
+!___________________________________________________________________________________
+
+!$omp parallel &
+!$omp shared( vz,NTMP,percent,k,bar,TMPdir,conv,n_shell,n_solvent,jobcall )
+!$omp single
+      do i=1,NTMP
+         vz=i
+      !$omp task firstprivate( vz ) private( tmppath )
+         write(tmppath,'(a,i0)')trim(TMPdir),conv(vz)
+         call system('cd '//trim(tmppath)//' && '//trim(jobcall))
+          !$omp critical
+             k=k+1
+             percent=float(k)/float(NTMP)*100
+          !$omp end critical
+          !$omp end task
+  end do   
+
+!$omp taskwait
+!$omp end single
+!$omp end parallel
+      
+!___________________________________________________________________________________
+   call chdir(trim(thispath))
+
+end subroutine ensemble_dock
 
 
 !___________________________________________________________________________________
@@ -769,7 +912,6 @@ subroutine wr_cluster_cut(fname_cluster,n1,n2,iter,fname_solu_cut,fname_solv_cut
   
 end subroutine wr_cluster_cut 
 
-
 subroutine check_iff(neg_E)
   use iso_fortran_env, only : wp => real64
   use crest_data
@@ -800,3 +942,29 @@ subroutine check_iff(neg_E)
   neg_E = io == 0 .and. int_E < 0.0_wp 
 
 end subroutine check_iff
+
+subroutine check_dock(neg_E)
+  use iso_fortran_env, only : wp => real64
+  use crest_data
+  use iomod, only : minigrep, grepval
+
+  implicit none
+  integer              :: io, ich
+  real(wp)             :: int_E
+  character(len=50)    :: tmp
+  logical, intent(out) :: neg_E
+
+  logical :: ex
+  character(len=*), parameter :: filename = 'xtbscreen.xyz'
+
+  neg_E=.false.
+  int_E=0.0_wp
+
+  call minigrep('xtb_dock.out', '  Lowest Interaction Energy: ********** kcal/mol', ex)
+  if (ex) return
+
+  call grepval('xtb_dock.out','Lowest Interaction Energy:',ex,int_E)
+
+  if(ex .and. int_E < 0.0_wp) neg_E = .true.
+
+end subroutine check_dock

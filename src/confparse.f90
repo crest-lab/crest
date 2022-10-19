@@ -1609,6 +1609,8 @@ subroutine parseflags(env,arg,nra)
       case ('-nopreopt')
         env%nopreopt = .true.
         env%qcg_flag = .true.
+      case ('-xtbiff')
+         env%use_xtbiff = .true.
       case ('-grow')
         env%qcg_runtype = 0
         env%qcg_flag = .true.
