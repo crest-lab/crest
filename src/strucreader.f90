@@ -1484,7 +1484,7 @@ contains
 !
 ! On Output: written to channel "ch"
 !============================================================!
-  subroutine wrsdf_channel(ch,nat,at,xyz,er,chrg,wbo,comment)
+  subroutine wrsdf_channel(ch,nat,at,xyz,er,chrg,wbo,comment,icharges)
     implicit none
     integer,intent(in) :: ch
     integer,intent(in) :: nat
@@ -1493,7 +1493,8 @@ contains
     real(wp),intent(in) :: er
     integer,intent(in) :: chrg
     real(wp),intent(in) :: wbo(nat,nat)
-    character(len=*),intent(in),optional :: comment
+    character(len=*),intent(in) :: comment
+    real(wp),intent(in),optional :: icharges(nat)
     character(len=8)  :: date
     character(len=10) :: time
     integer :: list12(12),nbd
@@ -1509,11 +1510,7 @@ contains
     list12 = 0
     !>--- comment lines
     call date_and_time(date, time)
-    if (present(comment))then
-      write(ch,'(a)') trim(comment)
-    else
-     write (ch,'(a)') 'structure written by crest'
-    endif
+    write(ch,'(a)') trim(comment)
     write (ch,'(1x,a, 3a2, a4, "3D",1x,a,f18.8,5x)') &
     & 'crest',date(5:6), date(7:8), date(3:4), time(:4),'Energy =',er
     write(ch,'(a)')
@@ -1533,8 +1530,14 @@ contains
       enddo
     enddo
     !>--- other
-    if(chrg .ne. 0)then
-    write(ch, '(a, *(i3, 1x, i3, 1x, i3))') "M  CHG", 1, 1, chrg
+    if(present(icharges))then
+      do i = 1,nat
+        if( abs(nint(icharges(i))) /= 0)then
+        write(ch, '(a, *(i3, 1x, i3, 1x, i3))') "M  CHG", 1, i, nint(icharges(i))
+        endif
+      enddo
+    else if(chrg .ne. 0)then
+      write(ch, '(a, *(i3, 1x, i3, 1x, i3))') "M  CHG", 1, 1, chrg
     endif
     write(ch,'(a)') 'M  END'
     write(ch,'(a)') '$$$$'
