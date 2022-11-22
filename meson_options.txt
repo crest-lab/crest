@@ -41,3 +41,10 @@ option(
   value: true,
   description: 'build with tblite integration',
 )
+option(
+  'WITH_GFN0',
+  type: 'boolean',
+  value: true,
+  description: 'build with GFN0-xTB integration',
+)
+

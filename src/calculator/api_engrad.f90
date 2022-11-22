@@ -32,7 +32,7 @@ module api_engrad
   use iomod,only:makedir,directory_exist,remove
   !> APIs
   use tblite_api
-
+  use gfn0_api
 !=========================================================================================!
   implicit none
   !--- private module variables and parameters
@@ -42,6 +42,7 @@ module api_engrad
 
 
   public :: tblite_engrad
+  public :: gfn0_engrad
 
 !=========================================================================================!
 !=========================================================================================!
@@ -67,7 +68,7 @@ contains    !>--- Module routines start here
     call tblite_init(calc,loadnew)
     !> tblite printout handling
     inquire(unit=calc%ctx%unit, opened=ex)
-    if((calc%ctx%unit .ne. 6) .and. ex)then
+    if((calc%ctx%unit .ne. stdout) .and. ex)then
       close(calc%ctx%unit)
     endif
     if (allocated(calc%calcspace)) then
@@ -90,14 +91,10 @@ contains    !>--- Module routines start here
       call tblite_addsettings(calc%tbcalc,calc%maxscc,calc%rdwbo,calc%saveint)
     endif
     !$omp end critical
-    !inquire(unit=calc%ctx%unit, opened=ex)
-    !write(*,*) 'foo',calc%ctx%unit,ex
     !>--- do the engrad call
     call initsignal()
     call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%accuracy, &
     & calc%ctx,calc%wfn,calc%tbcalc,energy,grad,calc%tbres,iostatus)
-    !inquire(unit=calc%ctx%unit, opened=ex) 
-    !write(*,*) 'bar',calc%ctx%unit,ex
     if(iostatus /= 0) return
 
     !>--- postprocessing, getting other data
@@ -128,7 +125,7 @@ contains    !>--- Module routines start here
       allocate(calc%tbres)
       loadnew=.true.
       endif
-      if( calc%tbliteclean ) loadnew = .true.
+      if( calc%apiclean ) loadnew = .true.
     end subroutine tblite_init
     subroutine tblite_wbos(calc,mol,iostatus)      
       implicit none
@@ -145,6 +142,190 @@ contains    !>--- Module routines start here
 
 
 !========================================================================================!
+
+  subroutine gfn0_engrad(mol,calc,energy,grad,iostatus)
+    implicit none
+    !> INPUT
+    type(coord) :: mol
+    type(calculation_settings) :: calc
+    !> OUTPUT  
+    real(wp),intent(inout) :: energy
+    real(wp),intent(inout) :: grad(3,mol%nat)
+    integer,intent(out) :: iostatus
+    !> LOCAL
+    type(gfn0_results) :: res
+    character(len=:),allocatable :: cpath
+    logical :: loadnew
+    iostatus = 0
+
+    !>--- setup system call information
+    !$omp critical
+    call gfn0_init(calc,loadnew)
+    !> tblite printout handling
+    inquire(unit=calc%prch, opened=ex)
+    if((calc%prch .ne. stdout) .and. ex)then
+      close(calc%ctx%unit)
+    endif
+    if (allocated(calc%calcspace)) then
+      ex = directory_exist(calc%calcspace)
+      if (.not. ex) then
+        io = makedir(trim(calc%calcspace))
+      end if
+      cpath = calc%calcspace//sep//'gfn0.out'
+    else
+      cpath = 'gfn0.out'
+    end if
+    if( calc%prch .ne. stdout) then
+    open(newunit=calc%prch, file=cpath)
+    endif
+    deallocate (cpath)
+    !> populate parameters and wavefunction
+    if(loadnew)then
+      call gfn0_setup(mol,calc%chrg,calc%uhf,calc%g0calc)
+      call gfn0_init2(mol,calc)
+    endif
+    !$omp end critical
+    !>--- do the engrad call
+    call initsignal()
+    call gfn0_sp(mol,calc%chrg,calc%uhf,calc%g0calc,energy,grad,iostatus,res)
+    if(iostatus /= 0) return
+
+    !>--- postprocessing, getting other data
+    !$omp critical
+    !call gfn0_wbos(calc,mol,iostatus)
+    !$omp end critical
+
+    return
+  contains
+    subroutine gfn0_init(calc,loadnew)
+      implicit none
+      type(calculation_settings),intent(inout) :: calc
+      logical,intent(out) :: loadnew
+      loadnew = .false.
+      if(.not.allocated(calc%g0calc))then
+      allocate(calc%g0calc)
+      loadnew = .true.
+      endif
+      if( calc%apiclean ) loadnew = .true.
+    end subroutine gfn0_init
+    subroutine gfn0_init2(mol,calc)
+      implicit none
+      type(coord),intent(in) :: mol
+      type(calculation_settings),intent(inout) :: calc
+      if(allocated(calc%solvent) .and. allocated(calc%solvmodel))then
+      call gfn0_addsettings(mol,calc%g0calc,calc%solvent,calc%solvmodel)
+      endif
+    end subroutine gfn0_init2
+    subroutine gfn0_wbos(calc,mol,iostatus)
+      implicit none
+      type(calculation_settings),intent(inout) :: calc
+      type(coord),intent(in) :: mol
+      integer,intent(out) :: iostatus
+      iostatus = 0
+      if(.not.calc%rdwbo) return
+      if(allocated(calc%wbo))deallocate(calc%wbo)
+      allocate(calc%wbo( mol%nat, mol%nat), source=0.0_wp)
+      !call tblite_getwbos(calc%tbcalc,calc%wfn,calc%tbres,mol%nat,calc%wbo)
+    end subroutine gfn0_wbos
+  end subroutine gfn0_engrad
+
+!========================================================================================!
+
+  subroutine gfn0occ_engrad(mol,calc,energies,grads,iostatus)
+    implicit none
+    !> INPUT
+    type(coord) :: mol
+    type(calculation_settings) :: calc
+    !> OUTPUT  
+    real(wp),intent(inout) :: energies(:)
+    real(wp),intent(inout) :: grads(:,:,:)
+    integer,intent(out) :: iostatus
+    !> LOCAL
+    type(gfn0_results) :: res
+    character(len=:),allocatable :: cpath
+    logical :: loadnew
+    iostatus = 0
+
+    !>--- setup system call information
+    !$omp critical
+    call gfn0_init(calc,loadnew)
+    !> tblite printout handling
+    inquire(unit=calc%prch, opened=ex)
+    if((calc%prch .ne. stdout) .and. ex)then
+      close(calc%ctx%unit)
+    endif
+    if (allocated(calc%calcspace)) then
+      ex = directory_exist(calc%calcspace)
+      if (.not. ex) then
+        io = makedir(trim(calc%calcspace))
+      end if
+      cpath = calc%calcspace//sep//'gfn0.out'
+    else
+      cpath = 'gfn0.out'
+    end if
+    if( calc%prch .ne. stdout) then
+    open(newunit=calc%prch, file=cpath)
+    endif
+    deallocate (cpath)
+    !> populate parameters and wavefunction
+    if(loadnew)then
+      call gfn0_setup(mol,calc%chrg,calc%uhf,calc%g0calc)
+      call gfn0_init2(mol,calc)
+    endif
+    !$omp end critical
+    !>--- do the engrad call
+    call initsignal()
+    call gfn0_sp_occ(mol,calc%chrg,calc%uhf,calc%nconfig,calc%occ,calc%g0calc, &
+    &    energies,grads,iostatus,res)
+    if(iostatus /= 0) return
+
+    !>--- postprocessing, getting other data
+    !$omp critical
+    !call gfn0_wbos(calc,mol,iostatus)
+    !$omp end critical
+
+    return
+  contains
+    subroutine gfn0_init(calc,loadnew)
+      implicit none
+      type(calculation_settings),intent(inout) :: calc
+      logical,intent(out) :: loadnew
+      loadnew = .false.
+      if(.not.allocated(calc%g0calc))then
+      allocate(calc%g0calc)
+      loadnew = .true.
+      endif
+      if( calc%apiclean ) loadnew = .true.
+    end subroutine gfn0_init
+    subroutine gfn0_init2(mol,calc)
+      implicit none
+      type(coord),intent(in) :: mol
+      type(calculation_settings),intent(inout) :: calc
+      integer :: nel,nao,nlev
+      if(calc%nconfig > 0)then
+        nel = calc%g0calc%wfn%nel
+        nao = calc%g0calc%basis%nao 
+        nlev = calc%nconfig 
+        if(allocated(calc%occ))deallocate(calc%occ)
+        allocate(calc%occ(nao,nlev), source=0.0_wp)
+        call gfn0_gen_occ(nlev,nel,nao,calc%config,calc%occ)
+      endif
+      if(allocated(calc%solvent) .and. allocated(calc%solvmodel))then
+      call gfn0_addsettings(mol,calc%g0calc,calc%solvent,calc%solvmodel)
+      endif
+    end subroutine gfn0_init2
+    subroutine gfn0_wbos(calc,mol,iostatus)
+      implicit none
+      type(calculation_settings),intent(inout) :: calc
+      type(coord),intent(in) :: mol
+      integer,intent(out) :: iostatus
+      iostatus = 0
+      if(.not.calc%rdwbo) return
+      if(allocated(calc%wbo))deallocate(calc%wbo)
+      allocate(calc%wbo( mol%nat, mol%nat), source=0.0_wp)
+      !call tblite_getwbos(calc%tbcalc,calc%wfn,calc%tbres,mol%nat,calc%wbo)
+    end subroutine gfn0_wbos
+  end subroutine gfn0occ_engrad
 
 
 

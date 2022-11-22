@@ -20,7 +20,9 @@
 module calc_type
   use iso_fortran_env,only:wp => real64,stdout => output_unit
   use constraints
+  !>--- api types
   use tblite_api
+  use gfn0_api
   implicit none
 
   character(len=1),public,parameter :: sep = '/'
@@ -36,6 +38,8 @@ module calc_type
       integer :: orca      = 4
       integer :: terachem  = 5
       integer :: tblite    = 6
+      integer :: gfn0      = 7
+      integer :: gfn0occ   = 8
    end type enum_jobtype
    type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
 
@@ -45,6 +49,7 @@ module calc_type
   type :: calculation_settings
 
     integer :: id
+    integer :: prch = stdout
 
     integer :: chrg = 0
     integer :: uhf = 0
@@ -80,18 +85,24 @@ module calc_type
     integer  :: tblitelvl = 2
     real(wp) :: etemp = 300.0_wp
     real(wp) :: accuracy = 1.0_wp 
-    logical  :: tbliteclean = .true.
+    logical  :: apiclean = .true.
     integer  :: maxscc = 500 
     logical  :: saveint = .false.
+    character(len=:),allocatable :: solvmodel
+    character(len=:),allocatable :: solvent
     type(wavefunction_type),allocatable  :: wfn
     type(tblite_calculator),allocatable  :: tbcalc
     type(tblite_ctx),allocatable         :: ctx 
     type(tblite_resultstype),allocatable :: tbres
     type(wavefunction_type),allocatable  :: wfn_backup
+    type(gfn0_data),allocatable          :: g0calc
+    integer :: nconfig = 0
+    integer,allocatable :: config(:,:)
+    real(wp),allocatable :: occ(:,:)
 
   contains
     procedure :: deallocate => calculation_settings_deallocate
-
+    procedure :: addconfig => calculation_settings_addconfig
   end type calculation_settings
 !=========================================================================================!
 
@@ -198,13 +209,18 @@ contains  !>--- Module routines start here
     if (allocated(self%dipgrad)) deallocate (self%dipgrad)
     if (allocated(self%gradkey)) deallocate (self%gradkey)
     if (allocated(self%efile)) deallocate (self%efile)
+    if (allocated(self%solvmodel)) deallocate(self%solvmodel)
+    if (allocated(self%solvent)) deallocate(self%solvent)
     if (allocated(self%wfn)) deallocate (self%wfn)
     if (allocated(self%tbcalc)) deallocate(self%tbcalc)
     if (allocated(self%ctx)) deallocate(self%ctx)
     if (allocated(self%tbres)) deallocate(self%tbres)
     if (allocated(self%wfn_backup)) deallocate(self%wfn_backup)
+    if (allocated(self%g0calc)) deallocate(self%g0calc)
+   
 
     self%id = 0
+    self%prch = stdout
     self%chrg = 0
     self%uhf = 0
     self%epot = 0.0_wp
@@ -221,7 +237,7 @@ contains  !>--- Module routines start here
     self%tblitelvl = 2
     self%etemp = 300.0_wp
     self%accuracy = 1.0_wp
-    self%tbliteclean = .true.
+    self%apiclean = .true.
     self%maxscc = 500
     self%saveint = .false.
 
@@ -392,6 +408,39 @@ contains  !>--- Module routines start here
     return
   end subroutine calculation_copy
 
+!=========================================================================================!
+
+  subroutine calculation_settings_addconfig(self,config)
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in)  :: config(:)
+    integer :: i,j
+    integer :: l,lold,lnew,n,nnew
+    integer,allocatable :: configtmp(:,:)
+
+    n = self%nconfig
+    nnew = n + 1
+    self%nconfig = nnew
+    l = size(config,1)
+    if(allocated(self%config))then
+     lold = size(self%config, 1) 
+    else
+     lold = 0
+    endif
+    lnew = max(l, lold)
+
+    allocate( configtmp(lnew, nnew), source = 0 ) 
+    do i=1,n
+      do j=1,lold
+        configtmp(j,i) = self%config(j,i)
+      enddo
+    enddo
+    do j=1,l
+      configtmp(j,nnew) = config(j)
+    enddo  
+    if(allocated(self%config))deallocate(self%config)
+    call move_alloc(configtmp, self%config)
+  end subroutine calculation_settings_addconfig
 
 !=========================================================================================!
 end module calc_type

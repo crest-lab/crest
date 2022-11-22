@@ -157,6 +157,9 @@ contains
       case ('playground','test')
         env%preopt = .false.
         env%crestver = crest_test
+       case ('singlepoint','sp')
+        env%preopt = .false.
+        env%crestver = crest_sp
       case ('ancopt','optimize')
         env%preopt = .false.
         env%crestver = crest_optimize

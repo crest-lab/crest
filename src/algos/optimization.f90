@@ -45,9 +45,9 @@ subroutine crest_optimization(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 
-  call smallhead( 'Calculation constraints:' )
-  call env%calc%printconstraints()
-  write (stdout,*)
+  !call smallhead( 'Calculation constraints:' )
+  !call env%calc%printconstraints()
+  !write (stdout,*)
 
 !========================================================================================!
 

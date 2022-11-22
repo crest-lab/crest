@@ -84,6 +84,18 @@ if(WITH_TBLITE)
 endif()
 
 
+# GFN0-xTB
+if(WITH_GFN0)
+  find_package("gfn0" REQUIRED)
+  add_definitions(-DWITH_GFN0)
+  list(
+    APPEND libs
+    gfn0::gfn0
+  )
+endif()
+
+
+
 #
 # CREST sources
 #

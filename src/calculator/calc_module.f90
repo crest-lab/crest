@@ -125,7 +125,8 @@ contains  !>--- Module routines start here
           call tblite_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
 
 
-        case( 20 ) !-- gfn0 api
+        case( jobtype%gfn0 ) !>-- GNF0-xTB api
+          call gfn0_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
           
 
         case (99) !-- Lennard-Jones dummy calculation
@@ -138,6 +139,9 @@ contains  !>--- Module routines start here
           calc%etmp(i) = 0.0_wp
           calc%grdtmp(:,:,i) = 0.0_wp
         end select
+        if( iostatus /= 0 )then
+          return
+        endif
       end do
 
       !==================================================================================! 

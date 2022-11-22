@@ -17,6 +17,7 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
+  "${dir}/singlepoint.f90"
   "${dir}/dynamics.f90"
   "${dir}/numhess.f90"
   "${dir}/optimization.f90"

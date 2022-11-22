@@ -72,6 +72,7 @@ module crest_data
    integer,parameter,public :: crest_pka      = 14
    integer,parameter,public :: crest_solv     = 15
    !>> runtypes with IDs between 200 and 300 use the inernal engines <<!
+   integer,parameter,public :: crest_sp         = 264
    integer,parameter,public :: crest_optimize   = 265
    integer,parameter,public :: crest_moldyn     = 266
    integer,parameter,public :: crest_s1         = 267

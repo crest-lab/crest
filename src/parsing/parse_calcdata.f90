@@ -136,6 +136,8 @@ contains
       call parse_setting(job,kv%key,kv%value_b)
     case (4) !> string
       call parse_setting(job,kv%key,kv%value_c)
+    case ( 6,7 ) !> int/float array
+      call parse_setting_array(job,kv,kv%key)
     end select
   end subroutine parse_setting_auto
   subroutine parse_setting_float(job,key,val)
@@ -195,6 +197,8 @@ contains
         job%id = jobtype%terachem
       case ('tblite')
         job%id = jobtype%tblite
+      case ('gfn0','gfn0-xtb')
+        job%id = jobtype%gfn0
       case ('none')
         job%id = jobtype%unknown
       case default
@@ -250,6 +254,15 @@ contains
          job%tblitelvl = xtblvl%unknown
        end select
 
+    case ('gbsa')
+       job%solvmodel = 'gbsa'
+       job%solvent   = val
+
+    case ('alpb')
+       job%solvmodel = 'alpb'
+       job%solvent   = val
+
+
     end select
     return
   end subroutine parse_setting_c
@@ -266,10 +279,21 @@ contains
     case ('dipgrad')
       job%rddipgrad = val
     case ('refresh')
-      job%tbliteclean = val
+      job%apiclean = val
     end select
     return
   end subroutine parse_setting_bool
+  subroutine parse_setting_array(job,kv,key)
+    implicit none
+    type(calculation_settings) :: job
+    type(keyvalue) :: kv
+    character(len=*) :: key
+    select case (key)
+    case ('config')
+      call job%addconfig(kv%value_ia)
+    end select
+    return
+  end subroutine parse_setting_array
 !========================================================================================!
 !> The following routines are used to
 !> read information into the "calcdata" object

@@ -190,3 +190,15 @@ endif
 #  default_options: ['default_library=static'],
 #)
 #exe_deps += mctc_dep
+
+if get_option('WITH_GFN0')
+ add_project_arguments('-DWITH_GFN0', language: 'fortran')
+ gfn0_dep = dependency(
+   'gfn0',
+#   version: '>=0.2',
+   fallback: ['gfn0', 'gfn0_dep'],
+   default_options: ['default_library=static'],
+ )
+ exe_deps += gfn0_dep
+endif
+

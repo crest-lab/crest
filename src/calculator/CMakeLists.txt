@@ -20,7 +20,7 @@ list(APPEND srcs
   "${dir}/calc_module.f90"
   "${dir}/calc_type.f90"
   "${dir}/constraints.f90"
-  "${dir}/gfn0_api.f90"
+  "${dir}/gfn0_api.F90"
   "${dir}/lj.f90"
   "${dir}/nonadiabatic.f90"
   "${dir}/tblite_api.F90"

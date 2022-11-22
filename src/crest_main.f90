@@ -268,6 +268,8 @@ program CREST
            call pkaquick(env,tim)   
         case( crest_solv )             !> microsolvation tools   
            call crest_solvtool(env, tim) 
+        case( crest_sp)
+           call crest_singlepoint(env, tim)
         case( crest_optimize)
            call crest_optimization(env, tim) 
         case( crest_mdopt2 )

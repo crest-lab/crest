@@ -15,6 +15,7 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
+  'singlepoint.f90',
   'dynamics.f90',
   'numhess.f90',
   'optimization.f90',
