@@ -1017,9 +1017,13 @@ end subroutine pr_qcg_esolv
 
 subroutine pr_grow_energy()
   implicit none
-  write(*,'(x,'' Size'',2x,''E /Eh '',6x,''De/kcal'',3x,''Detot/kcal'',2x,&
-           &''Density'',3x,''Efix'',9x,''R   av/act.'',1x,&
-           &''Surface'',3x,''Opt'',4x)')
+  write(*,'(x,'' Size'',7x,''E'',8x,''De'',7x,''Detot'',6x,&
+           &''Density'',5x,''Eatom'',4x,''av. R'', 1x,'' Rlast'',3x,&
+           &''Volume'',4x,''Opt'')')
+  write(*,'(12x,''[Eh]'',4x,''[kcal]'',5x,''[kcal]'',5x,&
+           &''[u/Å^3]'',5x,''[kcal]'',3x,''[bohr]'', 1x,''[bohr]'',1x,&
+           &''[bohr^3]'')')
+
 end subroutine pr_grow_energy
 
 
