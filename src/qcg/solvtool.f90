@@ -2203,7 +2203,6 @@ subroutine qcg_eval(env, solu, solu_ens, solv_ens)
 
    Gsolv(1:20) = G_solute(1:20) - G_solvent(1:20) - G_mono(1:20)
    Hsolv = H_solute - H_solvent - H_mono
-   call pr_eval_1(Gsolv(20), Hsolv)
 
 !--- Calculate Volume work and include
    volw = (env%tboltz*8.31451/1000./4.184)*log(24.47d0*env%tboltz/298.15)
