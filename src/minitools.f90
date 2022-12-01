@@ -742,7 +742,7 @@ subroutine thermo_mini(env)
     ithr=env%thermo%ithr
     fscal=env%thermo%fscal
     sthr=env%thermo%sthr
-    call calcthermo(mol%nat,mol%at,mol%xyz,etot,freq,.true.,ithr,fscal,sthr, &
+    call calcthermo(mol%nat,mol%at,mol%xyz,freq,.true.,ithr,fscal,sthr, &
                     &    nt,temps,et,ht,gt,stot )
     deallocate(freq)
     deallocate(stot,gt,ht,et,temps)

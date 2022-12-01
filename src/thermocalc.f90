@@ -165,7 +165,6 @@ subroutine calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr,nt,temps, &
     real(wp),parameter :: rcmtoau = 1.0_wp/autorcm
     real(wp),parameter :: autocal = 627.50947428_wp*1000.0_wp
 
-
     call prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,sym,symchar)
 
     n3=3*nat
