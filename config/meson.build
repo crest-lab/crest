@@ -197,7 +197,7 @@ if get_option('WITH_GFN0')
    'gfn0',
 #   version: '>=0.2',
    fallback: ['gfn0', 'gfn0_dep'],
-   default_options: ['default_library=static'],
+   default_options: ['default_library=static','with_gbsa=true'],
  )
  exe_deps += gfn0_dep
 endif

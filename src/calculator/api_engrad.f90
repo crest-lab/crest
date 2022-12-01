@@ -42,7 +42,7 @@ module api_engrad
 
 
   public :: tblite_engrad
-  public :: gfn0_engrad
+  public :: gfn0_engrad, gfn0occ_engrad
 
 !=========================================================================================!
 !=========================================================================================!
@@ -143,11 +143,13 @@ contains    !>--- Module routines start here
 
 !========================================================================================!
 
-  subroutine gfn0_engrad(mol,calc,energy,grad,iostatus)
+  subroutine gfn0_engrad(mol,calc,g0calc,energy,grad,iostatus)
+!> This is the GFN0 engrad call that uses the standard implementation
     implicit none
     !> INPUT
     type(coord) :: mol
     type(calculation_settings) :: calc
+    type(gfn0_data),intent(inout),allocatable  :: g0calc
     !> OUTPUT  
     real(wp),intent(inout) :: energy
     real(wp),intent(inout) :: grad(3,mol%nat)
@@ -156,15 +158,16 @@ contains    !>--- Module routines start here
     type(gfn0_results) :: res
     character(len=:),allocatable :: cpath
     logical :: loadnew
+    logical :: pr
     iostatus = 0
-
+    pr = .false.
     !>--- setup system call information
     !$omp critical
-    call gfn0_init(calc,loadnew)
-    !> tblite printout handling
+    call gfn0_init(calc,g0calc,loadnew)
+    !> printout handling
     inquire(unit=calc%prch, opened=ex)
     if((calc%prch .ne. stdout) .and. ex)then
-      close(calc%ctx%unit)
+      close(calc%prch)
     endif
     if (allocated(calc%calcspace)) then
       ex = directory_exist(calc%calcspace)
@@ -175,20 +178,25 @@ contains    !>--- Module routines start here
     else
       cpath = 'gfn0.out'
     end if
-    if( calc%prch .ne. stdout) then
+    if(( calc%prch .ne. stdout)) then
     open(newunit=calc%prch, file=cpath)
+    pr = .true.
     endif
     deallocate (cpath)
     !> populate parameters and wavefunction
     if(loadnew)then
-      call gfn0_setup(mol,calc%chrg,calc%uhf,calc%g0calc)
-      call gfn0_init2(mol,calc)
+      call gfn0_setup(mol,calc%chrg,calc%uhf,g0calc)
+      call gfn0_init2(mol,calc,g0calc)
     endif
+    call gfn0_init3(mol,calc,g0calc) 
     !$omp end critical
     !>--- do the engrad call
     call initsignal()
-    call gfn0_sp(mol,calc%chrg,calc%uhf,calc%g0calc,energy,grad,iostatus,res)
+    call gfn0_sp(mol,calc%chrg,calc%uhf,g0calc,energy,grad,iostatus,res)
     if(iostatus /= 0) return
+    if(pr)then
+      call gfn0_print(calc%prch,g0calc,res)
+    endif
 
     !>--- postprocessing, getting other data
     !$omp critical
@@ -197,25 +205,38 @@ contains    !>--- Module routines start here
 
     return
   contains
-    subroutine gfn0_init(calc,loadnew)
+    subroutine gfn0_init(calc,g0calc,loadnew)
       implicit none
       type(calculation_settings),intent(inout) :: calc
+      type(gfn0_data),intent(inout),allocatable  :: g0calc
       logical,intent(out) :: loadnew
       loadnew = .false.
-      if(.not.allocated(calc%g0calc))then
-      allocate(calc%g0calc)
+      if(.not.allocated(g0calc))then
+      allocate(g0calc)
       loadnew = .true.
       endif
       if( calc%apiclean ) loadnew = .true.
     end subroutine gfn0_init
-    subroutine gfn0_init2(mol,calc)
+    subroutine gfn0_init2(mol,calc,g0calc)
       implicit none
       type(coord),intent(in) :: mol
       type(calculation_settings),intent(inout) :: calc
+      type(gfn0_data),intent(inout)  :: g0calc
       if(allocated(calc%solvent) .and. allocated(calc%solvmodel))then
-      call gfn0_addsettings(mol,calc%g0calc,calc%solvent,calc%solvmodel)
+      call gfn0_addsettings(mol,g0calc,calc%solvent,calc%solvmodel)
       endif
     end subroutine gfn0_init2
+    subroutine gfn0_init3(mol,calc,g0calc)
+      implicit none
+      type(coord),intent(in) :: mol
+      type(calculation_settings),intent(inout) :: calc
+      type(gfn0_data),intent(inout),allocatable  :: g0calc
+      integer :: nel,uhf
+      nel = g0calc%wfn%nel
+      uhf = calc%uhf
+      call g0calc%wfn%refresh_occu(nel, uhf)
+      call gfn0_addsettings(mol,g0calc,etemp=calc%etemp)
+    end subroutine gfn0_init3
     subroutine gfn0_wbos(calc,mol,iostatus)
       implicit none
       type(calculation_settings),intent(inout) :: calc
@@ -231,28 +252,30 @@ contains    !>--- Module routines start here
 
 !========================================================================================!
 
-  subroutine gfn0occ_engrad(mol,calc,energies,grads,iostatus)
+  subroutine gfn0occ_engrad(mol,calc,g0calc,energy,grad,iostatus)
+!> This is the GFN0 engrad call in which a config can be specified
     implicit none
     !> INPUT
     type(coord) :: mol
     type(calculation_settings) :: calc
+    type(gfn0_data),intent(inout),allocatable  :: g0calc
     !> OUTPUT  
-    real(wp),intent(inout) :: energies(:)
-    real(wp),intent(inout) :: grads(:,:,:)
+    real(wp),intent(inout) :: energy
+    real(wp),intent(inout) :: grad(:,:)
     integer,intent(out) :: iostatus
     !> LOCAL
     type(gfn0_results) :: res
     character(len=:),allocatable :: cpath
-    logical :: loadnew
+    logical :: loadnew,pr
     iostatus = 0
-
+    pr = .false.
     !>--- setup system call information
     !$omp critical
-    call gfn0_init(calc,loadnew)
-    !> tblite printout handling
+    call gfn0_init(calc,g0calc,loadnew)
+    !> printout handling
     inquire(unit=calc%prch, opened=ex)
     if((calc%prch .ne. stdout) .and. ex)then
-      close(calc%ctx%unit)
+      close(calc%prch)
     endif
     if (allocated(calc%calcspace)) then
       ex = directory_exist(calc%calcspace)
@@ -265,19 +288,24 @@ contains    !>--- Module routines start here
     end if
     if( calc%prch .ne. stdout) then
     open(newunit=calc%prch, file=cpath)
+    pr = .true.
     endif
     deallocate (cpath)
     !> populate parameters and wavefunction
     if(loadnew)then
-      call gfn0_setup(mol,calc%chrg,calc%uhf,calc%g0calc)
-      call gfn0_init2(mol,calc)
+      call gfn0_setup(mol,calc%chrg,calc%uhf,g0calc)
+      call gfn0_init2(mol,calc,g0calc)
     endif
+    call gfn0_init3(mol,calc,g0calc)
     !$omp end critical
     !>--- do the engrad call
     call initsignal()
-    call gfn0_sp_occ(mol,calc%chrg,calc%uhf,calc%nconfig,calc%occ,calc%g0calc, &
-    &    energies,grads,iostatus,res)
+    call gfn0_sp_occ(mol,calc%chrg,calc%uhf,calc%occ,g0calc, &
+    &    energy,grad,iostatus,res)
     if(iostatus /= 0) return
+    if(pr)then
+      call gfn0_print(calc%prch,g0calc,res)
+    endif
 
     !>--- postprocessing, getting other data
     !$omp critical
@@ -286,34 +314,44 @@ contains    !>--- Module routines start here
 
     return
   contains
-    subroutine gfn0_init(calc,loadnew)
+    subroutine gfn0_init(calc,g0calc,loadnew)
       implicit none
       type(calculation_settings),intent(inout) :: calc
       logical,intent(out) :: loadnew
+      type(gfn0_data),intent(inout),allocatable  :: g0calc
+      integer :: nel,nao,nlev
       loadnew = .false.
-      if(.not.allocated(calc%g0calc))then
-      allocate(calc%g0calc)
+      if(.not.allocated(g0calc))then
+      allocate(g0calc)
       loadnew = .true.
       endif
       if( calc%apiclean ) loadnew = .true.
     end subroutine gfn0_init
-    subroutine gfn0_init2(mol,calc)
+    subroutine gfn0_init2(mol,calc,g0calc)
       implicit none
       type(coord),intent(in) :: mol
       type(calculation_settings),intent(inout) :: calc
+      type(gfn0_data),intent(inout),allocatable  :: g0calc
       integer :: nel,nao,nlev
-      if(calc%nconfig > 0)then
-        nel = calc%g0calc%wfn%nel
-        nao = calc%g0calc%basis%nao 
-        nlev = calc%nconfig 
-        if(allocated(calc%occ))deallocate(calc%occ)
-        allocate(calc%occ(nao,nlev), source=0.0_wp)
-        call gfn0_gen_occ(nlev,nel,nao,calc%config,calc%occ)
-      endif
       if(allocated(calc%solvent) .and. allocated(calc%solvmodel))then
-      call gfn0_addsettings(mol,calc%g0calc,calc%solvent,calc%solvmodel)
+      call gfn0_addsettings(mol,g0calc,calc%solvent,calc%solvmodel)
       endif
+      call gfn0_addsettings(mol,g0calc,etemp=calc%etemp)
     end subroutine gfn0_init2
+    subroutine gfn0_init3(mol,calc,g0calc)
+      implicit none
+      type(coord),intent(in) :: mol
+      type(calculation_settings),intent(inout) :: calc
+      type(gfn0_data),intent(inout),allocatable  :: g0calc
+      integer :: nel,nao,nlev
+      if(.not.allocated(calc%occ))then
+        nel = g0calc%wfn%nel
+        nao = g0calc%basis%nao 
+        if(allocated(calc%occ))deallocate(calc%occ)
+        allocate(calc%occ(nao), source=0.0_wp)
+        call gfn0_gen_occ(nel,nao,calc%config,calc%occ)
+      endif
+    end subroutine gfn0_init3
     subroutine gfn0_wbos(calc,mol,iostatus)
       implicit none
       type(calculation_settings),intent(inout) :: calc

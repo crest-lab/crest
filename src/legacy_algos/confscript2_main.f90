@@ -21,7 +21,7 @@
 ! iMTD(RMSD)-GC Algorithm (also Entropy mode and iMTD-sMTD Algo --v4)
 ! This is the algo for the conformational search.
 !=========================================================================================!
-subroutine confscript2i(env,tim)
+subroutine confscript2i_legacy(env,tim)
   use iso_fortran_env,only:wp => real64
   use crest_data
   use iomod
@@ -344,7 +344,7 @@ subroutine confscript2i(env,tim)
   end associate settingData
   end associate settingLogs
 
-end subroutine confscript2i
+end subroutine confscript2i_legacy
 
 !=========================================================================================!
 !--- set the total run time according to the mRMSD criterium

@@ -57,13 +57,11 @@ module calc_module
   public :: numhess
   public :: constrhess
 
-
 !========================================================================================!
 !========================================================================================!
 contains  !>--- Module routines start here
 !========================================================================================!
 !========================================================================================!
-
 
 !========================================================================================!
 !> subroutine engrad
@@ -76,7 +74,7 @@ contains  !>--- Module routines start here
     real(wp),intent(inout) :: gradient(3,mol%nat)
     integer,intent(out) :: iostatus
 
-    integer :: i,j,k,l,n,io
+    integer :: i,j,k,l,n,io,nocc
 
     real(wp) :: dum1,dum2
     real(wp) :: efix
@@ -87,14 +85,20 @@ contains  !>--- Module routines start here
 !==========================================================!
     call initsignal()
 
-    !>--- Calculation
+    !>--- Calculation setup
     n = calc%ncalculations
- 
+
     !$omp critical
-    if(n > 0)then
-    if(.not.allocated(calc%etmp))allocate(calc%etmp(n),source=0.0_wp)
-    if(.not.allocated(calc%grdtmp))allocate(calc%grdtmp(3,mol%nat,n),source=0.0_wp)
-    endif
+    if (n > 0) then
+      if (.not. allocated(calc%etmp)) allocate (calc%etmp(n),source=0.0_wp)
+      if (.not. allocated(calc%grdtmp)) allocate (calc%grdtmp(3,mol%nat,n),source=0.0_wp)
+      if (.not. allocated(calc%eweight)) then
+        allocate (calc%eweight(n),source=0.0_wp)
+        do i = 1,n
+          calc%eweight(i) = calc%calcs(i)%weight
+        end do
+      end if
+    end if
     !$omp end critical
 
     iostatus = 0
@@ -110,25 +114,24 @@ contains  !>--- Module routines start here
       !==================================================================================!
       !>--- loop over all calculations to be done
       do i = 1,calc%ncalculations
-        if (calc%which > 0) then
-          if (i < calc%which) cycle
-          if (i > calc%which) exit
-        end if
         select case (calc%calcs(i)%id)
-        case ( jobtype%xtbsys )  !>-- xtb system call
+        case (jobtype%xtbsys)  !>-- xtb system call
           call xtb_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-  
-        case ( jobtype%generic ) !>-- generic script/program call
+
+        case (jobtype%generic) !>-- generic script/program call
           call generic_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
- 
-        case ( jobtype%tblite )  !>-- tblite api call 
+
+        case (jobtype%tblite)  !>-- tblite api call
           call tblite_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
 
+        case (jobtype%gfn0) !>-- GFN0-xTB api
+          call gfn0_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+          !call gfn0_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
 
-        case( jobtype%gfn0 ) !>-- GNF0-xTB api
-          call gfn0_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-          
-
+        case (jobtype%gfn0occ) !>--- Special GFN0-xTB api given orbital population
+          call gfn0occ_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+!           call gfn0occ_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),        iostatus)
+ 
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
             read (calc%calcs(i)%other,*) dum1,dum2
@@ -139,37 +142,33 @@ contains  !>--- Module routines start here
           calc%etmp(i) = 0.0_wp
           calc%grdtmp(:,:,i) = 0.0_wp
         end select
-        if( iostatus /= 0 )then
+        if (iostatus /= 0) then
           return
-        endif
+        end if
       end do
 
-      !==================================================================================! 
+      !==================================================================================!
       !>--- switch case for what to to with the energies
       select case (calc%id)
-      case default 
-      !> take e+grd only from first level
+      case default
+        !> take e+grd only from first level
         energy = calc%etmp(1)
         gradient = calc%grdtmp(:,:,1)
-      case (2:) 
-      !> take e+grd from one of the specified calculations
+      case (2:)
+        !> take e+grd from one of the specified calculations
         j = calc%id
         if (j <= calc%ncalculations) then
           energy = calc%etmp(j)
           gradient = calc%grdtmp(:,:,j)
         end if
-      case (-1) 
-      !> take non-adiabatic arithmetic mean (of first two calculations)
-        if (calc%ncalculations > 1) then
-          call engrad_mean(mol%nat,calc%etmp(1),calc%etmp(2), &
-          & calc%grdtmp(:,:,1),calc%grdtmp(:,:,2),energy,gradient)
-        end if
+      case (-1)
+        !> take non-adiabatic arithmetic mean (of first two calculations)
+        call engrad_mean(mol%nat,calc%ncalculations,calc%etmp,calc%grdtmp, &
+        &                energy,gradient)
       end select
       !>--- printout (to file or stdout)
       call calc_eprint(calc,energy,calc%etmp)
       !>--- deallocate
-      !deallocate (etmp,grdtmp)
-
 
     end if
 
@@ -182,18 +181,18 @@ contains  !>--- Module routines start here
       do i = 1,calc%nconstraints
         efix = 0.0_wp
         grdfix = 0.0_wp
-        if(calc%cons(i)%type > 0)then
-        !>--- structural constraints
+        if (calc%cons(i)%type > 0) then
+          !>--- structural constraints
           call calc_constraint(mol%nat,mol%xyz,calc%cons(i),efix,grdfix)
-        else if( allocated(calc%etmp) .and. allocated(calc%grdtmp))then
-        !>--- non-adiabatic constraints
-          if( n > 0 )then
-          call calc_nonadiabatic_constraint(mol%nat,calc%cons(i),n,calc%etmp,calc%grdtmp,efix,grdfix)
+        else if (allocated(calc%etmp) .and. allocated(calc%grdtmp)) then
+          !>--- non-adiabatic constraints
+          if (n > 1) then
+            call calc_nonadiabatic_constraint(mol%nat,calc%cons(i),n,calc%etmp,calc%grdtmp,efix,grdfix)
           else !> this "else" is necessary for constrained model hessians
-           efix = 0.0_wp
-           grdfix = 0.0_wp
-          endif
-        endif
+            efix = 0.0_wp
+            grdfix = 0.0_wp
+          end if
+        end if
         energy = energy + efix
         gradient = gradient + grdfix
       end do
@@ -205,7 +204,7 @@ contains  !>--- Module routines start here
     return
   end subroutine engrad_mol
 
-  !>--- wrapper for the engrad_mol routine 
+  !>--- wrapper for the engrad_mol routine
   subroutine engrad_xyz(n,xyz,at,calc,energy,gradient,iostatus)
     implicit none
     integer,intent(in) :: n
@@ -289,7 +288,7 @@ contains  !>--- Module routines start here
     real(wp),intent(in) :: xyz(3,nat)
     type(calcdata) :: calc
     real(wp),intent(out) :: hess(nat * 3,nat * 3)
-    integer,intent(out)  :: io    
+    integer,intent(out)  :: io
 
     type(coord) :: mol !> coord type, so that the input remains unchanged
     real(wp) :: energy,el,er
@@ -384,8 +383,8 @@ contains  !>--- Module routines start here
     implicit none
     type(calcdata) :: calc
     real(wp) :: energy
-    real(wp) :: energies(calc%ncalculations)
-    integer :: i,j
+    real(wp) :: energies(:)
+    integer :: i,j,l
     character(len=20) :: atmp
     character(len=:),allocatable :: btmp
 
@@ -393,7 +392,8 @@ contains  !>--- Module routines start here
     btmp = ''
     write (atmp,'(f20.12)') energy
     btmp = btmp//atmp
-    do i = 1,calc%ncalculations
+    l = size(energies,1)
+    do i = 1,l
       write (atmp,'(f20.12)') energies(i)
       btmp = btmp//atmp
     end do
@@ -402,22 +402,22 @@ contains  !>--- Module routines start here
     return
   end subroutine calc_print_energies
 
-
 !==========================================================================================!
 
   subroutine calc_print_energies2(calc,energy,energies,chnl)
     implicit none
     type(calcdata) :: calc
     real(wp) :: energy
-    real(wp) :: energies(calc%ncalculations)
+    real(wp) :: energies(:)
     integer :: chnl
-    integer :: i,j
+    integer :: i,j,l
     character(len=20) :: atmp
     character(len=:),allocatable :: btmp
     btmp = ''
     write (atmp,'(f20.12)') energy
     btmp = btmp//atmp
-    do i = 1,calc%ncalculations
+    l = size(energies,1)
+    do i = 1,l
       write (atmp,'(f20.12)') energies(i)
       btmp = btmp//atmp
     end do
@@ -425,7 +425,6 @@ contains  !>--- Module routines start here
     deallocate (btmp)
     return
   end subroutine calc_print_energies2
-
 
 !==========================================================================================!
 end module calc_module

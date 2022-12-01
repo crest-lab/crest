@@ -53,6 +53,7 @@ module calc_type
 
     integer :: chrg = 0
     integer :: uhf = 0
+    real(wp) :: weight = 1.0_wp
 
     character(len=:),allocatable :: calcspace
     character(len=:),allocatable :: calcfile
@@ -97,8 +98,8 @@ module calc_type
     type(wavefunction_type),allocatable  :: wfn_backup
     type(gfn0_data),allocatable          :: g0calc
     integer :: nconfig = 0
-    integer,allocatable :: config(:,:)
-    real(wp),allocatable :: occ(:,:)
+    integer,allocatable :: config(:)
+    real(wp),allocatable :: occ(:)
 
   contains
     procedure :: deallocate => calculation_settings_deallocate
@@ -111,13 +112,16 @@ module calc_type
   public :: calcdata
   type :: calcdata
     integer :: id = 0
-    integer :: which = 0
 
     !>--- calculations
     integer :: ncalculations = 0
     type(calculation_settings),allocatable :: calcs(:)
     real(wp),allocatable :: etmp(:)
     real(wp),allocatable :: grdtmp(:,:,:)
+    real(wp),allocatable :: eweight(:)
+    real(wp),allocatable :: etmp2(:)
+    real(wp),allocatable :: grdtmp2(:,:,:)
+    real(wp),allocatable :: eweight2(:)
 
     !>--- constraints
     integer :: nconstraints = 0
@@ -140,6 +144,9 @@ module calc_type
     logical  :: average_conv = .false.
     logical  :: tsopt = .false.
     integer  :: iupdat = 0  !> 0=BFGS, 1=Powell, 2=SR1, 3=Bofill, 4=Schlegel
+
+    !>--- gfn0 data
+    type(gfn0_data),allocatable  :: g0calc
 
     !>--- printouts and io
     logical :: pr_energies = .false.
@@ -167,7 +174,6 @@ contains  !>--- Module routines start here
     class(calcdata) :: self
 
     self%id = 0
-    self%which = 0
 
     if (allocated(self%calcs)) deallocate (self%calcs)
     self%ncalculations = 0
@@ -190,6 +196,13 @@ contains  !>--- Module routines start here
     self%pr_energies = .false.
     self%eout_unit = stdout
     if (allocated(self%elog)) deallocate (self%elog)
+
+    if (allocated(self%etmp)) deallocate (self%etmp)
+    if (allocated(self%grdtmp)) deallocate(self%grdtmp)
+    if (allocated(self%etmp2)) deallocate (self%etmp2)
+    if (allocated(self%grdtmp2)) deallocate(self%grdtmp2)
+  
+    if (allocated(self%g0calc)) deallocate(self%g0calc)
 
     return
   end subroutine calculation_reset
@@ -237,7 +250,7 @@ contains  !>--- Module routines start here
     self%tblitelvl = 2
     self%etemp = 300.0_wp
     self%accuracy = 1.0_wp
-    self%apiclean = .true.
+    self%apiclean = .false.
     self%maxscc = 500
     self%saveint = .false.
 
@@ -373,7 +386,6 @@ contains  !>--- Module routines start here
     !call self%reset()
 
     self%id = src%id
-    self%which = src%which
 
     self%ncalculations = src%ncalculations
     if (allocated(self%calcs)) deallocate (self%calcs)
@@ -410,6 +422,40 @@ contains  !>--- Module routines start here
 
 !=========================================================================================!
 
+!  subroutine calcdata_addconfig(self,config)
+!    implicit none
+!    class(calcdata) :: self
+!    integer,intent(in)  :: config(:)
+!    integer :: i,j
+!    integer :: l,lold,lnew,n,nnew
+!    integer,allocatable :: configtmp(:,:)
+!
+!    n = self%nconfig
+!    nnew = n + 1
+!    self%nconfig = nnew
+!    l = size(config,1)
+!    if(allocated(self%config))then
+!     lold = size(self%config, 1) 
+!    else
+!     lold = 0
+!    endif
+!    lnew = max(l, lold)
+!
+!    allocate( configtmp(lnew, nnew), source = 0 ) 
+!    do i=1,n
+!      do j=1,lold
+!        configtmp(j,i) = self%config(j,i)
+!      enddo
+!    enddo
+!    do j=1,l
+!      configtmp(j,nnew) = config(j)
+!    enddo  
+!    if(allocated(self%config))deallocate(self%config)
+!    call move_alloc(configtmp, self%config)
+!  end subroutine calcdata_addconfig
+
+!=========================================================================================!
+
   subroutine calculation_settings_addconfig(self,config)
     implicit none
     class(calculation_settings) :: self
@@ -418,29 +464,12 @@ contains  !>--- Module routines start here
     integer :: l,lold,lnew,n,nnew
     integer,allocatable :: configtmp(:,:)
 
-    n = self%nconfig
-    nnew = n + 1
-    self%nconfig = nnew
     l = size(config,1)
-    if(allocated(self%config))then
-     lold = size(self%config, 1) 
-    else
-     lold = 0
-    endif
-    lnew = max(l, lold)
-
-    allocate( configtmp(lnew, nnew), source = 0 ) 
-    do i=1,n
-      do j=1,lold
-        configtmp(j,i) = self%config(j,i)
-      enddo
-    enddo
-    do j=1,l
-      configtmp(j,nnew) = config(j)
-    enddo  
-    if(allocated(self%config))deallocate(self%config)
-    call move_alloc(configtmp, self%config)
+    if(allocated(self%config)) deallocate(self%config)
+    allocate( self%config(l) )
+    self%config = config
   end subroutine calculation_settings_addconfig
+
 
 !=========================================================================================!
 end module calc_type

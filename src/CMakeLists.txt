@@ -22,11 +22,11 @@ add_subdirectory("algos")
 add_subdirectory("dynamics")
 add_subdirectory("qcg")
 add_subdirectory("qmhelpers")
+add_subdirectory("legacy_algos")
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
-  "${dir}/acidbase.f90"
   "${dir}/atmasses.f90"
   "${dir}/axis_module.f90"
   "${dir}/biasmerge.f90"
@@ -39,14 +39,10 @@ list(APPEND srcs
   "${dir}/confopt.f90"
   "${dir}/confparse.f90"
   "${dir}/confscript1.f90"
-  "${dir}/confscript2_main.f90"
-  "${dir}/confscript2_misc.f90"
-  "${dir}/confscript3.f90"
   "${dir}/constraining.f90"
   "${dir}/cregen.f90"
   "${dir}/crest_pars.f90"
   "${dir}/data.f90"
-  "${dir}/deprotonate.f90"
   "${dir}/dft_propcalc.f90"
   "${dir}/ensemblecomp.f90"
   "${dir}/entropic.f90"
@@ -61,7 +57,7 @@ list(APPEND srcs
   "${dir}/intmodes.f"
   "${dir}/io.f"
   "${dir}/iomod.F90"
-  "${dir}/ligands.f90"
+  "${dir}/legacy_wrappers.f90"
   "${dir}/ls_rmsd.f90"
   "${dir}/marqfit.f90"
   "${dir}/minitools.f90"
@@ -72,16 +68,12 @@ list(APPEND srcs
   "${dir}/newcregen.f90"
   "${dir}/normmd.f90"
   "${dir}/ompmklset.F90"
-  "${dir}/pka.f90"
   "${dir}/printouts.f90"
   "${dir}/prmat.f90"
   "${dir}/progressbar.f90"
   "${dir}/propcalc.f90"
-  "${dir}/protonate.f90"
   "${dir}/quicksort.f90"
-  "${dir}/reactor.f90"
   "${dir}/readl.f90"
-  "${dir}/relaxensemble.f90"
   "${dir}/rotcompare.f90"
   "${dir}/scratch.f90"
   "${dir}/sdfio.f90"
@@ -92,12 +84,10 @@ list(APPEND srcs
   "${dir}/sigterm.f90"
   "${dir}/sortens.f90"
   "${dir}/spline.f90"
-  "${dir}/stereoisomers.f90"
   "${dir}/strucreader.f90"
   "${dir}/symmetry2.f90"
   "${dir}/symmetry_i.c"
   "${dir}/syscheck.f90"
-  "${dir}/tautomerize.f90"
   "${dir}/testmol.f90"
   "${dir}/thermocalc.f90"
   "${dir}/thermo.f90"

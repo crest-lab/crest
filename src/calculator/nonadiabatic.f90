@@ -31,6 +31,12 @@ module nonadiabatic_module
   real(wp),parameter :: autokcal = 627.509541_wp
 
   public :: engrad_mean
+  interface engrad_mean
+    module procedure :: engrad_mean_2
+    module procedure :: engrad_mean_multi
+    module procedure :: engrad_mean_weight
+  end interface engrad_mean
+
   public :: calc_nonadiabatic_constraint
 
 !========================================================================================!
@@ -41,11 +47,11 @@ contains  !>--- Module routines start here
 
 !========================================================================================!
 !> subrotuine engrad_mean
-!> given two energies and the respective gradients,
+!> given energies and the respective gradients,
 !> the routine returns the arithmetic mean between
-!> those two.
+!> those.
 !>---------------------------------------------------
-  subroutine engrad_mean(nat,e1,e2,grd1,grd2,em,grdm)
+  subroutine engrad_mean_2(nat,e1,e2,grd1,grd2,em,grdm)
     implicit none
     integer,intent(in) :: nat
     real(wp),intent(in) :: e1,e2
@@ -59,9 +65,54 @@ contains  !>--- Module routines start here
     grdm = 0.5_wp * (grd1 + grd2)
 
     return
-  end subroutine engrad_mean
+  end subroutine engrad_mean_2
+!===============!
+  subroutine engrad_mean_multi(nat,nlev,e,grd,em,grdm)
+    implicit none
+    integer,intent(in) :: nat
+    integer,intent(in) :: nlev
+    real(wp),intent(in) :: e(nlev)
+    real(wp),intent(in) :: grd(3,nat,nlev)
+    real(wp),intent(out) :: em
+    real(wp),intent(out) :: grdm(3,nat)
+    integer :: l,i
+    real(wp) :: dum
 
+    em = 0.0_wp
+    grdm = 0.0_wp
 
+    l = nlev
+    dum = 1.0_wp/float(l)
+
+    do i=1,l
+      em = em +  dum * e(i)
+      grdm = grdm + dum * grd(:,:,i)
+    enddo
+    return
+  end subroutine engrad_mean_multi
+!===============!
+  subroutine engrad_mean_weight(nat,nlev,weights,e,grd,em,grdm)
+    implicit none
+    integer,intent(in) :: nat
+    integer,intent(in) :: nlev
+    real(wp),intent(in) :: weights(nlev)
+    real(wp),intent(in) :: e(nlev)
+    real(wp),intent(in) :: grd(3,nat,nlev)
+    real(wp),intent(out) :: em
+    real(wp),intent(out) :: grdm(3,nat)
+    integer :: l,i
+    real(wp) :: dum
+
+    em = 0.0_wp
+    grdm = 0.0_wp
+    l = nlev
+    do i=1,l
+      dum = weights(i)
+      em = em +  dum * e(i)
+      grdm = grdm + dum * grd(:,:,i)
+    enddo
+    return
+  end subroutine engrad_mean_weight
 
 !========================================================================================!
 !> subroutine calc_nonadiabatic_constraint

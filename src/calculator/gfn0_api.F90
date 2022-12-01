@@ -47,6 +47,7 @@ module gfn0_api
   public :: gfn0_setup,gfn0_addsettings
   public :: gfn0_sp,gfn0_sp_occ
   public :: gfn0_gen_occ
+  public :: gfn0_print
 
 !========================================================================================!
 !========================================================================================!
@@ -75,12 +76,13 @@ contains  !>--- Module routines start here
 !========================================================================================!
 !> gfn0_addsettings is used to add other settings from
 !> CRESTs calculation object to the gfn0_data
-  subroutine gfn0_addsettings(mol,g0calc,solv,model)
+  subroutine gfn0_addsettings(mol,g0calc,solv,model,etemp)
     implicit none
     type(coord),intent(in)  :: mol
     type(gfn0_data),intent(inout) :: g0calc
     character(len=*),intent(in),optional :: solv
     character(len=*),intent(in),optional :: model
+    real(wp),intent(in),optional :: etemp
 #ifdef WITH_GFN0
     !> add solvation?
     if (present(solv)) then
@@ -97,6 +99,9 @@ contains  !>--- Module routines start here
         call gfn0_gbsa_init(mol%nat,mol%at,.false.,solv,g0calc%gbsa)
       end if
     end if
+    if(present(etemp))then
+      g0calc%xtbData%etemp = max(0.0_wp,etemp)
+    endif
 #else
     write (stdout,*) 'Error: Compiled without GFN0-xTB support!'
     write (stdout,*) 'Use -DWITH_GFN0=true in the setup to enable this function'
@@ -144,34 +149,33 @@ contains  !>--- Module routines start here
 
 !========================================================================================!
 
-  subroutine gfn0_sp_occ(mol,chrg,uhf,nlev,occ,g0calc,energies,gradients,iostatus,res)
+  subroutine gfn0_sp_occ(mol,chrg,uhf,occ,g0calc,energy,gradient,iostatus,res)
     implicit none
     !> INPUT
     type(coord),intent(in)  :: mol
     integer,intent(in) :: chrg
     integer,intent(in) :: uhf
-    integer,intent(in) :: nlev
     type(gfn0_data),intent(inout) :: g0calc
 !    real(wp),intent(in) :: occ(g0calc%basis%nao, nlev)
-    real(wp),intent(in) :: occ(:,:)
+    real(wp),intent(in) :: occ(:)
     !> OUTPUT
-    real(wp),intent(out) :: energies(nlev)
-    real(wp),intent(out) :: gradients(3,mol%nat,nlev)
+    real(wp),intent(out) :: energy
+    real(wp),intent(out) :: gradient(3,mol%nat)
     integer,intent(out) :: iostatus
     type(gfn0_results),intent(inout),optional :: res
     !> LOCAL
     logical :: fail
-    energies = 0.0_wp
-    gradients = 0.0_wp
+    energy = 0.0_wp
+    gradient = 0.0_wp
     iostatus = 0 
     fail = .false.
 #ifdef WITH_GFN0
     if (present(res)) then
-      call gfn0_occ_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,nlev,occ,g0calc, &
-      &          energies,gradients,fail,res)
+      call gfn0_occ_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,occ,g0calc, &
+      &          energy,gradient,fail,res)
     else
-      call gfn0_occ_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,nlev,occ,g0calc, &
-      &          energies,gradients,fail)
+      call gfn0_occ_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,occ,g0calc, &
+      &          energy,gradient,fail)
     end if
     if(fail)then
       iostatus = -1
@@ -185,19 +189,30 @@ contains  !>--- Module routines start here
 
 !========================================================================================!
 
-  subroutine gfn0_gen_occ(nlev,nel,nao,active,occ)
+  subroutine gfn0_gen_occ(nel,nao,active,occ)
     implicit none
-    integer,intent(in) :: nlev
     integer,intent(in) :: nel
     integer,intent(in) :: nao
-    integer,intent(in) :: active(:,:)
-    real(wp),intent(out) :: occ(nao,nlev)
+    integer,intent(in) :: active(:)
+    real(wp),intent(out) :: occ(nao)
     integer :: i
     occ = 0.0_wp
-    do i=1,nlev
-     call generate_config(nel,nao,occ(:,i),active(:,i))
-    enddo
+    call generate_config(nel,nao,occ,active)
   end subroutine gfn0_gen_occ
+
+
+!========================================================================================!
+
+   subroutine gfn0_print(iunit,g0calc,res)
+    implicit none
+    integer,intent(in) :: iunit
+    type(gfn0_data),intent(in) :: g0calc
+    type(gfn0_results),intent(in) :: res
+#ifdef WITH_GFN0
+    call gfn0_print_summary(iunit,g0calc,res)
+#endif
+    return
+   end subroutine gfn0_print
 
 !========================================================================================!
 !========================================================================================!

@@ -154,6 +154,8 @@ contains
       job%etemp = val
     case ( 'accuracy' ) 
       job%accuracy = val
+    case( 'weight' )
+      job%weight = val
     end select
     return
   end subroutine parse_setting_float
@@ -199,6 +201,8 @@ contains
         job%id = jobtype%tblite
       case ('gfn0','gfn0-xtb')
         job%id = jobtype%gfn0
+      case ('gfn0*','gfn0*-xtb')
+        job%id = jobtype%gfn0occ
       case ('none')
         job%id = jobtype%unknown
       case default
@@ -280,6 +284,8 @@ contains
       job%rddipgrad = val
     case ('refresh')
       job%apiclean = val
+    case ( 'print' )
+      if( val) job%prch = 999
     end select
     return
   end subroutine parse_setting_bool
@@ -343,6 +349,8 @@ contains
     select case (key)
     case ('id','type')
       calc%id = val
+    case ('maxcycle')
+      calc%maxcycle = val
     case default
       return
     end select
