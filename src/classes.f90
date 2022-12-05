@@ -78,6 +78,7 @@ module crest_data
    integer,parameter,public :: crest_s1         = 267
    integer,parameter,public :: crest_mecp       = 268
    integer,parameter,public :: crest_numhessian = 269
+   integer,parameter,public :: crest_scanning   = 270
    !>> <<! 
    integer,parameter,public :: crest_test       = 456
 !---- tools

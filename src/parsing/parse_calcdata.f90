@@ -95,7 +95,9 @@ contains
       else if (blk%header == '[calculation.constraints]') then
         call parse_constraintdat(blk,calc)
         included = .true.
-        !write(*,*) 'read [calculation.constraints]'
+      else if (blk%header == '[calculation.scans]')then
+        call parse_scandat(blk,calc)
+        included = .true.
       end if
     end do
     if (included) then
@@ -433,6 +435,7 @@ contains
     type(constraint) :: constr
     logical,intent(out) :: success
     real(wp) :: dum1,dum2,dum3
+    integer :: atm1,atm2,atm3,atm4
     success = .false.
     select case (kv%key)
     case ('bond','bonds')
@@ -443,10 +446,25 @@ contains
           call constr%dummyconstraint(11)
           success = .true.
         end select
-      case (9) !> unspecified array
+      case (5,9) !> unspecified array
         call constr%analyzedummy(11,kv%na,kv%value_rawa)
         success = .true.
+      case default
+        success = .false.
       end select
+    case ( 'dihedral' ) 
+      read(kv%value_rawa(1),*) atm1
+      read(kv%value_rawa(2),*) atm2
+      read(kv%value_rawa(3),*) atm3
+      read(kv%value_rawa(4),*) atm4
+      read(kv%value_rawa(5),*) dum1
+      if(kv%na > 5)then
+      read(kv%value_rawa(6),*) dum2
+      call constr%dihedralconstraint(atm1,atm2,atm3,atm4,dum1,dum2)
+      else
+      call constr%dihedralconstraint(atm1,atm2,atm3,atm4,dum1)
+      endif
+      success = .true.
     case ('sphere')
       dum1 = kv%value_fa(3)  !> sphere radius
       dum2 = kv%value_fa(1)  !> prefactor
@@ -487,7 +505,90 @@ contains
     return
   end subroutine parse_constraint_auto
 
+
 !========================================================================================!
+!> The following routines are used to
+!> read information into the "scan" object
+!> and add it to a calculation data object
+!>---------------------------------------------------------
+  subroutine parse_scandat(blk,calc)
+    implicit none
+    type(datablock),intent(in) :: blk
+    type(calcdata),intent(inout) :: calc
+    logical :: success
+    type(scantype) :: scn
+    integer :: i
+    if (blk%header .ne. '[calculation.scans]') return
+    do i = 1,blk%nkv
+      call parse_scan_auto(scn,blk%kv_list(i),success)
+      if (success) then
+        call calc%add(scn)
+      end if
+    end do
+    return
+  end subroutine parse_scandat
+  subroutine parse_scan_auto(scn,kv,success)
+    implicit none
+    type(keyvalue) :: kv
+    type(scantype) :: scn
+    logical,intent(out) :: success
+    real(wp) :: dum1,dum2,dum3
+    integer :: atm1,atm2,atm3,atm4
+    integer :: nsteps
+    success = .false.
+    call scn%deallocate()  
+    select case (kv%key)
+    case ('bond','distance')
+      scn%type = 1
+      scn%n = 2
+      allocate(scn%atms(2))
+      read(kv%value_rawa(1),*) atm1
+      scn%atms(1) = atm1
+      read(kv%value_rawa(2),*) atm2
+      scn%atms(2) = atm2
+      read(kv%value_rawa(3),*) dum1
+      scn%minval = dum1
+      read(kv%value_rawa(4),*) dum2 
+      scn%maxval = dum2
+      if(kv%na > 4)then
+       read(kv%value_rawa(5),*) nsteps 
+       scn%steps = nsteps
+      endif
+      success = .true.
+    case ('dihedral')
+      scn%type = 3
+      scn%n = 2
+      allocate(scn%atms(4))
+      read(kv%value_rawa(1),*) atm1
+      scn%atms(1) = atm1
+      read(kv%value_rawa(2),*) atm2
+      scn%atms(2) = atm2
+      read(kv%value_rawa(3),*) atm3
+      scn%atms(3) = atm3
+      read(kv%value_rawa(4),*) atm4
+      scn%atms(4) = atm4
+      if(kv%na > 4)then
+       read(kv%value_rawa(5),*) nsteps
+       scn%steps = nsteps
+      endif
+      if(kv%na > 6)then
+        read(kv%value_rawa(6),*) dum1
+        scn%minval = dum1
+        read(kv%value_rawa(7),*) dum2
+        scn%maxval = dum2
+      endif
+      success = .true.
+    case default
+      return
+    end select
+
+    return
+  end subroutine parse_scan_auto
+
+!========================================================================================!
+!> The following routines are used to
+!> read information into the "mddata" object
+!>---------------------------------------------------------
   subroutine parse_dynamics_data(mddat,dict,included)
     implicit none
     type(mddata) :: mddat

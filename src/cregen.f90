@@ -1417,6 +1417,7 @@ end subroutine backtrack
 !==========================================================!
 subroutine xyzalign(nat,xyz)
       use iso_fortran_env, wp => real64
+      use geo, only: rotRz180,rotRx180
       implicit none
       integer :: nat
       real(wp) :: xyz(3,nat)

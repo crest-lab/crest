@@ -37,6 +37,7 @@
 module strucrd
   use iso_fortran_env,only:wp => real64
   use iso_c_binding
+  use geo
   implicit none
 
 !=========================================================================================!
@@ -155,7 +156,7 @@ module strucrd
   end type pdbdata
 !=========================================================================================!
   !coord class. contains a single structure
-  !by convention coordinates are in Bohr for a single structure!
+  !by convention coordinates are in atomic units (Bohr) for a single structure!
   type :: coord
 
     !> data that's typically used in coord type
@@ -186,12 +187,15 @@ module strucrd
     type(pdbdata) :: pdb
 
   contains
-    procedure :: deallocate => deallocate_coord !clear memory space
-    procedure :: open => opencoord !read an coord file
-    procedure :: write => writecoord !write
-    procedure :: append => appendcoord !append
-    procedure :: get => getcoord !allocate & fill with data
-    procedure :: appendlog  !append .log file with coordinates and energy
+    procedure :: deallocate => deallocate_coord !> clear memory space
+    procedure :: open => opencoord              !> read an coord file
+    procedure :: write => writecoord            !> write
+    procedure :: append => appendcoord          !> append
+    procedure :: get => getcoord                !> allocate & fill with data
+    procedure :: appendlog                      !> append .log file with coordinates and energy
+    procedure :: dist => coord_getdistance      !> calculate distance between two atoms
+    procedure :: angle => coord_getangle        !> calculate angle between three atoms
+    procedure :: dihedral => coord_getdihedral  !> calculate dihedral angle between four atoms
   end type coord
 !=========================================================================================!
   !ensemble class. contains all structures of an ensemble
@@ -1291,6 +1295,72 @@ contains
     self%xyz = xyz / convfac
     return
   end subroutine getcoord
+
+!==================================================================!
+! function coord_getdistance
+! calculate the distance for a given pair of atoms
+!==================================================================!
+  function coord_getdistance(self,a1,a2) result(d)
+    implicit none
+    class(coord) :: self
+    integer,intent(in) :: a1,a2
+    real(wp) :: d
+    d = 0.0_wp
+    if(allocated(self%xyz))then
+     d = (self%xyz(1,a1)-self%xyz(1,a2))**2 + &
+     &   (self%xyz(2,a1)-self%xyz(2,a2))**2 + &
+     &   (self%xyz(3,a1)-self%xyz(3,a2))**2
+     d = sqrt(d)
+    endif
+    return
+  end function coord_getdistance
+
+!==================================================================!
+! function coord_getangle
+! calculate the angle for a given trio of atoms
+! A1-A2-A3
+!==================================================================!
+  function coord_getangle(self,a1,a2,a3) result(angle)
+    implicit none
+    class(coord) :: self
+    integer,intent(in) :: a1,a2,a3
+    real(wp) :: angle,u(3),v(3),o(3)
+    real(wp) :: d2ij, d2jk, d2ik, xy, temp
+    angle = 0.0_wp
+    if(allocated(self%xyz))then
+     u(1:3) = self%xyz(1:3,a1) - self%xyz(1:3,a2)
+     v(1:3) = self%xyz(1:3,a3) - self%xyz(1:3,a2)
+     angle =tangle(u,v)
+    endif
+    return
+  end function coord_getangle
+
+!==================================================================!
+! function coord_getdihedral
+! calculate the dihedral angle for a given quartet of atoms
+! A1-A2-A3-A4
+!==================================================================!
+  function coord_getdihedral(self,a1,a2,a3,a4) result(dihed)
+    implicit none
+    class(coord) :: self
+    integer,intent(in) :: a1,a2,a3,a4
+    real(wp) :: dihed
+    real(wp) :: u(3),v(3),w(3)
+    real(wp) :: n1(3),n2(3)
+    real(wp) :: u1(3),u2(3),u3(3)
+    
+    dihed = 0.0_wp
+    if(allocated(self%xyz))then
+
+     u(1:3) = self%xyz(1:3,a2) - self%xyz(1:3,a1)
+     v(1:3) = self%xyz(1:3,a3) - self%xyz(1:3,a2)
+     w(1:3) = self%xyz(1:3,a4) - self%xyz(1:3,a3)
+     dihed = dihedral(u,v,w)  
+    endif
+    return
+  end function coord_getdihedral
+
+
 
 !=========================================================================================!
 !=========================================================================================!

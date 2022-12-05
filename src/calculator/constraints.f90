@@ -84,6 +84,28 @@ module constraints
   end type constraint
   !=====================================================!
 
+
+  public :: scantype
+  !=====================================================!
+  type :: scantype
+
+    integer :: type = 0  !> 0=nothing, 1=distance, 3=dihedral
+    integer :: n = 0
+    integer :: steps = 5 !> number of sampling steps for the scan
+    real(wp) :: minval = 0.0_wp
+    real(wp) :: maxval = 0.0_wp
+    integer,allocatable :: atms(:)
+    real(wp),allocatable :: points(:)
+    integer :: constrnmbr = 0
+    integer :: restore = 1
+    integer :: currentstep = 0
+  contains
+    procedure :: deallocate => scantype_deallocate
+  end type scantype
+  !=====================================================!
+
+
+
   public :: calc_constraint
 
 !========================================================================================!
@@ -184,7 +206,8 @@ contains  !>--- Module routines start here
     class(constraint) :: self
     integer,intent(in) :: i,t
     character(len=*) :: rawa(i)
-    real(wp) :: k
+    real(wp) :: k,dist
+    integer :: a1,a2
 
     call self%deallocate()
     
@@ -198,6 +221,19 @@ contains  !>--- Module routines start here
       read(rawa(2),*) k
       call self%dummyconstraint(t,k)
       endif
+    case (3)
+      read(rawa(1),*) a1
+      read(rawa(2),*) a2
+      read(rawa(3),*) dist
+      dist = abs(dist)
+      call self%bondconstraint(a1,a2,dist)
+    case (4)   
+      read(rawa(1),*) a1
+      read(rawa(2),*) a2
+      read(rawa(3),*) dist
+      read(rawa(4),*) k
+      dist = abs(dist)
+      call self%bondconstraint(a1,a2,dist,k)
     end select
 
     return
@@ -220,15 +256,32 @@ contains  !>--- Module routines start here
   end subroutine constraint_deallocate
 
 !========================================================================================!
+!> subroutine scantype_deallocate
+!> reset and deallocate all data of a given scantype object
+  subroutine scantype_deallocate(self)
+    implicit none
+    class(scantype) :: self
+    if (allocated(self%atms)) deallocate (self%atms)
+    self%type = 0
+    self%steps = 5
+    self%n = 0
+    self%minval = 0.0_wp
+    self%maxval = 0.0_wp
+    if (allocated(self%points)) deallocate (self%points)
+    self%restore = 1
+    return
+  end subroutine scantype_deallocate
+
+!========================================================================================!
 !> subroutien create_bond_constraint
-  subroutine create_dummy_constraint(self,i,k)
+  subroutine create_dummy_constraint(self,t,k)
     implicit none
     class(constraint) :: self
-    integer,intent(in) :: i
+    integer,intent(in) :: t
     real(wp),optional :: k
 
     call self%deallocate()
-    self%type = i
+    self%type = t
     self%n = 0
     allocate (self%fc(1),source=fcdefault)
     if (present(k)) then
@@ -478,11 +531,12 @@ contains  !>--- Module routines start here
 
 !========================================================================================!
 !> subroutien create_dihedral_constraint
+!> constrain angle in degrees (°), input should be between -180° and 180°
   subroutine create_dihedral_constraint(self,a,b,c,d,ref,k)
     implicit none
     class(constraint) :: self
     integer,intent(in) :: a,b,c,d
-    real(wp),intent(in) :: ref ! constrain angle in degrees
+    real(wp),intent(in) :: ref !> constrain angle in degrees
     real(wp),optional :: k
     real(wp) :: dum,d2,sig
     call self%deallocate()
@@ -572,8 +626,10 @@ contains  !>--- Module routines start here
     sig = -sign(1.0_wp,p)
     call angle_and_derivatives(N1,Nzero,N2,dangle,dadN1,dad0,dadN2)
     dangle = sig * dangle
-
+    
     x = dangle - ref
+    if(x < -180.0_wp/deg) x = x + 360.0_wp/deg
+    if(x > 180.0_wp/deg) x = x - 360.0_wp/deg
     select case (constr%subtype)
     case (pharmonic) !> harmonic potential
       energy = 0.5_wp * k * (x)**2

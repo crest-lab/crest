@@ -169,6 +169,9 @@ contains
       case ('md','mtd','metadynamics','dynamics')
         env%preopt = .false.
         env%crestver = crest_moldyn
+      case ( 'scan' )
+        env%preopt = .false.
+        env%crestver = crest_scanning
       case ('search_1')
         env%preopt = .false.
         env%crestver = crest_s1

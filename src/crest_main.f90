@@ -282,6 +282,8 @@ program CREST
            call crest_search_mecp(env,tim)
         case( crest_numhessian)
            call crest_numhess(env,tim)
+        case( crest_scanning ) 
+           call crest_scan(env,tim)
         case( crest_test) 
            call crest_playground(env, tim) 
         case default

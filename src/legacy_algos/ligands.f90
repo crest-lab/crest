@@ -378,6 +378,7 @@ subroutine ohflip(mol,numstruc)
     use crest_data
     use strucrd
     use zdata
+    use geo
     implicit none
     type(coord) :: mol,new
     type(zmolecule) :: zmol

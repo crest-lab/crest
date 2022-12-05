@@ -127,6 +127,12 @@ module calc_type
     integer :: nconstraints = 0
     type(constraint),allocatable :: cons(:)
 
+    !>--- scans
+    integer :: nscans = 0
+    logical :: relaxscan = .true.
+    real(wp) :: scansforce = 0.5_wp  
+    type(scantype),allocatable :: scans(:) 
+
     !>--- results/property requests
     real(wp) :: epot
     real(wp) :: efix
@@ -155,8 +161,8 @@ module calc_type
   contains
     procedure :: reset => calculation_reset
     procedure :: init => calculation_init
-    generic,public :: add => calculation_add_constraint,calculation_add_settings
-    procedure,private :: calculation_add_constraint,calculation_add_settings
+    generic,public :: add => calculation_add_constraint,calculation_add_settings,calculation_add_scan
+    procedure,private :: calculation_add_constraint,calculation_add_settings,calculation_add_scan
     procedure :: copy => calculation_copy
     procedure :: printconstraints => calculation_print_constraints
     procedure :: removeconstraint => calculation_remove_constraint
@@ -308,6 +314,33 @@ contains  !>--- Module routines start here
 
     return
   end subroutine calculation_add_constraint
+
+!=========================================================================================!
+
+  subroutine calculation_add_scan(self,scn)
+    implicit none
+    class(calcdata) :: self
+    type(scantype) :: scn
+    type(scantype),allocatable :: scnlist(:)
+    integer :: i,j
+
+    if (self%nscans < 1) then
+      allocate (self%scans(1))
+      self%nscans = 1
+      self%scans(1) = scn
+    else
+      i = self%nscans + 1
+      j = self%nscans
+      allocate (scnlist(i))
+      scnlist(1:j) = self%scans(1:j)
+      scnlist(i) = scn
+      call move_alloc(scnlist,self%scans)
+      self%nscans = i
+    end if
+
+    return
+  end subroutine calculation_add_scan
+
 
 !=========================================================================================!
 

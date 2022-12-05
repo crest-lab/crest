@@ -219,6 +219,7 @@ end subroutine stereocond1
 subroutine RorS(zmol,i)
       use iso_fortran_env, only : wp => real64
       use zdata
+      use geo, only: tangle,rodrot
       implicit none
       integer,intent(in) :: i  !central atom
       type(zmolecule) :: zmol
@@ -226,7 +227,7 @@ subroutine RorS(zmol,i)
       character(len=2),allocatable :: ele(:)
       integer :: k,l,m,n
       real(wp),parameter :: pi = 3.14159265359_wp
-      real(wp) :: theta,tangle
+      real(wp) :: theta
       real(wp) :: vec(3),uec(3)
       logical :: pr
       pr = .false.
@@ -895,6 +896,7 @@ subroutine buildstruc(zmol,book,ch)
       use iso_fortran_env, wp => real64
       use zdata
       use crest_data, only: bohr
+      use geo, only: rodrot,unitv
       implicit none
       type(zmolecule) :: zmol
       logical :: book(zmol%nstereo)
@@ -962,7 +964,7 @@ end subroutine buildstruc
 subroutine buildstruc2(zmol,book,ch)
       use iso_fortran_env, wp => real64
       use zdata
-
+      use geo, only: rodrot,unitv
       implicit none
       type(zmolecule) :: zmol
       logical :: book(zmol%nstereo)

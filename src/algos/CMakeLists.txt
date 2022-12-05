@@ -22,6 +22,7 @@ list(APPEND srcs
   "${dir}/numhess.f90"
   "${dir}/optimization.f90"
   "${dir}/playground.f90"
+  "${dir}/scan.f90" 
   "${dir}/search_1.f90"
   "${dir}/search_mecp.f90"
   "${dir}/search_imtdgc.f90"

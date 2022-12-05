@@ -13,6 +13,7 @@ module crest_parameters
 
   real(wp),parameter,public :: pi  = acos(0.0_wp)*2.0_wp
   real(wp),parameter,public :: radtodeg = 180.0_wp / pi
+  real(wp),parameter,public :: degtorad = 1.0_wp / radtodeg
 
   real(wp),parameter,public :: amutokg = 1.660539040e-27_wp
   real(wp),parameter,public :: autokj = 2625.49964038_wp

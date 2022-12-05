@@ -1,3 +1,4 @@
 [wrap-git]
-directory = gfn0
+directory = gfn
 url = https://github.com/pprcht/gfn0
+revision = head

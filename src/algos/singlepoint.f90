@@ -74,10 +74,11 @@ subroutine crest_singlepoint(env,tim)
   calc = env%calc
 
   write(*,*) 'job type',calc%calcs(1)%id
-  write(*,*) 'etemp',calc%calcs(1)%etemp
-  write(*,*) 'chrg',calc%calcs(1)%chrg,'uhf', calc%calcs(i)%uhf
+  write(*,*) 'etemp   ',calc%calcs(1)%etemp
+  write(*,*) 'chrg    ',calc%calcs(1)%chrg
+  write(*,*) 'uhf     ', calc%calcs(i)%uhf
   write(*,*) 'accuracy',calc%calcs(1)%accuracy
-  write(*,*) 'maxscc',calc%calcs(1)%maxscc
+  write(*,*) 'maxscc  ',calc%calcs(1)%maxscc
   call engrad(mol,calc,energy,grad,io)
   write(*,*) 'iostatus',io  
 
