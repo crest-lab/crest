@@ -27,7 +27,7 @@
 !>  tim  -  timer object
 !>-----------------------------------------------
 subroutine crest_singlepoint(env,tim)
-  use iso_fortran_env,only: wp =>real64,stdout=>output_unit
+  use crest_parameters
   use crest_data
   use strucrd 
   use calc_type
@@ -95,3 +95,58 @@ subroutine crest_singlepoint(env,tim)
   call tim%stop(14)
   return
 end subroutine crest_singlepoint
+
+!========================================================================================!
+!========================================================================================!
+!> replacement for the legacy xtbsp routine, makes use of gfn0 or tblite
+!> the purpose of this routine is usually to generate WBOs
+subroutine crest_xtbsp(env,xtblevel,molin)
+   use crest_data
+   use strucrd
+   use calc_type
+   use calc_module
+   implicit none
+   !> INPUT 
+   type(systemdata) :: env
+   integer,intent(in),optional :: xtblevel
+   type(coord),intent(in),optional :: molin
+   !> LOCAL
+   integer :: lv,io
+   type(calcdata) :: tmpcalc
+   type(calculation_settings) :: cal
+   type(coord) :: mol
+   real(wp) :: energy
+   real(wp),allocatable :: grad(:,:)
+
+   call env2calc(env,tmpcalc,molin)
+
+   tmpcalc%calcs(1)%rdwbo = .true. !> obtain WBOs
+   if(present(xtblevel))then
+     select case(xtblevel) !> no default
+     case( 0 )
+       tmpcalc%calcs(1)%id = jobtype%gfn0
+     case( 1 )
+       tmpcalc%calcs(1)%id = jobtype%tblite
+       tmpcalc%calcs(1)%tblitelvl = 1
+     case( 2 ) 
+       tmpcalc%calcs(1)%id = jobtype%tblite
+       tmpcalc%calcs(1)%tblitelvl = 2
+     end select
+   endif
+   if(present(molin))then
+     mol = molin
+   else
+     call mol%open('coord')
+   endif
+   allocate(grad(3,mol%nat), source = 0.0_wp)
+
+   call engrad(mol,tmpcalc,energy,grad,io)
+   if(io .ne. 0)then
+     error stop 'crest_xtbsp failed'
+   endif
+
+   deallocate(grad)
+   call tmpcalc%reset()
+   call mol%deallocate()
+end subroutine crest_xtbsp
+

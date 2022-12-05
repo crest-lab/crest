@@ -36,7 +36,7 @@ end subroutine tauthead
 ! Tautomerization workflow with GFNn-xTB
 !--------------------------------------------------------------------------------------------
 subroutine tautomerize(env,tim)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use crest_data
       use iomod
       use strucrd, only: coord2xyz
@@ -201,7 +201,7 @@ end subroutine tautomerize
 ! small verion of the protonate routine
 !--------------------------------------------------------------------------------------------
 subroutine protsmall(env,prot,tim)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       use iomod
       use crest_data
       use strucrd, only: coord2xyz
@@ -291,7 +291,7 @@ end subroutine protsmall
 ! deprotonate every structure of an ensemble file
 !--------------------------------------------------------------------------------------------
 subroutine deprotens(ens,env,prot,tim)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       use iomod
       use crest_data
       use strucrd, only: rdensembleparam,rdensemble,i2e
@@ -399,7 +399,7 @@ end subroutine deprotens
 ! protonate routine to be used on an ensemble (quite lengthy and a lot of bookkeeping)
 !--------------------------------------------------------------------------------------------
 subroutine protens(ens,env,prot,tim)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       use iomod
       use crest_data
       use strucrd, only: coord2xyz,wrc0,rdensembleparam,rdensemble
@@ -584,7 +584,7 @@ end subroutine protens
 ! build the blacklist to decide which atoms are valid deprotonation candidates
 !==============================================================================!
 subroutine tautomerize_blacklist(env,fname,nat,atlist)
-     use iso_fortran_env, wp => real64
+     use crest_parameters
      use iomod
      use crest_data
      use strucrd, only : rdcoord
@@ -672,7 +672,7 @@ end function taut_check_atomorder
 ! Tautomerization workflow with GFNn-xTB (*extended version)
 !============================================================================================!
 subroutine tautomerize_ext(ensemb,env,tim)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use crest_data
       use iomod
       use strucrd
@@ -890,7 +890,7 @@ end subroutine tautomerize_ext
 ! check if strict mode is active to define bond constraints (only for the heavy atoms)
 !--------------------------------------------------------------------------------------------!
 subroutine PDT_constraints(env)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use crest_data
       use iomod
       use zdata

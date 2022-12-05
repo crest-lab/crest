@@ -34,7 +34,7 @@
 !
 !==============================================================================!
 subroutine CCEGEN(env,pr,fname)
-      use iso_fortran_env, wp => real64, idp => int64, sp => real32, ap => real64
+      use crest_parameters, idp => dp 
       use crest_data
       use zdata
       use strucrd
@@ -100,7 +100,7 @@ subroutine CCEGEN(env,pr,fname)
       !>--- printout and params
       real(wp) :: emin,erel
       real(wp),parameter :: kcal = 627.5095d0
-      real(wp),parameter :: pi =  3.14159265358979D0
+      !real(wp),parameter :: pi =  3.14159265358979D0
       real(wp),parameter :: rad = 180.0d0/pi
 
 
@@ -113,7 +113,7 @@ subroutine CCEGEN(env,pr,fname)
 !=========================================================!
 ! set threads
 !=========================================================!
-       call cregen_setthreads(output_unit,env,pr)
+       call cregen_setthreads(stdout,env,pr)
 
 !=========================================================!
 ! Prepare a coordinate ensemble for the clustering
@@ -695,7 +695,7 @@ end subroutine CCEGEN
 ! set clustering level defaults
 !=======================================================================================!
 subroutine clustleveval(env,maxclust,csthr,SSRSSTthr)
-      use iso_fortran_env, wp => real64, idp => int64
+      use crest_parameters, idp => dp 
       use crest_data
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
@@ -738,7 +738,7 @@ end subroutine clustleveval
 ! and the cluster to which the structure belongs
 !=======================================================================================!
 subroutine PCA_grpwrite(nclust,npc,mm,pcvec,member)
-    use iso_fortran_env, wp => real64, idp => int64
+    use crest_parameters, idp => dp 
     implicit none
     integer,intent(in) :: nclust  ! number of required centroids
     integer,intent(in) :: npc,mm
@@ -764,7 +764,7 @@ end subroutine PCA_grpwrite
 ! Exclude light - exclude H atoms in the inc array
 !=======================================================================================!
 subroutine excludeLight(zmol,inc)
-      use iso_fortran_env, wp => real64, idp => int64
+      use crest_parameters, idp => dp 
       use zdata
       implicit none
       type(zmolecule) :: zmol
@@ -782,7 +782,7 @@ end subroutine excludeLight
 ! Exclude Specified Atoms
 !=======================================================================================!
 subroutine excludeSelected(zmol,inc,atlist)
-      use iso_fortran_env, wp => real64, idp => int64
+      use crest_parameters, idp => dp 
       use zdata
       implicit none
       type(zmolecule) :: zmol
@@ -809,7 +809,7 @@ end subroutine excludeSelected
 !
 !=======================================================================================!
 subroutine svd_to_pc(measure,m,n,sig,U,pr)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, idp => dp 
       implicit none
       integer :: n,m
       real(wp) :: measure(n,m)
@@ -862,7 +862,7 @@ end subroutine svd_to_pc
 ! calculate the Euclidian distance between two points p and q
 !======================================================================!
 function eucdist(ndim,p,q) result(dist)
-     use iso_fortran_env, wp => real64, ap => real64
+     use crest_parameters, idp => dp 
      implicit none
      real(ap) :: dist
      integer :: ndim
@@ -885,7 +885,7 @@ end function eucdist
 ! 
 !======================================================================!
 subroutine kmeans(nclust,npc,mm,centroid,pcvec,ndist,dist,member)
-    use iso_fortran_env, wp => real64, idp => int64, sp => real32, ap => real64
+    use crest_parameters, idp => dp 
     implicit none
     integer,intent(in) :: nclust  ! number of required centroids
     integer,intent(in) :: npc,mm
@@ -926,7 +926,7 @@ end subroutine kmeans
 ! determine cluster seeds for the K-means algo
 !===================================================================!
 subroutine kmeans_seeds(nclust,npc,mm,centroid,pcvec,ndist,dist)
-    use iso_fortran_env, wp => real64, idp => int64, sp => real32, ap => real64
+    use crest_parameters, idp => dp 
     implicit none
     integer :: nclust,npc,mm
     real(ap) :: centroid(npc,nclust)
@@ -1003,7 +1003,7 @@ end subroutine kmeans_seeds
 ! assign structures as members to a centroid
 !===================================================================!
 subroutine kmeans_assign(nclust,npc,mm,centroid,pcvec,member)
-    use iso_fortran_env, wp => real64, idp => int64, sp => real32, ap => real64
+    use crest_parameters, idp => dp 
     implicit none
     integer :: nclust,npc,mm
     real(ap) :: centroid(npc,nclust)
@@ -1039,7 +1039,7 @@ end subroutine kmeans_assign
 ! re-center centroids for given (sorted) structures
 !===================================================================!
 subroutine kmeans_recenter(nclust,npc,mm,centroid,pcvec,member)
-    use iso_fortran_env, wp => real64, idp => int64, ap => real64
+    use crest_parameters, idp => dp 
     implicit none
     integer :: nclust,npc,mm
     real(ap) :: centroid(npc,nclust)
@@ -1078,7 +1078,7 @@ end subroutine kmeans_recenter
 ! SSR/SST ratio
 !======================================================================!
 subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
-    use iso_fortran_env, wp => real64, idp => int64, ap => real64
+    use crest_parameters, idp => dp 
     implicit none
     integer,intent(in) :: nclust  ! number of required centroids
     integer,intent(in) :: npc,mm
@@ -1195,7 +1195,7 @@ end subroutine cluststat
 ! respective extrema
 !==============================================================!
 subroutine statanal(n,nmax,statistics,extrema,pr)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     implicit none
     integer :: n,nmax
     real(wp) :: statistics(3,nmax)
@@ -1269,8 +1269,7 @@ end subroutine statwarning
 
 !====================================================================!
 subroutine getdiederatoms(zmol,nat,inc,nb,diedat,ndied)
-      use iso_fortran_env, wp => real64, idp => int64, sp => real32
-      use crest_data
+      use crest_parameters, idp => dp 
       use zdata
       use strucrd
       implicit none
@@ -1325,7 +1324,7 @@ subroutine getdiederatoms(zmol,nat,inc,nb,diedat,ndied)
 end subroutine getdiederatoms
 
 subroutine calc_dieders(nat,xyz,ndied,diedat,diedr)
-      use iso_fortran_env, wp => real64, idp => int64, sp => real32
+      use crest_parameters, idp => dp 
       use crest_data
       use zdata
       use strucrd

@@ -17,69 +17,69 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!c  append the ".constrains" file to the setblock (ONLY USED IN OLD PARTS OF THE CODE)
-!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-subroutine ConstrainsToSET(fname,isplainxyz,constraints)
-  use setdgmod
-  use iomod
-  implicit none
-  character(len=*) :: fname
-  character(len=*) :: constraints
-  character(len=512) :: atmp,dg
-  character(len=256),allocatable :: strings(:)
-  character(len=128) :: key
-  real*8,allocatable  :: floats(:)
-  integer :: iost,ich
-  logical :: ex,isplainxyz
-
-  inquire (file=constraints,exist=ex)
-  if (.not. ex) return
-
-  if (isplainxyz) then
-    call appendto(constraints,fname)
-  else
-    open (newunit=ich,file=constraints)
-    allocate (floats(3),strings(3))
-    outer: do
-      read (ich,'(a)',iostat=iost) atmp
-      if (iost < 0) exit
-      !---- handle $set-blocks in .constrains
-      if (index(atmp,'$set') .ne. 0) then
-        setblock: do
-          read (ich,'(a)',iostat=iost) atmp
-          if (iost < 0) exit outer
-          atmp = adjustl(atmp)
-          if (index(atmp,'$end') .ne. 0) exit setblock
-          dg = trim(atmp)
-          call split_set_args(dg,atmp)
-          call setdg(fname,dg,trim(atmp))
-        end do setblock
-      end if
-      !---- handle all other blocks in .constrains
-      if ((index(atmp,'$') .ne. 0) .and. &
-      &  ((index(atmp,'$set') .eq. 0) .and. (index(atmp,'$end') .eq. 0))) then
-        !write(*,*) trim(atmp)
-        key = trim(atmp) !get the argument as the current reference block keyword
-        call setdg_block(fname,trim(key),trim(atmp)) !set it to the coord file
-        keyword: do
-          read (ich,'(a)',iostat=iost) atmp
-          if (iost < 0) exit outer
-          if (index(atmp,'$') .ne. 0) then !next keyword found
-            backspace (ich)
-            cycle outer
-          end if
-          !write(*,*) trim(atmp)
-          call setdg_block(fname,trim(key),trim(atmp))
-        end do keyword
-      end if
-    end do outer
-
-    deallocate (strings,floats)
-    close (ich)
-  end if
-  return
-end subroutine ConstrainsToSET
+!!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!!c  append the ".constrains" file to the setblock (ONLY USED IN OLD PARTS OF THE CODE)
+!!cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!subroutine ConstrainsToSET(fname,isplainxyz,constraints)
+!  use setdgmod
+!  use iomod
+!  implicit none
+!  character(len=*) :: fname
+!  character(len=*) :: constraints
+!  character(len=512) :: atmp,dg
+!  character(len=256),allocatable :: strings(:)
+!  character(len=128) :: key
+!  real*8,allocatable  :: floats(:)
+!  integer :: iost,ich
+!  logical :: ex,isplainxyz
+!
+!  inquire (file=constraints,exist=ex)
+!  if (.not. ex) return
+!
+!  if (isplainxyz) then
+!    call appendto(constraints,fname)
+!  else
+!    open (newunit=ich,file=constraints)
+!    allocate (floats(3),strings(3))
+!    outer: do
+!      read (ich,'(a)',iostat=iost) atmp
+!      if (iost < 0) exit
+!      !---- handle $set-blocks in .constrains
+!      if (index(atmp,'$set') .ne. 0) then
+!        setblock: do
+!          read (ich,'(a)',iostat=iost) atmp
+!          if (iost < 0) exit outer
+!          atmp = adjustl(atmp)
+!          if (index(atmp,'$end') .ne. 0) exit setblock
+!          dg = trim(atmp)
+!          call split_set_args(dg,atmp)
+!          call setdg(fname,dg,trim(atmp))
+!        end do setblock
+!      end if
+!      !---- handle all other blocks in .constrains
+!      if ((index(atmp,'$') .ne. 0) .and. &
+!      &  ((index(atmp,'$set') .eq. 0) .and. (index(atmp,'$end') .eq. 0))) then
+!        !write(*,*) trim(atmp)
+!        key = trim(atmp) !get the argument as the current reference block keyword
+!        call setdg_block(fname,trim(key),trim(atmp)) !set it to the coord file
+!        keyword: do
+!          read (ich,'(a)',iostat=iost) atmp
+!          if (iost < 0) exit outer
+!          if (index(atmp,'$') .ne. 0) then !next keyword found
+!            backspace (ich)
+!            cycle outer
+!          end if
+!          !write(*,*) trim(atmp)
+!          call setdg_block(fname,trim(key),trim(atmp))
+!        end do keyword
+!      end if
+!    end do outer
+!
+!    deallocate (strings,floats)
+!    close (ich)
+!  end if
+!  return
+!end subroutine ConstrainsToSET
 
 !-----------------------------------------------------------------------------
 ! sort the .constrains file

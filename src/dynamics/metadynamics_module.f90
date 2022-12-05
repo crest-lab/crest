@@ -22,7 +22,7 @@
 
 module metadynamics_module
 
-  use iso_fortran_env,only:wp => real64,error_unit
+  use crest_parameters
   use ls_rmsd
   use strucrd
 

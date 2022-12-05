@@ -19,7 +19,8 @@
 
 
 subroutine crest_moleculardynamics(env,tim)
-  use iso_fortran_env,only:wp => real64,stdout => output_unit
+  !use iso_fortran_env,only:wp => real64,stdout => output_unit
+  use crest_parameters
   use crest_data
   use strucrd
   use calc_type

@@ -27,7 +27,7 @@
 !---------------------------------------------------------!
 subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
         &  bhess,eatb,gsa,grrhoa,ebtb,gsb,grrhob)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use crest_data
       use iomod
       use strucrd
@@ -248,7 +248,7 @@ subroutine ab_reactivecenter(zmola,zmolb,X)
     return
 end subroutine ab_reactivecenter
 subroutine ab_rdcharges(nat,q)
-    use iso_fortran_env, only : wp=>real64
+    use crest_parameters, only: wp
     implicit none
     integer,intent(in) :: nat
     real(wp),intent(out) :: q(nat)
@@ -282,7 +282,7 @@ end subroutine ab_rdcharges
 ! wbob - bond orders in the base
 !--------------------------------------------------------------!
 subroutine acidbasepot(dE,X,atX,nata,natb,qh,qa,qb,wboa,wbob)
-    use iso_fortran_env, only : wp=>real64
+    use crest_parameters, only: wp
     implicit none
     real(wp),intent(out) :: dE
     integer :: X
@@ -355,7 +355,7 @@ end subroutine acidbasepot
 ! reference the lowest Acid structure (w.r.t. WBO and q(X))
 !---------------------------------------------------------!
 subroutine rewrite_AB_ensemble(env,acensemble,baensemble)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, bohr
       use crest_data
       use strucrd
       use iomod

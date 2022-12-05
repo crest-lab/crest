@@ -25,6 +25,7 @@
 subroutine cregen2(env)
       use iso_fortran_env, only : wp => real64, sp => real32, idp => int64
       use crest_data
+      use crest_parameters, only: bohr
       use ls_rmsd
       use iomod
       use strucrd, only: rdnat,rdcoord,wrc0,i2e,e2i

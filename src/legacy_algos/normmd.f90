@@ -21,7 +21,7 @@
 ! A single NORMMD run (bzw. its setup)
 !--------------------------------------------------------------------------------------------
 subroutine normalMD(fname,env,nr,newtemp,newtime)
-         use iso_fortran_env, only : wp => real64
+         use crest_parameters
          use crest_data
          use iomod
          use strucrd, only: wrc0
@@ -79,7 +79,7 @@ end subroutine normalMD
 ! Run several normal MDs on the lowermost conformers
 !--------------------------------------------------------------------------------------------
 subroutine normalMD_para_OMP(env,lconf,ntemps)
-         use iso_fortran_env, only : wp => real64
+         use crest_parameters
          use crest_data
          use iomod
          use strucrd, only: wrc0,rdensembleparam,rdensemble
@@ -269,7 +269,7 @@ end subroutine normalMD_para_OMP
 ! converge to already known regions of the PES
 !-------------------------------------------------------------------------------!
 subroutine setstaticmtd(infile,k,alpha,ramp,nset,statfile,atomlist)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use crest_data
     implicit none
     character(len=*) :: infile
@@ -327,7 +327,7 @@ end subroutine setstaticmtd
 ! Run several static MTDs on the lowermost conformers
 !--------------------------------------------------------------------------------------------
 subroutine entropyMD_para_OMP(env)
-         use iso_fortran_env, only : wp => real64
+         use crest_parameters
          use crest_data
          use iomod
          use strucrd, only: wrc0,rdensembleparam,rdensemble
@@ -502,7 +502,7 @@ end subroutine entropyMD_para_OMP
 ! A single NORMMD run (bzw. its setup)
 !--------------------------------------------------------------------------------------------
 subroutine entropyMD(fname,env,nr,newtemp,newtime,k,alpha)
-         use iso_fortran_env, only : wp => real64
+         use crest_parameters
          use crest_data
          use iomod
          use strucrd, only: wrc0
@@ -543,8 +543,6 @@ subroutine entropyMD(fname,env,nr,newtemp,newtime,k,alpha)
          &    env%mddumpxyz,env%mdskip,env%mddump,-1,env%cts)
 
 !--- static MTD settings     
-         !k=env%rednat*env%emtd%kpush
-         !alpha = env%emtd%alpha
          call setstaticmtd('coord',k,alpha,env%emtd%mtdramp,env%nstatic, &
          &    env%mtdstaticfile,env%emtd%atomlist)
   

@@ -21,11 +21,11 @@
 !================================================================================!
 
 module shake_module
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   implicit none
 
-  real(wp),private,parameter :: autoaa = 0.52917726_wp
-  real(wp),private,parameter :: aatoau = 1.0_wp / autoaa
+  !real(wp),private,parameter :: autoaa = 0.52917726_wp
+  !real(wp),private,parameter :: aatoau = 1.0_wp / autoaa
 
   integer,private,parameter :: metal(1:86) = [&
      & 0,0,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1, &

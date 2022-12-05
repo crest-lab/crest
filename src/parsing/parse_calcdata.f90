@@ -1,6 +1,6 @@
 
 module parse_calcdata
-  use iso_fortran_env,only:wp => real64,sp => real64
+  use crest_parameters 
   use calc_type,only:calcdata,calculation_settings,jobtype
   use constraints
   use dynamics_module

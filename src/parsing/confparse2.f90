@@ -36,7 +36,7 @@
 !>  iname -  name of the input file
 !>-----------------------------------------------
 subroutine parseinputfile(env,fname)
-  use iso_fortran_env,only:wp=>real64
+  use crest_parameters 
   !> modules for data storage in crest
   use crest_data
   use calc_type,only:calcdata
@@ -237,7 +237,7 @@ end subroutine parseinputfile
 !> for the internal calculation engine
 !>----------------------------------------------------
 subroutine internal_constraint_repair(env)
-    use iso_fortran_env, only: wp => real64
+    use crest_parameters
     use crest_data
     use constraints
     implicit none

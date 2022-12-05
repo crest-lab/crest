@@ -17,9 +17,9 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!======================================================================================================!
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
-!======================================================================================================!
+!=================================================================================================!
+!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
+!=================================================================================================!
 !===============================================================================!
 !  main routine for ensemble entropy calculations
 !  with CRE "autocomplete"
@@ -42,7 +42,7 @@
 ! 
 !==============================================================================!
 subroutine entropic(env,pr,pr2,wrdegen,fname,T,S,Cp)
-      use iso_fortran_env, wp => real64, idp => int64
+      use crest_parameters, only: wp, idp => dp, bohr
       use crest_data
       use zdata
       implicit none
@@ -267,7 +267,7 @@ end subroutine entropic
 
 
 subroutine degeneracies(nconf,rotscal,introtscal,n,rotfac,corefac,symfac,pr,xh3) 
-     use iso_fortran_env, wp => real64, idp => int64
+     use crest_parameters, only: wp, idp => dp
      implicit none
      integer :: nconf
      real(wp) :: rotscal(nconf)  !total factor to be applied to each conformer
@@ -358,10 +358,10 @@ subroutine degeneracies(nconf,rotscal,introtscal,n,rotfac,corefac,symfac,pr,xh3)
 end subroutine degeneracies
 
 subroutine writedegen(nall,introtscal,fname)
-    use iso_fortran_env
+    use crest_parameters, only: wp, idp => dp
     implicit none
     integer :: nall
-    integer(int64) :: introtscal(nall)
+    integer(idp) :: introtscal(nall)
     character(len=*) :: fname
     integer :: ch,i
     open(newunit=ch,file=fname)
@@ -373,9 +373,9 @@ subroutine writedegen(nall,introtscal,fname)
     return
 end subroutine writedegen
 
-!======================================================================================================!
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
-!======================================================================================================!
+!=================================================================================================!
+!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
+!=================================================================================================!
 
 !======================================================!
 !  read nuclei equivalences from "anmr_nucinfo" file.
@@ -387,7 +387,7 @@ end subroutine writedegen
 !                       groups of nuclear equivalencies  
 !======================================================!
 subroutine readequals(fname,zmol,groups)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp
       use filemod
       use zdata
       implicit none
@@ -482,7 +482,7 @@ end subroutine readequals
 !
 !======================================================!
 subroutine distsubgr(zmol,groups,rotgr,exclude,pr)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp
       use zdata
       implicit none
 
@@ -813,7 +813,7 @@ integer function maxrotfac(grps)
 end function maxrotfac
 
 subroutine countFactors(grps,rotfac,n)
-     use iso_fortran_env, wp=>real64
+     use crest_parameters, only: wp
      use zdata
      implicit none
      type(zequal) :: grps
@@ -828,7 +828,7 @@ subroutine countFactors(grps,rotfac,n)
 end subroutine countFactors
 
 function facTotal(rotfac,n)
-     use iso_fortran_env, idp => int64
+     use crest_parameters, only: wp, idp => dp
      implicit none
      integer(idp) :: factotal
      integer :: n
@@ -860,7 +860,7 @@ end function facTotal
 !  On Output: function value
 !======================================================!
 function rotagroup(zmol,i,grp)
-     use iso_fortran_env, wp => real64
+     use crest_parameters, only: wp, idp => dp
      use zdata
      implicit none
      type(zmolecule) :: zmol
@@ -892,7 +892,7 @@ end function rotagroup
 !  On Output: function value
 !======================================================!
 logical function  specialgrpring(zmol,grp,gref,d)
-     use iso_fortran_env, wp => real64
+     use crest_parameters, only: wp, idp => dp
      use zdata
      implicit none
      type(zmolecule) :: zmol
@@ -981,7 +981,7 @@ end function specialgrpring
 !             enantiofac - 1 or 2, if the conf. has an enantiomer 
 !======================================================!
 subroutine intraconfRMSD(zens,inc,symsym,fac,enantiofac,pr)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, idp => dp
       use zdata
       use ls_rmsd
       implicit none
@@ -1103,7 +1103,7 @@ subroutine intraconfRMSD(zens,inc,symsym,fac,enantiofac,pr)
       return
 contains
 integer function uniqueCore(mat,n,thr)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, idp => dp
       implicit none
       integer :: n
       real(wp) :: mat(n,n)
@@ -1152,7 +1152,7 @@ end subroutine intraconfRMSD
 ! are to be taken out from RMSD
 !=====================================================================!
 subroutine excludeFromRMSD(zmol,inc)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, idp => dp
       use zdata
       implicit none
       type(zmolecule) :: zmol
@@ -1226,8 +1226,7 @@ end subroutine atmsTobool
 !                   conformer  
 !======================================================!
 subroutine allsym(zens,grps,fac,symbol,pr)
-      use iso_fortran_env, wp => real64
-      use crest_data, only: bohr
+      use crest_parameters, only: wp, idp => dp, bohr
       use zdata
       implicit none
       type(zensemble) :: zens
@@ -1292,7 +1291,7 @@ end subroutine allsym
 !  for the number of rotamers of it
 !======================================================!
 subroutine analsym(zmol,fac,pr)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, idp => dp
       use zdata
       implicit none
       type(zmolecule) :: zmol
@@ -1325,7 +1324,7 @@ subroutine analsym(zmol,fac,pr)
 end subroutine analsym
 
 subroutine analsym_geo(grp,nat,xyz,at,fac,pr,sfsm)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, idp => dp
       use zdata
       implicit none
       type(zequal) :: grp
@@ -1367,7 +1366,7 @@ end subroutine analsym_geo
 !
 !======================================================!
 real(wp) function symfactor(grps,sfsym)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, idp => dp
       use zdata
       type(zequal) :: grps
       character(len=*) :: sfsym !schoenflies group lable
@@ -1403,9 +1402,9 @@ real(wp) function symfactor(grps,sfsym)
       end select
       return
 end function symfactor
-!=====================================================================================================!
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
-!=====================================================================================================!
+!================================================================================================!
+!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
+!================================================================================================!
 !======================================================!
 !  Calculate rotational constants for all conformers
 !  in the zens object
@@ -1418,7 +1417,7 @@ end function symfactor
 !
 !======================================================!
 subroutine nconfRot(zens,rotconst,pr)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, idp => dp
       use zdata
       use axis_module
       implicit none
@@ -1473,7 +1472,7 @@ end subroutine nconfRot
 !                    and rotamer degeneracies
 !======================================================!
 subroutine creread(fname,zens)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, idp => dp
       use zdata
       use strucrd, only: rdensembleparam,rdensemble
       implicit none
@@ -1533,7 +1532,7 @@ end subroutine creread
 !                  coordinates are in Angstroem
 !======================================================!
 subroutine read_bhess_ref(env,fname)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp, idp => dp, bohr
       use crest_data
       use strucrd
       implicit none

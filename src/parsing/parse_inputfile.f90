@@ -1,6 +1,6 @@
 
 module parse_inputfile
-  use iso_fortran_env,only:wp => real64,sp => real32
+  use crest_parameters
   use parse_keyvalue
   use parse_block
   use parse_datastruct

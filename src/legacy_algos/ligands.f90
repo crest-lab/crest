@@ -22,8 +22,7 @@
 ! atoms that belong to the ligand
 !====================================================================!
 subroutine extractligands(infile,centeratom)
-    use iso_fortran_env, wp=>real64
-    use crest_data, only : bohr
+    use crest_parameters
     use zdata
     use strucrd
     implicit none
@@ -75,8 +74,7 @@ subroutine extractligands(infile,centeratom)
 end subroutine extractligands
 
 subroutine exchangeligands(infile,infile2,centeratom,ligandnr)
-    use iso_fortran_env, wp=>real64
-    use crest_data, only : bohr
+    use crest_parameters 
     use zdata
     use strucrd
     implicit none
@@ -181,8 +179,7 @@ subroutine exchangeligands(infile,infile2,centeratom,ligandnr)
 end subroutine exchangeligands
 
 subroutine matchligands(mol1,mol2,metal)
-    use iso_fortran_env, wp=>real64
-    use crest_data, only : bohr
+    use crest_parameters
     use zdata
     use strucrd
     use ls_rmsd
@@ -489,8 +486,7 @@ subroutine ohflip_file(infile)
 end subroutine ohflip_file
 
 subroutine ohflip_ensemble(infile,maxnew)
-    use iso_fortran_env, only: wp=>real64
-    use crest_data
+    use crest_parameters 
     use strucrd
     use zdata
     use iomod

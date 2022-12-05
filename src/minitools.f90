@@ -23,7 +23,7 @@
 ! be specified.
 !========================================================!
 subroutine splitfile(fname,up,low)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use iomod
       use strucrd, only: rdensembleparam,rdensemble,wrxyz
       implicit none
@@ -90,7 +90,7 @@ end subroutine splitfile
 ! Use only x percent of rotamers for each
 !========================================================!
 subroutine prepentropy(env,fname,percent)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use crest_data
       use iomod
       use strucrd, only: rdensembleparam,rdensemble,wrxyz
@@ -178,7 +178,7 @@ end subroutine prepentropy
 !- print the anisotropy of the rotational constants
 !  for all structures in a given ensemble file
 subroutine printaniso(fname,bmin,bmax,bshift)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use strucrd
     use axis_module
     implicit none
@@ -231,7 +231,7 @@ end subroutine printaniso
 !    energy and a average ensemble energy is returned
 !    comment lines (#) are ignored
 subroutine prbweight(fname,Targ)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     implicit none
 
     character(len=*) :: fname
@@ -322,7 +322,7 @@ subroutine prbweight(fname,Targ)
 end subroutine prbweight
 
 subroutine calceav(fname,T,eav,verbose)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use strucrd
     implicit none
     character(len=*) :: fname
@@ -365,7 +365,7 @@ subroutine calceav(fname,T,eav,verbose)
 end subroutine calceav
 
 subroutine getelow(fname,elow,verbose)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use strucrd
     implicit none
     character(len=*) :: fname
@@ -397,7 +397,7 @@ end subroutine getelow
 ! set up the topology for a file and analyze it
 !=================================================================================================!
 subroutine testtopo(fname,env,tmode)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use crest_data
     use iomod
     use atmasses
@@ -514,8 +514,7 @@ end function sumform
 ! read an ensemble and determine the symmetry for all structures
 !=================================================================!
 subroutine ensemble_analsym(fname,pr)
-       use iso_fortran_env, wp => real64
-       use crest_data, only: bohr
+       use crest_parameters
        use strucrd
        implicit none
        character(len=*) :: fname
@@ -569,10 +568,9 @@ end subroutine ensemble_analsym
 !
 !=========================================================================!
 function quick_rmsd(fname,nat,at,xyz,heavy) result(rout)
-    use iso_fortran_env, only: wp=>real64,error_unit
+    use crest_parameters
     use ls_rmsd
     use strucrd
-    use crest_data, only: bohr
     implicit none
     character(len=*) :: fname
     integer :: nat
@@ -590,12 +588,12 @@ function quick_rmsd(fname,nat,at,xyz,heavy) result(rout)
     call mol%open(fname)
 
     if(mol%nat .ne. nat)then
-        write(error_unit,*)'dimension mismatch in quick_rmsd()'
+        write(stderr,*)'dimension mismatch in quick_rmsd()'
         return
     endif
     do i=1,nat
      if(at(i) .ne. mol%at(i))then
-        write(error_unit,*)'atom order mismatch in quick_rmsd()'
+        write(stderr,*)'atom order mismatch in quick_rmsd()'
         return
      endif
     enddo
@@ -626,9 +624,8 @@ function quick_rmsd(fname,nat,at,xyz,heavy) result(rout)
 end function quick_rmsd
 
 subroutine quick_rmsd_tool(fname1,fname2,heavy)
-    use iso_fortran_env, only: wp => real64
+    use crest_parameters
     use strucrd
-    use crest_data, only: bohr
     implicit none
     character(len=*) :: fname1
     character(len=*) :: fname2
@@ -653,10 +650,9 @@ subroutine quick_rmsd_tool(fname1,fname2,heavy)
     return 
 end subroutine quick_rmsd_tool
 
-function quick_rmsd2(nat,at,xyz,xyz2,heavy) result(rout)
-    use iso_fortran_env, only: wp=>real64,error_unit
+function quick_rmsd2(nat,at,xyz,xyz2,heavy) result(rout) 
+    use crest_parameters
     use ls_rmsd
-    use crest_data, only: bohr
     implicit none
     integer :: nat
     integer :: at(nat)
@@ -702,7 +698,7 @@ end function quick_rmsd2
 ! input file and "vibspectrum" file in the turbomole formate
 !===============================================================================!
 subroutine thermo_mini(env)
-    use iso_fortran_env, only: wp=>real64,error_unit
+    use crest_parameters
     use strucrd
     use crest_data
     implicit none
@@ -755,7 +751,7 @@ end subroutine thermo_mini
 ! resort all structures of a given ensemblefile
 !===============================================================================!
 subroutine resort_ensemble(fname)
-    use iso_fortran_env, only: wp=>real64,error_unit
+    use crest_parameters 
     use strucrd
     use crest_data
     implicit none

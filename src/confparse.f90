@@ -96,6 +96,12 @@ subroutine parseflags(env,arg,nra)
     if (any((/character(10)::'-cite','--cite','--citation'/) == trim(arg(i)))) then
       call crestcite()
     end if
+    if (index(arg(i),'-newversion') .ne. 0)then
+      env%legacy = .false. 
+    endif
+    if (index(arg(i),'-legacy') .ne. 0)then
+      env%legacy = .true.
+    endif
   end do
 
 !========================================================================================!
@@ -682,6 +688,15 @@ subroutine parseflags(env,arg,nra)
       argument = argument(2:)
     end if
     if (argument .ne. '') then
+!========================================================================================!
+!-------- switch between legacy (systemcall) and new code (API) implementations
+!========================================================================================!
+      select case(argument)
+       case('-legacy')
+         env%legacy = .true.
+       case('-newversion' )
+         env%legacy = .false.
+      end select 
 !========================================================================================!
 !-------- flags exclusively for V1 (MF-MD-GC)
 !========================================================================================!

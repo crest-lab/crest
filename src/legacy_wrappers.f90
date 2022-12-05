@@ -17,6 +17,54 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
+!================================================================================!
+!> This piece of code generates a calcdata object from the global settings in env
+subroutine env2calc(env,calc,molin)
+   use crest_data 
+   use calc_type
+   use strucrd
+   implicit none 
+   !> INPUT
+   type(systemdata),intent(in) :: env
+   type(coord),intent(in),optional :: molin
+   !> OUTPUT 
+   type(calcdata) :: calc
+   !> LOCAL
+   type(calculation_settings) :: cal
+   type(coord) :: mol
+
+   call calc%reset()
+
+   cal%uhf  = env%uhf
+   cal%chrg = env%chrg
+   !>-- obtain WBOs OFF by default
+   cal%rdwbo = .false.
+
+   !>-- defaults to whatever env has selected or gfn0
+   select case(trim(env%gfnver))
+     case( '--gfn0' )
+       cal%id = jobtype%gfn0
+     case( '--gfn1' )
+       cal%id = jobtype%tblite
+       cal%tblitelvl = 1
+     case( '--gfn2' )
+       cal%id = jobtype%tblite
+       cal%tblitelvl = 2
+     case default
+       cal%id = jobtype%gfn0
+   end select
+   if(present(molin))then
+     mol = molin
+   else
+     call mol%open('coord')
+   endif
+
+   call calc%add( cal )   
+
+   return
+end subroutine env2calc
+
+!================================================================================!
 subroutine confscript2i(env,tim)
   use iso_fortran_env,only:wp => real64
   use crest_data
@@ -29,3 +77,47 @@ subroutine confscript2i(env,tim)
       call crest_search_imtdgc(env,tim)
   endif
 end subroutine confscript2i
+
+!=================================================================================!
+subroutine xtbsp(env,xtblevel)
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  integer,intent(in),optional :: xtblevel
+  if(env%legacy)then
+      call xtbsp_legacy(env,xtblevel)
+  else
+      call crest_xtbsp(env,xtblevel)
+  endif
+end subroutine xtbsp
+subroutine xtbsp2(fname,env)
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  use strucrd
+  implicit none
+  type(systemdata) :: env
+  character(len=*),intent(in) :: fname
+  type(coord) :: mol 
+  if(env%legacy)then
+      call xtbsp2_legacy(fname,env)
+  else
+      call mol%open(trim(fname))
+      call crest_xtbsp(env,-1,mol)
+  endif
+end subroutine xtbsp2
+
+!=================================================================================!
+
+subroutine confscript1(env,tim)
+  use crest_parameters
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  type(timer)   :: tim
+  write(stdout,*)
+  write(stdout,*) 'This runtype has been deprecated.'
+  write(stdout,*) 'You might use an older version of the program if you want to use it.'
+  stop
+end subroutine confscript1
+

@@ -23,7 +23,7 @@
 ! was previously a standalone binary                         !
 !============================================================!
 subroutine stereoisomerize(env,tim)
-     use iso_fortran_env, wp => real64
+     use crest_parameters
      use crest_data
      use zdata
    
@@ -893,9 +893,8 @@ end subroutine recgetisomer
 !C  build the structure
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 subroutine buildstruc(zmol,book,ch)
-      use iso_fortran_env, wp => real64
       use zdata
-      use crest_data, only: bohr
+      use crest_parameters, only: bohr,wp
       use geo, only: rodrot,unitv
       implicit none
       type(zmolecule) :: zmol
@@ -962,7 +961,7 @@ end subroutine buildstruc
 ! Quick and Dirty version of the structure generation WITH optimization
 !===============================================================================! 
 subroutine buildstruc2(zmol,book,ch)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: bohr,wp
       use zdata
       use geo, only: rodrot,unitv
       implicit none
@@ -976,7 +975,6 @@ subroutine buildstruc2(zmol,book,ch)
       integer,allocatable :: at(:)
 
       real(wp),parameter :: pi = 3.14159265359_wp
-      real(wp),parameter :: bohr=0.529177_wp
 
       allocate(xyz(3,zmol%nat),dum(3),at(zmol%nat))
       !--- get the original set of coordinates

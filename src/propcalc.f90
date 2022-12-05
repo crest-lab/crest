@@ -281,17 +281,17 @@ subroutine propcalc(iname,imode,env,tim)
          call smallhead('IR calculation for populated conformers')
          write(jobcall,'(a,1x,a,1x,a,'' --ohess '',a,1x,a,'' >xtb.out'')') &
          &    trim(env%ProgName),trim(xname),trim(env%gfnver),trim(env%solv),trim(pipe)
-       case( 3:6,7,8,100 ) ! unspecific case DFT
-         call smallhead('DFT calculation using xtb as driver')
-         if( any((/3,4/)==P) )then
-           call dftrc_reader(env,.true.)  !B97-3c OPT default
-           call dftTMwarning
-         else
-           call dftrc_reader(env,.false.) !read DFT settings
-         endif
-         call chdir(optpath)
-         call cefine_setup(env,TMPCONF)
-         call xtbDFTdriver(env,xname,jobcall) !create jobcall
+!       case( 3:6,7,8,100 ) ! unspecific case DFT
+!         call smallhead('DFT calculation using xtb as driver')
+!         if( any((/3,4/)==P) )then
+!           call dftrc_reader(env,.true.)  !B97-3c OPT default
+!           call dftTMwarning
+!         else
+!           call dftrc_reader(env,.false.) !read DFT settings
+!         endif
+!         call chdir(optpath)
+!         call cefine_setup(env,TMPCONF)
+!         call xtbDFTdriver(env,xname,jobcall) !create jobcall
        case( 20 )
          call smallhead('Reoptimization for all conformers')
          write(jobcall,'(a,1x,a,1x,a,'' --opt vtight '',a,1x,a,'' >xtb.out'')') &
@@ -357,9 +357,9 @@ subroutine propcalc(iname,imode,env,tim)
          call autoir(TMPCONF,imode,env)
          call rdpropens(TMPCONF,nat,xyz) !get updated geometries
          call wrpropens(TMPCONF,nat,xyz,at,eread)
-!----- DFT handling
-       case( 3:8,100 )
-         call DFTprocessing(env,TMPCONF,nat,at)
+!!----- DFT handling
+!       case( 3:8,100 )
+!         call DFTprocessing(env,TMPCONF,nat,at)
 !------ vtight reoptimization only for conformers!
        case( 20 )
          call rdpropens(TMPCONF,nat,xyz) !get updated geometries
@@ -672,18 +672,18 @@ subroutine wrpropens_pop(env,TMPCONF,n,xyz,at,eread,pthr)
 
       dpop=pop
       
-      if(env%hardcutDFT)then
-         call cutDFTpop(env,dpop,TMPCONF)
-         allocate(edum(TMPCONF))
-         edum=eread
-         do i=1,TMPCONF
-            if(dpop(i).le.0.00001_wp)then
-              edum(i)=0.0_wp
-            endif
-         enddo
-         call boltz2(TMPCONF,edum,pop)
-         deallocate(edum)
-      endif
+!      if(env%hardcutDFT)then
+!         call cutDFTpop(env,dpop,TMPCONF)
+!         allocate(edum(TMPCONF))
+!         edum=eread
+!         do i=1,TMPCONF
+!            if(dpop(i).le.0.00001_wp)then
+!              edum(i)=0.0_wp
+!            endif
+!         enddo
+!         call boltz2(TMPCONF,edum,pop)
+!         deallocate(edum)
+!      endif
 
       open(newunit=ich5,file='autoir.pop')
       open(newunit=ich,file='crest_populated.xyz')
@@ -757,12 +757,12 @@ subroutine autoir(TMPCONF,imode,env)
        end select
 !--- convert to populations
       call boltz2(nall,eread,pop)
-      if(env%hardcutDFT .and. imode.ne.2)then !special sort mode
-         call cutDFTpop(env,pop,nall)
-         allocate(edum(nall))
-         edum(1:nall)=eread(1:nall)*pop(1:nall) !set energies of removed structures to 0
-         call boltz2(nall,edum,pop) !convert to new populations, only with used structures
-      endif
+!      if(env%hardcutDFT .and. imode.ne.2)then !special sort mode
+!         call cutDFTpop(env,pop,nall)
+!         allocate(edum(nall))
+!         edum(1:nall)=eread(1:nall)*pop(1:nall) !set energies of removed structures to 0
+!         call boltz2(nall,edum,pop) !convert to new populations, only with used structures
+!      endif
       maxl=maxloc(pop(:),1)
 
 

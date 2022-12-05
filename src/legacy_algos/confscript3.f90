@@ -98,7 +98,7 @@ subroutine mdopt(env,tim)
       end associate
 contains
 subroutine cleanpurge(fname,ethr)
-    use iso_fortran_env, only: wp=>real64
+    use crest_parameters
     use strucrd
     implicit none
     character(len=*) :: fname
@@ -111,7 +111,6 @@ subroutine cleanpurge(fname,ethr)
     real(wp),allocatable :: er(:)
     real(wp) :: elast,ediff,ethr
     character(len=*),parameter :: newfile = 'crest_ensemble.xyz'
-    real(wp),parameter :: autokcal = 627.509541d0
     logical,allocatable :: track(:)
     logical :: paste
 
@@ -179,7 +178,7 @@ end subroutine mdopt
 ! CREST modus 4: SCREEN
 !----------------------------------------------------------------------------------------------------
 subroutine screen(env,tim)
-     use iso_fortran_env, only : wp => real64
+     use crest_parameters
      use crest_data
      use iomod
      use strucrd, only: rdensembleparam,rdensemble
@@ -293,7 +292,7 @@ end subroutine screen
 ! WIP
 !-----------------------------------------------------------------------------------------------------
 subroutine MTDsample(env,tim)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use crest_data
     use iomod
     use strucrd

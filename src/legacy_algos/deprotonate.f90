@@ -38,7 +38,7 @@ end subroutine deprothead
 ! Protonation workflow with GFNn-xTB
 !--------------------------------------------------------------------------------------------
 subroutine deprotonate(env,tim)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use crest_data
       use iomod
       use strucrd, only: rdnat,rdcoord,i2e
@@ -191,7 +191,7 @@ end subroutine deprotonate
 ! to the acid/base reaction
 !----------------------------------------------------!
 subroutine deprot_correction(env,iname)
-    use iso_fortran_env, only : wp=>real64
+    use crest_parameters
     use crest_data
     use strucrd
     implicit none

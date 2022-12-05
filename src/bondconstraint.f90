@@ -25,7 +25,7 @@
 !> The input argument is the required force constant.
 !==========================================================================!
 subroutine autoBondConstraint(filename,forceconstant,wbofile)
-  use iso_fortran_env,wp => real64
+  use crest_parameters, only: wp
   use zdata
   implicit none
   character(len=*) :: filename
@@ -41,7 +41,7 @@ subroutine autoBondConstraint(filename,forceconstant,wbofile)
 end subroutine autoBondConstraint
 
 subroutine autoBondConstraint_withEZ(filename,forceconstant,wbofile)
-  use iso_fortran_env,wp => real64
+  use crest_parameters, only: wp 
   use zdata
   implicit none
   character(len=*) :: filename
@@ -65,7 +65,7 @@ end subroutine autoBondConstraint_withEZ
 !> The input argument is the required force constant.
 !==========================================================================!
 subroutine autoMetalConstraint(filename,forceconstant,wbofile)
-  use iso_fortran_env,wp => real64
+  use crest_parameters, only: wp 
   use zdata
   implicit none
   character(len=*) :: filename
@@ -89,7 +89,7 @@ end subroutine autoMetalConstraint
 !> The input argument is the required force constant.
 !==========================================================================!
 subroutine autoHeavyConstraint(filename,forceconstant)
-     use iso_fortran_env, wp => real64
+     use crest_parameters, only: wp
      use zdata
      implicit none
      character(len=*) :: filename
@@ -112,7 +112,7 @@ end subroutine autoHeavyConstraint
 !> The input argument is the required force constant.
 !==========================================================================!
 subroutine autoHydrogenConstraint(filename,forceconstant)
-     use iso_fortran_env, wp => real64
+     use crest_parameters, only: wp
      use zdata
      implicit none
      character(len=*) :: filename
@@ -130,7 +130,7 @@ end subroutine autoHydrogenConstraint
 !> Some routines related to the Bond matrix (BMAT)
 !===========================================================================!
 subroutine getbmat(zmol,r,force)
-     use iso_fortran_env, wp => real64
+     use crest_parameters, only: wp
      use zdata
      implicit none
      type(zmolecule) :: zmol
@@ -216,7 +216,7 @@ end subroutine getbmat
 !> Write a constraint file with all bonds
 !====================================================!
 subroutine writeBmatconstr(nat,bmat,force)
-     use iso_fortran_env, wp => real64
+     use crest_parameters, only: wp
      implicit none
      integer :: nat
      real(wp) :: bmat(nat,nat)
@@ -245,7 +245,7 @@ end subroutine writeBmatconstr
 !> Write a constraint file with all TM bonds
 !====================================================!
 subroutine writeMetalconstr(nat,at,bmat,force)
-     use iso_fortran_env, wp => real64
+     use crest_parameters, only: wp
      implicit none
      integer :: nat
      integer :: at(nat)
@@ -287,7 +287,7 @@ end function isTMetal
 !> Write a constraint file with all bonds except X-H
 !====================================================!
 subroutine writeHeavyconstr(nat,at,bmat,force)
-     use iso_fortran_env, wp => real64
+     use crest_parameters, only: wp
      implicit none
      integer :: nat
      integer :: at(nat)
@@ -317,7 +317,7 @@ end subroutine writeHeavyconstr
 !> Write a constraint file with all X-H bonds
 !====================================================!
 subroutine writeHydrogenconstr(nat,at,bmat,force)
-     use iso_fortran_env, wp => real64
+     use crest_parameters, only: wp
      implicit none
      integer :: nat
      integer :: at(nat)
@@ -348,8 +348,7 @@ end subroutine writeHydrogenconstr
 !> Write a constraint file with all bonds
 !====================================================!
 subroutine writeBmatconstr_withEZ(zmol,nat,bmat,force)
-  use iso_fortran_env,wp => real64
-  use crest_data,only:bohr
+  use crest_parameters, only: wp, bohr
   use zdata
   implicit none
   type(zmolecule) :: zmol
@@ -442,7 +441,7 @@ end subroutine writeBmatconstr_withEZ
 !> the internal calculation routines of CREST
 !>--------------------------------------------------!
 subroutine autoconstraint_internal(env)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters, only: wp,bohr 
   use crest_data
   implicit none
   type(systemdata),intent(inout) :: env
@@ -477,7 +476,7 @@ subroutine autoconstraint_internal(env)
   return
 end subroutine autoconstraint_internal
 subroutine autobond_internal(env,c)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters, only: wp,bohr
   use crest_data
   use zdata
   use constraints

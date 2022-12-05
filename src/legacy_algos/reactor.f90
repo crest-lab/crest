@@ -25,7 +25,7 @@
 ! main routine for the nanoreactor
 !======================================================!
 subroutine reactor(env, tim)
-  use iso_fortran_env, wp => real64
+  use crest_parameters, only: wp, bohr
   use crest_data
   use iomod
   use zdata
@@ -242,7 +242,7 @@ end subroutine reactor
 !   fit the required reactor density
 !======================================================!
 subroutine reactor_setup(env)
-  use iso_fortran_env, wp => real64
+  use crest_parameters, only: wp
   use crest_data
   use iomod
   use filemod
@@ -352,8 +352,7 @@ end subroutine reactor_setup
 !   the required density
 !======================================================!
 subroutine reactor_pot(ax, wei, densref, dens)
-  use iso_fortran_env, wp => real64
-  use crest_data, only : bohr
+  use crest_parameters, only: wp, bohr
   implicit none
   real(wp), intent(inout):: ax(3)
   real(wp), intent(in)    :: wei
@@ -575,7 +574,7 @@ End subroutine swap_pair
 ! get a neighbour list as an array
 !===============================================================!
 subroutine reactorneighbours(nat,at,xyz,bond,ndim,ngh)
-    use iso_fortran_env, wp => real64, sp => real32
+    use crest_parameters, only: wp, sp
     implicit none
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
@@ -620,7 +619,7 @@ end subroutine reactorneighbours
 ! Write directories for post optimization
 !===============================================================!
 subroutine reactorreopt(env,nat,at,nall,xyz,taken,frags,ndirs)
-    use iso_fortran_env, wp => real64
+    use crest_parameters, only: wp, bohr
     use crest_data
     use zdata
     use iomod
@@ -741,8 +740,7 @@ end subroutine reactorreopt
 
 
 subroutine collectproducts(optdir,base,ndirs,oname,iso)
-    use iso_fortran_env, wp => real64
-    use crest_data, only: bohr
+    use crest_parameters, only: wp, bohr
     use iomod
     use strucrd, only: wrxyz,rdnat,rdcoord
     implicit none

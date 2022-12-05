@@ -23,10 +23,9 @@
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 subroutine prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,symnum,symchar)
-    use iso_fortran_env, wp => real64
+    use crest_parameters, only: wp, bohr
     use atmasses,only : molweight
     use iomod, only: to_lower
-    use crest_data, only : bohr
     use axis_module
     implicit none
     integer,intent(in)     :: nat
@@ -112,11 +111,10 @@ end subroutine prepthermo
 !====================================================================!
 subroutine calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr,nt,temps, &
     &      et,ht,gt,stot )
-    use iso_fortran_env, wp => real64, iunit=>output_unit
+    use crest_parameters, only: wp, bohr, iunit=>stdout
     use crest_thermo
     use atmasses,only : molweight
     use iomod, only: to_lower
-    use crest_data, only : bohr
     implicit none
     integer,intent(in)     :: nat
     integer,intent(in)     :: at(nat)

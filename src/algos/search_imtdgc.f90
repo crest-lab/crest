@@ -194,7 +194,7 @@ end subroutine crest_search_imtdgc
 !========================================================================================!
 
 subroutine crest_multilevel_oloop(env,ensnam,multilevel)
-  use crest_parameters, only: wp,stdout
+  use crest_parameters, only: wp,stdout,bohr
   use crest_data
   use strucrd
   use calc_type
@@ -333,7 +333,7 @@ end subroutine crest_multilevel_oloop
 
 !========================================================================================!
 subroutine crest_rotamermds(env,ensnam)
-  use crest_parameters, only: wp,stdout
+  use crest_parameters, only: wp,stdout,bohr
   use crest_data
   use strucrd
   use calc_type

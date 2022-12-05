@@ -22,7 +22,7 @@
 
 module dynamics_module
 
-  use iso_fortran_env,only:wp => real64,error_unit
+  use crest_parameters
   use calc_type
   use calc_module
   use strucrd
@@ -394,7 +394,7 @@ contains
       case (0)
         write (*,*) 'normal MD termination'
       case (1)
-        write (error_unit,*) 'error in MD calculation'
+        write (stderr,*) 'error in MD calculation'
       case (2)
         write (*,*) 'MD terminated, but still taking as converged.'
       end select
@@ -426,8 +426,8 @@ contains
 
     if (dat%length_ps .le. 0.0_wp .or. &
     &  dat%tstep .le. 0.0_wp) then
-      write (error_unit,*) 'need valid simulation length and time step!'
-      write (error_unit,*) 'abort MD.'
+      write (stderr,*) 'need valid simulation length and time step!'
+      write (stderr,*) 'abort MD.'
       iostatus = -1
       return
     end if

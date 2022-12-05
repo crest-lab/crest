@@ -18,8 +18,7 @@
 !================================================================================!
 
 subroutine confcross(env,maxgen,kk)
-
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       use crest_data
       use ls_rmsd
       use iomod
@@ -40,9 +39,6 @@ subroutine confcross(env,maxgen,kk)
       real(wp) :: dum,sd,rthrbohr
       real(wp) :: cnorm
       real(wp) :: percent,pcount
-
-      real(wp),parameter :: autokcal=627.509541d0
-      real(wp),parameter :: pi =  3.14159265358979D0
 
       integer :: i,j,k,l,m,nall,n,ierr,nmax,kl,kk
       integer :: maxgen,n2,ident,nmaxmax,ii

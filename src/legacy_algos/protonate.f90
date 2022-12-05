@@ -43,7 +43,7 @@ end subroutine prothead
 ! Protonation workflow with GFNn-xTB
 !--------------------------------------------------------------------------------------------
 subroutine protonate(env,tim)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use crest_data
       use iomod
       use strucrd, only: coord2xyz
@@ -202,7 +202,7 @@ end subroutine protonate
 ! A quick single point xtb calculation and calculate LMOs
 !--------------------------------------------------------------------------------------------
 subroutine xtblmo(env)
-         use iso_fortran_env, only : wp => real64
+         use crest_parameters
          use iomod
          use crest_data
          implicit none
@@ -242,7 +242,7 @@ end subroutine xtblmo
 ! swithc the added proton to a nother element
 !--------------------------------------------------------------------------------------------
 subroutine swelem(iname,env)
-         use iso_fortran_env, only: wp => real64
+         use crest_parameters 
          use iomod
          use crest_data
          use strucrd, only: rdensembleparam,rdensemble,wrxyz
@@ -285,7 +285,7 @@ subroutine swelem(iname,env)
 end subroutine swelem
 
 subroutine swparse(iname,prot)
-         use iso_fortran_env, only: wp => real64
+         use crest_parameters
          use iomod
          use crest_data
          use strucrd, only: i2e,e2i
@@ -352,7 +352,7 @@ end subroutine swparse
 ! to the acid/base reaction
 !----------------------------------------------------!
 subroutine prot_correction(env,iname)
-    use iso_fortran_env, only : wp=>real64
+    use crest_parameters
     use crest_data
     use strucrd
     implicit none

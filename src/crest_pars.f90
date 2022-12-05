@@ -1,10 +1,11 @@
 module crest_parameters
   use iso_fortran_env, only: wp => real64, sp => real32
+  use iso_fortran_env, only: ap => real64 
   use iso_fortran_env, only: dp => int64
   use iso_fortran_env, only: stdout => output_unit
   use iso_fortran_env, only: stderr => error_unit
 
-  public :: wp,sp,dp,stdout,stderr
+  public :: wp,sp,ap,dp,stdout,stderr
 
   real(wp),parameter,public :: bohr = 0.52917726_wp
   real(wp),parameter,public :: angstrom = 1.0_wp / bohr

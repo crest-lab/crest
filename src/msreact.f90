@@ -23,7 +23,7 @@
 ! read and the calculation is started.
 !==============================================================!
 subroutine msreact_handler(env,tim)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use crest_data
     use msmod
     use strucrd
@@ -87,9 +87,8 @@ end subroutine msreact_handler
 ! the main implementation of the msreact algo should go here
 !==============================================================!
 subroutine msreact(mso,mol,nat,pair,nbonds)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use msmod
-      use crest_data, only : bohr
       use iomod
       implicit none
 
@@ -157,7 +156,7 @@ end subroutine msreact
 ! will be written into the directory
 !============================================================!
 subroutine isodir(mso,dirname,mol,A,B,D)
-    use iso_fortran_env, only : wp => real64
+    use crest_parameters
     use msmod
     use iomod
     use strucrd, only : wrxyz
@@ -214,7 +213,7 @@ end subroutine isodir
 ! (will have to be modified later, for now it is for testing)
 !=====================================================================!
 subroutine msreact_jobber(ndirs,base,niceprint)
-     use iso_fortran_env, only : wp => real64
+    use crest_parameters
     use msmod
     use iomod
     implicit none
@@ -246,10 +245,9 @@ end subroutine msreact_jobber
 ! MSREACT subprogram
 !=====================================================================!
 subroutine msreact_topowrap(mol,pair,paths,wboname)
-    use iso_fortran_env, only : wp => real64
+    use crest_parameters
     use msmod
     use zdata
-    use crest_data, only : bohr
     implicit none
     type(msmol) :: mol
     integer :: pair(mol%nat*(mol%nat+1)/2)
@@ -311,9 +309,8 @@ end subroutine msreact_topowrap
 ! xyz files should still have the same number and order of atoms
 !========================================================================!
 subroutine msreact_collect(nat,np,outfile)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use strucrd
-    use crest_data, only : bohr
     implicit none
     integer :: nat
     integer :: np

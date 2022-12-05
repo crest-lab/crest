@@ -21,11 +21,10 @@
 !  Sort ensemble file according to different criteria
 !! ------------------------------------------------------------------
 subroutine sort_ens(sort,infile,verbose)
-    use iso_fortran_env, only : wp => real64
+    use crest_parameters
     use crest_data
     use strucrd, only: rdensembleparam,rdensemble,wrxyz
     implicit none
-    !type(systemdata) :: env
     type(protobj)    :: sort
 
     character(len=*),intent(in) :: infile

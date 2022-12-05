@@ -162,7 +162,7 @@ c but including H in OH
 
       subroutine heavyrmsd(n,nall,k,l,xyz,at,rmsdval)
       use ls_rmsd
-      use crest_data, only: bohr
+      use crest_parameters, only: bohr
       implicit none
       integer n,at(n),j,nall,k,l,nn
       real*8 xyz(3,n,nall),rmsdval
@@ -199,7 +199,7 @@ c but including H in OH
       subroutine heavyrmsdfile(k,l,rmsdval)
       use ls_rmsd
       use strucrd, only: rdnat,rdcoord
-      use crest_data, only: bohr
+      use crest_parameters, only: bohr
       implicit none
       integer k,l
       real*8 rmsdval

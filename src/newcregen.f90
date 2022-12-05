@@ -31,7 +31,7 @@
 !=========================================================================================!
 !=========================================================================================!
 subroutine newcregen(env,quickset)
-  use iso_fortran_env,only:wp => real64,sp => real32,dp => int64,output_unit
+  use crest_parameters
   use crest_data
   use strucrd
   implicit none
@@ -244,7 +244,7 @@ subroutine newcregen(env,quickset)
   end if
 
 !--- deallocate data
-  if (prch .ne. output_unit) then
+  if (prch .ne. stdout) then
     close (prch)
   end if
   if (allocated(er)) deallocate (er)
@@ -265,7 +265,7 @@ end subroutine newcregen
 ! including where to print the cregen output
 !============================================================!
 subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
-  use iso_fortran_env,only:wp => real64,output_unit
+  use crest_parameters
   use crest_data
   use iomod
   implicit none
@@ -287,12 +287,12 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
   if (simpleset > 0) then
     select case (simpleset)
     case (6,9,12)
-      iounit = output_unit
+      iounit = stdout
     case default
       open (newunit=iounit,file=outfile)
     end select
   else if (env%confgo .and. .not. (env%properties .eq. -2) .and. .not. env%relax) then
-    iounit = output_unit
+    iounit = stdout
     !iounit=6
   else
     open (newunit=iounit,file=outfile)
@@ -339,7 +339,7 @@ end subroutine cregen_files
 ! (currently only those for default cregen runs)
 !============================================================!
 subroutine cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
-  use iso_fortran_env,only:wp => real64,output_unit
+  use crest_parameters
   use crest_data
   use iomod
   implicit none
@@ -375,7 +375,7 @@ end subroutine cregen_prout
 !============================================================!
 subroutine cregen_director(env,simpleset,checkbroken,sorte,sortRMSD,sortRMSD2, &
         &  repairord,newfile,conffile,bonusfiles,anal,topocheck,checkez)
-  use iso_fortran_env,only:wp => real64,output_unit
+  use crest_parameters
   use crest_data
   use iomod
   implicit none
@@ -466,7 +466,7 @@ end subroutine cregen_director
 ! get important threshold from "opt" and "sys" objects
 !============================================================!
 subroutine cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
-  use iso_fortran_env,wp => real64
+  use crest_parameters
   use crest_data
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
@@ -483,7 +483,7 @@ subroutine cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
   return
 end subroutine cregen_filldata1
 subroutine cregen_filldata2(simpleset,ewin)
-  use iso_fortran_env,wp => real64
+  use crest_parameters
   use crest_data
   implicit none
   integer,intent(in) :: simpleset
@@ -503,7 +503,7 @@ end subroutine cregen_filldata2
 ! get info about each conformer group and save it to "degen"
 !============================================================!
 subroutine cregen_groupinfo(nall,ng,group,degen)
-  use iso_fortran_env,wp => real64
+  use crest_parameters
   implicit none
   integer :: nall,ng
   integer :: group(0:nall)
@@ -538,7 +538,7 @@ end subroutine cregen_groupinfo
 ! to be discarded.
 !============================================================!
 subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   use crest_data
   use strucrd
   implicit none
@@ -659,7 +659,7 @@ end subroutine discardbroken
 !> to the reference structure
 !============================================================!
 subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   use crest_data
   use strucrd
   implicit none
@@ -818,7 +818,7 @@ contains
   ! Check how many (potential) C=C bonds are present
   !=================================================!
   subroutine nezcc(nat,at,xyz,cn,ntopo,topo,ncc)
-    use iso_fortran_env,only:wp => real64
+    use crest_parameters
     integer,intent(in)  :: nat
     integer,intent(in)  :: at(nat)
     real(wp),intent(in) :: xyz(3,nat)
@@ -854,7 +854,7 @@ contains
   ! Check which atoms can be used for C=C dihedral angles
   !=================================================!
   subroutine ezccat(nat,at,xyz,cn,ntopo,topo,ncc,ezat)
-    use iso_fortran_env,only:wp => real64
+    use crest_parameters
     integer,intent(in)  :: nat
     integer,intent(in)  :: at(nat)
     real(wp),intent(in) :: xyz(3,nat)
@@ -912,7 +912,7 @@ contains
   ! Check which atoms can be used for C=C dihedral angles
   !=================================================!
   subroutine ezccdihed(nat,xyz,ncc,ezat,ezdihed)
-    use iso_fortran_env,only:wp => real64
+    use crest_parameters
     integer,intent(in)  :: nat
     real(wp),intent(in) :: xyz(3,nat)
     integer,intent(in)  :: ncc
@@ -921,7 +921,6 @@ contains
     integer :: i,k
     integer :: a,b,c,d
     real(wp) :: winkel
-    real(wp),parameter :: pi = 3.14159265359_wp
     if (ncc < 1) return
     k = 0
     do i = 1,ncc
@@ -953,7 +952,7 @@ end subroutine cregen_topocheck
 !> On Output: nallout - number of strucutres after cutoff
 !============================================================!
 subroutine cregen_esort(ch,nat,nall,xyz,comments,nallout,ewin)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   use strucrd
   implicit none
   integer,intent(in) :: ch
@@ -970,7 +969,6 @@ subroutine cregen_esort(ch,nat,nall,xyz,comments,nallout,ewin)
   real(wp),allocatable :: c0(:,:)
   integer :: i
   real(wp) :: de,emax
-  real(wp),parameter :: autokcal = 627.509541_wp
 
   allocate (energies(nall))
   allocate (orderref(nall),order(nall))
@@ -1035,7 +1033,7 @@ end subroutine cregen_esort
 !>            group   - to which group every structure belongs
 !============================================================!
 subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
-  use iso_fortran_env,only:wp => real64,id => int64,sp => real32
+  use crest_parameters, id => dp  
   use crest_data
   use strucrd
   use ls_rmsd
@@ -1087,7 +1085,6 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
   real(wp) :: r
   integer :: i,j,k,l,natnoh
   logical :: heavy
-  real(wp),parameter :: autokcal = 627.509541_wp
 
 !>--- set parameters
   call cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
@@ -1428,7 +1425,7 @@ end subroutine cregen_CRE
 ! structure. Some atoms can be ignored via a mask
 !======================================================!
 subroutine calc_ecoul(nat,at,xyz,cn,atommask,ecoulomb)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   implicit none
   integer :: nat
   integer :: at(nat)
@@ -1482,7 +1479,7 @@ end subroutine calc_ecoul
 !            group   - to which group every structure belongs
 !============================================================!
 subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
-  use iso_fortran_env,only:wp => real64,id => int64,sp => real32
+  use crest_parameters, id => dp 
   use crest_data
   use strucrd
   use ls_rmsd
@@ -1532,7 +1529,6 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
   real(wp) :: r
   integer :: i,j,k,natnoh
   logical :: heavy
-  real(wp),parameter :: autokcal = 627.509541_wp
 
 !>--- set parameters
   call cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
@@ -1795,7 +1791,7 @@ end subroutine cregen_CRE_2
 ! On Output: resorted xyz and comments
 !============================================================!
 subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
-  use iso_fortran_env,only:wp => real64,id => int64,sp => real32
+  use crest_parameters, id => dp
   use crest_data
   use strucrd
   implicit none
@@ -2158,7 +2154,7 @@ end subroutine cregen_EQUAL
 
 !-- util to fill nmract array
 subroutine cregen_nmract(ch,nmract)
-  use iso_fortran_env,wp => real64
+  use crest_parameters
   implicit none
   integer :: nmract(86)
   character(len=:),allocatable :: atmp
@@ -2209,7 +2205,7 @@ end subroutine cregen_nmract
 ! On Output: resorted xyz and comments
 !============================================================!
 subroutine cregen_repairorder(nat,nall,xyz,comments,group)
-  use iso_fortran_env,only:wp => real64,id => int64,sp => real32
+  use crest_parameters, id => dp 
   use crest_data
   use strucrd
   implicit none
@@ -2306,7 +2302,7 @@ end subroutine cregen_repairorder
 !           last  - upperl limit of sorting (nall dimension)
 !============================================================!
 recursive subroutine xyzqsort(nat,nall,xyz,c0,ord,first,last)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   implicit none
   integer :: nat,nall
   real(wp) :: xyz(3,nat,nall)
@@ -2341,7 +2337,7 @@ end subroutine xyzqsort
 ! a small routine to get masked xyz coordinates
 !================================================
 subroutine maskedxyz(n,nm,c,cm,at,atm,mask)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters, only: wp
   implicit none
   integer,intent(in) :: n
   integer,intent(in) :: nm
@@ -2362,7 +2358,7 @@ subroutine maskedxyz(n,nm,c,cm,at,atm,mask)
   return
 end subroutine maskedxyz
 subroutine maskedxyz2(n,nm,c,cm,mask) !without at arraay
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters, only: wp
   implicit none
   integer,intent(in) :: n
   integer,intent(in) :: nm
@@ -2384,7 +2380,7 @@ end subroutine maskedxyz2
 ! write the output ensemble file
 !=============================================!
 subroutine cregen_file_wr(env,fname,nat,nall,at,xyz,comments)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters, only: wp
   use crest_data
   use strucrd
   implicit none
@@ -2436,7 +2432,7 @@ end subroutine cregen_file_wr
 ! write the output ensemble file
 !=============================================!
 subroutine cregen_conffile(env,cname,nat,nall,at,xyz,comments,ng,degen)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters, only: wp,bohr
   use crest_data
   use strucrd
   use iomod
@@ -2503,7 +2499,7 @@ end subroutine cregen_conffile
 ! based on the heavy-atom RMSD
 !====================================================================================!
 subroutine cregen_rmsdalign(nat,nall,at,xyz)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters, only: wp
   use crest_data
   use ls_rmsd
   use iomod
@@ -2558,7 +2554,7 @@ end subroutine cregen_rmsdalign
 ! write the time tag and degeneracy file
 !=============================================!
 subroutine cregen_bonusfiles(ng,degen)
-  use iso_fortran_env,wp => real64
+  use crest_parameters, only: wp, bohr
   use crest_data
   implicit none
   integer :: ng
@@ -2582,7 +2578,7 @@ end subroutine cregen_bonusfiles
 !=========================================================================================!
 !=========================================================================================!
 subroutine cregen_setthreads(ch,env,pr)
-  use iso_fortran_env,wp => real64
+  use crest_parameters 
   use crest_data
   implicit none
   type(systemdata) :: env
@@ -2606,7 +2602,7 @@ subroutine cregen_setthreads(ch,env,pr)
 end subroutine cregen_setthreads
 
 subroutine cregen_pr1(ch,env,nat,nall,rthr,bthr,pthr,ewin)
-  use iso_fortran_env,wp => real64
+  use crest_parameters
   use crest_data
   implicit none
   integer :: ch
@@ -2634,7 +2630,7 @@ subroutine cregen_pr1(ch,env,nat,nall,rthr,bthr,pthr,ewin)
 end subroutine cregen_pr1
 
 subroutine enso_duplicates(env,nall,double)
-  use iso_fortran_env
+  use crest_parameters
   use crest_data
   implicit none
   type(systemdata) :: env
@@ -2679,7 +2675,7 @@ subroutine create_anmr_dummy(nat)
 end subroutine create_anmr_dummy
 
 subroutine cregen_pr2(ch,env,nall,comments,ng,degen,er)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   use crest_data
   use strucrd
   use iomod,only:touch
@@ -2697,7 +2693,6 @@ subroutine cregen_pr2(ch,env,nall,comments,ng,degen,er)
   real(wp),allocatable :: p(:),pg(:)
   real(wp) :: eref,T
   character(len=40),allocatable :: origin(:)
-  real(wp),parameter :: autokcal = 627.509541_wp
   integer :: a,b
   logical :: ex
   real(wp) :: A0,eav,g,s,ss,beta,elow
@@ -2837,7 +2832,7 @@ subroutine cregen_pr2(ch,env,nall,comments,ng,degen,er)
 end subroutine cregen_pr2
 
 subroutine cregen_econf_list(ch,nall,er,ng,degen)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   implicit none
   integer :: nall
   real(wp) :: er(nall)
@@ -2845,7 +2840,6 @@ subroutine cregen_econf_list(ch,nall,er,ng,degen)
   integer :: degen(3,ng)
   integer :: ch,ich2,i,j
   real(wp) :: eref,ewrt
-  real(wp),parameter :: autokcal = 627.509541_wp
 
   write (ch,*) 'number of unique conformers for further calc ',ng
   write (ch,*) 'list of relative energies saved as "crest.energies"'
@@ -2863,7 +2857,7 @@ subroutine cregen_econf_list(ch,nall,er,ng,degen)
 end subroutine cregen_econf_list
 
 subroutine cregen_pr3(ch,infile,nall,comments)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   use strucrd
   implicit none
   integer :: ch
@@ -2873,7 +2867,6 @@ subroutine cregen_pr3(ch,infile,nall,comments)
   real(wp),allocatable :: er(:)
   real(wp) :: dE
   integer :: i
-  real(wp),parameter :: autokcal = 627.509541_wp
   allocate (er(nall))
 
   do i = 1,nall
@@ -2898,7 +2891,7 @@ subroutine cregen_pr3(ch,infile,nall,comments)
 end subroutine cregen_pr3
 
 subroutine cregen_pr4(ch,infile,nall,group)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   use strucrd
   implicit none
   integer :: ch

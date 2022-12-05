@@ -26,7 +26,7 @@
 !  which H atom is removed
 !=========================================================================!
 subroutine pkaquick(env,tim)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use crest_data
       use strucrd
       implicit none
@@ -347,7 +347,7 @@ subroutine pkaquick(env,tim)
       return
 contains
     subroutine miniopt(env,fname)
-       use iso_fortran_env, wp => real64
+       use crest_parameters, only: wp
        use crest_data
        use iomod
        implicit none
@@ -374,7 +374,7 @@ contains
 end subroutine pkaquick
 
 subroutine pka_argparse(str,h)
-    use iso_fortran_env, only: wp => real64
+    use crest_parameters, only: wp
     implicit none
     character(len=*) :: str
     integer :: h,io
@@ -402,7 +402,7 @@ subroutine pka_argparse(str,h)
 end subroutine pka_argparse
 
 subroutine pka_argparse2(env,str1,str2,h)
-    use iso_fortran_env, only: wp => real64
+    use crest_parameters, only: wp
     use crest_data
     implicit none
     type(systemdata) :: env
@@ -421,7 +421,7 @@ subroutine pka_argparse2(env,str1,str2,h)
 end subroutine pka_argparse2
 
 subroutine pka_rdparam(fname,nc,c,parinfo) !c1,c2,c3,c4)
-    use iso_fortran_env, only: wp => real64
+    use crest_parameters, only: wp
     use filemod
     implicit none
     character(len=*) :: fname
@@ -500,7 +500,7 @@ end subroutine pka_rdparam
 ! level degeneracies g()  
 !========================================================!
 subroutine pka_boltz(n,t,e,g,p)
-      use iso_fortran_env, wp => real64
+      use crest_parameters, only: wp
       implicit none
       integer n
       real(wp) :: e(n),p(n),g(n)          
@@ -542,7 +542,7 @@ end subroutine pka_boltz
 !
 !============================================================================!
 function pKaLFER(GA,GB,c0,c1,T) result(pka)
-    use iso_fortran_env, wp => real64
+    use crest_parameters, only: wp
     implicit none
     real(wp) :: GA,GB
     real(wp) :: dG
@@ -573,7 +573,7 @@ end function pKaLFER
 !
 !============================================================================!
 function pKaCFER(dG,c1,c2,c3,c4,T) result(pka)
-    use iso_fortran_env, wp => real64
+    use crest_parameters, only: wp
     implicit none
     real(wp) :: dG         !in Eh
     real(wp),optional :: T !in K
@@ -610,7 +610,7 @@ end function pKaCFER
 !
 !============================================================================!
 function pKaPolyFER(dG,nc,c,T) result(pka)
-    use iso_fortran_env, wp => real64
+    use crest_parameters, only: wp
     implicit none
     real(wp) :: dG         !in Eh
     real(wp),optional :: T !in K

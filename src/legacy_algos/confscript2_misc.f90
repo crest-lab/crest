@@ -20,8 +20,8 @@
 !--------------------------------------------------------------------------------------------
 ! A quick single point xtb calculation
 !--------------------------------------------------------------------------------------------
-subroutine xtbsp(env,xtblevel)
-         use iso_fortran_env, only : wp => real64
+subroutine xtbsp_legacy(env,xtblevel)
+         use crest_parameters
          use iomod
          use crest_data
          implicit none
@@ -78,13 +78,13 @@ subroutine xtbsp(env,xtblevel)
          call remove('xtbrestart')
          call remove('xtbtopo.mol')
          call remove('gfnff_topo')
-end subroutine xtbsp
+end subroutine xtbsp_legacy
 
 !--------------------------------------------------------------------------------------------
 ! A quick single point xtb calculation
 !--------------------------------------------------------------------------------------------
-subroutine xtbsp2(fname,env)
-         use iso_fortran_env, only : wp => real64
+subroutine xtbsp2_legacy(fname,env)
+         use crest_parameters
          use iomod
          use crest_data
          implicit none
@@ -125,13 +125,13 @@ subroutine xtbsp2(fname,env)
          call remove('xtbrestart')
          call remove('xtbtopo.mol')
          call remove('gfnff_topo')
-end subroutine xtbsp2
+end subroutine xtbsp2_legacy
 
 !--------------------------------------------------------------------------------------------
 ! A quick xtb geometry optimization at the beginning of the program
 !--------------------------------------------------------------------------------------------
 subroutine xtbopt(env)
-         use iso_fortran_env, only : wp => real64
+         use crest_parameters
          use iomod
          use crest_data
          use strucrd
@@ -254,7 +254,7 @@ end subroutine xtbopt
 !--------------------------------------------------------------------------------------------
 subroutine MetaMD(env,nr,mdtime,fac,expo,dumplist)
          use iso_c_binding
-         use iso_fortran_env, only : wp => real64
+         use crest_parameters
          use iomod
          use crest_data
          use strucrd, only: wrc0,rdensembleparam,rdensemble
@@ -321,7 +321,7 @@ end subroutine MetaMD
 ! Run several METADYN in parallel, OMP VERSION!
 !--------------------------------------------------------------------------------------------
 subroutine MetaMD_para_OMP(env)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       use iomod
       use crest_data
       implicit none
@@ -418,7 +418,7 @@ end subroutine MetaMD_para_OMP
 !---------------------------------------------------------------------
 subroutine MDopt_para(env,ensnam,multilev)
          use iso_c_binding
-         use iso_fortran_env, only : wp => real64
+         use crest_parameters
          use crest_data
          use iomod
          use strucrd, only: rdensembleparam,rdensemble,wrxyz
@@ -574,7 +574,7 @@ end subroutine MDopt_para
 ! Different handling of optimizations in multi-step-filtering
 !--------------------------------------------------------------------------------------------
 subroutine multilevel_opt(env,modus)
-     use iso_fortran_env, only : wp => real64
+     use crest_parameters
      use iomod
      use crest_data
      implicit none
@@ -710,7 +710,7 @@ end subroutine multilevel_opt
 !--------------------------------------------------------------------------------------------
 subroutine  setMDrun2(fname,hmass,mdtime,mdtemp,mdstep,shake,mddumpxyz, &
  &                   mdskip,mddump,nvt,cts)
-    use iso_fortran_env, only : wp => real64
+    use crest_parameters
     use crest_data
     implicit none
     type(constra) :: cts
@@ -789,7 +789,7 @@ end subroutine setMDrun2
 
 !--------------------------------------------------------------------------------------------
 subroutine setMetadyn2(fname,fac,expo,dumplist)
-         use iso_fortran_env, only : wp => real64
+         use crest_parameters
          implicit none
          character(len=*) :: fname
          real(wp)  :: fac
@@ -847,7 +847,7 @@ end subroutine setMetadyn2
 ! Modified verison of the GC (confscript.v.2)
 !---------------------------------------------------------------------
 subroutine cross2(env)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters 
       use crest_data
       use iomod
       implicit none
@@ -1055,7 +1055,7 @@ end subroutine remaining_in
 ! print the number of remaining files in an ensemble file for a given energy window
 !-------------------------------------------------------------------------
 subroutine sort_and_check(env,filename)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       use crest_data
       use iomod
       use strucrd, only: rdensembleparam,rdensemble
@@ -1131,14 +1131,14 @@ end subroutine collectcre
 ! check lower found
 !--------------------------------------------------------------------------------------------
 subroutine elowcheck(lower,env)
-       use iso_fortran_env, only : wp => real64
+       use crest_parameters
        use iomod
        use crest_data
        use strucrd, only: xyz2coord
        implicit none
        type(systemdata) :: env
        real(wp) :: ediff,ethr,ewin
-       real(wp),parameter :: autokcal = 627.509541d0
+       !real(wp),parameter :: autokcal = 627.509541d0
        logical :: lower
 
 !--- some defaults
@@ -1188,7 +1188,7 @@ end subroutine elowcheck
 ! diatomic "error" catcher ---> we will have no conformers
 !-----------------------------------------------------------------------
 subroutine catchdiatomic(env)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use crest_data
     use strucrd
     use iomod
@@ -1220,7 +1220,7 @@ end subroutine catchdiatomic
 ! entropy ensemble file copy routine
 !-------------------------------------------------------------------------------------!
 subroutine emtdcopy(env,iter,stopiter,broken)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use crest_data
     use iomod
     use strucrd
@@ -1415,7 +1415,7 @@ end subroutine emtdcheckempty
 ! Sample additional OH orientations
 !========================================================================!
 subroutine XHorient(env,infile)
-    use iso_fortran_env, only: wp=>real64
+    use crest_parameters
     use crest_data
     use strucrd
     use zdata

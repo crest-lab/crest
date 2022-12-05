@@ -18,7 +18,7 @@
 !================================================================================!
 
 subroutine crest_optimization(env,tim)
-  use crest_parameters,only:wp,stdout
+  use crest_parameters,only:wp,stdout,bohr
   use crest_data
   use strucrd
   use calc_type
@@ -94,7 +94,7 @@ end subroutine crest_optimization
 !>
 !>------------------------------------------------------
 subroutine crest_ensemble_optimization(env,tim)
-  use crest_parameters,only:wp,stdout
+  use crest_parameters,only:wp,stdout,bohr
   use crest_data
   use strucrd
   use calc_type

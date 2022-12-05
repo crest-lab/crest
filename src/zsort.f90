@@ -338,9 +338,8 @@ end subroutine zmatsort
 
 !------------------------------------------------------------------------
 subroutine zmatpr(nat,at,geo,na,nb,nc,molnum)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters, only: wp, bohr
   use strucrd,only:i2e
-  use crest_data,only:bohr
   implicit none
   integer :: nat,na(nat),nb(nat),nc(nat),at(nat)
   real(wp) :: geo(3,nat)

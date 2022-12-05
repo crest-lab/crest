@@ -24,7 +24,7 @@
 !     conformational search
 !==================================================================!
 subroutine relaxensemble(fname,env,tim)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use crest_data
       use strucrd
       use iomod

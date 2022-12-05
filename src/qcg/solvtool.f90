@@ -405,7 +405,7 @@ subroutine read_qcg_input(env, solu, solv)
 end subroutine read_qcg_input
 
 subroutine qcg_grow(env, solu, solv, clus, tim)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -775,7 +775,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 end subroutine qcg_grow
 
 subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -1387,7 +1387,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
 end subroutine qcg_ensemble
 
 subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -1844,7 +1844,7 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
 end subroutine qcg_cff
 
 subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -2286,7 +2286,7 @@ subroutine write_qcg_setup(env)
 end subroutine write_qcg_setup
 
 subroutine get_sphere(pr, zmol, r_logical)
-   use iso_fortran_env, wp => real64
+   use crest_parameters, only : wp
    use zdata
 
    implicit none
@@ -2478,7 +2478,7 @@ subroutine get_ellipsoid(env, solu, solv, clus, pr1)
 end subroutine get_ellipsoid
 
 subroutine getmaxrad(n, at, xyz, r)
-   use iso_fortran_env, wp => real64
+   use crest_parameters, only : wp
    implicit none
    real(wp) :: xyz(3, n), r
    integer :: n, at(n)

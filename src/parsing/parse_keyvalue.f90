@@ -1,6 +1,6 @@
 
 module parse_keyvalue
-  use iso_fortran_env,only:wp => real64,sp => real32
+  use crest_parameters
   implicit none
 
   public :: keyvalue

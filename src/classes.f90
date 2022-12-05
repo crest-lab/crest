@@ -54,7 +54,6 @@ module crest_data
 
    logical,public :: gui = .false.
 
-   real(wp),parameter,public :: bohr = 0.5291772_wp
 
 !============================================================================!
 ! runtype variables

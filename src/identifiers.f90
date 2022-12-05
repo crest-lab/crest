@@ -26,7 +26,7 @@
 !  Sort all H atoms in the coord file to the bottom
 !! --------------------------------------------------------------------------------------
 subroutine htothebottom(fname,ichrg,n,atmap)
-       use iso_fortran_env, only : wp => real64
+       use crest_parameters
        use strucrd, only: rdnat,rdcoord,i2e
        implicit none
 
@@ -95,10 +95,9 @@ end subroutine print_map
 !  Sort out all topologically equivalent structures (i.e. conformers)
 !! --------------------------------------------------------------------------------------
 subroutine cosort(iname,oname,wrscoord,verbose)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       use iomod
       use strucrd, only: wrc0,rdensembleparam,rdensemble,wrxyz
-      use crest_data, only: bohr
       implicit none
 
       character(len=*),intent(in) :: iname
@@ -273,7 +272,7 @@ end subroutine countnonh2
 !  build an identifier tensor for a single molecule
 !! --------------------------------------------------------------------------------------
 subroutine get_itens(n,xyz,at,ni,itens)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       implicit none
       integer,intent(in)  :: n                    ! number of atoms
       integer,intent(in)  :: ni                   ! number of elements in the identifier
@@ -300,7 +299,7 @@ end subroutine get_itens
 !  modified version of the neighbours subroutine in select.f
 !! --------------------------------------------------------------------------------------
 subroutine analyze_neighbours(i,xyz,iat,nat,ntopo,topo,ident)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       implicit none
       integer,intent(in)  :: i
       real(wp),intent(in) :: xyz(3,nat)
@@ -393,7 +392,7 @@ end subroutine idwrite
 !  chispat -  chirality identifier by using a spat product
 !! --------------------------------------------------------------------------------------
 subroutine chispat(c,icn,neighb,nat,xyz,chiral)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters
       implicit none
       integer  :: c
       integer  :: nat
@@ -452,7 +451,7 @@ end subroutine chispat
 !! --------------------------------------------------------------------------------------
 
 subroutine det3x3(m,detval)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters, only: wp
       implicit none
       real(wp) :: detval
       real(wp) :: m(3,3)
@@ -470,7 +469,7 @@ end subroutine det3x3
 !  identification of methyl groups
 !! ------------------------------------------------------------------
 subroutine methyl_autocomplete(n,xyz,at,equiv)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters, only: wp
       implicit none
       integer,intent(in)  :: n                    ! number of atoms
       real(wp),intent(in) :: xyz(3,n)             ! coordinates
@@ -497,7 +496,7 @@ end subroutine methyl_autocomplete
 
 
 subroutine get_methyl(n,xyz,at,eqv)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters, only: wp
       implicit none
       integer,intent(in)  :: n                    ! number of atoms
       real(wp),intent(in) :: xyz(3,n)             ! coordinates
@@ -552,7 +551,7 @@ end subroutine get_methyl
 !! --------------------------------------------------------------------------------------
 
 subroutine methyl(i,iat,nat,cn,bond,meth,hydrogens)
-      use iso_fortran_env, only : wp => real64
+      use crest_parameters, only: wp
       implicit none
       integer,intent(in)  :: i
       integer,intent(in)  :: iat(nat)

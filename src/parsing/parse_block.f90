@@ -1,6 +1,6 @@
 
 module parse_block
-  use iso_fortran_env,only:wp => real64,sp => real32
+  use crest_parameters
   use filemod
   use parse_keyvalue
   implicit none
