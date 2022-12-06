@@ -46,6 +46,7 @@ module gfn0_api
   public :: gfn0_results,gfn0_data
   public :: gfn0_setup,gfn0_addsettings
   public :: gfn0_sp,gfn0_sp_occ
+  public :: gfn0_getwbos
   public :: gfn0_gen_occ
   public :: gfn0_print
 
@@ -76,13 +77,16 @@ contains  !>--- Module routines start here
 !========================================================================================!
 !> gfn0_addsettings is used to add other settings from
 !> CRESTs calculation object to the gfn0_data
-  subroutine gfn0_addsettings(mol,g0calc,solv,model,etemp)
+  subroutine gfn0_addsettings(mol,g0calc,solv,model,etemp,loadwbo)
     implicit none
     type(coord),intent(in)  :: mol
     type(gfn0_data),intent(inout) :: g0calc
     character(len=*),intent(in),optional :: solv
     character(len=*),intent(in),optional :: model
     real(wp),intent(in),optional :: etemp
+    logical,intent(in),optional  :: loadwbo
+
+    integer :: nao
 #ifdef WITH_GFN0
     !> add solvation?
     if (present(solv)) then
@@ -101,6 +105,12 @@ contains  !>--- Module routines start here
     end if
     if(present(etemp))then
       g0calc%xtbData%etemp = max(0.0_wp,etemp)
+    endif
+    if(present(loadwbo))then
+      if(loadwbo)then
+        nao = g0calc%basis%nao
+        if(.not.allocated(g0calc%wfn%S)) allocate(g0calc%wfn%S(nao,nao), source=0.0_wp)
+      endif
     endif
 #else
     write (stdout,*) 'Error: Compiled without GFN0-xTB support!'
@@ -213,6 +223,23 @@ contains  !>--- Module routines start here
 #endif
     return
    end subroutine gfn0_print
+
+
+!========================================================================================!
+!> obtain wbos from gfn0
+  subroutine gfn0_getwbos(g0calc,nat,wbo)
+    implicit none
+    type(gfn0_data),intent(in) :: g0calc
+    integer,intent(in) :: nat
+    real(wp),intent(out) :: wbo(nat,nat)
+
+    wbo = 0.0_wp
+#ifdef WITH_GFN0
+    call get_wbo(nat, g0calc%basis%nao, g0calc%wfn%P, &
+    &         g0calc%wfn%S, g0calc%basis%aoat2, wbo)
+#endif    
+  end subroutine gfn0_getwbos
+
 
 !========================================================================================!
 !========================================================================================!

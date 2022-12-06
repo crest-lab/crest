@@ -35,6 +35,7 @@ subroutine crest_playground(env,tim)
   use calc_module
   use optimize_module
   use tblite_api
+  use wiberg_mayer, only: write_wbo 
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -71,6 +72,7 @@ subroutine crest_playground(env,tim)
 
   allocate(grad(3,mol%nat),source=0.0_wp)
   calc = env%calc
+  
 
   write(*,*) 'job type',calc%calcs(1)%id
   write(*,*) 'etemp',calc%calcs(1)%etemp
@@ -80,14 +82,8 @@ subroutine crest_playground(env,tim)
   call engrad(mol,calc,energy,grad,io)
   write(*,*) 'iostatus',io  
 
-   write(*,*)
-   write (*,*) 'Energy: ',energy
-   write (*,*) 'Gradient:'
-   do i = 1,mol%nat
-      write (*,'(3f18.8)') grad(1:3,i)
-   end do
-   write(*,*)
-   if(calc%calcs(1)%rdwbo .and. allocated(calc%calcs(1)%wbo))then
+  call write_wbo(calc%calcs(1)%wbo, cutoff=0.05_wp)
+
    write(*,*) 'WBOs:'
    do i=1,mol%nat
      do j=i+1,mol%nat
@@ -97,29 +93,17 @@ subroutine crest_playground(env,tim)
      enddo
    enddo
    endif
+   write(*,*)
+   write (*,*) 'Energy: ',energy
+   write (*,*) 'Gradient:'
+   do i = 1,mol%nat
+      write (*,'(3f18.8)') grad(1:3,i)
+   end do
+   write(*,*)
+   if(calc%calcs(1)%rdwbo .and. allocated(calc%calcs(1)%wbo))then
+   write(*,*) 
 
-  !open(newunit=ich, file='tblite.out')
-  !ctx%unit = ich
-  !xtblvl = 2
-  !etemp = 10000.0_wp
-  !accuracy = 1.0_wp
-  !call tblite_setup(mol,env%chrg,env%uhf,xtblvl,etemp,ctx,wfn,tbcalc)
- 
-  !call tblite_singlepoint(mol,env%chrg,env%uhf,accuracy,ctx,wfn,tbcalc,energy,grad,io)
-  !close(ich)
 
-
-  !>-- geopetry optimization
-  !pr = .true. !> stdout printout
-  !wr = .true. !> write crestopt.log
-  !call optimize_geometry(mol,molnew,calc,energy,grad,pr,wr,io)
-
-  !if(io==0)then
-  !  write(*,*) 'geometry optimized!'
-  !  write(*,*)
-  !  call molnew%append(stdout)
-  !endif
- 
   deallocate(grad)
 !========================================================================================!
   call tim%stop(14)

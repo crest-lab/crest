@@ -200,7 +200,7 @@ contains    !>--- Module routines start here
 
     !>--- postprocessing, getting other data
     !$omp critical
-    !call gfn0_wbos(calc,mol,iostatus)
+    call gfn0_wbos(calc,mol,iostatus)
     !$omp end critical
 
     return
@@ -225,6 +225,7 @@ contains    !>--- Module routines start here
       if(allocated(calc%solvent) .and. allocated(calc%solvmodel))then
       call gfn0_addsettings(mol,g0calc,calc%solvent,calc%solvmodel)
       endif
+      call gfn0_addsettings(mol,g0calc,loadwbo=calc%rdwbo)
     end subroutine gfn0_init2
     subroutine gfn0_init3(mol,calc,g0calc)
       implicit none
@@ -246,7 +247,7 @@ contains    !>--- Module routines start here
       if(.not.calc%rdwbo) return
       if(allocated(calc%wbo))deallocate(calc%wbo)
       allocate(calc%wbo( mol%nat, mol%nat), source=0.0_wp)
-      !call tblite_getwbos(calc%tbcalc,calc%wfn,calc%tbres,mol%nat,calc%wbo)
+      call gfn0_getwbos(calc%g0calc,mol%nat,calc%wbo)
     end subroutine gfn0_wbos
   end subroutine gfn0_engrad
 
@@ -309,7 +310,7 @@ contains    !>--- Module routines start here
 
     !>--- postprocessing, getting other data
     !$omp critical
-    !call gfn0_wbos(calc,mol,iostatus)
+    call gfn0_wbos(calc,mol,iostatus)
     !$omp end critical
 
     return
@@ -336,7 +337,7 @@ contains    !>--- Module routines start here
       if(allocated(calc%solvent) .and. allocated(calc%solvmodel))then
       call gfn0_addsettings(mol,g0calc,calc%solvent,calc%solvmodel)
       endif
-      call gfn0_addsettings(mol,g0calc,etemp=calc%etemp)
+      call gfn0_addsettings(mol,g0calc,etemp=calc%etemp,loadwbo=calc%rdwbo)
     end subroutine gfn0_init2
     subroutine gfn0_init3(mol,calc,g0calc)
       implicit none
@@ -361,7 +362,7 @@ contains    !>--- Module routines start here
       if(.not.calc%rdwbo) return
       if(allocated(calc%wbo))deallocate(calc%wbo)
       allocate(calc%wbo( mol%nat, mol%nat), source=0.0_wp)
-      !call tblite_getwbos(calc%tbcalc,calc%wfn,calc%tbres,mol%nat,calc%wbo)
+      call gfn0_getwbos(calc%g0calc,mol%nat,calc%wbo)
     end subroutine gfn0_wbos
   end subroutine gfn0occ_engrad
 

@@ -222,8 +222,7 @@ contains  !>--- Module routines start here
 #endif    
   end subroutine tblite_addsettings
 !========================================================================================!
-!> tblite_addsettings is used to add other settings from
-!> CRESTs calculation object to the tblite_calculator 
+!> obtain wbos from tblite
   subroutine tblite_getwbos(tbcalc,wfn,tbres,nat,wbo)
     implicit none
     type(tblite_calculator),intent(in) :: tbcalc

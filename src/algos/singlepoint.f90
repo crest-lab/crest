@@ -82,6 +82,17 @@ subroutine crest_singlepoint(env,tim)
   call engrad(mol,calc,energy,grad,io)
   write(*,*) 'iostatus',io  
 
+   if(calc%calcs(1)%rdwbo)then
+   write(*,*)
+   write(*,*) 'WBOs:'
+   do i=1,mol%nat
+     do j=1,i-1
+       if(calc%calcs(1)%wbo(i,j) > 0.0002_wp)then
+        write(*,*) i,j,calc%calcs(1)%wbo(i,j)
+       endif
+     enddo
+   enddo 
+   endif
    write(*,*)
    write (*,*) 'Energy: ',energy
    write (*,*) 'Gradient:'
@@ -105,6 +116,7 @@ subroutine crest_xtbsp(env,xtblevel,molin)
    use strucrd
    use calc_type
    use calc_module
+   use wiberg_mayer, only: write_wbo
    implicit none
    !> INPUT 
    type(systemdata) :: env
@@ -118,6 +130,7 @@ subroutine crest_xtbsp(env,xtblevel,molin)
    real(wp) :: energy
    real(wp),allocatable :: grad(:,:)
 
+   !>--- transfer settings from env to tmpcalc
    call env2calc(env,tmpcalc,molin)
 
    tmpcalc%calcs(1)%rdwbo = .true. !> obtain WBOs
@@ -143,6 +156,12 @@ subroutine crest_xtbsp(env,xtblevel,molin)
    call engrad(mol,tmpcalc,energy,grad,io)
    if(io .ne. 0)then
      error stop 'crest_xtbsp failed'
+   endif
+
+   !>--- write wbo file
+   if(tmpcalc%calcs(1)%rdwbo)then
+     call write_wbo(tmpcalc%calcs(1)%wbo, 0.002_wp)
+
    endif
 
    deallocate(grad)

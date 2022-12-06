@@ -35,7 +35,6 @@ subroutine crest_scan(env,tim)
   use calc_module
   use optimize_module
   use geo
-  use crest_parameters,only:radtodeg,degtorad
   use iomod, only: makedir
   implicit none
   type(systemdata),intent(inout) :: env

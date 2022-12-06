@@ -25,7 +25,7 @@ module wiberg_mayer
   implicit none
 
   public :: get_wbo
-
+  public :: write_wbo
 !========================================================================================!
 !========================================================================================!
 contains  !> Module procedures start here
@@ -77,6 +77,45 @@ contains  !> Module procedures start here
 
     deallocate(PS)
   end subroutine get_wbo
+
+
+!>
+!> write WBO file
+!> optional arguments are a file name and a cut-off value
+  subroutine write_wbo(wbo,cutoff,filename)
+    implicit none
+    !> INPUT
+    real(wp),intent(in) :: wbo(:,:)
+    real(wp),intent(in),optional :: cutoff
+    character(len=*),intent(in),optional :: filename
+    !> LOCAL
+    integer :: iunit,i,j,nat
+
+    if(present(filename))then
+      open(newunit=iunit, file=trim(filename))
+    else
+      open(newunit=iunit, file='wbo')
+    endif
+
+    nat = size(wbo,1)
+    if(present(cutoff))then
+      do i=1,nat
+        do j=1,i-1
+          if(wbo(j,i) > cutoff)then
+             write(iunit,*) i,j,wbo(j,i)  
+          endif 
+        enddo
+      enddo
+    else
+      do i=1,nat
+        do j=1,i-1
+           write(iunit,*) i,j,wbo(j,i)
+        enddo
+      enddo
+    endif
+
+    close(iunit) 
+  end subroutine write_wbo
 
 !========================================================================================!
 end module wiberg_mayer
