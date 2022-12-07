@@ -164,8 +164,8 @@ contains  !> MODULE PROCEDURES START HERE
          Adum(i,j) = 0
          Adum(j,i) = 0
          tmp = 0
-         ring(i,j) = check_adjacent(i,j,V,A,tmp) 
-         ring(j,i) = ring(i,j)
+         rings(i,j) = check_adjacent(i,j,V,Adum,tmp) 
+         rings(j,i) = rings(i,j)
       enddo
     enddo
     deallocate(tmp)
