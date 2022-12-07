@@ -21,6 +21,7 @@ subdir('optimize')
 subdir('algos')
 subdir('parsing')
 subdir('qmhelpers')
+subdir('graphs') 
 subdir('legacy_algos')
 
 
@@ -46,7 +47,6 @@ srcs += files(
   'eval_timer.f90',
   'filemod.f90',
   'flexi.f90',
-  'floydwarshall.f90',
   'freqmasses.f90',
   'geo.f90',
   'identifiers.f90',
@@ -73,7 +73,6 @@ srcs += files(
   'scratch.f90',
   'sdfio.f90',
   'select.f90',
-  'shortpath.f90',
   'signal.c',
   'sigterm.f90',
   'sortens.f90',

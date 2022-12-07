@@ -22,6 +22,7 @@ add_subdirectory("algos")
 add_subdirectory("dynamics")
 add_subdirectory("qcg")
 add_subdirectory("qmhelpers")
+add_subdirectory("graphs")
 add_subdirectory("legacy_algos")
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -48,7 +49,6 @@ list(APPEND srcs
   "${dir}/eval_timer.f90"
   "${dir}/filemod.f90"
   "${dir}/flexi.f90"
-  "${dir}/floydwarshall.f90"
   "${dir}/freqmasses.f90"
   "${dir}/geo.f90"
   "${dir}/identifiers.f90"
@@ -75,7 +75,6 @@ list(APPEND srcs
   "${dir}/scratch.f90"
   "${dir}/sdfio.f90"
   "${dir}/select.f90"
-  "${dir}/shortpath.f90"
   "${dir}/signal.c"
   "${dir}/sigterm.f90"
   "${dir}/sortens.f90"

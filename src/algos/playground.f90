@@ -84,6 +84,8 @@ subroutine crest_playground(env,tim)
 
   call write_wbo(calc%calcs(1)%wbo, cutoff=0.05_wp)
 
+   if(calc%calcs(1)%rdwbo .and. allocated(calc%calcs(1)%wbo))then
+   write(*,*)
    write(*,*) 'WBOs:'
    do i=1,mol%nat
      do j=i+1,mol%nat
@@ -100,8 +102,6 @@ subroutine crest_playground(env,tim)
       write (*,'(3f18.8)') grad(1:3,i)
    end do
    write(*,*)
-   if(calc%calcs(1)%rdwbo .and. allocated(calc%calcs(1)%wbo))then
-   write(*,*) 
 
 
   deallocate(grad)

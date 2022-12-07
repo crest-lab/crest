@@ -248,6 +248,7 @@ subroutine msreact_topowrap(mol,pair,paths,wboname)
     use crest_parameters
     use msmod
     use zdata
+    use adjacency
     implicit none
     type(msmol) :: mol
     integer :: pair(mol%nat*(mol%nat+1)/2)
