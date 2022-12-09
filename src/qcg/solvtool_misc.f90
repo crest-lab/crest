@@ -738,7 +738,7 @@ end subroutine ens_sp
 ! xTB Freq compuatation performed in parallel
 !___________________________________________________________________________________
 
-subroutine ens_freq(env,fname,NTMP,TMPdir)
+subroutine ens_freq(env,fname,NTMP,TMPdir,opt)
   use iso_fortran_env, only : wp => real64
   use iomod
   use crest_data
@@ -757,6 +757,7 @@ subroutine ens_freq(env,fname,NTMP,TMPdir)
   character(len=1024)             :: jobcall       
   character(len=52)               :: bar
   real(wp)                        :: percent
+  logical                         :: opt
 
 ! setting the threads for correct parallelization
   if(env%autothreads)then
@@ -780,12 +781,13 @@ subroutine ens_freq(env,fname,NTMP,TMPdir)
   call printemptybar()
 
 !--- Jobcall  
-!    write(jobcall,'(a,1x,a,1x,a,'' --bhess '',a,1x,a,'' >xtb_freq.out'')') &
-!    &    trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
-
-!--- Jobcall  
+  if(.not. opt) then
+    write(jobcall,'(a,1x,a,1x,a,'' --hess '',a,'' >xtb_freq.out'')') & 
+     &    trim(env%ProgName),trim(fname),trim(env%gfnver),trim(pipe)
+  else
     write(jobcall,'(a,1x,a,1x,a,'' --ohess '',a,'' >xtb_freq.out'')') &
     &    trim(env%ProgName),trim(fname),trim(env%gfnver),trim(pipe)
+  end if
 
 
 !___________________________________________________________________________________

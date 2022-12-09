@@ -222,12 +222,11 @@ subroutine qcg_setup(env, solu, solv)
    env%ref%xyz = solu%xyz
 
 !---- Geometry preoptimization solute
-   if (.not. env%nopreopt) then
+   if ((.not. env%nopreopt) .and. (solu%nat /= 1)) then
       call wrc0('coord', solu%nat, solu%at, solu%xyz) !write coord for xtbopt routine
       if (env%cts%used) then
          call wrc0('coord.ref', solu%nat, solu%at, solu%xyz) !write coord for xtbopt routine
       end if
-!    call wrc0('coord',solu%nat,solu%at,solu%xyz) !write coord for xtbopt routine
 !---- coord setup section
       open (newunit=ich, file='coord')
       do
@@ -290,7 +289,7 @@ subroutine qcg_setup(env, solu, solv)
    env%ref%xyz = solv%xyz
 
 !---- Geometry preoptimization solvent
-   if (.not. env%nopreopt) then
+   if ((.not. env%nopreopt) .and. (solv%nat /= 1)) then
       call wrc0('coord', solv%nat, solv%at, solv%xyz) !write coord for xtbopt routine
       call xtbopt(env)
       call rdcoord('coord', solv%nat, solv%at, solv%xyz)
@@ -1869,6 +1868,7 @@ subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
    real(wp)                   :: srot(3)
    real(wp)                   :: stra(3)
    integer                    :: ich65, ich56, ich33, ich81
+   logical                    :: opt
 
    call tim%start(9, 'Frequencies')
 
@@ -1906,7 +1906,8 @@ subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
    call chdir('tmp_gas1')
    call wrc0('solute.coord', solu%nat, solu%at, solu%xyz)
    call chdir(tmppath2)
-   call ens_freq(env, 'solute.coord', 1, 'tmp_gas')
+   opt = .false.
+   call ens_freq(env, 'solute.coord', 1, 'tmp_gas', opt)
    call chdir('tmp_gas1')
    call rdtherm('xtb_freq.out', ht(3), svib(3), srot(3), stra(3), gt(3))
    solu%gt = gt(3)
@@ -1962,13 +1963,14 @@ subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
    write (*, *) '  SOLUTE CLUSTER'
 
 !> Frequency calculation
-   call ens_freq(env, 'cluster.xyz', solu_ens%nall, 'TMPFREQ')
+   opt=.true.
+   call ens_freq(env, 'cluster.xyz', solu_ens%nall, 'TMPFREQ',opt)
    call chdir(tmppath2)
 
    write (*, *) '  SOLVENT CLUSTER'
    if (env%cff) then
       call chdir('tmp_solv')
-      call ens_freq(env, 'solvent_cut.coord', solu_ens%nall, 'TMPFREQ')
+      call ens_freq(env, 'solvent_cut.coord', solu_ens%nall, 'TMPFREQ',opt)
       call chdir(tmppath2)
    end if
 
@@ -1992,7 +1994,7 @@ subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
          call chdir('tmp_solv')
       end do
 !> Frequency calculation
-      call ens_freq(env, 'solv_cluster.xyz', solv_ens%nall, 'TMPFREQ')
+      call ens_freq(env, 'solv_cluster.xyz', solv_ens%nall, 'TMPFREQ',opt)
       call chdir(tmppath2)
    end if
 
@@ -3111,7 +3113,6 @@ subroutine qcg_restart(env, progress, solu, solv, clus, solu_ens, solv_ens, clus
       if (solv_cff) then
          call solv_ens%open('crest_ensemble.xyz')
          do i = 1, solv_ens%nall
-            write (*, *) 'i', i
             if (i .le. 9) then
                write (counter, '(''No   '',i1)') i
                call grepval('cluster_energy.dat', counter, ex, solv_ens%er(i))
@@ -3122,7 +3123,7 @@ subroutine qcg_restart(env, progress, solu, solv, clus, solu_ens, solv_ens, clus
                write (counter3, '(''No   '',i3)') i
                call grepval('cluster_energy.dat', counter3, ex, solv_ens%er(i))
             end if
-            write (*, *) 'Energy of cluster', solv_ens%er(i)
+            write (*, *) 'Energy of cluster', i, solv_ens%er(i)
          end do
       end if
 
