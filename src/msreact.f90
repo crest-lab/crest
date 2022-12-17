@@ -281,7 +281,7 @@ subroutine msreact_topowrap(mol,pair,paths,wboname)
     endif 
 
     allocate(A(mol%nat,mol%nat),E(mol%nat,mol%nat))
-    call zadjacent(zmol,A,E)
+    call zmol%adjacency(A,E)
 
     allocate(prev(mol%nat,mol%nat),dist(mol%nat,mol%nat))
 

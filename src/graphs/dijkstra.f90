@@ -7,7 +7,12 @@ module dijkstra_mod
   use iso_fortran_env,only:wp => real64,error_unit
   implicit none
 
-  public :: Dijkstra,getPathD
+  public :: getPathD
+  public :: Dijkstra
+  interface Dijkstra
+    module procedure :: Dijkstra_classic
+    module procedure :: Dijkstra_simple
+  end interface Dijkstra 
 
 !========================================================================================!
 !========================================================================================!
@@ -20,12 +25,12 @@ contains
 !> and then run getPathD() to reconstruct the shortest path
 
 !========================================================================================!
-  subroutine Dijkstra(V,A,E,start,dist,prev)
+  subroutine Dijkstra_classic(V,A,E,start,dist,prev)
     implicit none
     !> INPUT
     integer,intent(in)  :: V       !> number of vertices
     integer,intent(in)  :: A(V,V)  !> adjacency matrix
-    real(wp),intent(in) :: E(V,V)  !> distance matrix
+    real(wp),intent(in) :: E(V,V)  !> vertex distance matrix
     integer,intent(in)  :: start   !> start vertex
     !> OUTPUT
     real(wp),intent(inout) :: dist(V) !> start -> vertex distances
@@ -35,7 +40,6 @@ contains
     real(wp) :: newdist
     integer,allocatable :: Q(:)
     integer :: Qcount
-    integer :: minQ !this is a function
     integer :: i,j,u,vc
 
     inf = huge(inf)
@@ -73,7 +77,61 @@ contains
     end do
     deallocate (Q)
     return
-  end subroutine Dijkstra
+  end subroutine Dijkstra_classic
+  
+  subroutine Dijkstra_simple(V,A,start,dist,prev)
+  !> a variant that does not need the edge lenths E
+    implicit none
+    !> INPUT
+    integer,intent(in)  :: V       !> number of vertices
+    integer,intent(in)  :: A(V,V)  !> adjacency matrix
+    integer,intent(in)  :: start   !> start vertex
+    !> OUTPUT
+    real(wp),intent(inout) :: dist(V) !> start -> vertex distances
+    integer,intent(inout)  :: prev(V)
+    !> LOCAL
+    real(wp) :: inf
+    real(wp) :: newdist
+    integer,allocatable :: Q(:)
+    integer :: Qcount
+    integer :: i,j,u,vc
+
+    inf = huge(inf)
+    !>-- allocate array of unvisited vertices,
+    !    distances and previously visited nodes
+    allocate (Q(V))
+    Qcount = V
+    do i = 1,V
+      Q(i) = i
+      prev(i) = -1
+      dist(i) = inf
+    end do
+    prev(start) = start
+    dist(start) = 0.0_wp
+
+    !>-- as long as there are unvisited vertices in Q
+    do while (Qcount >= 1)
+      !>-- get vertix with smallest reference value in dist
+      j = minQ(Q,dist,Qcount)
+      vc = Q(j)             !> track the vertex k
+      Q(j) = Q(Qcount)      !> overwrite Q(j)
+      Qcount = Qcount - 1   !> "resize" Q
+      !>-- loop over the neighbours of vertex k
+      do u = 1,V
+        if (A(vc,u) == 0) cycle
+        if (prev(u) .ne. v) then
+          newdist = dist(vc) + float(A(vc,u))
+          !>-- is the new dist value of u better than the previous one?
+          if (newdist < dist(u)) then
+            dist(u) = newdist
+            prev(u) = vc
+          end if
+        end if
+      end do
+    end do
+    deallocate (Q)
+    return
+  end subroutine Dijkstra_simple
 
   function minQ(Q,dist,Qcount)
     implicit none

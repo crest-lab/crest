@@ -284,7 +284,8 @@ module crest_data
       real(wp) :: mdtime           ! MD length (V1&2)
       real(wp) :: elowest          ! Energy of the lowest conformer
       real(wp) :: eprivious        ! Energy of the priviously lowest conformer
-      real(wp) :: gcmax            ! Max. Number of structures for GC
+      real(wp) :: gcmax            ! Max. number of structures for GC
+      real(wp) :: gcmaxparent = 1.2d7 ! Max. number of parent pairs for GC
 
       integer :: icount            ! Mode counter in V1
       integer :: mdmode            ! MD mode in V1 xtb-MD or QMDFF

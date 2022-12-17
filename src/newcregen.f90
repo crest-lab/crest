@@ -315,6 +315,10 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
     oname = "crest_mecp_search.xyz.sorted"
     cname = "crest_ensemble.xyz"
   endif
+  if( simpleset == 15 ) then !> crossing files
+    call checkname_xyz('confcross',fname,oname)
+    cname = trim(fname)//'.unique'
+  endif
 
   write (iounit,*) 'input  file name : ',trim(fname)
   select case (simpleset)

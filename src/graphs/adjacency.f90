@@ -50,8 +50,8 @@ contains  !> MODULE PROCEDURES START HERE
     if (.not. allocated(A)) allocate (A(V,V))
     A = 0
     do i = 1,V
-      do j = 1,i
-        if (wbo(j,i) > thr) A(j,i) = 1
+      do j = 1,i-1
+        if (wbo(j,i) > thr) A(j,i) = min(nint(wbo(j,i)),1)
         A(i,j) = A(j,i)
       end do
     end do
@@ -140,8 +140,8 @@ contains  !> MODULE PROCEDURES START HERE
 
 !================================================================================!
 
-  !> check all vertex pairs to see if they share a ring
-  subroutine check_rings(V,A,rings)
+  !> check all directly connected(!) vertex pairs to see if they share a ring
+  subroutine check_rings_min(V,A,rings)
     implicit none
     !> INPUT
     integer,intent(in) :: V
@@ -159,18 +159,53 @@ contains  !> MODULE PROCEDURES START HERE
     !    and then check if they are still connected via
     !    another path --> a ring must exist if so
     do i=1,V
+      if(sum(A(:,i)) == 1) cycle    !> skip dangling vertices (e.g. H atoms)
       do j=1,i-1
-         Adum(:,:) = A(:,:)
-         Adum(i,j) = 0
-         Adum(j,i) = 0
-         tmp = 0
-         rings(i,j) = check_adjacent(i,j,V,Adum,tmp) 
-         rings(j,i) = rings(i,j)
+         if(sum(A(:,j)) == 1) cycle !> skip dangling vertices
+         if(A(i,j) > 0)then
+           Adum(:,:) = A(:,:)
+           Adum(i,j) = 0
+           Adum(j,i) = 0
+           tmp = 0
+           rings(i,j) = check_adjacent(i,j,V,Adum,tmp) 
+           rings(j,i) = rings(i,j)
+         endif
       enddo
     enddo
     deallocate(tmp)
     deallocate(Adum)
-  end subroutine check_rings
+  end subroutine check_rings_min
+
+!================================================================================!
+
+  !> get the smallest ring connecting adjacenent vertices M and N
+  subroutine get_ring_min(V,A,M,N,path,nring)
+    implicit none
+    !> INPUT
+    integer,intent(in) :: M,N
+    integer,intent(in) :: V
+    integer,intent(in) :: A(V,V)
+    !> OUTPUT
+    integer,intent(out) :: nring   !> number of members in ring
+    integer,intent(out) :: path(V) !> vertices in ring
+    !> LOCAL
+    real(wp),allocatable  :: dist(:)
+    integer,allocatable   :: tmp(:)
+    integer,allocatable   :: Atmp(:,:)
+    integer :: i,j
+
+    path  = 0
+    nring = 0
+    allocate(Atmp(V,V), source=0)
+    Atmp(:,:) = A(:,:)
+    Atmp(M,N) = 0
+    Atmp(N,M) = 0
+    allocate(dist(V), source=0.0_wp)
+    allocate(tmp(V), source=0)
+    call Dijkstra(V,Atmp,M,dist,tmp)
+    call getPathD(V,nring,M,N,tmp,path)
+    deallocate(tmp,dist)
+  end subroutine get_ring_min
 
 !================================================================================!
 !================================================================================!

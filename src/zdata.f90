@@ -28,8 +28,8 @@ module zdata
 
   implicit none
 
-  public :: zatom   
-  public :: zring  
+  public :: zatom
+  public :: zring
   public :: zgrp
   public :: zequal
   public :: zmolecule
@@ -130,12 +130,12 @@ module zdata
     integer :: nfrag = 1                 !> number of fragments in the system (for NCI complexes)
     integer,allocatable :: molvec(:)     !> fragment tracking
     real(wp),allocatable :: zmat(:,:)    !> internal coordinates of the molecule,
-                                         !> requires tracking zna,znb,znc
+    !> requires tracking zna,znb,znc
     integer,allocatable :: zna(:)
     integer,allocatable :: znb(:)
     integer,allocatable :: znc(:)
-    real(wp) :: chrg   = 0.0_wp   !> molecular charge
-    real(wp) :: uhf    = 0.0_wp   !> nα-nβ electrons
+    real(wp) :: chrg = 0.0_wp   !> molecular charge
+    real(wp) :: uhf = 0.0_wp   !> nα-nβ electrons
     real(wp) :: energy = 0.0_wp   !> energy
 
     !>--- bonds
@@ -180,18 +180,19 @@ module zdata
 
     !>--- procedures to be used with the zmol type
   contains
-    procedure :: wrtable => wrtable !> write CNs and neighbours
-    procedure :: prsym => prsym     !> print element and number of atom i
-    procedure :: prrings => printrings_zmol !> print a list of all unique rings
+    procedure :: wrtable => wrtable          !> write CNs and neighbours
+    procedure :: prsym => prsym              !> print element and number of atom i
+    procedure :: prrings => printrings_zmol  !> print a list of all unique rings
     procedure :: deallocate => deallocate_zmol  !> deallocate everything
-    procedure :: dist => zatdist    !> distance between two atoms
-    procedure :: mrec => zmol_mrec  !> mrec routine directly acting upon neighbour list
+    procedure :: dist => zatdist             !> distance between two atoms
+    procedure :: mrec => zmol_mrec           !> mrec routine directly acting upon neighbour list
     procedure :: getxyz => zmol_getxyz
-    procedure :: hydrogen => count_hydrogen !> function to retun number of hydrogen atoms
-    procedure :: countbonds => count_bonds  !> cound bonds and track which atoms from them
-    procedure :: methyl => is_methyl        !> check if a given atom is a methyl C
-    procedure :: fragment => get_fragment !> create a new zmolecule object for the i-th fragment
-    procedure :: addring => zmol_add_ring !> add a ring to the object
+    procedure :: hydrogen => count_hydrogen  !> function to retun number of hydrogen atoms
+    procedure :: countbonds => count_bonds   !> cound bonds and track which atoms from them
+    procedure :: methyl => is_methyl         !> check if a given atom is a methyl C
+    procedure :: fragment => get_fragment    !> create a new zmolecule object for the i-th fragment
+    procedure :: addring => zmol_add_ring    !> add a ring to the object
+    procedure :: adjacency => zmol_adjacency !> generate adjacency matrix from zmol
   end type zmolecule
 
 !=========================================================================================!
@@ -323,8 +324,8 @@ contains !> MODULE PROCEDURES START HERE
           a = self%zat(atm)%ngh(i)
           b = self%zat(atm)%ngh(j)
           if (self%at(a) == self%at(b)) then
-            if (self%zat(a)%nei == 1 .and. &
-            &   self%zat(b)%nei == 1) c = c + 1
+            if (self%zat(a)%nei == 1.and. &
+            &   self%zat(b)%nei == 1) c = c+1
           end if
         end do
         if (c == 2) itis = .true.
@@ -376,9 +377,9 @@ contains !> MODULE PROCEDURES START HERE
     if (allocated(self%distmat)) then
       dist = self%distmat(i,j)
     else
-      dist = (self%zat(i)%cart(1) - self%zat(j)%cart(1))**2 + &
-     &     (self%zat(i)%cart(2) - self%zat(j)%cart(2))**2 + &
-     &     (self%zat(i)%cart(3) - self%zat(j)%cart(3))**2
+      dist = (self%zat(i)%cart(1)-self%zat(j)%cart(1))**2+ &
+     &     (self%zat(i)%cart(2)-self%zat(j)%cart(2))**2+ &
+     &     (self%zat(i)%cart(3)-self%zat(j)%cart(3))**2
       dist = sqrt(dist)
     end if
     return
@@ -423,9 +424,9 @@ contains !> MODULE PROCEDURES START HERE
     k = 0
     do j = 1,self%nat
       if (self%molvec(j) == i) then
-        k = k + 1
+        k = k+1
         map(j) = k
-        natnew = natnew + 1
+        natnew = natnew+1
       end if
     end do
     znew%nat = natnew
@@ -438,7 +439,7 @@ contains !> MODULE PROCEDURES START HERE
     k = 0
     do j = 1,self%nat
       if (self%molvec(j) == i) then
-        k = k + 1
+        k = k+1
         znew%zat(k) = self%zat(j)
         znew%at(k) = self%at(j)
         do l = 1,znew%zat(k)%nei
@@ -451,10 +452,10 @@ contains !> MODULE PROCEDURES START HERE
     allocate (xyz(3,znew%nat))
     call znew%getxyz(xyz)
     do j = 1,znew%nat
-      do k = 1,znew%nat - 1
-        znew%distmat(j,k) = (xyz(1,j) - xyz(1,k))**2 + &
-      &                   (xyz(2,j) - xyz(2,k))**2 + &
-      &                   (xyz(3,j) - xyz(3,k))**2
+      do k = 1,znew%nat-1
+        znew%distmat(j,k) = (xyz(1,j)-xyz(1,k))**2+ &
+      &                   (xyz(2,j)-xyz(2,k))**2+ &
+      &                   (xyz(3,j)-xyz(3,k))**2
         znew%distmat(j,k) = sqrt(znew%distmat(j,k))
         znew%distmat(k,j) = znew%distmat(j,k)
       end do
@@ -470,7 +471,7 @@ contains !> MODULE PROCEDURES START HERE
     type(zring) :: ring
     type(zring),allocatable :: rnew(:)
     integer :: i,k
-    k = self%nri + 1
+    k = self%nri+1
     allocate (rnew(k))
     do i = 1,self%nri
       rnew(i) = self%zri(i)
@@ -493,10 +494,19 @@ contains !> MODULE PROCEDURES START HERE
     implicit none
     class(zring) :: self
     integer :: ch
+    character(len=:),allocatable :: atmp
+    character(len=30) :: btmp
+    integer :: i
+    atmp = ' atoms:'
     if (allocated(self%rlist)) then
       write (ch,'(1x,a,i0)') 'ring size: ',self%rs
-      write (ch,*) self%rlist
+      do i=1,self%rs
+         write(btmp,'(1x,i0)')self%rlist(i)
+         atmp = trim(atmp)//trim(btmp)
+      enddo
+      write (ch,*) trim(atmp)
     end if
+    deallocate(atmp)
     return
   end subroutine print_zring
 !=========================================================================================!
@@ -525,10 +535,10 @@ contains !> MODULE PROCEDURES START HERE
     integer,allocatable :: tmp(:)
     if (allocated(self%mem)) then
       if (any(self%mem(:) .eq. obj)) return !return if already present
-      allocate (tmp(self%nm + 1))
+      allocate (tmp(self%nm+1))
       tmp(1:self%nm) = self%mem(1:self%nm)
       deallocate (self%mem)
-      self%nm = self%nm + 1
+      self%nm = self%nm+1
       tmp(self%nm) = obj
       call move_alloc(tmp,self%mem)
     else
@@ -586,7 +596,7 @@ contains !> MODULE PROCEDURES START HERE
     x = 0
     if (allocated(self%grp)) then
       do i = 1,self%ng
-        if (self%grp(i)%nm .gt. 1) x = x + 1
+        if (self%grp(i)%nm .gt. 1) x = x+1
       end do
     end if
     self%eng = x
@@ -682,14 +692,14 @@ contains !> MODULE PROCEDURES START HERE
     self%nfrag = 1
     taken = .false.
     do i = 1,self%nat
-      if (.not. taken(i)) then
+      if (.not.taken(i)) then
         self%molvec(i) = self%nfrag
         taken(i) = .true.
         call zmol_frag(i,self,self%nat,taken,self%nfrag,self%molvec)
-        self%nfrag = self%nfrag + 1
+        self%nfrag = self%nfrag+1
       end if
     end do
-    self%nfrag = self%nfrag - 1
+    self%nfrag = self%nfrag-1
     deallocate (taken)
     return
   end subroutine zmol_mrec
@@ -703,7 +713,7 @@ contains !> MODULE PROCEDURES START HERE
     integer :: j,k
     do j = 1,self%zat(i)%nei
       k = self%zat(i)%ngh(j)
-      if (.not. taken(k)) then
+      if (.not.taken(k)) then
         molvec(k) = nfrag
         taken(k) = .true.
         call zmol_frag(k,self,nat,taken,nfrag,molvec)
@@ -732,7 +742,7 @@ contains !> MODULE PROCEDURES START HERE
     hnum = 0
     do i = 1,self%nat
       if (self%at(i) == 1) then
-        hnum = hnum + 1
+        hnum = hnum+1
       end if
     end do
     return
@@ -750,7 +760,7 @@ contains !> MODULE PROCEDURES START HERE
     do i = 1,self%nat
       do j = 1,i
         if (any(self%zat(i)%ngh(:) .eq. j)) then  !only include bonds from the neighbour lists
-          nb = nb + 1
+          nb = nb+1
         else
           cycle
         end if
@@ -762,7 +772,7 @@ contains !> MODULE PROCEDURES START HERE
     do i = 1,self%nat
       do j = 1,i
         if (any(self%zat(i)%ngh(:) .eq. j)) then  !only include bonds from the neighbour lists
-          nb = nb + 1
+          nb = nb+1
           self%bondpairs(1,nb) = j
           self%bondpairs(2,nb) = i
         else
@@ -773,6 +783,32 @@ contains !> MODULE PROCEDURES START HERE
     return
 
   end subroutine count_bonds
+
+!=========================================================================================!
+!>  get the adjacency and edgelength matrices from the neighbour lists
+  subroutine zmol_adjacency(zmol,A,E)
+    implicit none
+    class(zmolecule) :: zmol
+    integer,intent(out) :: A(zmol%nat,zmol%nat)
+    real(wp),intent(out),optional :: E(zmol%nat,zmol%nat)
+    integer :: i,j
+    integer :: nat
+    nat = zmol%nat
+    A = 0
+    if (present(E)) E = 0.0_wp
+    do i = 1,nat
+      do j = 1,nat
+        !> only include bonds from the neighbour lists
+        if (any(zmol%zat(i)%ngh(:) .eq. j)) then
+          if (present(E)) E(i,j) = zmol%distmat(i,j)
+          A(i,j) = 1
+        else
+          cycle
+        end if
+      end do
+    end do
+    return
+  end subroutine zmol_adjacency
 
 !=========================================================================================!
 !=========================================================================================!

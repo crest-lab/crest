@@ -34,8 +34,6 @@ srcs += files(
   'classes.f90',
   'cleanup.f90',
   'compress.f90',
-  'confcross.f90',
-  'confopt.f90',
   'confparse.f90',
   'constraining.f90',
   'cregen.f90',

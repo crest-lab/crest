@@ -258,7 +258,7 @@ contains
     real(wp) :: val
     character(len=500) :: scantrj
     character(len=20)  :: scannmbr
-    integer :: dumpid,k,j,next, io
+    integer :: dumpid,dumpid2,k,j,j2,next, io
 
 
     if( current > calc%nscans ) then !> recursive termination
@@ -270,13 +270,13 @@ contains
         scantrj = trim(scantrj)//trim(scannmbr)
       enddo
       open(newunit=dumpid, file=trim(scantrj)//'.xyz')
-      !open(newunit=dumpid, file='scan.log')
       calcclean%elog = trim(scantrj)//'.elog'
-      open(newunit=calcclean%eout_unit , file=calcclean%elog)
+      open(newunit=calcclean%eout_unit , file=calcclean%elog) 
+      open(newunit=dumpid2, file=trim(scantrj)//'.grid')
     endif    
     
     allocate (grad(3,mol%nat),source=0.0_wp)
-    !>-- geopetry optimization
+    !>-- geometry optimization
     pr = .false. !> stdout printout
     wr = .true. !> write crestopt.log
     molbackup = mol
@@ -304,7 +304,14 @@ contains
 
       !>--- for the lowest level iterations do the printouts
       if( current == calc%nscans )then
+       
        write(stdout,'(10i5)') calc%scans(1:calc%nscans)%currentstep
+       do j2=1,calc%nscans
+         k = calc%scans(j2)%currentstep
+         val = calc%scans(j2)%points(k) * radtodeg
+         write(dumpid2,'(f9.4)',advance='no') val + 180.0_wp
+       enddo
+       write(dumpid2,*)
        energy = 0.0_wp
        call engrad(mol,calcclean,energy,grad,io)
        call molnew%appendlog(dumpid, energy)
@@ -316,6 +323,7 @@ contains
     if( current == calc%nscans )then
     close(dumpid)
     close(calcclean%eout_unit)
+    close(dumpid2)
     endif
   end subroutine runscan
 

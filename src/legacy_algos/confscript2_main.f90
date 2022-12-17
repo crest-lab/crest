@@ -243,7 +243,7 @@ subroutine confscript2i_legacy(env,tim)
 !---- Genetic crossing
     if (env%performCross) then
       call tim%start(5,'GC')
-      call cross2(env)
+      call cross3(env)
       call tim%stop(5)
       call confg_chk3(env)
       call elowcheck(lower,env)

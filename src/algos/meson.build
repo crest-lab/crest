@@ -20,6 +20,7 @@ srcs += files(
   'numhess.f90',
   'optimization.f90',
   'playground.f90',
+  'crossing.f90',
   'scan.f90',
   'search_1.f90',
   'search_mecp.f90',

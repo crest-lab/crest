@@ -73,7 +73,7 @@ subroutine simpletopo_file(fname,zmol,verbose,getrings,wbofile)
   if (present(wbofile)) then
     inquire (file=wbofile,exist=ex)
   end if
-  if (.not. ex) then
+  if (.not.ex) then
     call simpletopo(n,at,xyz,zmol,verbose,getrings,'')
   else
     call simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
@@ -119,7 +119,7 @@ end subroutine simpletopo_mol
 !  wbofile - (optional) name of the file containing WBOs
 !================================================================================!
 subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
-  use iso_fortran_env,wp => real64
+  use crest_parameters
   use zdata
   implicit none
   type(zmolecule)  :: zmol
@@ -171,9 +171,9 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
   end if
 
   allocate (zat(n))
-  if (.not. useWBO) then
+  if (.not.useWBO) then
 !--- get individual neighbour lists and set up molecule object "zat"
-    ntopo = n * (n + 1) / 2
+    ntopo = n*(n+1)/2
     allocate (neighmat(n,n),source=.false.)
     allocate (topovec(ntopo))
     call bondtotopo(n,at,bond,cn,ntopo,topovec,neighmat)
@@ -203,9 +203,9 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
   allocate (zmol%distmat(n,n))
   do i = 1,n
     do j = 1,n
-      zmol%distmat(i,j) = (xyz(1,i) - xyz(1,j))**2 + &
-    &                   (xyz(2,i) - xyz(2,j))**2 + &
-    &                   (xyz(3,i) - xyz(3,j))**2
+      zmol%distmat(i,j) = (xyz(1,i)-xyz(1,j))**2+ &
+    &                   (xyz(2,i)-xyz(2,j))**2+ &
+    &                   (xyz(3,i)-xyz(3,j))**2
       zmol%distmat(i,j) = sqrt(zmol%distmat(i,j))
     end do
   end do
@@ -230,34 +230,43 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
   if (getrings) then
     do i = 1,zmol%nfrag
       call zmol%fragment(i,zfrag)
-      zfrag%maxring = maxringident !maxringident is a global variable from zdata.f90
-      call countrings(zfrag,nrings)
-      if (verbose .and. nrings > 0) then
-        if (zmol%nfrag > 1) then
-          write (*,'(1x,a,i0)') 'Fragment ',i
-          write (*,'(1x,a,i0,/)') 'Total number of rings in the fragment: ',nrings
-        else
-          write (*,'(1x,a,i0,/)') 'Total number of rings in the system: ',nrings
-        end if
-      end if
-      if (nrings .ge. 1) then
-        allocate (zfrag%zri(nrings))
-        call newgetrings(zfrag,.false.)
-        do j = 1,zfrag%nri
-          newring = zfrag%zri(j)
-          do k = 1,newring%rs
-            newring%rlist(k) = zfrag%revmap(newring%rlist(k))
-          end do
-          call zmol%addring(newring)
-          call newring%deallocate()
+      !zfrag%maxring = maxringident !maxringident is a global variable from zdata.f90
+      !call countrings(zfrag,nrings)
+      !if (verbose.and.nrings > 0) then
+      !  if (zmol%nfrag > 1) then
+      !    write (*,'(1x,a,i0)') 'Fragment ',i
+      !    write (*,'(1x,a,i0,/)') 'Total number of rings in the fragment: ',nrings
+      !  else
+      !    write (*,'(1x,a,i0,/)') 'Total number of rings in the system: ',nrings
+      !  end if
+      !end if
+      !if (nrings .ge. 1) then
+      !  allocate (zfrag%zri(nrings))
+      call newgetrings(zfrag,.false.)
+      nrings = zfrag%nri
+      do j = 1,nrings
+        newring = zfrag%zri(j)
+        do k = 1,newring%rs
+          newring%rlist(k) = zfrag%revmap(newring%rlist(k))
         end do
+        call zmol%addring(newring)
+        call newring%deallocate()
+      end do
+      !end if
+      if (verbose.and.nrings > 0) then
+        if (zmol%nfrag > 1) then
+          write (stdout,'(1x,a,i0)') 'Fragment ',i
+          write (stdout,'(1x,a,i0,/)') 'Total number of rings in the fragment: ',nrings
+        else
+          write (stdout,'(1x,a,i0,/)') 'Total number of rings in the system: ',nrings
+        end if
       end if
       call zfrag%deallocate()
     end do
     if (verbose) then
-      call zmol%prrings(6)
+      call zmol%prrings(stdout)
       if (zmol%nri > 0) then
-        write (*,'(/,1x,a,i0,/)') 'Total number of rings in the system: ',zmol%nri
+        write (stdout,'(/,1x,a,i0,/)') 'Total number of rings in the system: ',zmol%nri
       end if
     end if
   end if
@@ -293,20 +302,20 @@ subroutine xcoord2(nat,iz,xyz,rcov,cn,cn_thr,bond)
     rcovi = rcov(iz(i))
     do iat = 1,nat
       if (iat .ne. i) then
-        dx = xyz(1,iat) - xyz(1,i)
-        dy = xyz(2,iat) - xyz(2,i)
-        dz = xyz(3,iat) - xyz(3,i)
-        r2 = dx * dx + dy * dy + dz * dz
+        dx = xyz(1,iat)-xyz(1,i)
+        dy = xyz(2,iat)-xyz(2,i)
+        dz = xyz(3,iat)-xyz(3,i)
+        r2 = dx*dx+dy*dy+dz*dz
         r = sqrt(r2)
         if (r2 .gt. cn_thr) cycle
         rcovj = rcov(iz(iat))
 ! covalent distance in Bohr
-        rco = (rcovi + rcovj) * 1.0  ! this scaling reduces the size of the clusters
-        rr = rco / r
+        rco = (rcovi+rcovj)*1.0  ! this scaling reduces the size of the clusters
+        rr = rco/r
 ! counting function exponential has a better long-range behavior than MHGs inverse damping
-        damp = 1.d0 / (1.d0 + exp(-k1 * (rr - 1.0d0)))
+        damp = 1.d0/(1.d0+exp(-k1*(rr-1.0d0)))
         bond(iat,i) = damp
-        xn = xn + damp
+        xn = xn+damp
       end if
     end do
     cn(i) = xn
@@ -343,14 +352,14 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
       ! case( 9,17,35,53 ) !F,Cl,Br,I
       !   cn2(i) = min(cn(i),1.0_wp)
     case (6) !C
-      if ((cn(i) - rcn) < 0.7_wp) then
+      if ((cn(i)-rcn) < 0.7_wp) then
         cn2(i) = rcn
       end if
     end select
     !-- extreme CN cases
     if (nint(cn(i)) > 8) cn2(i) = 8.0_wp
     !empirical: rounding down up to .6 is better for topo setup
-    if ((cn(i) - rcn) < 0.6_wp) then
+    if ((cn(i)-rcn) < 0.6_wp) then
       cn2(i) = rcn
     end if
   end do
@@ -369,15 +378,15 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
       if (i == j) cycle
       l = lin(i,j)
       !-- only save matching topology --> prevent high CN failures
-      if (neighbourmat(i,j) .and. neighbourmat(j,i)) then
+      if (neighbourmat(i,j).and.neighbourmat(j,i)) then
         topo(l) = 1
       else
         ! special case for carbon (because the carbon CN is typically correct)
         ! this helps, e.g. with eta-coordination in ferrocene
         ! (used, except if both are carbon)
-        if (.not. (at(i) == 6 .and. at(j) == 6)) then
-          if (at(i) == 6 .and. neighbourmat(i,j)) topo(l) = 1
-          if (at(j) == 6 .and. neighbourmat(j,i)) topo(l) = 1
+        if (.not. (at(i) == 6.and.at(j) == 6)) then
+          if (at(i) == 6.and.neighbourmat(i,j)) topo(l) = 1
+          if (at(j) == 6.and.neighbourmat(j,i)) topo(l) = 1
         end if
       end if
     end do
@@ -413,14 +422,14 @@ subroutine bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighbourmat,excl)
       ! case( 9,17,35,53 ) !F,Cl,Br,I
       !   cn2(i) = min(cn(i),1.0_wp)
     case (6) !C
-      if ((cn(i) - rcn) < 0.7_wp) then
+      if ((cn(i)-rcn) < 0.7_wp) then
         cn2(i) = rcn
       end if
     end select
     !-- extreme CN cases
     if (nint(cn(i)) > 8) cn2(i) = 8.0_wp
     !empirical: rounding down up to .6 is better for topo setup
-    if ((cn(i) - rcn) < 0.6_wp) then
+    if ((cn(i)-rcn) < 0.6_wp) then
       cn2(i) = rcn
     end if
   end do
@@ -432,7 +441,7 @@ subroutine bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighbourmat,excl)
       bond(j,i) = 0.0d0
       if (i .eq. j) cycle
       neighbourmat(i,j) = .true. !--important: not automatically (i,j)=(j,i)
-      if (excl(i) .or. excl(j)) neighbourmat(i,j) = .false.
+      if (excl(i).or.excl(j)) neighbourmat(i,j) = .false.
     end do
   end do
   do i = 1,nat
@@ -440,15 +449,15 @@ subroutine bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighbourmat,excl)
       if (i == j) cycle
       l = lin(i,j)
       !-- only save matching topology --> prevent high CN failures
-      if (neighbourmat(i,j) .and. neighbourmat(j,i)) then
+      if (neighbourmat(i,j).and.neighbourmat(j,i)) then
         topo(l) = 1
       else
         ! special case for carbon (because the carbon CN is typically correct)
         ! this helps, e.g. with eta-coordination in ferrocene
         ! (used, except if both are carbon)
-        if (.not. (at(i) == 6 .and. at(j) == 6)) then
-          if (at(i) == 6 .and. neighbourmat(i,j)) topo(l) = 1
-          if (at(j) == 6 .and. neighbourmat(j,i)) topo(l) = 1
+        if (.not. (at(i) == 6.and.at(j) == 6)) then
+          if (at(i) == 6.and.neighbourmat(i,j)) topo(l) = 1
+          if (at(j) == 6.and.neighbourmat(j,i)) topo(l) = 1
         end if
       end if
     end do
@@ -508,7 +517,7 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec)
     do j = 1,nat
       if (i == j) cycle
       l = lin(i,j)
-      if (topovec(l) == 1) inei = inei + 1
+      if (topovec(l) == 1) inei = inei+1
     end do
     allocate (zmol%zat(i)%ngh(inei))
     allocate (zmol%zat(i)%ngt(inei))
@@ -517,7 +526,7 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec)
       if (i == j) cycle
       l = lin(i,j)
       if (topovec(l) == 1) then
-        k = k + 1
+        k = k+1
         zmol%zat(i)%ngh(k) = j      ! the k-th neighbour of atom i is atom j
         zmol%zat(i)%ngt(k) = at(j)  ! atom j has this atom type
       end if
@@ -549,7 +558,7 @@ subroutine ztopozmat(zmol,pr)
   integer,allocatable :: na(:),nb(:),nc(:)
   integer :: i
   real(wp),parameter :: pi = 3.14159265358979D0
-  real(wp),parameter :: rad = 180.0d0 / pi
+  real(wp),parameter :: rad = 180.0d0/pi
 
   nat = zmol%nat
   allocate (geo(3,nat),xyz(3,nat),source=0.0d0)
@@ -609,7 +618,7 @@ subroutine crosscheckCNnei(zmol)
         !else, the atoms seem to be "artificial" neighbours and
         !has to be removed from the neighbourlist
         newngh(j) = 0
-        newnei = newnei - 1
+        newnei = newnei-1
       end if
     end do
     !--- if the neighbour list was changed we update it
@@ -619,7 +628,7 @@ subroutine crosscheckCNnei(zmol)
       l = 0
       do j = 1,nei
         if (newngh(j) .ne. 0) then
-          l = l + 1
+          l = l+1
           zmol%zat(i)%ngh(l) = newngh(j)
           zmol%zat(i)%ngt(l) = newngt(j)
         end if
@@ -658,7 +667,7 @@ subroutine wboneighbours(i,nat,at,xyz,wbo,wbothr,zat)
   icn = 0
   do k = 1,nat
     if (wbo(i,k) .ge. wbothr) then
-      icn = icn + 1
+      icn = icn+1
     end if
   end do
   zat%nei = icn
@@ -666,7 +675,7 @@ subroutine wboneighbours(i,nat,at,xyz,wbo,wbothr,zat)
   l = 0
   do j = 1,nat
     if (wbo(i,j) .ge. wbothr) then
-      l = l + 1
+      l = l+1
       zat%ngh(l) = j      ! the l-th neighbour of atom i is atom j
       zat%ngt(l) = at(j)  ! atom j has this atom type
     end if
@@ -691,7 +700,7 @@ subroutine wborepaireta(i,nat,at,xyz,cn,wbo,zat)
   integer,intent(in)  :: nat
   type(zatom)         :: zat
 
-  if (cn(i) .gt. 1 .and. zat%nei .lt. 1) then
+  if (cn(i) .gt. 1.and.zat%nei .lt. 1) then
     if (allocated(zat%ngt)) deallocate (zat%ngt)
     if (allocated(zat%ngh)) deallocate (zat%ngh)
     write (*,*) i,at(i),cn(i)
@@ -719,14 +728,14 @@ subroutine wbomrec(molcount,nat,wbo,wbothr,molvec)
   molcount = 1
   taken = .false.
   do i = 1,nat
-    if (.not. taken(i)) then
+    if (.not.taken(i)) then
       molvec(i) = molcount
       taken(i) = .true.
       call wbofrags(i,nat,wbo,wbothr,taken,molvec,molcount)
-      molcount = molcount + 1
+      molcount = molcount+1
     end if
   end do
-  molcount = molcount - 1
+  molcount = molcount-1
   return
 end subroutine wbomrec
 !- depth-first search through the WBO list to determine all connected atoms
@@ -741,7 +750,7 @@ recursive subroutine wbofrags(i,nat,wbo,wbothr,taken,molvec,molcnt)
   do j = 1,nat
     if (i .eq. j) cycle
     if (wbo(i,j) .ge. wbothr) then
-      if (.not. taken(j)) then
+      if (.not.taken(j)) then
         molvec(j) = molcnt
         taken(j) = .true.
         call wbofrags(j,nat,wbo,wbothr,taken,molvec,molcnt)
@@ -750,34 +759,6 @@ recursive subroutine wbofrags(i,nat,wbo,wbothr,taken,molvec,molcnt)
   end do
   return
 end subroutine wbofrags
-
-!=======================================================================!
-!  get the adjacency and edgelength matrices from the neighbour lists
-!=======================================================================!
-subroutine zadjacent(zmol,A,E)
-  use iso_fortran_env,wp => real64
-  use zdata
-  implicit none
-  type(zmolecule) :: zmol
-  integer :: A(zmol%nat,zmol%nat)
-  real(wp) :: E(zmol%nat,zmol%nat)
-  integer :: i,j
-  integer :: nat
-  nat = zmol%nat
-  A = 0
-  E = 0.0_wp
-  do i = 1,nat
-    do j = 1,nat
-      if (any(zmol%zat(i)%ngh(:) .eq. j)) then  !only include bonds from the neighbour lists
-        E(i,j) = zmol%distmat(i,j)
-        A(i,j) = 1
-      else
-        cycle
-      end if
-    end do
-  end do
-  return
-end subroutine zadjacent
 
 !=======================================================================!
 !  compare two arrays and check if their content is identical
@@ -796,7 +777,7 @@ subroutine arrcomp(n,narr,m,marr,equi)
   end if
   allocate (mask(n))
   mask(:) = narr(1:n) .eq. marr(1:n)
-  if (any(.not. mask(:))) then
+  if (any(.not.mask(:))) then
     equi = .false.
   else
     equi = .true.
@@ -823,7 +804,7 @@ function arruniqel(n,narr,m,marr,el)
   incr = 0
   do i = 1,n
     if (any(marr(:) .eq. narr(i))) then
-      incr = incr + 1
+      incr = incr+1
       el = narr(i)
     end if
   end do
@@ -851,7 +832,7 @@ logical function allneigh(zmol,i,n,narr)
   logical :: dum
   dum = .true.
   do j = 1,n
-    dum = dum .and. any(zmol%zat(i)%ngh(:) == narr(j))
+    dum = dum.and.any(zmol%zat(i)%ngh(:) == narr(j))
   end do
   allneigh = dum
   return
@@ -885,7 +866,7 @@ subroutine getsideweight(zmol,i,j,mside)
     if (path(k) .eq. 0) cycle
     l = path(k)
     atm = zmol%zat(l)%atype
-    mside = mside + ams(atm)
+    mside = mside+ams(atm)
   end do
 
   deallocate (path)
@@ -916,290 +897,129 @@ end subroutine countrings
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 !================================================================================================!
 ! new "getring" routine.
-! very annoying recursive stuff.
 ! requires a FULLY SET UP TOPOLOGY in the "zmol" datatype
-!
-! The search algorithm is some kind of a taylored form of
-! an A* search algorithm, fit specially for finding rings.
-!
-! The following routines belong together:
-! newgetrings, startring, recurring2, recside
+! Utilizes graph theory to detect rings via Dijkstra's algorithm.
 !
 !   DO. NOT. TOUCH.
 !
 !================================================================================================!
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 subroutine newgetrings(zmol,verbose)
-  use iso_fortran_env,only:wp => real64
+!> newest implementation of the getrings routine
+!> that employs clean rewrites of graph and shortest-path routines
+  use crest_parameters
   use zdata
+  use adjacency
   implicit none
-  type(zmolecule) :: zmol
-  type(zatom) :: za
+  !> INPUT/OUTPUT
+  type(zmolecule),intent(inout) :: zmol
+  logical,intent(in) :: verbose
+  !> LOCAL
   type(zring) :: zri
-  logical :: verbose
-  integer :: k
-  integer :: ric
-  integer :: atms
-  logical :: newring
-  logical,parameter :: safety = .true.
-  !If safety=.false. the code tries to get ALL rings.
-  !But the algo then also counts rings double.
-  !I.e. benzene would "have" 6 rings á 6 atoms.
-  !With the safety option it stops when all atoms are distributed
-  !in rings, which is much more robust
-  !E.g. Adamantan will have 3 unique rings instead of correctly 4
-  !For now this is the lesser evil.
-  !A "best of both worlds"-approach would simply require an
-  !on-the-fly evaluation if we already got the identified ring.
-  !I marked the position where this would need to be done below.
+  integer :: V,nrings,nmem
+  integer,allocatable :: A(:,:) !> adjacency matrix    
+  logical,allocatable :: rings(:,:)
+  logical,allocatable :: ringtracker(:,:)
+  integer,allocatable :: tmppath(:)
+  logical,allocatable :: tmpmem(:)
+  logical :: duplicate
+  integer :: i,j,k
 
-  zmol%nri = 0 !reset number of rings
-
-  atms = zmol%nat
-  if (zmol%nonterm .lt. 1) then
-    do k = 1,atms
-      if (zmol%zat(k)%nei .gt. 1) then
-        zmol%nonterm = zmol%nonterm + 1
-      end if
-    end do
+  !>-- some printout
+  if (verbose) then
+    write (stdout,'(1x,a,1x,i0,1x,a)') 'ring analysis on',zmol%nat,'atoms:'
   end if
 
-  if (zmol%maxneigh .lt. 1) then
-    do k = 1,atms
-      if (zmol%zat(k)%nei .gt. zmol%maxneigh) then
-        zmol%maxneigh = zmol%maxneigh + 1
-      end if
-    end do
-  end if
+  !>-- reset number of rings
+  nrings = 0
 
-  ric = 0
-  do k = 1,atms                 !loop over the molecule, i.e., all atoms
-    newring = .false.
-    za = zmol%zat(k)
-    if (za%ring .and. safety) cycle        !cycle atoms already in a ring
-    if (za%nei .eq. 1) cycle  !cycle terminal atoms
-    if (za%nei .ge. zmol%limitnei) cycle  !cycle highly coordinated atoms (e.g. Cp-->M)
-    call startring(zmol,k,newring,zri,verbose)
-    if (allocated(zmol%zri) .and. newring) then
-      ric = ric + 1
-      zmol%zri(ric) = zri
+  !>-- atoms as vertices
+  V = zmol%nat
+  allocate (A(V,V),source=0)
+  allocate (rings(V,V),ringtracker(V,V),source=.false.)
+
+  !>-- get the adjacency matrix
+  call zmol%adjacency(A)
+
+  !>-- check possible rings
+  call check_rings_min(V,A,rings)
+
+  allocate (tmppath(V),source=0)
+  allocate (tmpmem(V),source=.false.)
+  !>-- sweeps
+  do i = 1,V
+    do j = 1,i-1
+      nmem = 0
+      !>-- if a possible ring was detected, get it
+      if (rings(j,i)) then
+        call get_ring_min(V,A,i,j,tmppath,nmem)
+      end if
+      !>-- if we were successful and now the number or ring members
+      if (nmem > 0) then
+        tmpmem(:) = .false.
+        do k = 1,V
+          if (tmppath(k) > 0) tmpmem(tmppath(k)) = .true.
+        end do
+        !>-- add the first ring
+        if (nrings == 0) then
+          nrings = nrings+1
+          ringtracker(:,nrings) = tmpmem(:)
+          !>-- or check duplicates
+        else
+          duplicate = .false.
+          do k = 1,nrings
+            if (all(ringtracker(:,k) .eq. tmpmem(:))) then
+              duplicate = .true.
+              exit
+            end if
+          end do
+          if (.not.duplicate) then
+            nrings = nrings+1
+            ringtracker(:,nrings) = tmpmem(:)
+          end if
+        end if
+      end if
+    end do !> j loop
+  end do !> i loop
+  deallocate (tmpmem,tmppath)
+
+  if (verbose) then
+    if (nrings > 0) then
+      write (stdout,'(3x,i0,1x,a)') nrings,'unique rings detected'
+    else
+      write (stdout,'(3x,a)') 'system contains no rings'
     end if
-    if (newring) zmol%nri = zmol%nri + 1  !add 1 to the ring count
+  end if
+
+  !>--- put rings into zmol
+  if (allocated(zmol%zri)) deallocate (zmol%zri)
+  zmol%nri = 0
+  zmol%zat(:)%ring = .false.
+  do i = 1,nrings
+    call zri%deallocate !> clear space (if allocated)
+    nmem = count(ringtracker(:,i))
+    allocate (tmppath(nmem),source=0)
+    k = 0
+    do j = 1,V
+      if (ringtracker(j,i)) then
+        k = k+1
+        tmppath(k) = j
+        zmol%zat(i)%ring = .true.
+      end if
+    end do
+    zri%rs = nmem
+    call move_alloc(tmppath,zri%rlist)
+    call zmol%addring(zri)
+    if (allocated(tmppath)) deallocate (tmppath)
   end do
 
-  call zri%deallocate !clear space (if allocated)
+  if (verbose) then
+    call zmol%prrings(stdout)
+  end if
+
+  deallocate (ringtracker,rings,A)
   return
 end subroutine newgetrings
-
-subroutine startring(zmol,k,newring,zri,verbose)
-  use iso_fortran_env,only:wp => real64
-  use zdata
-  implicit none
-  type(zmolecule) :: zmol
-  type(zatom) :: za
-  type(zring) :: zri
-  logical,intent(out) :: newring
-  integer,intent(in) :: k          !the starting atom
-  logical,intent(in) :: verbose
-
-  integer :: i,j,l,q
-  integer :: w,v
-  integer :: nei
-
-  logical,allocatable :: taken(:)
-  integer :: ntak,tref
-  integer,allocatable :: dum(:)
-  integer,allocatable :: path(:),path2(:)
-  integer,allocatable :: hood(:)
-  integer :: npath
-
-  logical,allocatable :: ringpossible(:)
-
-  call zri%deallocate !clear space (if allocated)
-  newring = .false.     !assume that there is no ring
-  za = zmol%zat(k)      !get the atom
-  nei = za%nei          !get number of neighbouring atoms
-  ntak = 0            !taken counter initialize
-
-  allocate (taken(zmol%nat),source=.false.)
-  allocate (path(zmol%nonterm),source=0)
-  allocate (path2(zmol%nonterm),source=0)
-  taken(k) = .true.     !the start atom obviously has to be taken for the ring,
-  !but must not be included in the counter "ntak"
-  npath = 0
-
-  !first we have to check if a ring is possible in the first place
-  !therefore we have to get the entire neighborhood, i.e., all
-  !atoms chained to each of the neighbors of k, and check if two of
-  !those neighbors share it.
-  allocate (ringpossible(nei),source=.false.)
-  allocate (hood(zmol%nat),source=0)
-  HOODANALY: do i = 1,nei
-    if (ringpossible(i)) cycle ! we already included this neighboring chain, skip it.
-    hood = 0
-    j = za%ngh(i)
-    q = 0
-    call recside(zmol,k,j,hood,q)
-    do w = 1,nei
-      if (i .eq. w) cycle
-      v = za%ngh(w)
-      if (any(hood(:) == v)) then
-        ringpossible(i) = .true.
-        ringpossible(w) = .true.
-      end if
-    end do
-  end do HOODANALY
-  deallocate (hood)
-
-  !now starts the identification of the rings
-  do i = 1,nei
-    if (.not. ringpossible(i)) cycle
-    if (zmol%maxring .lt. 3) then
-      tref = zmol%nonterm
-    else
-      tref = zmol%maxring
-    end if
-    j = za%ngh(i)
-    call recurring2(zmol,k,j,taken,path,path2,ntak,tref)
-    if (ntak .gt. 0) then
-      exit  !a ring was found! exit the loop
-    end if
-  end do
-  deallocate (ringpossible)
-
-!---------------
-  !how to handle our newfound ring
-  if (ntak .gt. 0) then
-    allocate (dum(ntak))
-    i = 0
-    do j = 1,tref
-      if (path2(j) .gt. 0) then
-        i = i + 1
-        dum(i) = path2(j)
-        l = dum(i)
-        zmol%zat(l)%ring = .true.
-      end if
-    end do
-    call quicksort(ntak,dum)
-
-    !Here we would correctly need to check if we already have
-    !identified the ring, and therefore it is a dublicate.
-    !but for now we just continue.
-    newring = .true.
-
-    !--- if a (truely) new ring was found,show it and save it
-    if (newring) then
-      !--- save ring data to object (collected outside the routine)
-      zri%rs = ntak
-      allocate (zri%rlist(ntak),source=0)
-      zri%rlist = dum
-      !--- short printout
-      if (verbose) then
-        call zri%print(6)
-      end if
-    end if
-
-    deallocate (dum)
-  end if
-!---------------
-
-  deallocate (path2,path)
-  deallocate (taken)
-  return
-end subroutine startring
-
-recursive subroutine recurring2(zmol,k,j,taken,path,path2,ntak,tref)
-  use iso_fortran_env,only:wp => real64
-  use zdata
-  implicit none
-  type(zmolecule) :: zmol
-  integer,intent(in) :: k          !the starting atom
-  integer,intent(in) :: j          !the coordinated atom
-  integer,intent(inout) :: ntak
-  logical,intent(inout) :: taken(zmol%nat)
-  integer,intent(inout) :: path(zmol%nonterm)
-  integer,intent(inout) :: path2(zmol%nonterm)
-  integer,intent(inout) :: tref
-
-  integer :: npathold,npathmax
-  integer :: nref
-
-  integer :: i,l,n,m
-  integer :: p
-
-!      logical,allocatable :: takedum(:)
-  integer,allocatable :: ndum(:)
-  real(wp),allocatable :: dists(:)
-
-  logical :: ring
-
-  ring = .false.
-
-  if (j .eq. k .and. ntak .eq. 1) return !for the very first iteration we have to exclude the starting
-  !atom in this way. (i.e., there are no two-membered rings)
-
-  if (zmol%zat(j)%nei .eq. 1) return !for terminal atoms return
-
-  if (zmol%zat(j)%nei .ge. zmol%limitnei) return !for highly coordinated neighbours return (e.g. Cp-->M)
-
-  if (k .eq. j) then        !we arrived at the starting atom again! therefore a ring was found.
-    ntak = ntak + 1
-    path(ntak) = k
-    if (ntak .lt. tref) tref = ntak
-    return
-  end if
-
-  if (any(path(:) == j)) return !if we already passed the atom, return (i.e., no walking back)
-
-  if (ntak + 1 .ge. tref) return !don't go longer paths as the already known ones
-  if (ntak + 1 .ge. zmol%nonterm) return
-
-  !--- the atom passed the checks, so we consider it for now
-  ntak = ntak + 1
-  path(ntak) = j
-  npathold = ntak + 1
-  npathmax = zmol%nonterm
-
-  nref = ntak
-
-  n = zmol%nat
-  m = zmol%zat(j)%nei            !number of next neighbors
-  allocate (ndum(m),dists(m))
-  ndum = ntak
-
-  do i = 1,m                     !distances to the atom from which the ring was started
-    l = zmol%zat(j)%ngh(i)
-    dists(i) = zmol%distmat(k,l)
-  end do
-
-  !--- continue with the path along the neighbour list
-  do i = 1,m
-    path(nref + 1:npathmax) = 0
-    !l=zmol%zat(j)%ngh(i)
-    p = minloc(dists(:),1)     !|
-    dists(p) = 1000000.0_wp    !|try to walk the innermost (smallest) cycle by a distance criterium
-    l = zmol%zat(j)%ngh(p)     !|
-    call recurring2(zmol,k,l,taken,path,path2,ndum(i),tref)
-    if (ndum(i) .gt. nref) then
-      ntak = ndum(i)
-      path2 = path    !the shortest path is saved
-    end if
-  end do
-
-  if (any(ndum(:) .gt. nref)) then
-    ring = .true.
-    path = path2       !the saved shortest path is returned
-  end if
-
-  deallocate (dists,ndum)
-
-  if (.not. ring) then
-    ntak = ntak - 1
-    taken(j) = .false.
-  end if
-
-  return
-end subroutine recurring2
 
 !===============================================================!
 !  get all atoms of the side chain l of k and write them to path
@@ -1217,9 +1037,9 @@ recursive subroutine recside(zmol,k,l,path,j)
 
   if (k .eq. l) return
   if (any(path(:) == l)) return
-  if (j + 1 .gt. zmol%nat) return
+  if (j+1 .gt. zmol%nat) return
 
-  j = j + 1
+  j = j+1
   path(j) = l
 
   if (zmol%zat(l)%nei .gt. 1) then
@@ -1262,16 +1082,16 @@ logical function commonring(zmol,n,atms,r)
   !    if not, we can return immediatly.
   l1 = .true.
   do i = 1,n
-    l1 = l1 .and. zmol%zat(atms(i))%ring
+    l1 = l1.and.zmol%zat(atms(i))%ring
   end do
-  if (.not. l1) return
+  if (.not.l1) return
   !--- loop over all rings in the molecule and check if
   !    the atoms are part of it
   OUTER: do i = 1,zmol%nri
     l2 = .true.
     INNER: do j = 1,n
-      l2 = l2 .and. (any(zmol%zri(i)%rlist(:) .eq. atms(j)))
-      if (.not. l2) cycle OUTER
+      l2 = l2.and.(any(zmol%zri(i)%rlist(:) .eq. atms(j)))
+      if (.not.l2) cycle OUTER
     end do INNER
     if (l2) then
       commonring = .true.

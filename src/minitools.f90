@@ -796,3 +796,18 @@ subroutine resort_ensemble(fname)
 
     return
 end subroutine resort_ensemble
+
+!===============================================================================!
+
+!> convert an array of absolute energies (in Eh) to relative ones
+subroutine etoerel(n,er,erel,factor)
+   use crest_parameters
+   implicit none
+   integer,intent(in)  :: n
+   real(wp),intent(in) :: er(n)
+   real(wp),intent(in) :: factor
+   real(wp),intent(out) :: erel(n)
+   erel(:) = (er(:) - minval(er,1))*factor
+end subroutine etoerel
+
+

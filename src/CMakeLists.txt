@@ -36,8 +36,6 @@ list(APPEND srcs
   "${dir}/classes.f90"
   "${dir}/cleanup.f90"
   "${dir}/compress.f90"
-  "${dir}/confcross.f90"
-  "${dir}/confopt.f90"
   "${dir}/confparse.f90"
   "${dir}/constraining.f90"
   "${dir}/cregen.f90"

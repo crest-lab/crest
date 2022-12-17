@@ -22,7 +22,8 @@
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
 subroutine setrcov(rcov)
-      real*8 :: rcov(94)
+      use crest_parameters, only: wp
+      real(wp),intent(inout) :: rcov(*)
 
       rcov(  1 )= 0.80628308d0 
       rcov(  2 )= 1.15903197d0
@@ -124,7 +125,8 @@ subroutine setrcov(rcov)
 end subroutine setrcov
  
 subroutine setr2r4(r2r4)
-      real*8 :: r2r4(94)
+      use crest_parameters, only: wp
+      real(wp),intent(inout) :: r2r4(*)
 
       r2r4( 1 )= 2.00734898
       r2r4( 2 )= 1.56637132

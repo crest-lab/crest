@@ -117,7 +117,7 @@ subroutine confscript1(env,tim)
   type(timer)   :: tim
   write(stdout,*)
   write(stdout,*) 'This runtype has been deprecated.'
-  write(stdout,*) 'You might use an older version of the program if you want to use it.'
+  write(stdout,*) 'You may try an older version of the program if you want to use it.'
   stop
 end subroutine confscript1
 

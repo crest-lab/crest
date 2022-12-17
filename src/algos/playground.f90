@@ -36,6 +36,8 @@ subroutine crest_playground(env,tim)
   use optimize_module
   use tblite_api
   use wiberg_mayer, only: write_wbo 
+  use adjacency
+  use zdata
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -49,6 +51,12 @@ subroutine crest_playground(env,tim)
   type(tblite_ctx)        :: ctx
   real(wp) :: accuracy,etemp
    
+  integer :: V
+  integer,allocatable :: A(:,:)
+  logical,allocatable :: rings(:,:)
+  integer,allocatable :: tmp(:)
+  logical :: connected
+  type(zmolecule) :: zmol
 
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
@@ -105,6 +113,15 @@ subroutine crest_playground(env,tim)
 
 
   deallocate(grad)
+
+!========================================================================================!
+
+  !k = 2000
+  !call crest_crossing(env,k,'crest_rotamers_0.xyz',env%gcmaxparent)
+  
+  env%mdtime = 100
+  call cross3(env) 
+
 !========================================================================================!
   call tim%stop(14)
   return

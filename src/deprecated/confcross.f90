@@ -378,3 +378,83 @@ subroutine confcross(env,maxgen,kk)
 
 end subroutine confcross
 
+
+subroutine cross2(env)
+  use crest_parameters
+  use crest_data
+  use iomod
+  implicit none
+  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  real(wp) :: ewinbackup
+  integer  :: i,imax,tmpconf,nremain
+  character(len=128) :: inpnam,outnam
+  character(len=512) :: thispath,tmppath
+
+  real(wp),allocatable :: backupthr(:)
+
+  allocate (backupthr(8))
+  backupthr = env%thresholds
+  ewinbackup = env%ewin
+
+  call getcwd(thispath)
+  tmppath = 'OPTIM'
+
+  write (*,*)
+  write (*,'(5x,''========================================'')')
+  write (*,'(5x,''|        Structure Crossing (GC)       |'')')
+  write (*,'(5x,''========================================'')')
+
+  imax = min(nint(env%mdtime*50.0d0),5000) ! long setting
+  if (env%setgcmax) then
+    imax = nint(env%gcmax)
+  end if
+
+  if (env%quick) then
+    imax = nint(float(imax)*0.5d0)
+  end if
+
+  do i = 1,1
+    call confcross(env,imax,tmpconf)
+    if (tmpconf .lt. 1) then
+      return
+      exit
+    end if
+    if (env%gcmultiopt) then !---printout
+      call smallhead('GC: loose pre-optimization')
+    end if
+
+    call chdir('OPTIM')
+    call confopt(env,'confcross.xyz',tmpconf,.true.)
+
+    if (env%gcmultiopt) then
+      !--- stay in dir OPTIM
+      call rmrfw('TMPCONF')
+      call checkname_xyz(crefile,inpnam,outnam)
+      call rename('opt.xyz',trim(inpnam))
+      env%ewin = aint(ewinbackup*(10.0d0/6.0d0))
+      call confg_chk3(env)
+      call checkname_xyz(crefile,inpnam,outnam)
+      call remaining_in(inpnam,env%ewin,nremain)
+      env%thresholds = backupthr
+      env%ewin = ewinbackup
+      call smallhead('GC: optimization with tight thresholds')
+      if (env%iterativeV2) then
+        call MDopt_para(env,inpnam,4) !<--- creates another dir OPTIM within the current dir OPTIM (fixed optlev tight)
+      else
+        call MDopt_para(env,inpnam,0) !<--- creates another dir OPTIM within the current dir OPTIM
+      end if
+      call rename('OPTIM'//'/'//'opt.xyz','opt.xyz') !move the optimized GC ensemble into current direcotry
+    end if
+
+    !--- exit dir OPTIM and get file
+    call chdir(trim(thispath))
+    call checkname_xyz(crefile,inpnam,outnam)
+    call appendto('OPTIM'//'/'//'opt.xyz',trim(inpnam))
+    call rmrfw('TMPCONF')
+    call rmrf('OPTIM')
+    call rmrf('zmat*.zmat')
+  end do
+  deallocate (backupthr)
+end subroutine cross2
+
+
