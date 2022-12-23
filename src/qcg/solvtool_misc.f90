@@ -281,7 +281,7 @@ subroutine ensemble_lmo(env,fname,self,NTMP,TMPdir,conv)
 
   !create the system call (it is the same for every optimization)
 
-  write(jobcall,'(a,1x,a,1x,a,'' --sp --lmo --chrg '',i3,1x,a,'' >xtb_lmo.out'')') &
+  write(jobcall,'(a,1x,a,1x,a,'' --sp --lmo --chrg '',f4.1,1x,a,'' >xtb_lmo.out'')') &
   &     trim(env%ProgName),trim(fname),trim(env%lmover),self%chrg,trim(pipe)
   k=0 !counting the finished jobs
 

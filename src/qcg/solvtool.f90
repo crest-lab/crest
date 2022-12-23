@@ -1480,6 +1480,8 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
 
    if (solu%vtot/solv%vtot .lt. 1.0d0) then
       skip = .true.
+   else
+      skip = .false.
    end if
 
 !--- Folder management
