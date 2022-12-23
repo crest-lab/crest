@@ -246,14 +246,10 @@ program CREST
 !>         MAIN WORKFLOW CALLS START HERE
 !=========================================================================================!
       select case( env%crestver )
-        case( crest_mfmdgc )
-           call confscript1(env,tim)  !> MF-MD-GC algo
+        case( crest_mfmdgc )           !> MF-MD-GC algo (deprecated)
+           call confscript1(env,tim) 
         case( crest_imtd,crest_imtd2 ) !> MTD-GC algo
-           !if(env%legacy)then
-             call confscript2i(env,tim) 
-           !else
-           !  call crest_search_imtdgc(env,tim)
-           !endif 
+           call confscript2i(env,tim) 
         case( crest_mdopt )
            call mdopt(env,tim)        !> MDOPT
         case( crest_screen )

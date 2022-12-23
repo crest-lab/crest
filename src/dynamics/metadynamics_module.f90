@@ -115,9 +115,10 @@ contains
 
     select case (pot%mtdtype)
     case (std_mtd) !>--- "standard" MTD
-            pot%nmax = idum1
+       pot%nmax = idum1
       allocate(pot%cv(idum1),source=0.0_wp)
       allocate(pot%cvgrd(3,mol%nat),source=0.0_wp)
+
     case (rmsd_mtd) !>--- RMSD MTD
       if (pot%cvdump_fs <= 0.0_wp) return !> structure dumpstep in fs must be given
       dum2 = max(1.0_wp, (pot%cvdump_fs / tstep))
@@ -127,6 +128,7 @@ contains
       dum1 = floor(dum1)
       pot%nmax = nint(dum1) !> max number of bias structure dump
       if (pot%maxsave == 0) pot%maxsave = nint(dum1)
+      if(allocated(pot%cvxyz)) deallocate(pot%cvxyz)
       allocate (pot%cvxyz(3,mol%nat,pot%maxsave),source=0.0_wp)
       !>--- automatic ramp parameter
       !> (should yield damp≈0.5 for cvdumpstep/2, but is at least 0.03 as in xtb)
@@ -137,8 +139,10 @@ contains
         write (*,'(" dump/fs :",f9.3,i9 )') pot%cvdump_fs,pot%cvdumpstep
         write (*,'(" # CVs   :",i9 )') pot%maxsave
       end if
+
     case default
       return
+
     end select
 
     return

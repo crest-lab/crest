@@ -223,9 +223,11 @@ contains
     call ekinet(mol%nat,velo,mass,ekin)
 
     !>--- initialize MTDs (if required)
+    !$omp critical
     if (dat%simtype == type_mtd) then
       call md_init_mtd(mol,dat,pr)
     end if
+    !$omp end critical
 
     !>--- initialize trajectory file
     if(allocated(dat%trajectoryfile))then

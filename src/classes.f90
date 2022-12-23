@@ -32,8 +32,7 @@ module crest_data
    public :: timer
    public :: protobj
    public :: constra
-   public :: optlevflag
-   public :: optlevnum
+   public :: optlevflag,optlevnum,optlevmap_alt
 
    !> basename for the CRE files
    character(len=14),parameter,public :: crefile = 'crest_rotamers'              
@@ -843,6 +842,19 @@ function optlevnum(flag) result(optlev)
     return
 end function optlevnum
 
+function optlevmap_alt(optin) result(optout)
+!> a mapping from env%optlev to integer
+!> that is used in the multilevel_oloop selection
+   implicit none
+   integer :: optout
+   real(wp),intent(in) :: optin
+   integer :: k
+   integer,parameter :: omap(7) = [ 1, 2, 3, 4, 5, 6, 6]
+   k = nint(optin) + 4
+   optout = omap(k)
+end function optlevmap_alt
+
+!========================================================================================!
 
 subroutine thermo_get_temps(self)
    implicit none

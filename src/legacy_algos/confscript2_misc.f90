@@ -1123,7 +1123,6 @@ subroutine elowcheck(lower,env)
   implicit none
   type(systemdata) :: env
   real(wp) :: ediff,ethr,ewin
-  !real(wp),parameter :: autokcal = 627.509541d0
   logical :: lower
 
 !--- some defaults
@@ -1152,16 +1151,11 @@ subroutine elowcheck(lower,env)
       call rmrfw('crest_entropy_rotamer_')
       return
     end if
-    !if(env%crestver==22)then ! "--v4"
-    !  write(*,'(1x,a)') 'Energy window (ewin) will be increased to include the old ensemble'
-    !  env%ewin = env%ewin + ediff
-    !  return
-    !endif
     !---- clean the dir
     call clean_V2i
     !---- save the new best conformer
     call XYZappendto('crest_best.xyz','.history.xyz')
-    call xyz2coord('crest_best.xyz','coord')                     !new reference coord to start the MTDs with
+    call xyz2coord('crest_best.xyz','coord') !new reference coord to start the MTDs with
   else
     lower = .false.
   end if
