@@ -65,7 +65,7 @@ jobs:
     - name: Install package
       run: |
         meson install -C ${{ env.BUILD_DIR }} --no-rebuild
-        tar cJvf crest-latest.tar.xz ${{ env.PWD }}/_dist/bin/crest
+        tar cJvf crest-latest.tar.xz --directory=${{ env.BUILD_DIR }} crest
       env:
         DESTDIR: ${{ env.PWD }}/_dist
 
@@ -150,7 +150,9 @@ jobs:
       env:
         DESCRIPTION: |
           Created on ${{ env.TIME }} UTC by @${{ github.actor }} with commit ${{ github.sha }}.
-          This is an automated distribution of the latest CREST version. This version is only minimally tested and may be unstable or even crash. Use with caution!
+          This is an automated distribution of the latest CREST version. 
+          This version is only minimally tested and may be unstable or even crash. 
+          Use with caution!
           https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     - name: Download Artifacts
