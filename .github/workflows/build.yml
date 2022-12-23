@@ -65,8 +65,16 @@ jobs:
     - name: Install package
       run: |
         meson install -C ${{ env.BUILD_DIR }} --no-rebuild
+        tar cJvf crest-latest.tar.xz ${{ env.PWD }}/_dist/bin/crest
       env:
         DESTDIR: ${{ env.PWD }}/_dist
+
+    - name: Upload binary
+      if: github.event_name == 'push'
+      uses: actions/upload-artifact@v2
+      with:
+        name: crest-latest.tar.xz
+        path: crest-latest.tar.xz
 
     - name: Add crest to path
       run: |
@@ -99,15 +107,15 @@ jobs:
 
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      RELEASE_TAG: cont
-      OUTPUT_INTEL: crest-continous.tar.xz
+      RELEASE_TAG: latest
+      OUTPUT_INTEL: crest-latest.tar.xz
 
     steps:
     - uses: actions/checkout@v2
 
     - name: Install github-release
       run: |
-        go install github.com/github-release/github-release
+        go install github.com/github-release/github-release@latest
         echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
         echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
 
@@ -155,7 +163,7 @@ jobs:
         cd ${{ env.OUTPUT_INTEL }}
         sha256sum ${{ env.OUTPUT_INTEL }} > sha256.txt
 
-    - name: Add ${{ env.OUTPUT_INTEL }} to release tag
+    - name: Add crest-latest to release tag
       run: >-
         github-release upload
         --tag ${{ env.RELEASE_TAG }}
