@@ -189,6 +189,10 @@ contains
         env%preopt = .false.
         env%crestver = crest_numhessian
         env%runver   = crest_numhessian
+      case ( 'rigidconf' )
+        env%preopt = .false.
+        env%crestver = crest_rigcon
+        env%runver   = crest_rigcon
       case default
         env%crestver = crest_imtd
       end select

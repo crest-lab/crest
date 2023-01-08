@@ -55,11 +55,12 @@ subroutine crest_playground(env,tim)
   integer,allocatable :: A(:,:)
   logical,allocatable :: rings(:,:)
   integer,allocatable :: tmp(:)
-  logical :: connected
+  logical :: connected,fail
   type(zmolecule) :: zmol
 
   real(wp) :: energy
-  real(wp),allocatable :: grad(:,:)
+  real(wp),allocatable :: grad(:,:),geo(:,:)
+  integer,allocatable :: na(:),nb(:),nc(:)
 !========================================================================================!
   call tim%start(14,'test implementation') 
 !========================================================================================!
@@ -116,11 +117,25 @@ subroutine crest_playground(env,tim)
 
 !========================================================================================!
 
-  !k = 2000
-  !call crest_crossing(env,k,'crest_rotamers_0.xyz',env%gcmaxparent)
-  
-  env%mdtime = 100
-  call cross3(env) 
+  V = mol%nat
+  allocate(A(V,V),na(V),nb(V),nc(V), source = 0)
+  call wbo2adjacency(V,calc%calcs(1)%wbo,A,0.02_wp)
+  allocate(geo(3,V), source = 0.0_wp)
+  call BETTER_XYZINT(mol%nat,mol%xyz,A,NA,NB,NC,geo)
+  !do i=1,mol%nat 
+  !   write(stdout,*) i,'=>',na(i),nb(i),nc(i)
+  !enddo
+
+  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,radtodeg,GEO)
+  call print_zmat(6,mol%nat,geo,NA,NB,NC) 
+
+  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc,fail)
+
+  call mol%write('test.xyz')
+
+  call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,1.0_wp,GEO)
+  call print_zmat(6,mol%nat,geo,NA,NB,NC)
+
 
 !========================================================================================!
   call tim%stop(14)

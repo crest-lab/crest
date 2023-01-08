@@ -22,11 +22,14 @@
 !> Implementation of a singlepoint calculation
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
-!> Input/Output:
-!>  env  -  crest's systemdata object
-!>  tim  -  timer object
-!>-----------------------------------------------
 subroutine crest_singlepoint(env,tim)
+!********************************************************************
+!* Standalone runtype for a singlepoint calculation 
+!* 
+!* Input/Output:
+!*  env  -  crest's systemdata object
+!*  tim  -  timer object
+!********************************************************************
   use crest_parameters
   use crest_data
   use strucrd 
@@ -109,9 +112,17 @@ end subroutine crest_singlepoint
 
 !========================================================================================!
 !========================================================================================!
-!> replacement for the legacy xtbsp routine, makes use of gfn0 or tblite
-!> the purpose of this routine is usually to generate WBOs
+
 subroutine crest_xtbsp(env,xtblevel,molin)
+!********************************************************************
+!* Replacement for the legacy xtbsp routine, makes use of gfn0 or tblite.
+!* The purpose of this routine is usually to generate WBOs
+!* 
+!* Input/Output:
+!*  env      - crest's systemdata object
+!*  xtblevel - quick selection of calc. level
+!*  molin    - molecule data
+!********************************************************************
    use crest_data
    use strucrd
    use calc_type

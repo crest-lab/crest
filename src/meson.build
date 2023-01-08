@@ -22,6 +22,7 @@ subdir('algos')
 subdir('parsing')
 subdir('qmhelpers')
 subdir('graphs') 
+subdir('rigidconf')
 subdir('legacy_algos')
 
 
@@ -48,7 +49,8 @@ srcs += files(
   'freqmasses.f90',
   'geo.f90',
   'identifiers.f90',
-  'intmodes.f',
+  'internals.f90', 
+  'internals2.f90',
   'io.f',
   'iomod.F90',
   'legacy_wrappers.f90',

@@ -23,6 +23,7 @@ add_subdirectory("dynamics")
 add_subdirectory("qcg")
 add_subdirectory("qmhelpers")
 add_subdirectory("graphs")
+add_subdirectory("rigidconf")
 add_subdirectory("legacy_algos")
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -50,7 +51,7 @@ list(APPEND srcs
   "${dir}/freqmasses.f90"
   "${dir}/geo.f90"
   "${dir}/identifiers.f90"
-  "${dir}/intmodes.f"
+  "${dir}/internals.f90"
   "${dir}/io.f"
   "${dir}/iomod.F90"
   "${dir}/legacy_wrappers.f90"

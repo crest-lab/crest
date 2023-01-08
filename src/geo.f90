@@ -35,6 +35,15 @@ contains  !> MODULE PROCEDURES START HERE
         l = sqrt(dot_product(v,v))
     end function
 !================================================================================!
+!> euclidean distance between two points
+    pure function distance(p,q) result(l)
+        implicit none
+        real(wp), intent(in) :: p(3),q(3)
+        real(wp) :: l,pq(3)
+        pq(:) = p(:) - q(:)
+        l = vec_len(pq)
+    end function distance
+!================================================================================!
 !> normalize the vector k
   subroutine unitv(k)
     implicit none

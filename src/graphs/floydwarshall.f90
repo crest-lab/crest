@@ -8,6 +8,11 @@ module floydwarshall_mod
   implicit none
 
   public :: FloydWarshall,getPathFW
+  interface FloydWarshall
+    module procedure :: FloydWarshall_classic
+    module procedure :: FloydWarshall_simple
+  end interface FloydWarshall
+
 
 !========================================================================================!
 !========================================================================================!
@@ -24,10 +29,10 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 
 !>-- implementation of the algorithm including setup of "dist" and "prev"
-  subroutine FloydWarshall(V,A,E,dist,prev)
+  subroutine FloydWarshall_classic(V,A,E,dist,prev)
     implicit none
     !> INPUT
-    integer,intent(in)  :: V            !> number of vertices (atoms)
+    integer,intent(in)  :: V         !> number of vertices (atoms)
     integer,intent(in)  :: A(V,V)    !> adjacency matrix
     real(wp),intent(in) :: E(V,V)    !> edge length/distance matrix
     !> OUTPUT
@@ -71,7 +76,57 @@ contains  !> MODULE PROCEDURES START HERE
     end do
 
     return
-  end subroutine FloydWarshall
+  end subroutine FloydWarshall_classic
+
+!>-- implementation of the algorithm without edge length matrix
+  subroutine FloydWarshall_simple(V,A,dist,prev)
+    implicit none
+    !> INPUT
+    integer,intent(in)  :: V         !> number of vertices (atoms)
+    integer,intent(in)  :: A(V,V)    !> adjacency matrix
+    !> OUTPUT
+    real(wp),intent(inout) :: dist(V,V)
+    integer,intent(inout) :: prev(V,V)
+    !> LOCAL
+    real(wp) :: inf
+    real(wp) :: kdist
+    integer :: i,j,k
+
+    inf = 2 * float(sum(A))
+    !>-- set distances and previously visited nodes
+    dist = inf
+    prev = -1
+    do i = 1,V
+      do j = 1,V
+        if (A(i,j) == 1) then
+          dist(i,j) = float(A(i,j))
+          prev(i,j) = j
+        end if
+      end do
+    end do
+
+!>-- The algorithm is based on the following assumption:
+!>   If a shortest path from vertex u to vertex v runns through a thrid
+!>   vertex w, then the paths u-to-w and w-to-v are already minimal.
+!>   Hence, the shorest paths are constructed by searching all path
+!>   that run over an additional intermediate point k
+!>   The following loop is the actual algorithm
+    do k = 1,V
+      do i = 1,V
+        do j = 1,V
+          kdist = dist(i,k) + dist(k,j)
+          !>-- if the path ij runs over k, update
+          if (dist(i,j) > kdist) then
+            dist(i,j) = kdist
+            prev(i,j) = prev(i,k)
+          end if
+        end do
+      end do
+    end do
+
+    return
+  end subroutine FloydWarshall_simple
+
 
 !========================================================================================!
 
@@ -87,6 +142,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i,k
     if (prev(start,end) == -1) then
       path(1) = -1
+      lpath = 0
       return
     end if
     k = 1

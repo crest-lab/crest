@@ -69,7 +69,7 @@ module crest_data
    integer,parameter,public :: crest_msreac   = 9
    integer,parameter,public :: crest_pka      = 14
    integer,parameter,public :: crest_solv     = 15
-   !>> runtypes with IDs between 200 and 300 use the inernal engines <<!
+   !>> runtypes with IDs between use non-legacy routines  <<!
    integer,parameter,public :: crest_sp         = 264
    integer,parameter,public :: crest_optimize   = 265
    integer,parameter,public :: crest_moldyn     = 266
@@ -77,6 +77,7 @@ module crest_data
    integer,parameter,public :: crest_mecp       = 268
    integer,parameter,public :: crest_numhessian = 269
    integer,parameter,public :: crest_scanning   = 270
+   integer,parameter,public :: crest_rigcon     = 271
    !>> <<! 
    integer,parameter,public :: crest_test       = 456
 !---- tools
@@ -439,6 +440,9 @@ module crest_data
    !>--- Calculation settings for newer implementations 
       type(calcdata) :: calc
       type(mddata)   :: mddat
+   !>--- rigidconf data   
+      integer :: rigidconf_algo = 0
+      integer :: rigidconf_toposource = 0
    !================================================! 
 
    !--- general logical data

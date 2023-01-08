@@ -60,9 +60,9 @@ contains  !>--- Module routines start here
     real(wp),intent(out) :: em
     real(wp),intent(out) :: grdm(3,nat)
 
-    em = 0.5_wp * (e1 + e2)
+    em = 0.5_wp*(e1+e2)
 
-    grdm = 0.5_wp * (grd1 + grd2)
+    grdm = 0.5_wp*(grd1+grd2)
 
     return
   end subroutine engrad_mean_2
@@ -84,10 +84,10 @@ contains  !>--- Module routines start here
     l = nlev
     dum = 1.0_wp/float(l)
 
-    do i=1,l
-      em = em +  dum * e(i)
-      grdm = grdm + dum * grd(:,:,i)
-    enddo
+    do i = 1,l
+      em = em+dum*e(i)
+      grdm = grdm+dum*grd(:,:,i)
+    end do
     return
   end subroutine engrad_mean_multi
 !===============!
@@ -106,11 +106,11 @@ contains  !>--- Module routines start here
     em = 0.0_wp
     grdm = 0.0_wp
     l = nlev
-    do i=1,l
+    do i = 1,l
       dum = weights(i)
-      em = em +  dum * e(i)
-      grdm = grdm + dum * grd(:,:,i)
-    enddo
+      em = em+dum*e(i)
+      grdm = grdm+dum*grd(:,:,i)
+    end do
     return
   end subroutine engrad_mean_weight
 
@@ -134,19 +134,21 @@ contains  !>--- Module routines start here
 
     sigm = constr%fc(1)
     alph = constr%fc(2)
-    c    = constr%fc(3)
+    c = constr%fc(3)
 
     select case (constr%type)
     case (na_gapdiff)
       call gapdiff_constraint(n,sigm,alph,energies(1),energies(2), &
       &    grds(:,:,1),grds(:,:,2),efix,gfix)
     case (na_gapdiff2)
-      call gapdiff_constraint2(n,sigm,alph,c,energies(1),energies(2), &
-      &    grds(:,:,1),grds(:,:,2),efix,gfix)
+      !call gapdiff_constraint2(n,sigm,alph,c,energies(1),energies(2), &
+      !&    grds(:,:,1),grds(:,:,2),efix,gfix)
+      call gapdiff_constraint2_pairwise(n,sigm,alph,c,d,energies, &
+      &    grds,efix,gfix)
     case default
       return
     end select
- 
+
     !write(*,*) energies(2)-energies(1), efix, gfix(1,1)
 
     return
@@ -156,7 +158,7 @@ contains  !>--- Module routines start here
 !> subroutine gapdiff_constraint
 !> construct an constraint that minimizes minimizes the
 !> gap between two given energy surfaces
-!> See 
+!> See
 !>     B. Levine, J. Coe, T. Martinez
 !>     J.Phys.Chem.B, 2008, 112, 405-413
 !>-------------------------------------------------------------------
@@ -173,24 +175,23 @@ contains  !>--- Module routines start here
     efix = 0.0_wp
     gfix = 0.0_wp
 
-    gap = e2 - e1
-    
-    efix = sigm * ( gap**2 / (gap + alph))
-    efixgrd = sigm * ( (gap**2 + 2.0_wp*alph*gap)  / (gap + alph)**2)    
+    gap = e2-e1
 
-    do i=1,nat
-      gfix(:,i) = efixgrd * ( grd2(:,i) - grd1(:,i))
-    enddo
+    efix = sigm*(gap**2/(gap+alph))
+    efixgrd = sigm*((gap**2+2.0_wp*alph*gap)/(gap+alph)**2)
+
+    do i = 1,nat
+      gfix(:,i) = efixgrd*(grd2(:,i)-grd1(:,i))
+    end do
 
     return
   end subroutine gapdiff_constraint
-
 
 !========================================================================================!
 !> subroutine gapdiff_constraint2
 !> construct an constraint that minimizes minimizes the
 !> gap between two given energy surfaces
-!> new version with Gaussian potential as prefactor 
+!> new version with Gaussian potential as prefactor
 !>-------------------------------------------------------------------
   subroutine gapdiff_constraint2(nat,sigm,alph,c,e1,e2,grd1,grd2,efix,gfix)
     implicit none
@@ -208,29 +209,81 @@ contains  !>--- Module routines start here
     efix = 0.0_wp
     gfix = 0.0_wp
 
-    gap = e2 - e1
+    gap = e2-e1
 
     !> Gaussian function (note: abs(gap) = sqrt(gap)²)
     b = autoev
-    gss = sigm * (exp(-b*abs(gap)) + c)
+    gss = sigm*(exp(-b*abs(gap))+c)
     gssgrd = -b*sigm*exp(-b*abs(gap))
 
     !> Gap-based potential
-    vfix = ( gap**2 / (abs(gap) + alph))
-    vgrd = ( (gap**2 + 2.0_wp*alph*abs(gap))  / (abs(gap) + alph)**2)
+    vfix = (gap**2/(abs(gap)+alph))
+    vgrd = ((gap**2+2.0_wp*alph*abs(gap))/(abs(gap)+alph)**2)
 
     !> factor to assign the correct prefactor to gradient
     absfct = gap/abs(gap)
 
     !> construct bias energy and gradient
-    efix = gss * vfix
-    efixgrd = gss*vgrd + gssgrd*vfix
+    efix = gss*vfix
+    efixgrd = gss*vgrd+gssgrd*vfix
 
-    do i=1,nat
-      gfix(:,i) = efixgrd * absfct * ( grd2(:,i) - grd1(:,i))
-    enddo
+    do i = 1,nat
+      gfix(:,i) = efixgrd*absfct*(grd2(:,i)-grd1(:,i))
+    end do
 
     return
   end subroutine gapdiff_constraint2
+
+!========================================================================================!
+!> subroutine gapdiff_constraint2
+!> construct an constraint that minimizes minimizes the
+!> gap between two given energy surfaces
+!> new version with Gaussian potential as prefactor
+!> Pairwise version
+!>-------------------------------------------------------------------
+  subroutine gapdiff_constraint2_pairwise(nat,sigm,alph,c,d,energies,grads,efix,gfix)
+    implicit none
+    integer,intent(in) :: nat,d
+    real(wp),intent(in) :: alph,sigm,c
+    real(wp),intent(in) :: energies(d)
+    real(wp),intent(in) :: grads(3,nat,d)
+    real(wp),intent(out) :: efix
+    real(wp),intent(out) :: gfix(3,nat)
+    integer :: i,j,ei,ej
+    real(wp) :: b
+    real(wp) :: gap,efixgrd,gss,gssgrd,absfct
+    real(wp) :: vfix,vgrd
+    real(wp),parameter :: autoev = 27.2114_wp
+
+    efix = 0.0_wp
+    gfix = 0.0_wp
+    b = autoev
+
+    do ei = 1,d
+      do ej = 1,ei-1
+        gap = energies(ei) - energies(ej)
+        !> Gaussian function (note: abs(gap) = sqrt(gap)²)
+        gss = sigm*(exp(-b*abs(gap))+c)
+        gssgrd = -b*sigm*exp(-b*abs(gap))
+
+        !> Gap-based potential
+        vfix = (gap**2/(abs(gap)+alph))
+        vgrd = ((gap**2+2.0_wp*alph*abs(gap))/(abs(gap)+alph)**2)
+
+        !> factor to assign the correct prefactor to gradient
+        absfct = gap/abs(gap)
+
+        !> construct bias energy and gradient
+        efix = efix + gss*vfix
+        efixgrd = gss*vgrd+gssgrd*vfix
+        do i = 1,nat
+          gfix(:,i) = gfix(:,i) + efixgrd*absfct*(grads(:,i,ei)-grads(:,i,ej))
+        end do
+
+      end do
+    end do
+
+    return
+  end subroutine gapdiff_constraint2_pairwise
 
 end module nonadiabatic_module
