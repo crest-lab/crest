@@ -129,7 +129,7 @@ subroutine crest_playground(env,tim)
   !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,radtodeg,GEO)
   call print_zmat(6,mol%nat,geo,NA,NB,NC) 
 
-  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc,fail)
+  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc)
 
   call mol%write('test.xyz')
 

@@ -61,9 +61,13 @@ subroutine crest_rigidconf(env,tim)
 !>--- pass the structure to the desired algorithm
   select case( env%rigidconf_algo ) 
   !case ( 1 ) !> "genetic crossing"-type algo
+
   !  
-  case default !> straight-foward generation ("tree"-type algo)
+
+  case default !> straight-forward generation ("tree"-type algo)
+
     call rigidconf_tree(env,start_mol)
+
   end select
 
 !========================================================================================!

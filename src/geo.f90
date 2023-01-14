@@ -22,6 +22,9 @@ module geo
   implicit none
   public
 
+  real(wp),parameter,private :: pi = acos(0.0_wp)*2.0_wp
+  real(wp),parameter,private :: pi2 = pi*2.0_wp
+ 
 !================================================================================!
 !================================================================================!
 contains  !> MODULE PROCEDURES START HERE
@@ -143,6 +146,17 @@ contains  !> MODULE PROCEDURES START HERE
     dihed = atan2(tmp1,tmp2) 
     return
   end function dihedral
+
+!================================================================================!
+!> shift an angle x into the interval −π (-180°) <= x < π (180°)
+  function angleshift(x) result(xnew)
+     implicit none  
+      real(wp) :: x
+      real(wp) :: xnew
+      real(wp) :: f
+      f = floor(0.5_wp + ( x / pi2 ))
+      xnew = 2.0_wp*((x/pi2) - f)*pi
+  end function angleshift
 
 
 !================================================================================!

@@ -18,4 +18,5 @@ srcs += files(
   'rigidconf.f90',
   'tree.f90',
   'analyze.f90',
+  'reconstruct.f90',
 )

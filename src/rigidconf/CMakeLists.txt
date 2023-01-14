@@ -20,6 +20,7 @@ list(APPEND srcs
   "${dir}/rigidconf.f90"
   "${dir}/tree.f90"
   "${dir}/analyze.f90"
+  "${dir}/reconstruct.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)
