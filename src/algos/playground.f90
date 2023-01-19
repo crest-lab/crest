@@ -117,24 +117,24 @@ subroutine crest_playground(env,tim)
 
 !========================================================================================!
 
-  V = mol%nat
-  allocate(A(V,V),na(V),nb(V),nc(V), source = 0)
-  call wbo2adjacency(V,calc%calcs(1)%wbo,A,0.02_wp)
-  allocate(geo(3,V), source = 0.0_wp)
-  call BETTER_XYZINT(mol%nat,mol%xyz,A,NA,NB,NC,geo)
-  !do i=1,mol%nat 
-  !   write(stdout,*) i,'=>',na(i),nb(i),nc(i)
-  !enddo
-
-  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,radtodeg,GEO)
-  call print_zmat(6,mol%nat,geo,NA,NB,NC) 
-
-  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc)
-
-  call mol%write('test.xyz')
-
-  call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,1.0_wp,GEO)
-  call print_zmat(6,mol%nat,geo,NA,NB,NC)
+!  V = mol%nat
+!  allocate(A(V,V),na(V),nb(V),nc(V), source = 0)
+!  call wbo2adjacency(V,calc%calcs(1)%wbo,A,0.02_wp)
+!  allocate(geo(3,V), source = 0.0_wp)
+!  call BETTER_XYZINT(mol%nat,mol%xyz,A,NA,NB,NC,geo)
+!  !do i=1,mol%nat 
+!  !   write(stdout,*) i,'=>',na(i),nb(i),nc(i)
+!  !enddo
+!
+!  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,radtodeg,GEO)
+!  call print_zmat(6,mol%nat,geo,NA,NB,NC) 
+!
+!  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc)
+!
+!  call mol%write('test.xyz')
+!
+!  call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,1.0_wp,GEO)
+!  call print_zmat(6,mol%nat,geo,NA,NB,NC)
 
 
 !========================================================================================!

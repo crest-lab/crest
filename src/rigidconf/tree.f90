@@ -146,7 +146,12 @@ subroutine rigidconf_tree(env,mol)
     allocate (ztod(mol%nat),source=0)
     call rigidconf_analyze_fallback(env,mol,zmat,na,nb,nc,wbo, &
     &                               ndieder,dvalues,dstep,ztod)
-  end if
+    
+    !call prune_zmat_dihedrals(mol%nat, mol%xyz, zmat, na,nb,nc, ztod )
+    !call smallhead('New internal coordinates:')
+    !call print_zmat(stdout,mol%nat,zmat,na,nb,nc)
+   end if
+
 
 !========================================================================================!
 !>--- For now, I am limiting the max. number of dihedral angles to 10.

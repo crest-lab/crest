@@ -135,5 +135,48 @@ subroutine rigidconf_count_fallback(nat,na,nb,nc,wbo,ndieder)
   return
 end subroutine rigidconf_count_fallback
 
+
+!========================================================================================!
+subroutine prune_zmat_dihedrals(nat, xyz, zmat, na,nb,nc, ztod )
+!********************************************************
+!* Remove zmat entries that correspond
+!* to the same bond and replace them with internal
+!* dihedral angles. There you go, Christoph...
+!********************************************************
+   use crest_parameters
+   use geo
+   implicit none
+   integer,intent(in)  :: nat
+   real(wp),intent(in) :: xyz(3,nat)
+   real(wp),intent(inout) :: zmat(3,nat)
+   integer,intent(inout)  :: na(nat),nb(nat),nc(nat)
+   integer,intent(inout)  :: ztod(nat)
+   integer :: i,j,k,l
+   integer :: maxgroup,nmembers,refi
+  
+   write(*,*) ztod
+   maxgroup = maxval(ztod,1)
+   do i=1,maxgroup 
+     nmembers = count(ztod(:).eq.i)
+     if(nmembers < 2) cycle
+     do j=1,nat
+       if(ztod(j)==i)then
+         refi = j 
+         exit
+       endif 
+     enddo
+     do j=1,nat
+        if(j==refi) cycle
+        if(ztod(j) == i)then
+           !nc(j) = nb(j)
+           nc(j) = refi
+           !call BANGLE2( xyz, j, na(j), nb(j), zmat(2,j) )
+           call DIHED2( xyz, j, na(j), nb(j), nc(j), zmat(3,j) ) 
+           ztod(j) = 0
+        endif  
+     enddo
+   enddo
+   write(*,*) ztod
+end subroutine prune_zmat_dihedrals
 !========================================================================================!
 !========================================================================================!
