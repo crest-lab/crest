@@ -52,6 +52,7 @@ list(APPEND srcs
   "${dir}/geo.f90"
   "${dir}/identifiers.f90"
   "${dir}/internals.f90"
+  "${dir}/internals2.f90"
   "${dir}/io.f"
   "${dir}/iomod.F90"
   "${dir}/legacy_wrappers.f90"
