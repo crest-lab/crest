@@ -22,7 +22,7 @@
 !===================================================================================================!
 subroutine confscript_head
       implicit none
-      character(len=40),parameter:: date='Tue 27. Sep 01:07:11 BST 2022'
+      character(len=40),parameter:: date='Mo 30. Jan 18:49:37 GMT 2023'
       character(len=10),parameter:: version='2.12  '
       logical :: niceprint
       
