@@ -725,7 +725,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
       call opt_cluster(env, solu, clus, 'cluster.coord')
       call rdcoord('xtbopt.coord', clus%nat, clus%at, clus%xyz)
       call grepval('xtb.out', '| TOTAL ENERGY', e_there, clus%energy)
-      call wrc0('optimized_cluster.coord', clus%nat, clus%at, clus%xyz)
+      call wrc0('cluster.coord', clus%nat, clus%at, clus%xyz)
 
       if (.not. e_there) then
          write (*, '(1x,a)') 'Total Energy of cluster not found.'
@@ -735,9 +735,14 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
       env%gfnver = gfnver_tmp
    end if
 
-!--- output and files
    call wrxyz('cluster.xyz', clus%nat, clus%at, clus%xyz*bohr)
 
+!--- One optimization without Wall Potential and with implicit model
+   call opt_cluster(env, solu, clus, 'cluster.xyz', .true.)
+   call rename('xtbopt.xyz','cluster_optimized.xyz')
+   call copysub('cluster_optimized.xyz', resultspath)
+
+!--- output and files
    write (*, *)
    write (*, '(2x,''Growth finished after '',i0,'' solvents added'')') env%nsolv
    write (*, '(2x,''Results can be found in grow directory'')')
@@ -745,6 +750,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
    write (*, '(2x,''Interaction energy in file <qcg_conv.dat>'')')
    write (*, '(2x,''Growing process in <qcg_grow.xyz>'')')
    write (*, '(2x,''Final geometry after grow in <cluster.coord> and <cluster.xyz>'')')
+   write (*, '(2x,''Final geometry optimized without wall potential in <cluster_optimized.xyz>'')')
    write (*, '(2x,''Potentials and geometry written in <cluster_cavity.coord> and <twopot_cavity.coord>'')')
 
    close (ich99)
@@ -752,7 +758,6 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
    close (ich15)
 
 !--- Saving results and cleanup
-   call rename('optimized_cluster.coord', 'cluster.coord')
    call copysub('cluster.coord', resultspath)
    call copysub('cluster.xyz', resultspath)
    call copysub('twopot_cavity.coord', resultspath)

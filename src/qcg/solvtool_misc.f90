@@ -189,7 +189,7 @@ end subroutine xtb_dock
 ! An xTB optimization on all available threads
 !___________________________________________________________________________________
 
-subroutine opt_cluster(env,solu,clus,fname)
+subroutine opt_cluster(env,solu,clus,fname,without_pot)
          use iso_fortran_env, only : wp => real64
          use iomod
          use crest_data
@@ -200,6 +200,7 @@ subroutine opt_cluster(env,solu,clus,fname)
          type(systemdata)                :: env
          type(zmolecule), intent(in)     :: solu, clus
          character(len=*),intent(in)     :: fname
+         logical, optional, intent(in)   :: without_pot
          character(len=80)               :: pipe
          character(len=512)              :: jobcall
 
@@ -209,12 +210,12 @@ subroutine opt_cluster(env,solu,clus,fname)
       endif
 
          call remove('xtb.out')
-
-!         pipe=' 2>/dev/null'
          pipe=' 2>/dev/null'
 
 !---- writing wall pot in xcontrol
-         call write_wall(env,solu%nat,solu%ell_abc,clus%ell_abc,'xcontrol')
+        if (.not. present(without_pot)) then
+           call write_wall(env,solu%nat,solu%ell_abc,clus%ell_abc,'xcontrol')
+        end if
 
 !--- Setting threads
          if(env%autothreads)then
@@ -222,21 +223,25 @@ subroutine opt_cluster(env,solu,clus,fname)
          endif
 
 !--- Jobcall optimization
+        if (.not. present(without_pot)) then
   write(jobcall,'(a,1x,a,1x,a,'' --opt '',f4.2,'' --input xcontrol > xtb_opt.out'',a)') &
   &     trim(env%ProgName),trim(fname),trim(env%gfnver),env%optlev,trim(pipe)
-  call system(trim(jobcall))
+        else
+  write(jobcall,'(a,1x,a,1x,a,'' --opt '',f4.2,1x,a,'' > xtb_opt.out'',a)') &
+  &     trim(env%ProgName),trim(fname),trim(env%gfnver),env%optlev,trim(env%solv),trim(pipe)
+        end if
+ call system(trim(jobcall))
 
 ! cleanup
   call remove('wbo')
   call remove('charges')
   call remove('xtbrestart')
 
-
 !--- Jobcall SP for gbsa model 
+        if (.not. present(without_pot)) then
   write(jobcall,'(a,1x,a,1x,a,'' --sp '',a,'' > xtb_sp.out'',a)') &
   &    trim(env%ProgName),'xtbopt.coord',trim(env%gfnver),trim(env%solv),trim(pipe)
-!  write(jobcall,'(a,1x''xtbopt.coord'',1x,a,1x,a,'' --sp --input xcontrol > xtb.out'',a)') &
-!  &     trim(env%ProgName),trim(env%gfnver),trim(env%solv),trim(pipe)
+        end if
   call system(trim(jobcall))
 
 ! cleanup
