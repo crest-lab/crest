@@ -32,7 +32,8 @@ subroutine crest_solvtool(env, tim)
 
    type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
    type(timer):: tim
-   type(zmolecule) :: solute, solvent, cluster, cluster_backup !Information about solvent, solute and cluster
+   !> Information about solvent, solute and cluster
+   type(zmolecule) :: solute, solvent, cluster, cluster_backup 
    type(ensemble) :: full_ensemble, solvent_ensemble
 
    integer :: progress
@@ -69,7 +70,8 @@ subroutine crest_solvtool(env, tim)
    call write_qcg_setup(env) !Just an outprint of setup
    call read_qcg_input(env, solute, solvent) !Reading mol. data and determining r,V,A
    call qcg_setup(env, solute, solvent)
-   call qcg_restart(env, progress, solute, solvent, cluster, full_ensemble, solvent_ensemble, cluster_backup)
+   call qcg_restart(env, progress, solute, solvent, cluster, full_ensemble,&
+          & solvent_ensemble, cluster_backup)
 
 !-----------------------------------------------------------------------------
 !   Grow
@@ -102,7 +104,8 @@ subroutine crest_solvtool(env, tim)
    if (progress .le. env%qcg_runtype .and. progress .eq. 2) then !esolv
       call pr_eval_solvent()
       if (env%cff) then !CFF
-         call qcg_cff(env, solute, solvent, cluster, full_ensemble, solvent_ensemble, tim)
+         call qcg_cff(env, solute, solvent, cluster, full_ensemble,&
+                & solvent_ensemble, tim)
       else !Normal ensemble generation
          call print_qcg_ensemble()
          call cluster%deallocate
@@ -112,7 +115,8 @@ subroutine crest_solvtool(env, tim)
          deallocate (cluster_backup%at)
          deallocate (cluster_backup%xyz)
          env%solv_md = .true.
-         call qcg_ensemble(env, solute, solvent, cluster, solvent_ensemble, tim, 'solvent_ensemble')
+         call qcg_ensemble(env, solute, solvent, cluster, solvent_ensemble,&
+                & tim, 'solvent_ensemble')
       end if
       call pr_qcg_esolv()
       write (*, '(2x,"|",9x,F8.2," kcal/mol ",12x,"|")') &
@@ -181,8 +185,6 @@ subroutine qcg_setup(env, solu, solv)
    call copysub('solute', trim(env%scratchdir))
    call copysub('solvent', env%scratchdir)
    call env%wrtCHRG(env%scratchdir) !Write .CHRG and .UHF with 3 lines for xtb docking
-!   call copysub('.CHRG', env%scratchdir)
-!   call copysub('.UHF', env%scratchdir)
    call chdir(env%scratchdir)
 
    f = makedir('solute_properties')
@@ -490,7 +492,9 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
             env%potscal = 0.8_wp
          end if
          write (*, *)
-         write (*, '(2x,''Water as solvent recognized, adjusting scaling factor for outer wall pot to '',F4.2)') env%potscal
+         write (*, '(2x,''Water as solvent recognized, &
+                 & adjusting scaling factor for outer wall pot to '',F4.2)')&
+                & env%potscal
          write (*, *)
       end if
    end if
@@ -538,7 +542,8 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
          end if
       end if
 
-      call both_ellipsout('twopot_1.coord', clus%nat, clus%at, clus%xyz, clus%ell_abc, solu%ell_abc)
+      call both_ellipsout('twopot_1.coord', clus%nat, clus%at, clus%xyz,&
+             & clus%ell_abc, solu%ell_abc)
 
       do while (.not. success) !For restart with larger wall pot
          if (iter .eq. 1) then
@@ -600,15 +605,17 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 !--- Select xtb-IFF stucture to proceed
       if (env%use_xtbiff) then
          call rdxtbiffE('xtbscreen.xyz', m, clus%nat, etmp) !Get energy of screening
-         minE_pos = minloc(etmp(1:m), dim=1)            !Get minimum of those
-         call rdxmolselec('xtbscreen.xyz', minE_pos, clus%nat, clus%at, clus%xyz) !Read the struc into clus%xyz
+         minE_pos = minloc(etmp(1:m), dim=1) !Get minimum of those
+         !Read the struc into clus%xyz
+         call rdxmolselec('xtbscreen.xyz', minE_pos, clus%nat, clus%at, clus%xyz) 
       else
-         call rdcoord('best.xyz', clus%nat, clus%at, clus%xyz, clus%energy) !Determines format automatically
+         call rdcoord('best.xyz', clus%nat, clus%at, clus%xyz, clus%energy)
       end if
 
       call remove('cluster.coord')
       call wrc0('cluster.coord', clus%nat, clus%at, clus%xyz)
-      call both_ellipsout('twopot_2.coord', clus%nat, clus%at, clus%xyz, clus%ell_abc, solu%ell_abc)
+      call both_ellipsout('twopot_2.coord', clus%nat, clus%at, clus%xyz,&
+             & clus%ell_abc, solu%ell_abc)
 
       success = .false.
 
@@ -620,7 +627,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
          end if
 
          if (env%use_xtbiff) then
-            call opt_cluster(env, solu, clus, 'cluster.coord')
+            call opt_cluster(env, solu, clus, 'cluster.coord', .false.)
             call rdcoord('xtbopt.coord', clus%nat, clus%at, clus%xyz)
          end if
 
@@ -668,7 +675,8 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
       if (iter .gt. 1) dum = e_each_cycle(iter - 1)
       e_diff = e_diff + eh*(e_each_cycle(iter) - solv%energy - dum)
       call ellipsout('cluster_cavity.coord', clus%nat, clus%at, clus%xyz, clus%ell_abc)
-      call both_ellipsout('twopot_cavity.coord', clus%nat, clus%at, clus%xyz, clus%ell_abc, solu%ell_abc)
+      call both_ellipsout('twopot_cavity.coord', clus%nat, clus%at, clus%xyz,&
+             & clus%ell_abc, solu%ell_abc)
 
 !--- Density calculations
       call get_sphere(.false., clus, .false.) !V, A of new cluster
@@ -682,11 +690,12 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
       end do
 
 !--- Output
-      call analyze_cluster(iter, clus%nat, solu%nat, solv%nat, clus%xyz, clus%at, shr_av, shr)   ! dist of new mol from solute for output
+     ! dist of new mol from solute for output
+      call analyze_cluster(iter, clus%nat, solu%nat, solv%nat, clus%xyz, clus%at, shr_av, shr)
 
       write (*, '(x,i4,F13.6,1x,f7.2,3x,f8.2,6x,f6.3,3x,f8.3,3x,2f6.1,2x,f8.1,3x,a,x)') &
-            & iter, e_each_cycle(iter), eh*(e_each_cycle(iter) - solv%energy - dum), e_diff, dens, efix, shr_av, shr,&
-            & clus%vtot, trim(optlevflag(env%optlev))
+            & iter, e_each_cycle(iter), eh*(e_each_cycle(iter) - solv%energy - dum),&
+            & e_diff, dens, efix, shr_av, shr, clus%vtot, trim(optlevflag(env%optlev))
       write (ich99, '(i4,F20.10,3x,f8.1)') iter, e_each_cycle(iter), clus%vtot
 
 !--- Calculate moving average
@@ -705,7 +714,8 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
             exit
          end if
          if (iter .eq. env%max_solv) then
-            write (*, '(1x,''No convergence could be reached upon adding'',1x,i4,1x,''solvent molecules.'')') env%max_solv
+            write (*, '(1x,''No convergence could be reached upon adding'',1x,i4,1x,&
+                    & ''solvent molecules.'')') env%max_solv
             write (*, *) ' Proceeding.'
             env%nsolv = env%max_solv
             exit
@@ -722,11 +732,10 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
       gfnver_tmp = env%gfnver
       env%gfnver = '--gfn2'
       write (*, '(2x,''Final gfn2 optimization'')')
-      call opt_cluster(env, solu, clus, 'cluster.coord')
+      call opt_cluster(env, solu, clus, 'cluster.coord', .false.)
       call rdcoord('xtbopt.coord', clus%nat, clus%at, clus%xyz)
-      call grepval('xtb.out', '| TOTAL ENERGY', e_there, clus%energy)
       call wrc0('cluster.coord', clus%nat, clus%at, clus%xyz)
-
+      call grepval('xtb_sp.out', '| TOTAL ENERGY', e_there, clus%energy)
       if (.not. e_there) then
          write (*, '(1x,a)') 'Total Energy of cluster not found.'
       else
@@ -738,8 +747,11 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
    call wrxyz('cluster.xyz', clus%nat, clus%at, clus%xyz*bohr)
 
 !--- One optimization without Wall Potential and with implicit model
+   gfnver_tmp = env%gfnver
+   env%gfnver = '--gfn2'
    call opt_cluster(env, solu, clus, 'cluster.xyz', .true.)
-   call rename('xtbopt.xyz','cluster_optimized.xyz')
+   env%gfnver = gfnver_tmp
+   call rename('xtbopt.xyz', 'cluster_optimized.xyz')
    call copysub('cluster_optimized.xyz', resultspath)
 
 !--- output and files
@@ -868,7 +880,8 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    write (env%cts%pots(1), '("$wall")')
    write (env%cts%pots(2), '(2x,"potential=polynomial")')
    write (env%cts%pots(3), '(2x,"ellipsoid:",1x,3(g0,",",1x),"all")') clus%ell_abc
-   if (.not. env%solv_md) write (env%cts%pots(4), '(2x,"ellipsoid:",1x,3(g0,",",1x),"1-",i0)') solu%ell_abc, solu%nat
+   if (.not. env%solv_md) write (env%cts%pots(4), '(2x,"ellipsoid:",1x,3(g0,",",1x),"1-",i0)')&
+          & solu%ell_abc, solu%nat
 
    if (env%cts%used) then
       call write_reference(env, solu, clus) !new fixed file
@@ -891,7 +904,8 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    call wrc0('crest_input', clus%nat, clus%at, clus%xyz)
 
    if (env%solv_md) then
-      call wr_cluster_cut('crest_input', solu%nat, solv%nat, env%nsolv, 'solute_cut.coord', 'solvent_shell.coord')
+      call wr_cluster_cut('crest_input', solu%nat, solv%nat, env%nsolv,&
+             & 'solute_cut.coord', 'solvent_shell.coord')
       call remove('crest_input')
       call copy('solvent_shell.coord', 'crest_input')
       deallocate (clus%at)
@@ -901,8 +915,8 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
       call rdcoord('solvent_shell.coord', clus%nat, clus%at, clus%xyz)
    end if
 
-   env%QCG = .false. !For newcregen: If env%crestver .eq. crest_solv .and. .not. env%QCG then conffile .eq. .true.
-
+   !For newcregen: If env%crestver .eq. crest_solv .and. .not. env%QCG then conffile .eq. .true.
+   env%QCG = .false. 
    call inputcoords(env, 'crest_input')
    call iV2defaultGF(env)         !Setting MTD parameter
 
@@ -945,7 +959,8 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
 
       !---- Setting threads
       if (env%autothreads) then
-         call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) !set the global OMP/MKL variables for the xtb jobs
+         !set the global OMP/MKL variables for the xtb jobs
+         call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) 
       end if
 
       !--- Setting new defaults for MD/MTD in qcg
@@ -1211,11 +1226,14 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
       call minigrep('xtb_sp.out', 'solv_model_loadInternalParam', not_param)
       call chdir(tmppath2)
       if (not_param) then
-         write (*, *) '  !!!WARNIG: CHOSEN SOLVENT NOT PARAMETERIZED FOR IMPLICIT SOLVATION MODEL!!!'
+         write (*, *) '  !!!WARNIG: CHOSEN SOLVENT NOT PARAMETERIZED &
+         & FOR IMPLICIT SOLVATION MODEL!!!'
          write (*, '(''  CHECK IF '',A,'' IS AVAILABLE IN xTB'')') env%solv
-         write (*, *) '  PLEASE RESTART THE ENSEMBLE GENERATION WITH AVAILABLE PARAMETERIZATION IF YOU NEED ENERGIES'
+         write (*, *) '  PLEASE RESTART THE ENSEMBLE GENERATION WITH AVAILABLE&
+                &  PARAMETERIZATION IF YOU NEED ENERGIES'
          call copysub('crest_conformers.xyz', resultspath)
-         write (*, *) '  The enesemble can be found in the <ensemble> directory as <crest_conformers.xyz>'
+         write (*, *) '  The enesemble can be found in the <ensemble> directory&
+                & as <crest_conformers.xyz>'
          error stop
       end if
    end if
@@ -1565,9 +1583,10 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
          conv(k + 1:env%nqcgclust) = 0
 
          if (env%use_xtbiff) then
-!--- LMO computation for solvent cluster---------------------------------------------------
-            call ensemble_lmo(env, 'solvent_cluster.coord', solv, conv(env%nqcgclust + 1), 'TMPCFF', conv)
-!-------------------------------------------------------------------------------------------
+!----------- LMO computation for solvent cluster---------------------------------------------------
+            call ensemble_lmo(env, 'solvent_cluster.coord', solv, conv(env%nqcgclust + 1),&
+                   & 'TMPCFF', conv)
+!--------------------------------------------------------------------------------------------------
 
             do i = 1, env%nqcgclust
                if (.not. converged(i)) then
@@ -1680,7 +1699,8 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
                else !Only if the addition was not repulsive
                   call copy('solvent_cluster.coord', 'filled_cluster.coord')
                   write (*, '(i4,5x,i3,1x,F13.6,3x,f7.2,5x,f7.2,4x,a)') &
-                     & iter + env%nsolv, i, e_cur(iter, i), de, de_tot(i), trim(optlevflag(env%optlev))
+                     & iter + env%nsolv, i, e_cur(iter, i), de, de_tot(i),&
+                     & trim(optlevflag(env%optlev))
                end if
                call chdir(tmppath2)
             end if
@@ -1722,11 +1742,13 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
    if (env%optlev .lt. 1.0) env%optlev = 1.0d0 !higher accuracy
 
    if (.not. skip) then
-      call cff_opt(.true., env, 'filled_cluster.coord', n_ini, conv(env%nqcgclust + 1), 'TMPCFF', conv, nothing_added)
+      call cff_opt(.true., env, 'filled_cluster.coord', n_ini, conv(env%nqcgclust + 1),&
+             & 'TMPCFF', conv, nothing_added)
    else
       n_ini = 0 !If this is 0, no constraining will be done (optimization of total system)
       nothing_added = .true.
-      call cff_opt(.true., env, 'filled_cluster.coord', n_ini, env%nqcgclust, 'TMPCFF', conv, nothing_added)
+      call cff_opt(.true., env, 'filled_cluster.coord', n_ini, env%nqcgclust, 'TMPCFF',&
+             & conv, nothing_added)
    end if
    env%optlev = tmp_optlev
 
@@ -1959,7 +1981,8 @@ subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
          io = makedir(trim(to))
          call chdir(to)
          call wrc0('cluster.coord', clus%nat, clus%at, clus%xyz)
-         call wr_cluster_cut('cluster.coord', solu%nat, solv%nat, env%nsolv, 'solute_cut.coord', 'solvent_cut.coord')
+         call wr_cluster_cut('cluster.coord', solu%nat, solv%nat, env%nsolv,&
+                & 'solute_cut.coord', 'solvent_cut.coord')
 
          call chdir(tmppath2)
       end if
@@ -1970,14 +1993,14 @@ subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
    write (*, *) '  SOLUTE CLUSTER'
 
 !> Frequency calculation
-   opt=.true.
-   call ens_freq(env, 'cluster.xyz', solu_ens%nall, 'TMPFREQ',opt)
+   opt = .true.
+   call ens_freq(env, 'cluster.xyz', solu_ens%nall, 'TMPFREQ', opt)
    call chdir(tmppath2)
 
    write (*, *) '  SOLVENT CLUSTER'
    if (env%cff) then
       call chdir('tmp_solv')
-      call ens_freq(env, 'solvent_cut.coord', solu_ens%nall, 'TMPFREQ',opt)
+      call ens_freq(env, 'solvent_cut.coord', solu_ens%nall, 'TMPFREQ', opt)
       call chdir(tmppath2)
    end if
 
@@ -2001,7 +2024,7 @@ subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
          call chdir('tmp_solv')
       end do
 !> Frequency calculation
-      call ens_freq(env, 'solv_cluster.xyz', solv_ens%nall, 'TMPFREQ',opt)
+      call ens_freq(env, 'solv_cluster.xyz', solv_ens%nall, 'TMPFREQ', opt)
       call chdir(tmppath2)
    end if
 
@@ -2197,7 +2220,8 @@ subroutine qcg_eval(env, solu, solu_ens, solv_ens)
    !G_solv
    do i = 1, srange
       do j = 1, solv_ens%nall
-         g2(j) = solv_ens%ht(j) - (env%tboltz*(solv_ens%svib(j) + scal(i)*(solv_ens%srot(j) + solv_ens%stra(j)))/1000)
+         g2(j) = solv_ens%ht(j) - &
+                 & (env%tboltz*(solv_ens%svib(j) + scal(i)*(solv_ens%srot(j) + solv_ens%stra(j)))/1000)
          e_solvent(j) = solv_ens%er(j)*eh + g2(j)
       end do
       call aver(.false., env, solv_ens%nall, e_solvent, S(i), dum, G_solvent(i), sasa, .false.)
