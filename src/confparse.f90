@@ -806,6 +806,17 @@ subroutine parseflags(env,arg,nra)
         case ('-wscal')                           !scale size of wall potential
           call readl(arg(i + 1),xx,j)
           env%potscal = xx(1)
+        case ('-wall')
+          env%wallsetup = .true.
+          write (*,'(2x,a,1x,a)')'--wall:','requesting setup of wall potential'
+        case ( '-wallxl','-wall-xl')
+          env%wallsetup = .true.
+          env%potscal = 1.5_wp
+          write (*,'(2x,a,1x,a)')'--wall-xl:','requesting setup of wall potential (x1.5 size)'
+        case ( '-wallxxl','-wall-xxl') 
+          env%wallsetup = .true.
+          env%potscal = 2.0_wp
+          write (*,'(2x,a,1x,a)')'--wall-xxl:','requesting setup of wall potential (x2.0 size)'
         case ('-squick','-superquick')            !extremely crude quick mode
           write (*,'(2x,a,1x,a)') trim(arg(i)),' : very crude quick-mode (no NORMMD, no GC, crude opt.)'
           env%rotamermds = .false.      !no NORMMD
@@ -1866,9 +1877,13 @@ subroutine parseflags(env,arg,nra)
     error stop 'Z sorting of the input is unavailable for -qcg runtyp.'
   end if
 
-  if (env%NCI) then
+  if (env%NCI .or. env%wallsetup) then
     call wallpot(env)
+    if(env%wallsetup)then
+    write(*,'(2x,a)') 'Automatically generated ellipsoide potential:'
+    else
     write (*,'(2x,a)') 'Automatically generated ellipsoide potential for NCI mode:'
+    endif
     call write_cts_NCI_pr(6,env%cts)
     write (*,*)
   end if

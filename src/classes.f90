@@ -506,6 +506,7 @@ module crest_data
       logical :: user_wscal =.false. !true if wscal is set by user
       logical :: useqmdff          ! use QMDFF in V2?
       logical :: water = .false.   ! true if water is used as solvent (only QCG)
+      logical :: wallsetup = .false. ! set up a wall potential?
       logical :: wbotopo =.false.  ! set up topo with WBOs   
 
     contains
