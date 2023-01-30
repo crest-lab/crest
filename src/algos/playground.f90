@@ -60,7 +60,8 @@ subroutine crest_playground(env,tim)
 
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:),geo(:,:)
-  integer,allocatable :: na(:),nb(:),nc(:)
+  integer,allocatable :: na(:),nb(:),nc(:),at2(:)
+  integer :: nat2
 !========================================================================================!
   call tim%start(14,'test implementation') 
 !========================================================================================!
@@ -117,25 +118,33 @@ subroutine crest_playground(env,tim)
 
 !========================================================================================!
 
-!  V = mol%nat
-!  allocate(A(V,V),na(V),nb(V),nc(V), source = 0)
-!  call wbo2adjacency(V,calc%calcs(1)%wbo,A,0.02_wp)
-!  allocate(geo(3,V), source = 0.0_wp)
-!  call BETTER_XYZINT(mol%nat,mol%xyz,A,NA,NB,NC,geo)
-!  !do i=1,mol%nat 
-!  !   write(stdout,*) i,'=>',na(i),nb(i),nc(i)
-!  !enddo
-!
-!  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,radtodeg,GEO)
-!  call print_zmat(6,mol%nat,geo,NA,NB,NC) 
-!
-!  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc)
-!
-!  call mol%write('test.xyz')
-!
-!  call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,1.0_wp,GEO)
-!  call print_zmat(6,mol%nat,geo,NA,NB,NC)
+  V = mol%nat
+  allocate(A(V,V),na(V),nb(V),nc(V), source = 0)
+  call wbo2adjacency(V,calc%calcs(1)%wbo,A,0.02_wp)
+  allocate(geo(3,V), source = 0.0_wp)
+  call BETTER_XYZINT(mol%nat,mol%xyz,A,NA,NB,NC,geo)
+  !do i=1,mol%nat 
+  !   write(stdout,*) i,'=>',na(i),nb(i),nc(i)
+  !enddo
 
+  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,radtodeg,GEO)
+  call print_zmat(6,mol%nat,mol%at,geo,NA,NB,NC,.true.) 
+
+  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc)
+  call mol%write('test.xyz')
+  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,1.0_wp,GEO)
+  !write(*,*)
+  !call print_zmat(6,mol%nat,mol%at,geo,NA,NB,NC,.true.)
+  write(*,*)
+  open(newunit=ich,file='test.zmat')
+  call print_zmat(ich,mol%nat,mol%at,geo,NA,NB,NC,.false.)
+  close(ich)
+
+  nat2 = mol%nat
+  allocate(at2(nat2))
+  call rd_zmat('test.zmat',nat2,at2,geo,NA,NB,NC)
+  write(*,*)
+  call print_zmat(6,nat2,at2,geo,NA,NB,NC,.true.)
 
 !========================================================================================!
   call tim%stop(14)

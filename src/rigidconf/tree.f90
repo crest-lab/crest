@@ -125,7 +125,7 @@ subroutine rigidconf_tree(env,mol)
   allocate (zmat(3,mol%nat),source=0.0_wp)
   call BETTER_XYZINT(mol%nat,mol%xyz,Amat,na,nb,nc,zmat)
   call smallhead('Internal coordinates:')
-  call print_zmat(stdout,mol%nat,zmat,na,nb,nc)
+  call print_zmat(stdout,mol%nat,mol%at,zmat,na,nb,nc,.true.)
 !--- Note: zmat angles (columns 2 and 3) are in Radians
 
 !========================================================================================!
@@ -149,7 +149,7 @@ subroutine rigidconf_tree(env,mol)
     
     !call prune_zmat_dihedrals(mol%nat, mol%xyz, zmat, na,nb,nc, ztod )
     !call smallhead('New internal coordinates:')
-    !call print_zmat(stdout,mol%nat,zmat,na,nb,nc)
+    !call print_zmat(stdout,mol%nat,mol%at,zmat,na,nb,nc,.true.)
    end if
 
 
