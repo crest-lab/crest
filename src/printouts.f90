@@ -46,6 +46,8 @@ subroutine confscript_head
       write(*,'(/,3x,''and for works involving QCG as'')')
       write(*,'(/,3x,''• S.Spicher, C.Plett, P.Pracht, A.Hansen, S.Grimme,'')')
       write(*,'(  3x,''  JCTC, 2022, 18 (5), 3174-3189.'')')
+      write(*,'(  3x,''• C.Plett, S. Grimme,'')')
+      write(*,'(  3x,''  Angew. Chem. Int. Ed. 2023, 62, e202214477.'')')
       write(*,*)
 
       write(*,'(3x,a)')'with help from:'
