@@ -37,7 +37,7 @@ module tblite_api
   use tblite_xtb_singlepoint,only:xtb_singlepoint
   use tblite_results, only : tblite_resultstype => results_type
 #endif
-  use wiberg_mayer, only: get_wbo,get_wbo_rhf,density_matrix
+  use wiberg_mayer, only: get_wbo_rhf
   implicit none
   private
  
@@ -230,37 +230,11 @@ contains  !>--- Module routines start here
     type(tblite_resultstype),intent(in) :: tbres
     integer,intent(in) :: nat
     real(wp),intent(out) :: wbo(nat,nat)
-    real(wp),allocatable :: Pa(:,:),Pb(:,:),occtmpa(:),occtmpb(:)
-    logical openshell
-    integer i,j,ndim
 
     wbo = 0.0_wp
 #ifdef WITH_TBLITE
-    openshell=.false.
-    do i=1, tbcalc%bas%nao 
-       if(wfn%focc(i).gt.0.5.and.wfn%focc(i).lt.1.5_wp) openshell=.true.
-    enddo
-    if(openshell) then 
-      ndim=tbcalc%bas%nao
-      allocate(Pa(ndim,ndim),Pb(ndim,ndim),occtmpa(ndim),occtmpb(ndim))
-
-      do i=1,ndim
-         if(wfn%focc(i)
-         occtmpa=wfn%focc/2.0_wp 
-         occtmpb=wfn%focc/2.0_wp
-      enddo
-      call density_matrix(ndim,occtmpa,wfn%C,Pa)
-      call density_matrix(ndim,occtmpb,wfn%C,Pb)
-      wbo=0.0_wp
-      call get_wbo_rhf(nat, tbcalc%bas%nao,Pa,Pb,, &
-      &         tbres%overlap, tbcalc%bas%ao2at, wbo)
-
-      !call prmat(6,wbo,nat,nat,'WBO_uhf')
-      deallocate(Pa,Pb)
-    else 
-      call get_wbo_rhf(nat, tbcalc%bas%nao, wfn%density, &
-      &         tbres%overlap, tbcalc%bas%ao2at, wbo)
-    endif
+    call get_wbo_rhf(nat, tbcalc%bas%nao, wfn%density, &
+    &         tbres%overlap, tbcalc%bas%ao2at, wbo)
 #endif    
   end subroutine tblite_getwbos
 
