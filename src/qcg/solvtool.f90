@@ -831,6 +831,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    real(wp), allocatable      :: p(:)
    integer                    :: ich98, ich65, ich48
    logical                    :: not_param = .false.
+   type(timer)                :: tim_dum !Dummy timer to avoid double counting
 
    interface
       subroutine aver(pr, env, runs, e_tot, S, H, G, sasa, a_present, a_tot)
@@ -857,6 +858,8 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    else
       call tim%start(7, 'Solvent-Ensemble')
    end if
+
+   call tim_dum%init(20)
 
 !--- Setting up directories
    call getcwd(thispath)
@@ -952,7 +955,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
 
       env%iterativeV2 = .true.  !Safeguards more precise ensemble search
       write (*, *) 'Starting ensemble cluster generation by CREST routine'
-      call confscript2i(env, tim) !Calling ensemble search
+      call confscript2i(env, tim_dum) !Calling ensemble search
       call copy('crest_rotamers.xyz', 'crest_rotamers_0.xyz')
 
    case (1:2) ! Single MD or MTD
@@ -1399,6 +1402,8 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
       env%cts%cbonds_md = cbonds_tmp
       env%checkiso = checkiso_tmp
    end if
+
+   call tim_dum%clear
 
    if (.not. env%solv_md) then
       call tim%stop(6)
