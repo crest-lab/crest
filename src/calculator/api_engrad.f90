@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 - 2022 Philipp Pracht
+! Copyright (C) 2021 - 2023 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -19,8 +19,8 @@
 
 !====================================================!
 ! module api_engrad
-! a collection of engrad calls for different apis
-! this builds the communication between crests
+! a collection of engrad calls for different APIs
+! this builds the communication between CRESTs
 ! calculation settings and the api setups
 !====================================================!
 

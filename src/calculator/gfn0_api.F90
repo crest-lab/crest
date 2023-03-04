@@ -67,7 +67,7 @@ contains  !>--- Module routines start here
     !> initialize parametrization of GFN0
     call gfn0_init(mol%nat,mol%at,mol%xyz,chrg,uhf,g0calc)
 
-#else /* WITH_TBLITE */
+#else /* WITH_GFN0 */
     write (stdout,*) 'Error: Compiled without GFN0-xTB support!'
     write (stdout,*) 'Use -DWITH_GFN0=true in the setup to enable this function'
     error stop

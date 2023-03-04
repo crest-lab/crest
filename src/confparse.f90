@@ -96,10 +96,10 @@ subroutine parseflags(env,arg,nra)
     if (any((/character(10)::'-cite','--cite','--citation'/) == trim(arg(i)))) then
       call crestcite()
     end if
-    if (index(arg(i),'-newversion') .ne. 0)then
+    if (index(arg(i),'-newversion') .ne. 0)then !> as in CREST version >= 3.0
       env%legacy = .false. 
     endif
-    if (index(arg(i),'-legacy') .ne. 0)then
+    if (index(arg(i),'-legacy') .ne. 0)then  !> as in CREST version <3.0
       env%legacy = .true.
     endif
   end do
@@ -1083,6 +1083,7 @@ subroutine parseflags(env,arg,nra)
           if (idum .ne. env%chrg) then
             write (*,'(12x,a,i0)') 'with total summed up molecular charge: ',idum
             env%chrg = idum
+            env%ref%ichrg = idum
           end if
         end if
       case ('-dscal','-dispscal','-dscal_global','-dispscal_global')
@@ -1109,6 +1110,7 @@ subroutine parseflags(env,arg,nra)
             read (atmp,*) env%dummypercent
           end if
         end if
+
       case ('-gbsa','-g','-alpb')                                     !use GBSA implicit solvation
         env%gbsa = .true.
         atmp = adjustl(arg(i + 1))
@@ -1120,22 +1122,26 @@ subroutine parseflags(env,arg,nra)
             env%solv = '--gbsa '//trim(env%solvent)
           end if
         end if
-        !write(*,'(2x,a,1x,a)')trim(arg(i)),trim(arg(i+1))
         write (*,'(2x,a,a)') trim(env%solv),' : implicit solvation'
+
       case ('-chrg')                                          !create a .CHRG file
         call readl(arg(i + 1),xx,j)
         open (newunit=ich,file='.CHRG')
         env%chrg = nint(xx(1))
+        env%ref%ichrg = env%chrg
         write (ich,'(i0)') nint(xx(1))
         close (ich)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i + 1))
+
       case ('-uhf')                                           !create a .UHF file
         call readl(arg(i + 1),xx,j)
         open (newunit=ich,file='.UHF')
         env%uhf = nint(xx(1))
+        env%ref%uhf = env%uhf
         write (ich,'(i0)') nint(xx(1))
         close (ich)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i + 1))
+
       case ('-len','-mdlen','-mdtime')                        !set md length in ps
         atmp = arg(i + 1)
         call to_lower(atmp)
@@ -1966,20 +1972,8 @@ subroutine parseflags(env,arg,nra)
     if (allocated(env%ref%topo)) deallocate (env%ref%topo)
   end if
 
-!> I have no idea why this was in the code,
-!> thats such a specific condition...
-!  do i = 1,env%cts%ndim
-!    if (trim(adjustl(env%cts%sett(i))).eq.'reference=coord.ref' &
-!    &   .and. .not.(env%QCG)) then
-!      do j = i,env%cts%ndim
-!        env%cts%sett(j) = env%cts%sett(j + 1)
-!      end do
-!      env%cts%sett(env%cts%ndim) = ''
-!      env%cts%ndim = env%cts%ndim - 1
-!    end if
-!  end do
 
-  !> driver for optimization along trajectory, additional settings
+!>-- driver for optimization along trajectory, additional settings
   if (.not. any((/crest_mfmdgc,crest_imtd,crest_imtd2,crest_compr/) == env%crestver) &
       & .OR. (env%qcg_runtype .GT. 0 .and. env%ensemble_method .EQ. 0)) then
     env%autozsort = .false.
@@ -1987,7 +1981,7 @@ subroutine parseflags(env,arg,nra)
     env%confgo = .false.
   end if
 
-  !> final settings for property mode (-prop)
+!>-- final settings for property mode (-prop)
   if (env%properties .eq. 0) then
     env%properties = env%properties2
   end if
@@ -1995,7 +1989,7 @@ subroutine parseflags(env,arg,nra)
     env%autozsort = .false.
   end if
 
-  !> some more zsort checks
+!>-- some more zsort checks
   if (.not. env%onlyZsort .and. env%autozsort) then
     call zsortwarning2(env) !turn autozsort off when a .constrains file is present.
   end if
@@ -2035,8 +2029,6 @@ subroutine parseRC2(env,bondconst)
   logical :: create,atomlistused
   logical :: bondconst
 
-  associate (cts => env%cts)
-
 !>--- check for any of the possible constrainement files
     ex1 = .false.
 
@@ -2058,42 +2050,33 @@ subroutine parseRC2(env,bondconst)
 
 !>--- do we have a user-set constraint to all bonds?
     if (bondconst) then
-      !if(ex1)then
-      !  atmp = trim(env%constraints)//'.new'
-      !  call copy(env%constraints,trim(atmp))
-      !  env%constraints = trim(atmp)
-      !  call appendto('bondlengths',env%constraints)
-      !else
-      !  env%constraints='bondlengths'
-      !  ex1=.true.
-      !endif
       inquire (file='bondlengths',exist=ex2)
       if (ex2) then
         call rd_cbonds('bondlengths',env)
-        if (.not. cts%cbonds_md) then
-          cts%cbonds_global = .true.
+        if (.not. env%cts%cbonds_md) then
+          env%cts%cbonds_global = .true.
         end if
       end if
     end if
 
     if (ex1) then
       write (*,'(/,1x,a,a,a)') '<',trim(env%constraints),'> file present.'
-      cts%used = .true.
+      env%cts%used = .true.
     else
-      cts%used = .false.
+      env%cts%used = .false.
       return
     end if
 
 !>--- read the data
-    call read_constrainbuffer(env%constraints,cts)
-    call sort_constraints(cts)
+    call read_constrainbuffer(env%constraints,env%cts)
+    call sort_constraints(env%cts)
     write (*,*) 'content of the constraining file (sorted):'
-    if (cts%ndim .gt. 20) then
+    if (env%cts%ndim .gt. 20) then
       write (*,'(1x,a)') '<skipped due to length of constraining file>'
     else
-      do i = 1,cts%ndim
-        if (trim(cts%sett(i)) .ne. '') then
-          write (*,'(''>'',1x,a)') trim(cts%sett(i))
+      do i = 1,env%cts%ndim
+        if (trim(env%cts%sett(i)) .ne. '') then
+          write (*,'(''>'',1x,a)') trim(env%cts%sett(i))
         end if
       end do
     end if
@@ -2104,8 +2087,8 @@ subroutine parseRC2(env,bondconst)
     allocate (atlist(env%nat))
 
 !>--- parse for special arguments that are used by CREST also
-    do i = 1,cts%ndim
-      btmp = cts%sett(i)
+    do i = 1,env%cts%ndim
+      btmp = env%cts%sett(i)
       if (trim(btmp) .eq. '') cycle
       atmp = btmp
       call to_lower(atmp)  !convert to lower-case for case-insensitivity
@@ -2138,8 +2121,8 @@ subroutine parseRC2(env,bondconst)
         end do
       end if
       if ((index(atmp,'$metadyn') .ne. 0)) then
-        do j = i + 1,cts%ndim
-          btmp = cts%sett(j)
+        do j = i + 1,env%cts%ndim
+          btmp = env%cts%sett(j)
           if (index(btmp,'$') .ne. 0) exit    !--- exit $metadyn-block
           if (index(btmp,'atoms:') .ne. 0) then
             create = .true.
@@ -2159,15 +2142,15 @@ subroutine parseRC2(env,bondconst)
       end if
       if ((index(atmp,'$wall') .ne. 0)) then
         if (env%NCI) then
-          cts%sett(i) = ''
-          cts%pots = ''
-          write (cts%pots(1),'(a)') '$wall'
+          env%cts%sett(i) = ''
+          env%cts%pots = ''
+          write (env%cts%pots(1),'(a)') '$wall'
           k = 2
-          do j = i + 1,cts%ndim
-            btmp = cts%sett(j)
+          do j = i + 1,env%cts%ndim
+            btmp = env%cts%sett(j)
             if (index(btmp,'$') .ne. 0) exit    !--- exit $wall-block
-            cts%sett(j) = ''
-            write (cts%pots(k),'(a)') trim(btmp)
+            env%cts%sett(j) = ''
+            write (env%cts%pots(k),'(a)') trim(btmp)
             k = k + 1
           end do
 
@@ -2186,7 +2169,6 @@ subroutine parseRC2(env,bondconst)
 
     deallocate (atlist)
 
-  end associate
   return
 end subroutine parseRC2
 
@@ -2206,7 +2188,6 @@ subroutine inputcoords(env,arg)
   !> Input
   type(systemdata) :: env
   character(len=*) :: arg
-
   !> Local variables
   logical :: ex,ex2
   character(len=:),allocatable :: inputfile
@@ -2228,7 +2209,8 @@ subroutine inputcoords(env,arg)
   if (.not. ex .and. .not. ex2) then
     error stop 'No (valid) input file! exit.'
   end if
-  if (ex2) then !-- save coord as reference
+  if (ex2) then 
+!>-- save coord as reference
     call copy('coord','coord.original')
   end if
   if (ex .and. arg(1:1) .ne. '-') then
@@ -2241,30 +2223,33 @@ subroutine inputcoords(env,arg)
     inputfile = 'coord'
   end if
 
-  !>--- if the input was a SDF file, special handling
+!>-- if the input was a SDF file, special handling
   env%sdfformat = .false.
   call checkcoordtype(inputfile,i)
   if (any((/31,32/) == i)) then
-    !call inpsdf(env,inputfile)
      env%sdfformat = .true.
      env%outputsdf = .true.
   end if
 
-  !>--- after this point there should always be an coord file present
+!>-- after this point there should always be an coord file present
   if (.not. allocated(env%inputcoords)) env%inputcoords = 'coord'
-  !call rdnat('coord',env%nat)
   call mol%open('coord')
-  !> shift to CMA and align according to rot.const.
+!>-- shift to CMA and align according to rot.const.
   if(env%crestver /= crest_solv) call axis(mol%nat,mol%at,mol%xyz)
-  !> overwrite coord
+!>-- overwrite coord
   call mol%write('coord')
 
+!>-- get the number of atoms and the reduced number of atoms if some of
+!>-- them are excluded from the RMSD calc in V2. Initially they are the same
   env%nat = mol%nat
-  env%rednat = env%nat        !get the number of atoms and the reduced number of atoms if some of them are     excluded from the RMSD calc in V2
-  !>--- reference geo
+  env%rednat = env%nat
+!>-- reference geo save
   env%ref%nat = mol%nat
   env%ref%at = mol%at
   env%ref%xyz = mol%xyz
+  env%ref%ichrg = env%chrg
+  env%ref%uhf = env%uhf 
+!>-- topology save
   if (any((/crest_mfmdgc,crest_imtd,crest_imtd2/) == env%crestver)) then
     if (.not. env%autozsort) then
       env%ref%ntopo = mol%nat * (mol%nat + 1) / 2
@@ -2274,8 +2259,8 @@ subroutine inputcoords(env,arg)
   end if
   call mol%deallocate()
 
-  !>--- for protonation/deprotonation applications get ref. number of fragments
-  !>--- also get some other structure based info
+!>-- for protonation/deprotonation applications get ref. number of fragments
+!>-- also get some other structure based info
   call simpletopo_file('coord',zmol,.false.,.false.,'')
   env%ptb%nfrag = zmol%nfrag
   call zmol%deallocate()

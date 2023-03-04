@@ -20,7 +20,7 @@
 module calc_type
   use iso_fortran_env,only:wp => real64,stdout => output_unit
   use constraints
-  !>--- api types
+!>--- api types
   use tblite_api
   use gfn0_api
   implicit none
@@ -40,11 +40,12 @@ module calc_type
       integer :: tblite    = 6
       integer :: gfn0      = 7
       integer :: gfn0occ   = 8
+      integer :: gfnff     = 9
    end type enum_jobtype
    type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
 
 !=========================================================================================!
-  !> data object that contains the data for a *SINGLE* calculation
+!>--- data object that contains the data for a *SINGLE* calculation
   public :: calculation_settings
   type :: calculation_settings
 
@@ -371,8 +372,6 @@ contains  !>--- Module routines start here
 
     return
   end subroutine calculation_remove_constraint
-
-
 
 !=========================================================================================!
   subroutine calculation_print_constraints(self,chnl)

@@ -244,6 +244,8 @@ module crest_data
        integer :: nat
        integer,allocatable :: at(:)
        real(wp),allocatable :: xyz(:,:)
+       integer :: ichrg = 0
+       integer :: uhf = 0
        integer :: ntopo
        integer,allocatable :: topo(:)
        real(wp),allocatable :: charges(:)
@@ -437,7 +439,7 @@ module crest_data
 
 
    !================================================!
-   !>--- Calculation settings for newer implementations 
+   !>--- Calculation settings for newer implementations (version >= 3.0)
       type(calcdata) :: calc
       type(mddata)   :: mddat
    !>--- rigidconf data   
@@ -804,6 +806,8 @@ subroutine ref_to_mol(self,mol)
     mol%nat = self%nat
     mol%at  = self%at
     mol%xyz = self%xyz
+    mol%chrg = self%ichrg
+    mol%uhf  = self%uhf
     return
 end subroutine ref_to_mol
 

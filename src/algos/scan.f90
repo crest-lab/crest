@@ -110,6 +110,7 @@ contains
     integer :: nsteps
     real(wp),allocatable :: tmppoints(:)
     real(wp) :: d,delx,mi,ma,dref
+    character(len=10) :: scannmbr
     type(constraint) :: constr
 
     !>--- allocate points for each scan
@@ -148,8 +149,8 @@ contains
         calc%scans(i)%points = tmppoints
         !write(*,*) calc%scans(i)%points 
       case (3) !>-- dihedral
-        mi = calc%scans(i)%minval
-        ma = calc%scans(i)%maxval
+        mi = calc%scans(i)%minval*degtorad
+        ma = calc%scans(i)%maxval*degtorad
         if(mi==0.0_wp .and. ma==0.0_wp)then
           mi=-180.000_wp*degtorad  + 1.0d-10  !> avoid *exactly* 180° !!!
           ma= 180.000_wp*degtorad  - 1.0d-10  !> avoid *exactly* 180° !!!
@@ -177,6 +178,14 @@ contains
         k = polar_minloc(tmppoints,nsteps,dref)
         call shiftpoints(nsteps,k,tmppoints,calc%scans(i)%restore, .true.)
         calc%scans(i)%points = tmppoints !> reference dihedrals in rad
+        write(scannmbr,'(i0)')i
+        open(newunit=j,file='scanfiles/grid.'//trim(scannmbr)//'.grid')
+        write(j,*) "dihedral scan "//trim(scannmbr)
+        do k=1,nsteps
+          write(j,*) calc%scans(i)%points(k)*radtodeg + 180.0_wp
+        enddo
+        close(j) 
+        !write(*,*) calc%scans(i)%points * radtodeg
       end select
       deallocate (tmppoints)
     end do
@@ -258,7 +267,7 @@ contains
     real(wp) :: val
     character(len=500) :: scantrj
     character(len=20)  :: scannmbr
-    integer :: dumpid,dumpid2,k,j,j2,next, io
+    integer :: dumpid,dumpid2,dumpid3,k,j,j2,next, io
 
 
     if( current > calc%nscans ) then !> recursive termination

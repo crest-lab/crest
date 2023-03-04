@@ -118,33 +118,52 @@ subroutine crest_playground(env,tim)
 
 !========================================================================================!
 
-  V = mol%nat
-  allocate(A(V,V),na(V),nb(V),nc(V), source = 0)
-  call wbo2adjacency(V,calc%calcs(1)%wbo,A,0.02_wp)
-  allocate(geo(3,V), source = 0.0_wp)
-  call BETTER_XYZINT(mol%nat,mol%xyz,A,NA,NB,NC,geo)
-  !do i=1,mol%nat 
-  !   write(stdout,*) i,'=>',na(i),nb(i),nc(i)
-  !enddo
+!  V = mol%nat
+!  allocate(A(V,V),na(V),nb(V),nc(V), source = 0)
+!  call wbo2adjacency(V,calc%calcs(1)%wbo,A,0.02_wp)
+!  allocate(geo(3,V), source = 0.0_wp)
+!  call BETTER_XYZINT(mol%nat,mol%xyz,A,NA,NB,NC,geo)
+!  !do i=1,mol%nat 
+!  !   write(stdout,*) i,'=>',na(i),nb(i),nc(i)
+!  !enddo
+!
+!  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,radtodeg,GEO)
+!  call print_zmat(6,mol%nat,mol%at,geo,NA,NB,NC,.true.) 
+!
+!  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc)
+!  call mol%write('test.xyz')
+!  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,1.0_wp,GEO)
+!  !write(*,*)
+!  !call print_zmat(6,mol%nat,mol%at,geo,NA,NB,NC,.true.)
+!  write(*,*)
+!  open(newunit=ich,file='test.zmat')
+!  call print_zmat(ich,mol%nat,mol%at,geo,NA,NB,NC,.false.)
+!  close(ich)
+!
+!  nat2 = mol%nat
+!  allocate(at2(nat2))
+!  call rd_zmat('test.zmat',nat2,at2,geo,NA,NB,NC)
+!  write(*,*)
+!  call print_zmat(6,nat2,at2,geo,NA,NB,NC,.true.)
 
-  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,radtodeg,GEO)
-  call print_zmat(6,mol%nat,mol%at,geo,NA,NB,NC,.true.) 
+   call rdnat('test.zmat',nat2,2)
+   V = nat2
+   allocate(at2(V))
+   allocate(na(V),nb(V),nc(V), source = 0)
+   allocate(geo(3,V), source = 0.0_wp)
+   call rd_zmat('test.zmat',nat2,at2,geo,NA,NB,NC)
+   write(*,*)
+   call print_zmat(6,nat2,at2,geo,NA,NB,NC,.true.)
 
-  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc)
-  call mol%write('test.xyz')
-  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,1.0_wp,GEO)
-  !write(*,*)
-  !call print_zmat(6,mol%nat,mol%at,geo,NA,NB,NC,.true.)
-  write(*,*)
-  open(newunit=ich,file='test.zmat')
-  call print_zmat(ich,mol%nat,mol%at,geo,NA,NB,NC,.false.)
-  close(ich)
+   allocate(molnew%at(V), molnew%xyz(3,V))
+   molnew%nat = nat2
+   molnew%at = at2
+   call GMETRY2(molnew%nat,geo,molnew%xyz,na,nb,nc)
+    molnew%xyz = molnew%xyz/bohr
+   call molnew%write('test.xyz')
+ 
+   
 
-  nat2 = mol%nat
-  allocate(at2(nat2))
-  call rd_zmat('test.zmat',nat2,at2,geo,NA,NB,NC)
-  write(*,*)
-  call print_zmat(6,nat2,at2,geo,NA,NB,NC,.true.)
 
 !========================================================================================!
   call tim%stop(14)

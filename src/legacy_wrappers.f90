@@ -116,8 +116,23 @@ subroutine confscript1(env,tim)
   type(systemdata) :: env
   type(timer)   :: tim
   write(stdout,*)
-  write(stdout,*) 'This runtype has been deprecated.'
+  write(stdout,*) 'This runtype has been entirely deprecated.'
   write(stdout,*) 'You may try an older version of the program if you want to use it.'
   stop
 end subroutine confscript1
+
+!=================================================================================!
+
+subroutine nciflexi(env,flexval)
+  use crest_parameters
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  real(wp) :: flexval
+  if(env%legacy)then
+    call nciflexi_legacy(env,flexval)
+  else
+    flexval = 0.0_wp
+  endif  
+end subroutine nciflexi
 

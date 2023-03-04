@@ -382,6 +382,8 @@ subroutine rdcoord_reduced(fname,n,rn,xyz,iat,rlist)
   return
 end subroutine rdcoord_reduced
 
+
+
 !-----------------------------------------------------------------------------
 ! sort the .constrains file
 !-----------------------------------------------------------------------------
