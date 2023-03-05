@@ -100,7 +100,7 @@ subroutine crest_playground(env,tim)
    do i=1,mol%nat
      do j=i+1,mol%nat
        if(calc%calcs(1)%wbo(i,j) .gt. 0.05_wp)then
-         write(*,*),i,j,calc%calcs(1)%wbo(i,j)
+         write(*,*) i,j,calc%calcs(1)%wbo(i,j)
        endif
      enddo
    enddo

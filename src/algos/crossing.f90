@@ -43,7 +43,7 @@ subroutine crest_crossing(env,maxgen,fname,maxpairs)
   real(wp) :: rthr,ewin,cthr
 
   character(len=:),allocatable :: ensnam
-  integer :: nat,nall,nalltmp
+  integer :: nat,nall,nalltmp,maxgen2
   real(wp),allocatable :: eread(:),erel(:)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
@@ -119,7 +119,8 @@ subroutine crest_crossing(env,maxgen,fname,maxpairs)
   write (stdout,'(a,2f8.4)') 'RMSD threshold (Ang, Bohr)     :',rthr,rthr/bohr
   write (stdout,'(a,1x,i8)') 'max. # of generated structures :',maxgen
 
-  call crossing(nat,nall,at,xyz,eread,ewin,rthr,cthr,maxgen)
+  maxgen2 = maxgen
+  call crossing(nat,nall,at,xyz,eread,ewin,rthr,cthr,maxgen2)
 
 
   deallocate (eread,at,xyz)

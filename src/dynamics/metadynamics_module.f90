@@ -33,16 +33,16 @@ module metadynamics_module
   private
 
   !--- some constants and name mappings
-  real(wp),parameter :: bohr = 0.52917726_wp
-  real(wp),parameter :: autokcal = 627.509541_wp
-  real(wp),parameter :: autoaa = 0.52917726_wp
-  real(wp),parameter :: aatoau = 1.0_wp / autoaa
-  real(wp),parameter :: amutokg = 1.660539040e-27_wp
-  real(wp),parameter :: metokg = 9.10938356e-31_wp
-  real(wp),parameter :: kgtome = 1.0_wp / metokg
-  real(wp),parameter :: amutoau = amutokg * kgtome
-  real(wp),parameter :: fstoau = 41.3413733365614_wp
-  real(wp),parameter :: kB = 3.166808578545117e-06_wp !in Eh/K
+!  real(wp),parameter :: bohr = 0.52917726_wp
+!  real(wp),parameter :: autokcal = 627.509541_wp
+!  real(wp),parameter :: autoaa = 0.52917726_wp
+!  real(wp),parameter :: aatoau = 1.0_wp / autoaa
+!  real(wp),parameter :: amutokg = 1.660539040e-27_wp
+!  real(wp),parameter :: metokg = 9.10938356e-31_wp
+!  real(wp),parameter :: kgtome = 1.0_wp / metokg
+!  real(wp),parameter :: amutoau = amutokg * kgtome
+!  real(wp),parameter :: fstoau = 41.3413733365614_wp
+!  real(wp),parameter :: kB = 3.166808578545117e-06_wp !in Eh/K
 
   integer,parameter :: std_mtd = 1
   integer,parameter :: rmsd_mtd = 2

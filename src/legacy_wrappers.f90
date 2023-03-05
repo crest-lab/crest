@@ -82,9 +82,18 @@ end subroutine confscript2i
 subroutine xtbsp(env,xtblevel)
   use iso_fortran_env,only:wp => real64
   use crest_data
+  use strucrd, only: coord
   implicit none
   type(systemdata) :: env
   integer,intent(in),optional :: xtblevel
+  interface
+   subroutine crest_xtbsp(env,xtblevel,molin)
+   import :: systemdata,coord
+   type(systemdata) :: env
+   integer,intent(in),optional :: xtblevel
+   type(coord),intent(in),optional :: molin
+   end subroutine crest_xtbsp
+  end interface
   if(env%legacy)then
       call xtbsp_legacy(env,xtblevel)
   else
@@ -99,11 +108,19 @@ subroutine xtbsp2(fname,env)
   type(systemdata) :: env
   character(len=*),intent(in) :: fname
   type(coord) :: mol 
+  interface
+   subroutine crest_xtbsp(env,xtblevel,molin)
+   import :: systemdata,coord
+   type(systemdata) :: env
+   integer,intent(in),optional :: xtblevel
+   type(coord),intent(in),optional :: molin
+   end subroutine crest_xtbsp
+  end interface
   if(env%legacy)then
       call xtbsp2_legacy(fname,env)
   else
       call mol%open(trim(fname))
-      call crest_xtbsp(env,-1,mol)
+      call crest_xtbsp(env,xtblevel=-1,molin=mol)
   endif
 end subroutine xtbsp2
 
