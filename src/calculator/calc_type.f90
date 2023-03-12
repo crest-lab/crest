@@ -23,6 +23,7 @@ module calc_type
 !>--- api types
   use tblite_api
   use gfn0_api
+  use gfnff_api, only: gfnff_data
   implicit none
 
   character(len=1),public,parameter :: sep = '/'
@@ -83,7 +84,7 @@ module calc_type
     logical :: rddipgrad = .false.
     real(wp),allocatable :: dipgrad(:,:,:)
 
-    !>--- API constructs
+!>--- API constructs
     integer  :: tblitelvl = 2
     real(wp) :: etemp = 300.0_wp
     real(wp) :: accuracy = 1.0_wp 
@@ -92,15 +93,19 @@ module calc_type
     logical  :: saveint = .false.
     character(len=:),allocatable :: solvmodel
     character(len=:),allocatable :: solvent
+    !> tblite data
     type(wavefunction_type),allocatable  :: wfn
     type(tblite_calculator),allocatable  :: tbcalc
     type(tblite_ctx),allocatable         :: ctx 
     type(tblite_resultstype),allocatable :: tbres
     type(wavefunction_type),allocatable  :: wfn_backup
+    !> gfn0 data
     type(gfn0_data),allocatable          :: g0calc
     integer :: nconfig = 0
     integer,allocatable :: config(:)
     real(wp),allocatable :: occ(:)
+    !> gfn-ff data
+    type(gfnff_data),allocatable :: ff_dat
 
   contains
     procedure :: deallocate => calculation_settings_deallocate
@@ -152,7 +157,7 @@ module calc_type
     logical  :: tsopt = .false.
     integer  :: iupdat = 0  !> 0=BFGS, 1=Powell, 2=SR1, 3=Bofill, 4=Schlegel
 
-    !>--- gfn0 data
+    !>--- gfn0 data, needed for special MECP application
     type(gfn0_data),allocatable  :: g0calc
 
     !>--- printouts and io

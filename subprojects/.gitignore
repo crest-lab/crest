@@ -7,6 +7,7 @@ s-dftd3.wrap
 toml-f.wrap
 mctc-lib.wrap
 gfn0
+gfnff
 
 !packagefiles
 !packagefiles/tblite

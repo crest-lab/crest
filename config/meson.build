@@ -173,6 +173,8 @@ endif
 ## ========================================= ##
 ## External subprojects
 ## ========================================= ##  
+
+# GFN1-xTB and GFN2-xTB via TBLITE
 if get_option('WITH_TBLITE')
  add_project_arguments('-DWITH_TBLITE', language: 'fortran')
  tblite_dep = dependency(
@@ -191,6 +193,7 @@ endif
 #)
 #exe_deps += mctc_dep
 
+# GFN0-xTB
 if get_option('WITH_GFN0')
  add_project_arguments('-DWITH_GFN0', language: 'fortran')
  gfn0_dep = dependency(
@@ -200,5 +203,16 @@ if get_option('WITH_GFN0')
    default_options: ['default_library=static','with_gbsa=true'],
  )
  exe_deps += gfn0_dep
+endif
+
+# GFN-FF
+if get_option('WITH_GFNFF')
+ add_project_arguments('-DWITH_GFNFF', language: 'fortran')
+ gfnff_dep = dependency(
+   'gfnff',
+   fallback: ['gfnff', 'gfnff_dep'],
+   default_options: ['default_library=static','with_gbsa=true'],
+ )
+ exe_deps += gfnff_dep
 endif
 

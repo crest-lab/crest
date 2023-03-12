@@ -123,13 +123,18 @@ contains  !>--- Module routines start here
           call tblite_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
 
         case (jobtype%gfn0) !>-- GFN0-xTB api
-          call gfn0_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-          !call gfn0_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+          call gfn0_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i), &
+          &                calc%grdtmp(:,:,i),iostatus)
 
-        case (jobtype%gfn0occ) !>--- Special GFN0-xTB api given orbital population
-          call gfn0occ_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-!           call gfn0occ_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),        iostatus)
+        case (jobtype%gfn0occ) !>-- Special GFN0-xTB api given orbital population
+          !> note the use of calc%g0calc instead of calc%calcs(i)%g0calc !
+          call gfn0occ_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i), &
+          &                   calc%grdtmp(:,:,i),iostatus)
  
+        case (jobtype%gfnff) !>-- GFN-FF api
+          call gfnff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+
+
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
             read (calc%calcs(i)%other,*) dum1,dum2

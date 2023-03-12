@@ -55,6 +55,8 @@ option(WITH_TBLITE "Enable build with the lightweight tight-binding library" FAL
 
 option(WITH_GFN0 "Enable build with GFN0-xTB support" TRUE)
 
+option(WITH_GFNFF "Enable build with GFN-FF support" TRUE)
+
 
 if(NOT DEFINED "${PROJECT_NAME}-dependency-method")
   set(

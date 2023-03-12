@@ -95,6 +95,17 @@ if(WITH_GFN0)
 endif()
 
 
+# GFN-FF
+if(WITH_GFNFF)
+  find_package("gfnff" REQUIRED)
+  add_definitions(-DWITH_GFNFF)
+  list(
+    APPEND libs
+    gfnff::gfnff
+  )
+endif()
+
+
 
 #
 # CREST sources

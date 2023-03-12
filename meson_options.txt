@@ -47,4 +47,11 @@ option(
   value: true,
   description: 'build with GFN0-xTB integration',
 )
+option(
+  'WITH_GFNFF',
+  type: 'boolean',
+  value: true,
+  description: 'build with GFN-FF integration',
+)
+
 

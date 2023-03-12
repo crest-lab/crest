@@ -205,6 +205,8 @@ contains
         job%id = jobtype%gfn0
       case ('gfn0*','gfn0*-xtb')
         job%id = jobtype%gfn0occ
+      case ('gfnff','gff','gfn-ff')
+        job%id = jobtype%gfnff
       case ('none')
         job%id = jobtype%unknown
       case default
