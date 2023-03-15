@@ -30,8 +30,8 @@ module api_engrad
   use strucrd
   use calc_type
   use iomod,only:makedir,directory_exist,remove
+  !> API modules
   use api_helpers
-  !> APIs
   use tblite_api
   use gfn0_api
   use gfnff_api
@@ -48,7 +48,7 @@ module api_engrad
 
 !=========================================================================================!
 !=========================================================================================!
-contains    !>--- Module routines start here
+contains    !> MODULE PROCEDURES START HERE
 !=========================================================================================!
 !=========================================================================================!
 
@@ -62,8 +62,9 @@ contains    !>--- Module routines start here
     integer,intent(out) :: iostatus
 
     character(len=:),allocatable :: cpath
-    logical :: loadnew
+    logical :: loadnew,pr
     iostatus = 0
+    pr =.true. !> tblite always printes some data
 
     !>--- setup system call information
     !$omp critical
@@ -82,15 +83,16 @@ contains    !>--- Module routines start here
     else
       cpath = 'tblite.out'
     end if
-    !write(*,*) 'here', calc%ctx%unit,trim(cpath),stdout
     open (newunit=calc%ctx%unit,file=cpath,status='replace')
-    !write(*,*) 'doe',calc%ctx%unit
     deallocate (cpath)
+    call api_print_input_structure(pr, calc%ctx%unit, mol)
     !> populate parameters and wavefunction
     if (loadnew) then
       call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp, &
       &    calc%ctx,calc%wfn,calc%tbcalc)
       call tblite_addsettings(calc%tbcalc,calc%maxscc,calc%rdwbo,calc%saveint)
+      call tblite_add_solv(mol,calc%chrg,calc%uhf,calc%ctx,calc%wfn,calc%tbcalc, &
+      &    calc%solvmodel,calc%solvent)
     end if
     !$omp end critical
     !>--- do the engrad call
@@ -98,6 +100,7 @@ contains    !>--- Module routines start here
     call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%accuracy, &
     & calc%ctx,calc%wfn,calc%tbcalc,energy,grad,calc%tbres,iostatus)
     if (iostatus /= 0) return
+    call api_print_e_grd(pr,calc%ctx%unit,mol,energy,grad)
 
     !>--- postprocessing, getting other data
     !$omp critical
@@ -105,41 +108,6 @@ contains    !>--- Module routines start here
     !$omp end critical
 
     return
-    ! contains
-    !   subroutine tblite_init(calc,loadnew)
-    !     implicit none
-    !     type(calculation_settings),intent(inout) :: calc
-    !     logical,intent(out) :: loadnew
-    !     loadnew = .false.
-    !     if(.not.allocated(calc%wfn))then
-    !     allocate(calc%wfn)
-    !     loadnew = .true.
-    !     endif
-    !     if(.not.allocated(calc%tbcalc))then
-    !     allocate(calc%tbcalc)
-    !     loadnew=.true.
-    !     endif
-    !     if( .not.allocated(calc%ctx) )then
-    !     allocate(calc%ctx)
-    !     loadnew = .true.
-    !     endif
-    !     if( .not.allocated(calc%tbres) )then
-    !     allocate(calc%tbres)
-    !     loadnew=.true.
-    !     endif
-    !     if( calc%apiclean ) loadnew = .true.
-    !   end subroutine tblite_init
-    !   subroutine tblite_wbos(calc,mol,iostatus)
-    !     implicit none
-    !     type(calculation_settings),intent(inout) :: calc
-    !     type(coord),intent(in) :: mol
-    !     integer,intent(out) :: iostatus
-    !     iostatus = 0
-    !     if(.not.calc%rdwbo) return
-    !     if(allocated(calc%wbo))deallocate(calc%wbo)
-    !     allocate(calc%wbo( mol%nat, mol%nat), source=0.0_wp)
-    !     call tblite_getwbos(calc%tbcalc,calc%wfn,calc%tbres,mol%nat,calc%wbo)
-    !  end subroutine tblite_wbos
   end subroutine tblite_engrad
 
 !========================================================================================!
@@ -184,6 +152,8 @@ contains    !>--- Module routines start here
       pr = .true.
     end if
     deallocate (cpath)
+    call api_print_input_structure(pr, calc%prch, mol)
+
     !> populate parameters and wavefunction
     if (loadnew) then
       call gfn0_setup(mol,calc%chrg,calc%uhf,g0calc)
@@ -197,59 +167,15 @@ contains    !>--- Module routines start here
     if (iostatus /= 0) return
     if (pr) then
       call gfn0_print(calc%prch,g0calc,res)
+      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data
     !$omp critical
-    call gfn0_wbos(calc,mol,iostatus)
+    call gfn0_wbos(calc,calc%g0calc,mol,iostatus)
     !$omp end critical
 
     return
-!  contains
-!    subroutine gfn0_init(calc,g0calc,loadnew)
-!      implicit none
-!      type(calculation_settings),intent(inout) :: calc
-!      type(gfn0_data),intent(inout),allocatable  :: g0calc
-!      logical,intent(out) :: loadnew
-!      loadnew = .false.
-!      if(.not.allocated(g0calc))then
-!      allocate(g0calc)
-!      loadnew = .true.
-!      endif
-!      if( calc%apiclean ) loadnew = .true.
-!    end subroutine gfn0_init
-!    subroutine gfn0_init2(mol,calc,g0calc)
-!      implicit none
-!      type(coord),intent(in) :: mol
-!      type(calculation_settings),intent(inout) :: calc
-!      type(gfn0_data),intent(inout)  :: g0calc
-!      if(allocated(calc%solvent) .and. allocated(calc%solvmodel))then
-!      call gfn0_addsettings(mol,g0calc,calc%solvent,calc%solvmodel)
-!      endif
-!      call gfn0_addsettings(mol,g0calc,loadwbo=calc%rdwbo)
-!    end subroutine gfn0_init2
-!    subroutine gfn0_init3(mol,calc,g0calc)
-!      implicit none
-!      type(coord),intent(in) :: mol
-!      type(calculation_settings),intent(inout) :: calc
-!      type(gfn0_data),intent(inout),allocatable  :: g0calc
-!      integer :: nel,uhf
-!      nel = g0calc%wfn%nel
-!      uhf = calc%uhf
-!      call g0calc%wfn%refresh_occu(nel, uhf)
-!      call gfn0_addsettings(mol,g0calc,etemp=calc%etemp)
-!    end subroutine gfn0_init3
-!    subroutine gfn0_wbos(calc,mol,iostatus)
-!      implicit none
-!      type(calculation_settings),intent(inout) :: calc
-!      type(coord),intent(in) :: mol
-!      integer,intent(out) :: iostatus
-!      iostatus = 0
-!      if(.not.calc%rdwbo) return
-!      if(allocated(calc%wbo))deallocate(calc%wbo)
-!      allocate(calc%wbo( mol%nat, mol%nat), source=0.0_wp)
-!      call gfn0_getwbos(calc%g0calc,mol%nat,calc%wbo)
-!    end subroutine gfn0_wbos
   end subroutine gfn0_engrad
 
 !========================================================================================!
@@ -293,6 +219,8 @@ contains    !>--- Module routines start here
       pr = .true.
     end if
     deallocate (cpath)
+    call api_print_input_structure(pr, calc%prch, mol)
+
     !> populate parameters and wavefunction
     if (loadnew) then
       call gfn0_setup(mol,calc%chrg,calc%uhf,g0calc)
@@ -307,64 +235,15 @@ contains    !>--- Module routines start here
     if (iostatus /= 0) return
     if (pr) then
       call gfn0_print(calc%prch,g0calc,res)
+      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
     !>--- postprocessing, getting other data
     !$omp critical
-    call gfn0_wbos(calc,mol,iostatus)
+    call gfn0_wbos(calc,g0calc,mol,iostatus)
     !$omp end critical
 
     return
-!  contains
-!    subroutine gfn0_init(calc,g0calc,loadnew)
-!      implicit none
-!      type(calculation_settings),intent(inout) :: calc
-!      logical,intent(out) :: loadnew
-!      type(gfn0_data),intent(inout),allocatable  :: g0calc
-!      integer :: nel,nao,nlev
-!      loadnew = .false.
-!      if(.not.allocated(g0calc))then
-!      allocate(g0calc)
-!      loadnew = .true.
-!      endif
-!      if( calc%apiclean ) loadnew = .true.
-!    end subroutine gfn0_init
-!    subroutine gfn0_init2(mol,calc,g0calc)
-!      implicit none
-!      type(coord),intent(in) :: mol
-!      type(calculation_settings),intent(inout) :: calc
-!      type(gfn0_data),intent(inout),allocatable  :: g0calc
-!      integer :: nel,nao,nlev
-!      if(allocated(calc%solvent) .and. allocated(calc%solvmodel))then
-!      call gfn0_addsettings(mol,g0calc,calc%solvent,calc%solvmodel)
-!      endif
-!      call gfn0_addsettings(mol,g0calc,etemp=calc%etemp,loadwbo=calc%rdwbo)
-!    end subroutine gfn0_init2
-!    subroutine gfn0_init3(mol,calc,g0calc)
-!      implicit none
-!      type(coord),intent(in) :: mol
-!      type(calculation_settings),intent(inout) :: calc
-!      type(gfn0_data),intent(inout),allocatable  :: g0calc
-!      integer :: nel,nao,nlev
-!      if(.not.allocated(calc%occ))then
-!        nel = g0calc%wfn%nel
-!        nao = g0calc%basis%nao
-!        if(allocated(calc%occ))deallocate(calc%occ)
-!        allocate(calc%occ(nao), source=0.0_wp)
-!        call gfn0_gen_occ(nel,nao,calc%config,calc%occ)
-!      endif
-!    end subroutine gfn0_init3
-!    subroutine gfn0_wbos(calc,mol,iostatus)
-!      implicit none
-!      type(calculation_settings),intent(inout) :: calc
-!      type(coord),intent(in) :: mol
-!      integer,intent(out) :: iostatus
-!      iostatus = 0
-!      if(.not.calc%rdwbo) return
-!      if(allocated(calc%wbo))deallocate(calc%wbo)
-!      allocate(calc%wbo( mol%nat, mol%nat), source=0.0_wp)
-!      call gfn0_getwbos(calc%g0calc,mol%nat,calc%wbo)
-!    end subroutine gfn0_wbos
   end subroutine gfn0occ_engrad
 
 !========================================================================================!
@@ -403,6 +282,8 @@ contains    !>--- Module routines start here
       pr = .true.
     end if
     deallocate (cpath)
+    call api_print_input_structure(pr, calc%prch, mol)
+
 !>--- populate parameters and neighbourlists
     if (loadnew) then
       call gfnff_api_setup(mol,calc%chrg,calc%ff_dat,iostatus,pr,calc%prch)
@@ -416,7 +297,8 @@ contains    !>--- Module routines start here
 
 !>--- printout
     if (pr) then
-      call print_gfnff_results(calc%prch,calc%ff_dat%res,allocated(calc%ff_dat%solvation))
+      call gfnff_printout(calc%prch,calc%ff_dat)
+      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data

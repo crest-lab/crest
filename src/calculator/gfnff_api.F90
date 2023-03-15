@@ -32,10 +32,11 @@ module gfnff_api
   private
 
   !> link to subproject routines/datatypes
-  public :: gfnff_data,print_gfnff_results
+  public :: gfnff_data
   !> routines from this file
   public :: gfnff_api_setup
   public :: gfnff_sp
+  public :: gfnff_printout
 
 #ifndef WITH_GFNFF
   !> these are placeholders if no gfnff module is used!
@@ -59,9 +60,8 @@ contains  !> MODULE PROCEDURES START HERE
     logical,intent(in),optional :: pr
     integer,intent(in),optional :: iunit
     type(gfnff_data),allocatable,intent(inout) :: ff_dat
-#ifdef WITH_GFNFF
     io = 0
-
+#ifdef WITH_GFNFF
     !> initialize parametrization and topology of GFN-FF
     call gfnff_initialize(mol%nat,mol%at,mol%xyz,ff_dat,'no file',.false., &
     & ichrg=chrg,print=pr,iostat=io,iunit=iunit)
@@ -99,6 +99,24 @@ contains  !> MODULE PROCEDURES START HERE
     error stop
 #endif
   end subroutine gfnff_sp
+
+!========================================================================================!
+
+  subroutine gfnff_printout(iunit,ff_dat)
+    implicit none
+    !> INPUT
+    integer,intent(in)  :: iunit
+    type(gfnff_data),allocatable,intent(inout) :: ff_dat
+    !> LOCAL
+    logical :: fail
+#ifdef WITH_GFNFF
+    call print_gfnff_results(iunit,ff_dat%res,allocated(ff_dat%solvation))
+#else
+    write (stdout,*) 'Error: Compiled without GFN-FF support!'
+    write (stdout,*) 'Use -DWITH_GFNFF=true in the setup to enable this function'
+    error stop
+#endif
+  end subroutine gfnff_printout
 
 
 

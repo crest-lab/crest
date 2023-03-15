@@ -143,13 +143,16 @@ end subroutine confscript1
 subroutine nciflexi(env,flexval)
   use crest_parameters
   use crest_data
+  use strucrd
   implicit none
   type(systemdata) :: env
+  type(coord) ::mol
   real(wp) :: flexval
   if(env%legacy)then
     call nciflexi_legacy(env,flexval)
   else
-    flexval = 0.0_wp
+    call env%ref%to(mol)
+    call nciflexi_gfnff(mol,flexval)
   endif  
 end subroutine nciflexi
 

@@ -183,34 +183,34 @@ subroutine flexi(mol,rednat,includeAtom,flex)
   deallocate (xyz,at,rcov,map,cn,b,sring,cring,wbo)
 
   return
-contains
-  subroutine minringsizes(nat,at,xyz,sring)
-    use zdata
-    implicit none
-    integer :: nat
-    integer :: at(nat)
-    real(wp) :: xyz(3,nat)
-    integer :: sring(nat)
-    type(zmolecule) :: zmol
-    integer :: i,j
-
-    call simpletopo(nat,at,xyz,zmol,.false.,.true.,'')
-    do i = 1,zmol%nat
-      sring(i) = 0
-      do j = 1,zmol%nri
-        if (any(zmol%zri(j)%rlist == i)) then
-          if (sring(i) == 0) then
-            sring(i) = zmol%zri(j)%rs
-          else if (zmol%zri(j)%rs < sring(i)) then
-            sring(i) = zmol%zri(j)%rs
-          end if
-        end if
-      end do
-    end do
-    call zmol%deallocate()
-    return
-  end subroutine minringsizes
 end subroutine flexi
+subroutine minringsizes(nat,at,xyz,sring)
+  use crest_parameters
+  use zdata
+  implicit none
+  integer :: nat
+  integer :: at(nat)
+  real(wp) :: xyz(3,nat)
+  integer :: sring(nat)
+  type(zmolecule) :: zmol
+  integer :: i,j
+
+  call simpletopo(nat,at,xyz,zmol,.false.,.true.,'')
+  do i = 1,zmol%nat
+    sring(i) = 0
+    do j = 1,zmol%nri
+      if (any(zmol%zri(j)%rlist == i)) then
+        if (sring(i) == 0) then
+          sring(i) = zmol%zri(j)%rs
+        else if (zmol%zri(j)%rs < sring(i)) then
+          sring(i) = zmol%zri(j)%rs
+        end if
+      end if
+    end do
+  end do
+  call zmol%deallocate()
+  return
+end subroutine minringsizes
 !========================================================================================!
 
 !> new version of the non-covalent flexibility measure.
@@ -221,6 +221,7 @@ subroutine nciflexi_gfnff(mol,flexval)
   use crest_parameters
   use strucrd
   use calc_type
+  use gfnff_api
   implicit none
   !> INPUT
   type(coord),intent(in) :: mol
@@ -232,24 +233,36 @@ subroutine nciflexi_gfnff(mol,flexval)
   real(wp) :: ehb,edisp
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
-  type(calculation_settings) :: calctmp
+  type(gfnff_data),allocatable :: ff_dat
 !>--- reset
   flexval = 0.0_wp
   ehb = 0.0_wp
-  edisp = 0.0_wp 
+  edisp = 0.0_wp
 
 !>--- preprocessor statement (only executed when compiled with GFN-FF support)
 #ifdef WITH_GFNFF
+  allocate (ff_dat)
+  allocate (grad(3,mol%nat),source=0.0_wp)
 
-  allocate(grad(3,mol%nat), source=0.0_wp)
 !>--- set up a GFN-FF calculation
-  calctmp%id = jobtype%gfnff
-
   write (stdout,'(1x,a)',advance='no') 'Calculating NCI flexibility...'
-  flush(stdout)
-! call ... 
-! ehb = calctmp%...
-! edisp = calctmp%...
+  flush (stdout)
+  call gfnff_api_setup(mol,mol%chrg,ff_dat,io,.false.)
+  if (io /= 0) then
+    write (stdout,'(a)') ' failed.'
+    deallocate (grad,ff_dat)
+    return
+  end if
+
+!>--- perform a singlepoint calculation
+  call gfnff_sp(mol,ff_dat,energy,grad,io)
+  if (io /= 0) then
+    write (stdout,'(a)') ' failed.'
+    deallocate (grad,ff_dat)
+    return
+  end if
+  ehb = ff_dat%res%e_hb
+  edisp = ff_dat%res%e_disp
   write (stdout,'(a)') ' done.'
 
 !>--- normalize by number of atoms
@@ -260,8 +273,13 @@ subroutine nciflexi_gfnff(mol,flexval)
   flexval = 0.5_wp*(1.0_wp-(ehb/(-0.00043374_wp)))
   flexval = flexval+0.5_wp*(1.0_wp-(edisp/(-0.00163029_wp)))
 
-  call calctmp%deallocate()
-  deallocate(grad)
+  deallocate (grad,ff_dat)
+#else
+
+  write (stdout,'(a)') 'Caclulation of NCI flexibility skipped.'
+  write (stdout,'(a)') 'Set up compilation with -DWITH_GFNFF=true to enable this feature.'
+  flexval = 0.0_wp
+
 #endif
 
   return

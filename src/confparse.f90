@@ -309,6 +309,10 @@ subroutine parseflags(env,arg,nra)
       call parseinputfile(env,trim(arg(i + 1)))
       exit
     end if
+    if (i==1 .and. index(argument,'.toml').ne.0)then
+      call parseinputfile(env,trim(arg(1)))
+      exit
+    endif
   end do
 !>--- first arg loop
   do i = 1,nra

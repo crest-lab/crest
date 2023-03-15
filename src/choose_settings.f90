@@ -102,6 +102,7 @@ subroutine md_length_setup(env)
   case default  !> everything else 1=default, 4=NCI
     rfac = 1.0d0
   end select
+!>-- additional user set scaling
   if (env%scallen) then
     write (stdout,'(1x,''t(MTD) based on flexibility :'',  f8.1)') env%tmtd*rfac
     rfac = env%mdlenfac*rfac
@@ -439,3 +440,36 @@ subroutine adjustnormmd(env)
 
   return
 end subroutine adjustnormmd
+
+
+!========================================================================================!
+subroutine env_to_mddat(env)
+  use crest_parameters
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  real(wp) :: dum
+!>--- dont override user-defined settings
+  if(env%mddat%requested) return
+
+!>--- necessary transfer global settings into mddat object
+   env%mddat%length_ps    = env%mdtime  !> total runtime in ps 
+   env%mddat%tstep        = env%mdstep  !> time step in fs
+   env%mddat%length_steps = nint(env%mdtime*1000.0_wp / env%mdstep) !> simulation steps
+   env%mddat%tsoll        = env%mdtemp    !> target temperature
+
+   env%mddat%dumpstep     = float(env%mddumpxyz) !> dump frequency in fs
+   dum = max(1.0_wp, (env%mddat%dumpstep / env%mddat%tstep))
+   env%mddat%sdump          = nint(dum)     !> trajectory structure dump every x steps   
+   env%mddat%shake          = env%shake > 0 !> SHAKE algorithm?
+   env%mddat%shk%shake_mode = env%shake     !> H-only shake =1, all atom =2
+   env%mddat%md_hmass       = env%hmass     !> hydrogen mass
+   ! TODO: WBO reader if shake is applied and wbo file is present
+
+
+!>--- set flag to signal present settings
+  env%mddat%requested = .true.
+
+end subroutine env_to_mddat
+
+

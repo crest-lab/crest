@@ -56,57 +56,61 @@ subroutine crest_singlepoint(env,tim)
 !========================================================================================!
   call tim%start(14,'singlepoint calc.') 
 !========================================================================================!
-  write(*,*)
+  write(stdout,*)
   !call system('figlet singlepoint')
-  write(*,*) "     _             _                  _       _   "
-  write(*,*) " ___(_)_ __   __ _| | ___ _ __   ___ (_)_ __ | |_ "
-  write(*,*) "/ __| | '_ \ / _` | |/ _ \ '_ \ / _ \| | '_ \| __|"
-  write(*,*) "\__ \ | | | | (_| | |  __/ |_) | (_) | | | | | |_ "
-  write(*,*) "|___/_|_| |_|\__, |_|\___| .__/ \___/|_|_| |_|\__|"
-  write(*,*) "             |___/       |_|                      "
-  write(*,*)
+  write(stdout,*) "     _             _                  _       _   "
+  write(stdout,*) " ___(_)_ __   __ _| | ___ _ __   ___ (_)_ __ | |_ "
+  write(stdout,*) "/ __| | '_ \ / _` | |/ _ \ '_ \ / _ \| | '_ \| __|"
+  write(stdout,*) "\__ \ | | | | (_| | |  __/ |_) | (_) | | | | | |_ "
+  write(stdout,*) "|___/_|_| |_|\__, |_|\___| .__/ \___/|_|_| |_|\__|"
+  write(stdout,*) "             |___/       |_|                      "
+  write(stdout,*)
 !========================================================================================!
   call env%ref%to(mol)
-  write(*,*)
-  write(*,*) 'Input structure:'
+  write(stdout,*)
+  write(stdout,*) 'Input structure:'
   call mol%append(stdout)
-  write(*,*) 
+  write(stdout,*) 
 !========================================================================================!
 
   allocate(grad(3,mol%nat),source=0.0_wp)
   calc = env%calc
 
-  write(*,*) 'job type',calc%calcs(1)%id
-  write(*,*) 'etemp   ',calc%calcs(1)%etemp
-  write(*,*) 'chrg    ',calc%calcs(1)%chrg
-  write(*,*) 'uhf     ', calc%calcs(i)%uhf
-  write(*,*) 'accuracy',calc%calcs(1)%accuracy
-  write(*,*) 'maxscc  ',calc%calcs(1)%maxscc
+  write(stdout,*) 'job type',calc%calcs(1)%id
+  write(stdout,*) 'etemp   ',calc%calcs(1)%etemp
+  write(stdout,*) 'chrg    ',calc%calcs(1)%chrg
+  write(stdout,*) 'uhf     ',calc%calcs(1)%uhf
+  write(stdout,*) 'accuracy',calc%calcs(1)%accuracy
+  write(stdout,*) 'maxscc  ',calc%calcs(1)%maxscc
   call engrad(mol,calc,energy,grad,io)
-  write(*,*) 'iostatus',io  
+  call tim%stop(14)
+  write(stdout,*) 'iostatus',io  
+  if(io /= 0)then
+    write(stdout,*) 'WARNING: Calculation failed!'
+    return
+  endif
 
    if(calc%calcs(1)%rdwbo)then
-   write(*,*)
-   write(*,*) 'WBOs:'
+   write(stdout,*)
+   write(stdout,*) 'WBOs:'
    do i=1,mol%nat
      do j=1,i-1
        if(calc%calcs(1)%wbo(i,j) > 0.0002_wp)then
-        write(*,*) i,j,calc%calcs(1)%wbo(i,j)
+        write(stdout,*) i,j,calc%calcs(1)%wbo(i,j)
        endif
      enddo
    enddo 
    endif
-   write(*,*)
+   write(stdout,*)
    write (*,*) 'Energy: ',energy
    write (*,*) 'Gradient:'
    do i = 1,mol%nat
       write (*,'(3f18.8)') grad(1:3,i)
    end do
-   write(*,*)
+   write(stdout,*)
  
   deallocate(grad)
 !========================================================================================!
-  call tim%stop(14)
   return
 end subroutine crest_singlepoint
 

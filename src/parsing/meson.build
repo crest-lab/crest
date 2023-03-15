@@ -19,6 +19,7 @@ srcs += files(
   'parse_block.f90',
   'parse_calcdata.f90',
   'parse_datastruct.f90',
+  'parse_maindata.f90',
   'parse_inputfile.f90',
   'parse_keyvalue.f90',
 )

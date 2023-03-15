@@ -70,6 +70,10 @@ subroutine crest_search_imtdgc(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 
+!>--- sets the MD length according to a flexibility measure
+  call md_length_setup(env) 
+  call env_to_mddat(env)
+
 !===========================================================!
 !>--- Start mainloop 
   env%nreset = 0

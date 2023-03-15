@@ -207,7 +207,9 @@ contains  !>--- Module routines start here
     real(wp),intent(out) :: occ(nao)
     integer :: i
     occ = 0.0_wp
+#ifdef WITH_GFN0
     call generate_config(nel,nao,occ,active)
+#endif
   end subroutine gfn0_gen_occ
 
 

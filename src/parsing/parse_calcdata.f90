@@ -70,12 +70,14 @@ contains
       if (blk%header == 'calculation') then
         included = .true.
         call parse_calcdat(blk,calc)
-        !write(*,*) 'read [calculation]'
+
       else if (blk%header == '[calculation.level]') then
         call parse_leveldata(blk,newjob)
+        call newjob%autocomplete( calc%ncalculations+1 )
         call calc%add(newjob)
         included = .true.
-        !write(*,*) 'read [calculation.level]'
+        
+
       else if (blk%header == '[calculation.mecp]') then
         !>-- setup
         if(allocated(calc%calcs))deallocate(calc%calcs)
@@ -92,12 +94,15 @@ contains
         newjob%calcspace = 's1'
         call calc%add(newjob)
         included = .true.
+
       else if (blk%header == '[calculation.constraints]') then
         call parse_constraintdat(blk,calc)
         included = .true.
+
       else if (blk%header == '[calculation.scans]')then
         call parse_scandat(blk,calc)
         included = .true.
+
       end if
     end do
     if (included) then
@@ -262,12 +267,8 @@ contains
          job%tblitelvl = xtblvl%unknown
        end select
 
-    case ('gbsa')
-       job%solvmodel = 'gbsa'
-       job%solvent   = val
-
-    case ('alpb')
-       job%solvmodel = 'alpb'
+    case ('gbsa','alpb','cpcm')
+       job%solvmodel = key
        job%solvent   = val
 
 

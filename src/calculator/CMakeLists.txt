@@ -24,6 +24,7 @@ list(APPEND srcs
   "${dir}/lj.f90"
   "${dir}/nonadiabatic.f90"
   "${dir}/tblite_api.F90"
+  "${dir}/api_helpers.F90"
   "${dir}/api_engrad.f90"
   "${dir}/gradreader.f90"
   "${dir}/xtb_sc.f90"
