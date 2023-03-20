@@ -19,15 +19,16 @@
 
 !> NOTE: This is work in progress, not all input conventions have been set yet
 !========================================================================================!
-!========================================================================================!
+!> Routines contained here are for parsing 'top level' settings that will 
+!> enter the env systemdata object
 
 module parse_maindata
   use crest_parameters
   !> modules for data storage in crest
   use crest_data
   !> modules used for parsing the root_object
-  !>   
-  use parse_keyvalue,only:keyvalue
+  !>
+  use parse_keyvalue,only:keyvalue,valuetypes
   use parse_block,only:datablock
   use parse_datastruct,only:root_object
   !> Declarations
@@ -35,20 +36,23 @@ module parse_maindata
   public
 
 !========================================================================================!
+!========================================================================================!
 contains   !> MODULE PROCEDURES START HERE
 !========================================================================================!
+!========================================================================================!
+
   subroutine parse_main_auto(env,kv)
     implicit none
     type(systemdata) :: env
     type(keyvalue) :: kv
     select case (kv%id)
-    case (1) !> float
+    case (valuetypes%float) !> float
       call parse_main_float(env,kv%key,kv%value_f)
-    case (2) !> int
+    case (valuetypes%int) !> int
       call parse_main_int(env,kv%key,kv%value_i)
-    case (3) !> bool
+    case (valuetypes%bool) !> bool
       call parse_main_bool(env,kv%key,kv%value_b)
-    case (4) !> string
+    case (valuetypes%string) !> string
       call parse_main_c(env,kv%key,kv%value_c)
     end select
   end subroutine parse_main_auto
@@ -68,10 +72,10 @@ contains   !> MODULE PROCEDURES START HERE
     character(len=*) :: key
     integer :: val
     select case (key)
-     case('threads','parallel')
-        env%Threads = val
-        env%autothreads = .true.
-        env%threadssetmanual = .true.
+    case ('threads','parallel')
+      env%Threads = val
+      env%autothreads = .true.
+      env%threadssetmanual = .true.
     end select
     return
   end subroutine parse_main_int
@@ -90,7 +94,7 @@ contains   !> MODULE PROCEDURES START HERE
       case ('playground','test')
         env%preopt = .false.
         env%crestver = crest_test
-       case ('singlepoint','sp')
+      case ('singlepoint','sp')
         env%preopt = .false.
         env%crestver = crest_sp
       case ('ancopt','optimize')
@@ -102,38 +106,38 @@ contains   !> MODULE PROCEDURES START HERE
       case ('md','mtd','metadynamics','dynamics')
         env%preopt = .false.
         env%crestver = crest_moldyn
-      case ( 'scan' )
+      case ('scan')
         env%preopt = .false.
         env%crestver = crest_scanning
       case ('search_1')
         env%preopt = .false.
         env%crestver = crest_s1
-        env%runver   = crest_s1
+        env%runver = crest_s1
       case ('mecp','mecp_search')
         env%preopt = .false.
         env%crestver = crest_mecp
-        env%runver   = crest_mecp
-      case ('imtd-gc' )
+        env%runver = crest_mecp
+      case ('imtd-gc')
         env%preopt = .false.
         env%crestver = crest_imtd
-        env%runver   = 1
+        env%runver = 1
         env%legacy = .false.
-      case ( 'numhess','numerical hessian')
+      case ('numhess','numerical hessian')
         env%preopt = .false.
         env%crestver = crest_numhessian
-        env%runver   = crest_numhessian
-      case ( 'rigidconf' )
+        env%runver = crest_numhessian
+      case ('rigidconf')
         env%preopt = .false.
         env%crestver = crest_rigcon
-        env%runver   = crest_rigcon
+        env%runver = crest_rigcon
       case default
         env%crestver = crest_imtd
       end select
-    case( 'ensemble_input' )
-       env%ensemblename = val
-       env%inputcoords = val
-    case( 'input' )
-       env%inputcoords = val
+    case ('ensemble_input')
+      env%ensemblename = val
+      env%inputcoords = val
+    case ('input')
+      env%inputcoords = val
     end select
     return
   end subroutine parse_main_c
@@ -145,7 +149,7 @@ contains   !> MODULE PROCEDURES START HERE
     select case (key)
     case ('preopt')
       env%preopt = val
-    case( 'noopt' )
+    case ('noopt')
       env%preopt = .not.val
     case ('topo')
       env%checktopo = val
@@ -160,7 +164,7 @@ contains   !> MODULE PROCEDURES START HERE
     type(systemdata) :: env
     type(datablock) :: blk
     select case (blk%header)
-    case ('cregen') 
+    case ('cregen')
 
     end select
   end subroutine parse_main_blk

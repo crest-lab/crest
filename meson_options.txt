@@ -53,5 +53,10 @@ option(
   value: true,
   description: 'build with GFN-FF integration',
 )
-
+option(
+  'WITH_TOMLF',
+  type: 'boolean',
+  value: true,
+  description: 'build with toml-f integration',
+)
 

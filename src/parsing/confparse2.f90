@@ -26,30 +26,28 @@
 !========================================================================================!
 !> A supplement to the parseflags routine
 !> in confparse.f90. This routine reads
-!> an input file (very loosly based on the
-!> TOML format)
+!> an input file (TOML format via the toml-f library)
 !>
 !> Input/Output:
 !>  env   -  crest's systemdata object, which
 !>           contains basically all information
 !>           for the calculation
-!>  iname -  name of the input file
+!>  fname -  name of the input file
 !>-----------------------------------------------
 subroutine parseinputfile(env,fname)
-  use crest_parameters 
+  use crest_parameters
   !> modules for data storage in crest
   use crest_data
   use calc_type,only:calcdata
   use dynamics_module,only:mddata
- 
+
   !> modules used for parsing the root_object
-  !>   
   use parse_keyvalue,only:keyvalue
   use parse_block,only:datablock
   use parse_datastruct,only:root_object
   use parse_maindata
-  use parse_inputfile, only: parse_input
-  use parse_calcdata, only: parse_calculation_data, &
+  use parse_inputfile,only:parse_input
+  use parse_calcdata,only:parse_calculation_data, &
   &                         parse_dynamics_data
   !> Declarations
   implicit none
@@ -65,10 +63,10 @@ subroutine parseinputfile(env,fname)
 
 !>--- check for the input files' existence
   inquire (file=fname,exist=ex)
-  if (.not. ex) then
+  if (.not.ex) then
     return
   else
-    write (*,*) 'reading ',trim(fname)
+    write (stdout,*) 'reading ',trim(fname)
   end if
 
 !>--- read the file into the object 'dict'
@@ -76,29 +74,30 @@ subroutine parseinputfile(env,fname)
   call dict%print()
 
 !>--- parse all root-level key-value pairs
-  do i=1,dict%nkv
+  do i = 1,dict%nkv
     kv = dict%kv_list(i)
     call parse_main_auto(env,kv)
-  enddo
+  end do
 
-!>--- parse all objects
-  do i=1,dict%nblk
+!>--- parse all objects that write to env
+  do i = 1,dict%nblk
     blk = dict%blk_list(i)
     call parse_main_blk(env,blk)
-  enddo
+  end do
+
 !>--- check objects for a calculation setup
 !     i.e., all [calculation] and [[calculation.*]] blocks
   call parse_calculation_data(newcalc,dict,l1)
-  if(l1)then
+  if (l1) then
     env%calc = newcalc
-  endif
+  end if
 
 !>--- check for molecular dynamics setup
 !     i.e., all [dynamics] and [[dynamics.*]] blocks
   call parse_dynamics_data(mddat,dict,l1)
-  if(l1)then
+  if (l1) then
     env%mddat = mddat
-  endif
+  end if
 
   call dict%deallocate()
   return
@@ -111,39 +110,37 @@ end subroutine parseinputfile
 !> for the internal calculation engine
 !>----------------------------------------------------
 subroutine internal_constraint_repair(env)
-    use crest_parameters
-    use crest_data
-    use constraints
-    implicit none
-    type(systemdata) :: env
-    integer :: i,j,k,l,n
-    integer :: nat
-    logical,allocatable :: atms(:)    
+  use crest_parameters
+  use crest_data
+  use constraints
+  implicit none
+  type(systemdata) :: env
+  integer :: i,j,k,l,n
+  integer :: nat
+  logical,allocatable :: atms(:)
 
-    n = env%calc%nconstraints 
-    if(n < 1)return 
+  n = env%calc%nconstraints
+  if (n < 1) return
 
-    nat = env%nat
+  nat = env%nat
 
-    do i=1,n
-      select case( env%calc%cons(i)%type )
+  do i = 1,n
+    select case (env%calc%cons(i)%type)
 
-      case( 4,5 ) !> wall, wall_fermi
-        if(env%calc%cons(i)%n == 0)then 
+    case (4,5) !> wall, wall_fermi
+      if (env%calc%cons(i)%n == 0) then
         !> if no #atoms have been specified, apply to all atoms
-          allocate(atms(nat))
-          atms = .true.
-          call env%calc%cons(i)%sphereupdate(nat,atms)
-          deallocate(atms)
-        endif
+        allocate (atms(nat))
+        atms = .true.
+        call env%calc%cons(i)%sphereupdate(nat,atms)
+        deallocate (atms)
+      end if
 
-      case default
-        continue
-      end select
-    enddo
+    case default
+      continue
+    end select
+  end do
 
-    return
+  return
 end subroutine internal_constraint_repair
-
-
 

@@ -64,15 +64,6 @@ list(
   BLAS::BLAS
 )
 
-## mctc-lib
-#if(NOT TARGET "mctc-lib::mctc-lib")
-#  find_package("mctc-lib" REQUIRED)
-#  list(
-#    APPEND libs
-#    mctc-lib::mctc-lib
-#  )
-#endif()
-
 # tblite
 if(WITH_TBLITE)
   find_package("tblite" REQUIRED)
@@ -80,6 +71,17 @@ if(WITH_TBLITE)
   list(
     APPEND libs
     tblite::tblite
+  )
+endif()
+
+
+# toml-f
+if(WITH_TOMLF)
+  find_package("toml-f" REQUIRED)
+  add_definitions(-DWITH_TOMLF)
+  list(
+    APPEND libs
+    toml-f::toml-f
   )
 endif()
 
