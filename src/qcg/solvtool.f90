@@ -961,7 +961,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
             env%mdtime = 5.0
          end if
          env%nmdtemp = 100
-         env%MaxRestart = 3
+         env%MaxRestart = 6
       endif
 
       env%iterativeV2 = .true.  !Safeguards more precise ensemble search
