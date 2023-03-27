@@ -327,6 +327,13 @@ subroutine confscript2i(env,tim)
     write (*,'(3x,''================================================'')')
 
     if (doNMR) cgf(3) = .true.                        !--- if NMR equivalencies are requested, turn them on here
+    !Clustering for QCG to reduce costs
+    if (env%properties == 70) then
+      write(*,'(3x,''Clustering the remaining structures'')')
+      call checkname_xyz(crefile,atmp,str)
+      call ccegen(env, .false. , atmp)
+      call move(trim(clusterfile),trim(str))
+    end if
     call tim%start(7,'')
     call multilevel_opt(env,99)   !--- the last CREGEN is done within this subroutine
     call tim%stop(7)                                 !--- optlevel is userset
@@ -517,9 +524,15 @@ subroutine iV2defaultGF(env)
         nk = 3
         nmtdyn = na * nk
         alp = 1.0d0 ! start value alpha
-        kstart = 0.00125d0 ! start value k
-        alpinc = (3./2.) ! increment
-        kinc = (3./2.)   ! increment
+        if(.not. env%ensemble_method == -1) then
+           kstart = 0.00125d0 ! start value k
+           alpinc = (3./2.) ! increment
+           kinc = (3./2.)   ! increment
+        else
+           kstart = 0.0005d0 ! start value k
+           alpinc = (2) ! increment
+           kinc = (2)   ! increment
+        end if
 !----------
       case (4)  ! "-nci"
         na = 3

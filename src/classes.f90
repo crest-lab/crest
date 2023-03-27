@@ -375,7 +375,7 @@ module crest_data
       integer           :: nsolv = 0            !Number of solventmolecules
       integer           :: nqcgclust = 0        !Number of cluster to be taken
       integer           :: max_solv = 0         !Maximal number of solvents added, if none is given
-      integer           :: ensemble_method = 0  !Default 0 for crest, 1= standard MD, 2= MTD
+      integer           :: ensemble_method = -1 !Default -1 for qcgmtd, 0= crest, 1= standard MD, 2= MTD
       character(len=20) :: ensemble_opt         !Method for ensemble optimization in qcg mode
       character(len=20) :: freqver              !Method for frequency computation in qcg mode
       real(wp)          :: freq_scal            !Frequency scaling factor

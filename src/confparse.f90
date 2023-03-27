@@ -1651,6 +1651,9 @@ subroutine parseflags(env,arg,nra)
         env%qcg_flag = .true.
         call readl(arg(i + 1),xx,j)
         env%freq_scal = (xx(1))
+      case ('-qcgmtd')
+        env%ensemble_method = -1
+        env%qcg_flag = .true.
       case ('-ncimtd')
         env%ensemble_method = 0
         env%qcg_flag = .true.
@@ -1726,6 +1729,8 @@ subroutine parseflags(env,arg,nra)
         elseif (env%confgo .and. env%properties == -1) then !as extension for CREGEN
           env%cluster = .true.
         else if (any((/crest_imtd,crest_imtd2/) == env%crestver)) then  !works as an extensiton to the conformational search
+          env%properties = 70
+        elseif (env%QCG) then !as extension for CREGEN
           env%properties = 70
         end if
         env%doNMR = .true.           !we need equivalencies
