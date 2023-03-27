@@ -943,15 +943,26 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    !----------------------------------------------------------------
 
    select case (env%ensemble_method)
-   case (0) !Crest runtype
+   case (-1:0) !qcgmtd/Crest runtype
 
       !Defaults
-      if (.not. env%user_dumxyz) then
-         env%mddumpxyz = 200
-      end if
-      if (.not. env%user_mdtime) then
-         env%mdtime = 10.0
-      end if
+      if(env%ensemble_method == 0) then
+         if (.not. env%user_dumxyz) then
+            env%mddumpxyz = 200
+         end if
+         if (.not. env%user_mdtime) then
+            env%mdtime = 10.0
+         end if
+      else if(env%ensemble_method == -1) then
+         if (.not. env%user_dumxyz) then
+            env%mddumpxyz = 50
+         end if
+         if (.not. env%user_mdtime) then
+            env%mdtime = 5.0
+         end if
+         env%nmdtemp = 100
+         env%MaxRestart = 6
+      endif
 
       env%iterativeV2 = .true.  !Safeguards more precise ensemble search
       write (*, *) 'Starting ensemble cluster generation by CREST routine'
@@ -1184,9 +1195,18 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    deallocate (env%cts%pots)
    call multilevel_opt(env, 99)
 
-!--- Energy sorting
+  !Clustering to exclude similar structures if requested with -cluster
+  if (env%properties == 70) then
+    write(*,'(3x,''Clustering the remaining structures'')')
+    call checkname_xyz(crefile,inpnam,outnam)
+    call ccegen(env, .false. , inpnam)
+    call move(trim(clusterfile),trim(outnam))
+  end if
+
+!--- Energy sorting and removal of dublicates
    env%gbsa = gbsa_tmp
    env%solv = solv_tmp
+   call newcregen(env, 0)
    call checkname_xyz(crefile, inpnam, outnam)
    call copy(inpnam, 'ensemble.xyz')
    call ens%open('ensemble.xyz') !Read in ensemble
@@ -1315,9 +1335,12 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
       end do
       if ((k .eq. 0) .or. (k .gt. 10)) then
          k = 10 !If too many structures are relevant, set it 10
-      end if
-      if (k .lt. 4) then
+      else if ((k .lt. 4) .and. (ens%nall .ge. 4)) then
          k = 4 !If too less structures are relevant, set it 4
+      else if (ens%nall .gt. 0) then 
+         k=ens%nall
+      else
+         error stop 'No structure left. Something went wrong.' 
       end if
       write (*, '(2x,a,1x,i0)') 'Conformers taken:', k
       env%nqcgclust = k
