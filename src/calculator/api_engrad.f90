@@ -287,9 +287,10 @@ contains    !> MODULE PROCEDURES START HERE
 !>--- populate parameters and neighbourlists
     if (loadnew) then
       call gfnff_api_setup(mol,calc%chrg,calc%ff_dat,iostatus,pr,calc%prch)
-      if (iostatus /= 0) return
     end if
     !$omp end critical
+    if (iostatus /= 0) return
+
 !>--- do the engrad call
     call initsignal()
     call gfnff_sp(mol,calc%ff_dat,energy,grad,iostatus)

@@ -22,14 +22,10 @@ list(APPEND srcs
    "${dir}/parse_calcdata.f90"
    "${dir}/parse_maindata.f90"
    "${dir}/parse_datastruct.f90"
-   "${dir}/parse_inputfile.f90"
+   "${dir}/parse_toml.F90"
+   "${dir}/parse_inputfile.F90"
    "${dir}/parse_keyvalue.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)
-
-
-
-
-
 
