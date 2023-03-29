@@ -23,7 +23,7 @@
 subroutine confscript_head(vers)
       implicit none
       logical,intent(in) :: vers
-      character(len=40),parameter:: date='Thu 29. Sep 23:15:09 CEST 2022'
+      character(len=40),parameter:: date='Tue 29. Mar 11:22:53 GMT 2022'
       character(len=10),parameter:: version='3.0dev'
       logical :: niceprint
  
@@ -42,6 +42,8 @@ subroutine confscript_head(vers)
       write(*,'(/,3x,''for works involving QCG cite'')')
       write(*,'(/,3x,''• S.Spicher, C.Plett, P.Pracht, A.Hansen, S.Grimme,'')')
       write(*,'(  3x,''  JCTC, 2022, 18 (5), 3174-3189.'')')
+      write(*,'(  3x,''• C.Plett, S. Grimme,'')')
+      write(*,'(  3x,''  Angew. Chem. Int. Ed. 2023, 62, e202214477.'')')
       write(*,'(/,3x,''for works involving MECP screening cite'')')
       write(*,'(/,3x,''• P.Pracht, C.Bannwarth, JCTC, 2022, 18 (10), 6370-6385.'')')
       write(*,*)
@@ -250,10 +252,12 @@ subroutine confscript_help()
       write(*,'(5x,''-wscal <FLOAT>     : Scaling factor for outer wall potential'')')
       write(*,'(5x,''-samerand          : use same random number for every xtbiff run'')')
       write(*,'(5x,''-ensemble          : ensemble generation'')')
-      write(*,'(5x,''-ncimtd            : NCI-MTD CREST ensemble generation (Default)'')')
+      write(*,'(5x,''-qcgmtd            : NCI-MTD CREST ensemble generation (Default)'')')
+      write(*,'(5x,''-ncimtd            : NCI-MTD CREST ensemble generation'')')
       write(*,'(5x,''-mtd               : MTD for QCG ensemble generation'')')
       write(*,'(5x,''-md                : normal MD for QCG ensemble search'')')
       write(*,'(5x,''-enslvl [method]   : define a method for ensemble search. All gfn methods are supported'')')
+      write(*,'(5x,''-clustering        : Turn on clustering for the ensemble search (only for qcgmtd and ncimtd'')')
       write(*,'(5x,''-esolv             : reference cluster generation and comp. of solvation energy'')')
       write(*,'(5x,''-gsolv             : reference cluster generation and comp. of solvation free energy'')')
       write(*,'(5x,''-nclus             : defines how many clusters are taken for reference cluster generation'')')
@@ -1040,9 +1044,13 @@ end subroutine pr_qcg_esolv
 
 subroutine pr_grow_energy()
   implicit none
-  write(*,'(x,'' Size'',2x,''E /Eh '',6x,''De/kcal'',3x,''Detot/kcal'',2x,&
-           &''Density'',3x,''Efix'',9x,''R   av/act.'',1x,&
-           &''Surface'',3x,''Opt'',4x)')
+  write(*,'(x,'' Size'',7x,''E'',8x,''De'',7x,''Detot'',6x,&
+           &''Density'',5x,''Eatom'',4x,''av. R'', 1x,'' Rlast'',3x,&
+           &''Volume'',4x,''Opt'')')
+  write(*,'(12x,''[Eh]'',4x,''[kcal]'',5x,''[kcal]'',5x,&
+           &''[u/Å^3]'',5x,''[kcal]'',3x,''[bohr]'', 1x,''[bohr]'',1x,&
+           &''[bohr^3]'')')
+
 end subroutine pr_grow_energy
 
 

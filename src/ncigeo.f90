@@ -46,7 +46,8 @@ subroutine wallpot(env)
 
   allocate (env%cts%pots(10))
   env%cts%pots = ''
-  env%cts%NCI = env%NCI
+  !env%cts%NCI = env%NCI
+  env%cts%NCI = .true.
 
   pshape = 1.0d0
 
@@ -58,24 +59,16 @@ subroutine wallpot(env)
   call rdcoord('coord',nat,at,xyz)
 
 !--- CMA trafo
-  !call axistrf(nat,nat,at,xyz)
-  !call axis(nat,at,xyz) 
   call axis(pr,nat,at,xyz,eaxr)
   sola = sqrt(1.0d0 + (abs(eaxr(1) - eaxr(3))) / (abs(eaxr(1) + eaxr(2) + eaxr(3)) / 3.0d0))
   call getmaxdist(nat,xyz,at,rmax)
   vtot = volsum(nat,at) !--- volume as sum of speherical atoms (crude approximation)
 
 !--- calculate ellipsoid
-
-  !env%potscal
   roff = sola * vtot / 1000.0d0
-  !write(*,*) 'roff',roff
   boxr = ((sola * vtot) / pi43)**third + roff + rmax * 0.5_wp
-  !write(*,*) 'boxr',boxr
   r = (boxr**3 / (eaxr(1) * eaxr(2) * eaxr(3)))**third  ! volume of ellipsoid = volume of sphere
-  !write(*,*) 'r',r
   rabc = eaxr**pshape / sum((eaxr(1:3))**pshape)
-  !write(*,*) 'rabc',rabc
 
   !> scale pot size by number of atoms
   !> pure empirics
@@ -85,7 +78,6 @@ subroutine wallpot(env)
   !> erfscal is ~ 1.25 for systems <<50 atoms
   !> erfscal is ~ 0.75 for systems >>50 atoms
   rabc = eaxr * r * env%potscal * erfscal * 1.5_wp
-  !write(*,*) 'rabc',rabc
 
 !--- write CMA transformed coord file
   call wrc0('coord',env%nat,at,xyz)
@@ -126,11 +118,10 @@ subroutine wallpot_calc(nat,at,xyz,rabc)
   eaxr = 0.0d0
 
 !--- CMA trafo
-  !call axistrf(nat,nat,at,xyz)
   call axis(pr,nat,at,xyz,eaxr)
   sola = sqrt(1.0d0 + (eaxr(1) - eaxr(3)) / ((eaxr(1) + eaxr(2) + eaxr(3)) / 3.0d0))
   call getmaxdist(nat,xyz,at,rmax)
-  vtot = volsum(nat,at) !--- volume as sum of speherical atoms (crude approximation)
+  vtot = volsum(nat,at) !--- volume as sum of spherical atoms (crude approximation)
 !--- calculate ellipsoid
   roff = sola * vtot / 1000.0d0
   boxr = ((sola * vtot) / pi43)**third + roff + rmax * 0.5
