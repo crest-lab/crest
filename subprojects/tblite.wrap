@@ -2,4 +2,4 @@
 directory = tblite
 url = https://github.com/tblite/tblite
 revision = head
-diff_files = tblite/rm_app_test.patch
+diff_files = tblite/tblite_patch.patch
