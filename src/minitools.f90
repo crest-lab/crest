@@ -402,6 +402,7 @@ subroutine testtopo(fname,env,tmode)
     use iomod
     use atmasses
     use zdata
+    use strucrd
     implicit none
     type(systemdata) :: env
     character(len=*) :: fname
@@ -409,6 +410,7 @@ subroutine testtopo(fname,env,tmode)
     character(len=*) :: tmode
     character(len=40) :: sumform
     type(zmolecule) :: zmol
+    type(coord) :: mol
     real(wp),allocatable :: xyz(:,:)
     real(wp) :: dum
     integer,allocatable :: inc(:)
@@ -433,6 +435,9 @@ subroutine testtopo(fname,env,tmode)
     end select    
     allocate(xyz(3,zmol%nat))
     call zmol%getxyz(xyz)
+    mol%nat = zmol%nat
+    mol%at = zmol%at
+    mol%xyz = xyz  
     xyz=xyz*bohr   !to angstroem
 !--- specify other analysis
      write(*,*)
@@ -441,7 +446,7 @@ subroutine testtopo(fname,env,tmode)
          call analsym(zmol,dum,.true.)
        case( 'flexi' )
          allocate(inc(zmol%nat), source=1)  
-         call flexi(zmol%nat,zmol%nat,inc,flex,dum) 
+         call flexi(mol,zmol%nat,inc,flex) 
          write(*,'(1x,a,4x,f6.4)') 'flexibility measure:',flex
          deallocate(inc)
        case( 'zmat' )
@@ -457,7 +462,7 @@ subroutine testtopo(fname,env,tmode)
           write(*,'(1x,a,f16.5)') 'Mol.weight: ',molweight(zmol%nat,zmol%at)
           call analsym(zmol,dum,.true.)
           allocate(inc(zmol%nat), source=1)
-          call flexi(zmol%nat,zmol%nat,inc,flex,dum)
+          call flexi(mol,zmol%nat,inc,flex)
           write(*,'(1x,a,4x,f6.4)') 'flexibility measure:',flex
           deallocate(inc)
        case('thermo')

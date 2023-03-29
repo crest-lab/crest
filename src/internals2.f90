@@ -299,15 +299,17 @@
     integer,intent(in)   :: na(nat),nb(nat),nc(nat)
     real(wp),intent(out) :: coord(3,nat)
 
-    real(wp) :: COSC,COSA,XB,YB,ZB,RBC
+    real(wp) :: COSC,COSA,XB,YB,ZB,RBC,tmp
     real(wp) :: XA,YA,ZA,XPA,XPB,XYB,YPA,XQA,ZQA,YZA
     real(wp) :: XD,YD,ZD,SINA,SIND,COSD,XRD
     real(wp) :: YPD,ZPD,XPD,ZQD,XQD,YQD
     real(wp) :: COSTH,SINTH,COSPH,SINPH,COSKH,SINKH
     integer :: i,j,K,l,MA,MB,MC
     logical,allocatable :: taken(:)
+    real(wp),parameter :: verylarge = 1.0d100
 
-    COORD(:,:) = 0.0_wp
+    !COORD(:,:) = 0.0_wp
+    COORD(:,:) = huge(tmp)
     allocate (taken(nat))
     taken(:) = .false.
 
@@ -343,7 +345,8 @@
       end if
     end do
 
-    TAKELOOP: do while (any(.not.taken(:)))
+   ! TAKELOOP: do while (any(.not.taken(:)))
+   TAKELOOP : do while ( any(COORD(:,:) > verylarge))
       DO I = 2,nat
 !>--- CYCLE the atom if already generated
         if (taken(i)) cycle
@@ -449,15 +452,19 @@
 
 !========================================================================================!
 
-  subroutine print_zmat(ch,nat,geo,na,nb,nc)
+  subroutine print_zmat(ch,nat,at,geo,na,nb,nc,nice)
     use crest_parameters
+    use strucrd
     implicit none
     integer,intent(in) :: ch,nat
     integer,intent(in) :: na(nat),nb(nat),nc(nat)
+    integer,intent(in) :: at(nat)
     real(wp),intent(in) :: geo(3,nat)
+    logical,intent(in) :: nice
     character(len=120) :: atmp
     integer :: i
 
+    if(nice)then
     write (ch,'(1x,a5,1x,a12,1x,a12,1x,a12,a5,a5,a5)') 'A','d(AB)','θ(ABC)','ϕ(ABCD)','B','C','D'
     do i = 1,nat
       if (na(i) .ne. 0) then
@@ -478,5 +485,74 @@
       end if
       write (ch,'(a)') trim(atmp)
     end do
+    else
+      write(ch,*) nat
+     do i = 1,nat
+      write (atmp,'(1x,a,1x,3f12.4,3i5)') i2e(at(i),'nc'),geo(1:3,i),na(i),nb(i),nc(i)
+      write (ch,'(a)') trim(atmp)
+     end do
+
+    endif
 
   end subroutine print_zmat
+
+!========================================================================================!
+
+  subroutine rd_zmat(fname,nat,at,zmat,na,nb,nc)
+    use crest_parameters
+    use strucrd
+    implicit none
+    character(len=*),intent(in) :: fname
+    integer,intent(in) :: nat
+    integer,intent(out) :: at(nat)
+    real(wp),intent(out) :: zmat(3,nat)
+    integer,intent(out) :: na(nat),nb(nat),nc(nat)
+    integer :: ich,i,j,k,io
+    character(len=4) :: sym
+    character(len=300) line
+
+    at(:) = 0
+    na(:) = 0 
+    nb(:) = 0
+    nc(:) = 0
+    zmat(:,:) = 0.0_wp
+    open(newunit=ich,file=trim(fname))
+    read(ich,*) j
+    if(j /= nat) error stop 'Nat mismatch in rd_zmat()' 
+    do i=1,nat
+      read(ich,'(a)') line
+      call zmatline(line,sym,zmat(:,i),na(i),nb(i),nc(i),io)
+      if(io /= 0) error stop 'error while reading zmat'
+      at(i) = e2i(sym)  
+    enddo 
+    close(ich)
+   contains
+    subroutine zmatline(line,sym,xyz,a,b,c,io)
+    implicit none
+    character(len=*) :: line
+    character(len=*) :: sym
+    real(wp) :: xyz(3)
+    integer :: a,b,c
+    integer,intent(out) :: io
+
+    io = 0
+    xyz(1:3) = 0
+    a = 0
+    b = 0
+    c = 0
+    read (line,*,iostat=io) sym,xyz(1:3),a,b,c
+    if (io .ne. 0) then
+      read (line,*,iostat=io) sym,xyz(1:2),a,b
+    if(io.ne.0)then
+       read (line,*,iostat=io) sym,xyz(1),a
+    if(io.ne.0)then
+       read (line,*,iostat=io) sym
+    endif
+    endif
+    end if
+
+    return
+    end subroutine zmatline
+
+  end subroutine rd_zmat
+

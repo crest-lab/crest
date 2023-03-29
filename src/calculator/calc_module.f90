@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 - 2022 Philipp Pracht
+! Copyright (C) 2021 - 2023 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -18,30 +18,28 @@
 !================================================================================!
 
 module calc_module
-  !>--- types and readers
+!>--- types and readers
   use iso_fortran_env,only:wp => real64
   use strucrd
   use calc_type
-  !>--- potentials
+!>--- potentials and API's
   use xtb_sc
   use generic_sc
   use lj
   use api_engrad
-  !>--- other
+!>--- other
   use constraints
   use nonadiabatic_module
   implicit none
-
-  !=========================================================================================!
-  !--- private module variables and parameters
+!=========================================================================================!
+!>--- private module variables and parameters
   private
-  !integer :: i,j,k,l,ich,och,io
-  !logical :: ex
 
-  !--- some constants and name mappings
+!>--- some constants and name mappings
   real(wp),parameter :: bohr = 0.52917726_wp
   real(wp),parameter :: autokcal = 627.509541_wp
 
+!>--- public module routines
   public :: engrad
   interface engrad
     module procedure :: engrad_mol
@@ -59,7 +57,7 @@ module calc_module
 
 !========================================================================================!
 !========================================================================================!
-contains  !>--- Module routines start here
+contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
@@ -125,13 +123,18 @@ contains  !>--- Module routines start here
           call tblite_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
 
         case (jobtype%gfn0) !>-- GFN0-xTB api
-          call gfn0_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-          !call gfn0_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+          call gfn0_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i), &
+          &                calc%grdtmp(:,:,i),iostatus)
 
-        case (jobtype%gfn0occ) !>--- Special GFN0-xTB api given orbital population
-          call gfn0occ_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-!           call gfn0occ_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),        iostatus)
+        case (jobtype%gfn0occ) !>-- Special GFN0-xTB api given orbital population
+          !> note the use of calc%g0calc instead of calc%calcs(i)%g0calc !
+          call gfn0occ_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i), &
+          &                   calc%grdtmp(:,:,i),iostatus)
  
+        case (jobtype%gfnff) !>-- GFN-FF api
+          call gfnff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+
+
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
             read (calc%calcs(i)%other,*) dum1,dum2
@@ -168,8 +171,6 @@ contains  !>--- Module routines start here
       end select
       !>--- printout (to file or stdout)
       call calc_eprint(calc,energy,calc%etmp)
-      !>--- deallocate
-
     end if
 
 !==========================================================!

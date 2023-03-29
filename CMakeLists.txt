@@ -64,15 +64,6 @@ list(
   BLAS::BLAS
 )
 
-## mctc-lib
-#if(NOT TARGET "mctc-lib::mctc-lib")
-#  find_package("mctc-lib" REQUIRED)
-#  list(
-#    APPEND libs
-#    mctc-lib::mctc-lib
-#  )
-#endif()
-
 # tblite
 if(WITH_TBLITE)
   find_package("tblite" REQUIRED)
@@ -84,6 +75,17 @@ if(WITH_TBLITE)
 endif()
 
 
+# toml-f
+if(WITH_TOMLF)
+  find_package("toml-f" REQUIRED)
+  add_definitions(-DWITH_TOMLF)
+  list(
+    APPEND libs
+    toml-f::toml-f
+  )
+endif()
+
+
 # GFN0-xTB
 if(WITH_GFN0)
   find_package("gfn0" REQUIRED)
@@ -91,6 +93,17 @@ if(WITH_GFN0)
   list(
     APPEND libs
     gfn0::gfn0
+  )
+endif()
+
+
+# GFN-FF
+if(WITH_GFNFF)
+  find_package("gfnff" REQUIRED)
+  add_definitions(-DWITH_GFNFF)
+  list(
+    APPEND libs
+    gfnff::gfnff
   )
 endif()
 

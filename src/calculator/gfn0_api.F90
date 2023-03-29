@@ -67,7 +67,7 @@ contains  !>--- Module routines start here
     !> initialize parametrization of GFN0
     call gfn0_init(mol%nat,mol%at,mol%xyz,chrg,uhf,g0calc)
 
-#else /* WITH_TBLITE */
+#else /* WITH_GFN0 */
     write (stdout,*) 'Error: Compiled without GFN0-xTB support!'
     write (stdout,*) 'Use -DWITH_GFN0=true in the setup to enable this function'
     error stop
@@ -207,7 +207,9 @@ contains  !>--- Module routines start here
     real(wp),intent(out) :: occ(nao)
     integer :: i
     occ = 0.0_wp
+#ifdef WITH_GFN0
     call generate_config(nel,nao,occ,active)
+#endif
   end subroutine gfn0_gen_occ
 
 

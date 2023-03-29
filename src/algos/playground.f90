@@ -60,7 +60,8 @@ subroutine crest_playground(env,tim)
 
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:),geo(:,:)
-  integer,allocatable :: na(:),nb(:),nc(:)
+  integer,allocatable :: na(:),nb(:),nc(:),at2(:)
+  integer :: nat2
 !========================================================================================!
   call tim%start(14,'test implementation') 
 !========================================================================================!
@@ -99,7 +100,7 @@ subroutine crest_playground(env,tim)
    do i=1,mol%nat
      do j=i+1,mol%nat
        if(calc%calcs(1)%wbo(i,j) .gt. 0.05_wp)then
-         write(*,*),i,j,calc%calcs(1)%wbo(i,j)
+         write(*,*) i,j,calc%calcs(1)%wbo(i,j)
        endif
      enddo
    enddo
@@ -127,14 +128,41 @@ subroutine crest_playground(env,tim)
 !  !enddo
 !
 !  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,radtodeg,GEO)
-!  call print_zmat(6,mol%nat,geo,NA,NB,NC) 
+!  call print_zmat(6,mol%nat,mol%at,geo,NA,NB,NC,.true.) 
 !
 !  call GMETRY2(mol%nat,geo,mol%xyz,na,nb,nc)
-!
 !  call mol%write('test.xyz')
+!  !call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,1.0_wp,GEO)
+!  !write(*,*)
+!  !call print_zmat(6,mol%nat,mol%at,geo,NA,NB,NC,.true.)
+!  write(*,*)
+!  open(newunit=ich,file='test.zmat')
+!  call print_zmat(ich,mol%nat,mol%at,geo,NA,NB,NC,.false.)
+!  close(ich)
 !
-!  call XYZGEO2(mol%nat,mol%xyz,NA,NB,NC,1.0_wp,GEO)
-!  call print_zmat(6,mol%nat,geo,NA,NB,NC)
+!  nat2 = mol%nat
+!  allocate(at2(nat2))
+!  call rd_zmat('test.zmat',nat2,at2,geo,NA,NB,NC)
+!  write(*,*)
+!  call print_zmat(6,nat2,at2,geo,NA,NB,NC,.true.)
+
+   call rdnat('test.zmat',nat2,2)
+   V = nat2
+   allocate(at2(V))
+   allocate(na(V),nb(V),nc(V), source = 0)
+   allocate(geo(3,V), source = 0.0_wp)
+   call rd_zmat('test.zmat',nat2,at2,geo,NA,NB,NC)
+   write(*,*)
+   call print_zmat(6,nat2,at2,geo,NA,NB,NC,.true.)
+
+   allocate(molnew%at(V), molnew%xyz(3,V))
+   molnew%nat = nat2
+   molnew%at = at2
+   call GMETRY2(molnew%nat,geo,molnew%xyz,na,nb,nc)
+    molnew%xyz = molnew%xyz/bohr
+   call molnew%write('test.xyz')
+ 
+   
 
 
 !========================================================================================!

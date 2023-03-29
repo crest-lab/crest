@@ -1,0 +1,264 @@
+!================================================================================!
+! This file is part of crest.
+!
+! Copyright (C) 2021 - 2023 Philipp Pracht
+!
+! crest is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! crest is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with crest.  If not, see <https://www.gnu.org/licenses/>.
+!================================================================================!
+
+module api_helpers
+
+  use iso_fortran_env,only:wp => real64,stdout => output_unit
+  use strucrd
+  use calc_type
+  use iomod,only:makedir,directory_exist,remove
+  !> APIs
+  use tblite_api
+  use gfn0_api
+!=========================================================================================!
+  implicit none
+  public
+
+!=========================================================================================!
+!=========================================================================================!
+contains    !> MODULE PROCEDURES START HERE
+!=========================================================================================!
+!=========================================================================================!
+
+!>--- printout routines directed to printout channels
+  subroutine api_print_input_structure(pr,iunit,mol)
+    implicit none
+    !> INPUT
+    logical,intent(in) :: pr
+    integer,intent(in) :: iunit
+    type(coord),intent(in) :: mol
+    !> LOCAL
+    integer :: i
+
+    !> if printing is turned off, return
+    if (.not.pr) return
+
+    !> else, write structure info to the output unit
+    write (iunit,'(a)') '# Input structure (in Ångström)'
+    call mol%append(iunit)
+
+    if(allocated(mol%lat))then
+    write (iunit,'(a)') '# Lattice vectors (in Ångström)'
+    do i=1,3
+     write(iunit,'(3F16.8)') mol%lat(1:3,i)
+    enddo
+    endif
+
+    if(mol%chrg .ne. 0)then
+    write (iunit,'(a)') '# Molecular charge'
+    write(iunit,*) mol%chrg
+    endif
+    write (iunit,*)
+  end subroutine api_print_input_structure
+
+   subroutine api_print_e_grd(pr,iunit,mol,energy,gradient)
+    implicit none
+    !> INPUT
+    logical,intent(in) :: pr
+    integer,intent(in) :: iunit
+    type(coord),intent(in) :: mol
+    real(wp),intent(in) :: energy
+    real(wp),intent(in) :: gradient(3,mol%nat)
+    !> LOCAL
+    real(wp) :: gnorm
+    integer :: i 
+
+    !> if printing is turned off, return
+    if (.not.pr) return
+
+    !> else, write e+grd info to the output unit
+    gnorm = sqrt(sum(gradient**2))
+    write(iunit,*)
+    write (iunit,'(a)') '# Total energy and gradient norm'
+    write (iunit,*) energy,gnorm
+    write (iunit,'(a)') '# Gradient'
+    do i=1,mol%nat
+      write (iunit,'(3F20.10)') gradient(1:3,i)
+    enddo    
+    write (iunit,*)
+  end subroutine api_print_e_grd
+
+
+
+!=========================================================================================!
+!>--- tblite helper/setup routines
+  subroutine tblite_init(calc,loadnew)
+    implicit none
+    type(calculation_settings),intent(inout) :: calc
+    logical,intent(out) :: loadnew
+    loadnew = .false.
+    if (.not.allocated(calc%wfn)) then
+      allocate (calc%wfn)
+      loadnew = .true.
+    end if
+    if (.not.allocated(calc%tbcalc)) then
+      allocate (calc%tbcalc)
+      loadnew = .true.
+    end if
+    if (.not.allocated(calc%ctx)) then
+      allocate (calc%ctx)
+      loadnew = .true.
+    end if
+    if (.not.allocated(calc%tbres)) then
+      allocate (calc%tbres)
+      loadnew = .true.
+    end if
+    if (calc%apiclean) loadnew = .true.
+  end subroutine tblite_init
+  subroutine tblite_wbos(calc,mol,iostatus)
+    implicit none
+    type(calculation_settings),intent(inout) :: calc
+    type(coord),intent(in) :: mol
+    integer,intent(out) :: iostatus
+    iostatus = 0
+    if (.not.calc%rdwbo) return
+    if (allocated(calc%wbo)) deallocate (calc%wbo)
+    allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
+    call tblite_getwbos(calc%tbcalc,calc%wfn,calc%tbres,mol%nat,calc%wbo)
+  end subroutine tblite_wbos
+
+!========================================================================================!
+
+!>--- GFN0-xTB helper/setup routines
+  subroutine gfn0_init(calc,g0calc,loadnew)
+    implicit none
+    type(calculation_settings),intent(inout) :: calc
+    type(gfn0_data),intent(inout),allocatable  :: g0calc
+    logical,intent(out) :: loadnew
+    loadnew = .false.
+    if (.not.allocated(g0calc)) then
+      allocate (g0calc)
+      loadnew = .true.
+    end if
+    if (calc%apiclean) loadnew = .true.
+  end subroutine gfn0_init
+  subroutine gfn0_init2(mol,calc,g0calc)
+    implicit none
+    type(coord),intent(in) :: mol
+    type(calculation_settings),intent(inout) :: calc
+    type(gfn0_data),intent(inout)  :: g0calc
+#ifdef WITH_GFN0
+    if (allocated(calc%solvent).and.allocated(calc%solvmodel)) then
+      call gfn0_addsettings(mol,g0calc,calc%solvent,calc%solvmodel)
+    end if
+    call gfn0_addsettings(mol,g0calc,loadwbo=calc%rdwbo)
+#endif
+  end subroutine gfn0_init2
+  subroutine gfn0_init3(mol,calc,g0calc)
+    implicit none
+    type(coord),intent(in) :: mol
+    type(calculation_settings),intent(inout) :: calc
+    type(gfn0_data),intent(inout),allocatable  :: g0calc
+    integer :: nel,uhf
+#ifdef WITH_GFN0
+    nel = g0calc%wfn%nel
+    uhf = calc%uhf
+    call g0calc%wfn%refresh_occu(nel,uhf)
+    call gfn0_addsettings(mol,g0calc,etemp=calc%etemp)
+#endif
+  end subroutine gfn0_init3
+  subroutine gfn0_wbos(calc,g0calc,mol,iostatus)
+    implicit none
+    type(calculation_settings),intent(inout) :: calc
+    type(gfn0_data),intent(inout) :: g0calc
+    type(coord),intent(in) :: mol
+    integer,intent(out) :: iostatus
+    iostatus = 0
+#ifdef WITH_GFN0
+    if (.not.calc%rdwbo) return
+    if (allocated(calc%wbo)) deallocate (calc%wbo)
+    allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
+    call gfn0_getwbos(g0calc,mol%nat,calc%wbo)
+#endif
+  end subroutine gfn0_wbos
+
+!========================================================================================!
+
+!>--- GFN0*-xTB setup/helper routines
+  subroutine gfn0occ_init(calc,g0calc,loadnew)
+    implicit none
+    type(calculation_settings),intent(inout) :: calc
+    logical,intent(out) :: loadnew
+    type(gfn0_data),intent(inout),allocatable  :: g0calc
+    integer :: nel,nao,nlev
+    loadnew = .false.
+#ifdef WITH_GFN0
+    if (.not.allocated(g0calc)) then
+      allocate (g0calc)
+      loadnew = .true.
+    end if
+    if (calc%apiclean) loadnew = .true.
+#endif
+  end subroutine gfn0occ_init
+  subroutine gfn0occ_init2(mol,calc,g0calc)
+    implicit none
+    type(coord),intent(in) :: mol
+    type(calculation_settings),intent(inout) :: calc
+    type(gfn0_data),intent(inout),allocatable  :: g0calc
+    integer :: nel,nao,nlev
+#ifdef WITH_GFN0
+    if (allocated(calc%solvent).and.allocated(calc%solvmodel)) then
+      call gfn0_addsettings(mol,g0calc,calc%solvent,calc%solvmodel)
+    end if
+    call gfn0_addsettings(mol,g0calc,etemp=calc%etemp,loadwbo=calc%rdwbo)
+#endif
+  end subroutine gfn0occ_init2
+  subroutine gfn0occ_init3(mol,calc,g0calc)
+    implicit none
+    type(coord),intent(in) :: mol
+    type(calculation_settings),intent(inout) :: calc
+    type(gfn0_data),intent(inout),allocatable  :: g0calc
+    integer :: nel,nao,nlev
+#ifdef WITH_GFN0
+    if (.not.allocated(calc%occ)) then
+      nel = g0calc%wfn%nel
+      nao = g0calc%basis%nao
+      if (allocated(calc%occ)) deallocate (calc%occ)
+      allocate (calc%occ(nao),source=0.0_wp)
+      call gfn0_gen_occ(nel,nao,calc%config,calc%occ)
+    end if
+#endif
+  end subroutine gfn0occ_init3
+
+!========================================================================================!
+
+!>--- GFN-FF setup/helper routines
+  subroutine gfnff_init(calc,loadnew)
+    implicit none
+    type(calculation_settings),intent(inout) :: calc
+    logical,intent(out) :: loadnew
+    integer :: nel,nao,nlev
+    loadnew = .false.
+#ifdef WITH_GFNFF
+    if (.not.allocated(calc%ff_dat)) then
+      allocate (calc%ff_dat)
+      loadnew = .true.
+    end if
+    if (allocated(calc%solvent)) then
+      if (.not.allocated(calc%ff_dat%solvent)) then
+        allocate (calc%ff_dat%solvent,source=trim(calc%solvent))
+        calc%ff_dat%solvent = calc%solvent
+      end if
+    end if
+    if (calc%apiclean) loadnew = .true.
+#endif
+  end subroutine gfnff_init
+
+!========================================================================================!
+end module api_helpers

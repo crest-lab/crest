@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2020 Philipp Pracht
+! Copyright (C) 2020-2023 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -37,19 +37,19 @@
 module strucrd
   use iso_fortran_env,only:wp => real64
   use iso_c_binding
-  use geo
+  use geo !> simple geomerty and vector operations       
   implicit none
 
 !=========================================================================================!
-  !--- private module variables and parameters
+!>--- private module variables and parameters
   private
   integer :: i,j,k,ich,io
   logical :: ex
 
-  !--- some constants and name mappings
+!>--- some constants and name mappings
   real(wp),parameter :: bohr = 0.52917726_wp
   real(wp),parameter :: autokcal = 627.509541_wp
-  !-- filetypes as integers
+!>-- filetypes as integers
   integer,parameter :: tmcoord = 1
   integer,parameter :: xmol = 2
   integer,parameter :: sdf = 3  !currently unused
@@ -58,18 +58,34 @@ module strucrd
   integer,parameter :: pdbfile = 4  !currently unused
   ! [...]
 
-  !--- private utility subroutines
+!>--- private utility subroutines
   private :: upperCase,lowerCase
   private :: convertlable,fextension,sgrep
 
+!>--- Element symbols
+!&<
+   character(len=2),private,parameter :: PSE(118) = [ &
+  & 'H ',                                                                                'He', &
+  & 'Li','Be',                                                  'B ','C ','N ','O ','F ','Ne', &
+  & 'Na','Mg',                                                  'Al','Si','P ','S ','Cl','Ar', &
+  & 'K ','Ca','Sc','Ti','V ','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr', &
+  & 'Rb','Sr','Y ','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I ','Xe', &
+  & 'Cs','Ba','La',                                                                            &
+  &                'Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb','Lu',      &
+  &                'Hf','Ta','W ','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn', &
+  & 'Fr','Ra','Ac',                                                                            &
+  &                'Th','Pa','U ','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No','Lr',      &
+  &                'Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn','Nh','Fl','Mc','Lv','Ts','Og' ]
+!&>
+
 !=========================================================================================!
-  !--- public subroutines
-  public :: i2e
-  public :: asym
-  interface asym
-    module procedure i2e
-  end interface asym
-  public :: e2i
+!>--- public subroutines
+  public :: i2e          !> function to convert atomic number to element symbol  
+  public :: asym         !> " 
+  interface asym         !> " 
+    module procedure i2e !> " 
+  end interface asym      
+  public :: e2i          !> function to convert element symbol into atomic number 
   public :: grepenergy
   public :: checkcoordtype
 
@@ -226,8 +242,8 @@ module strucrd
 
   end type ensemble
 !=========================================================================================!
-
-contains
+!=========================================================================================!
+contains  !> MODULE PROCEDURES START HERE
 !=========================================================================================!
 !=========================================================================================!
 !  1. ROUTINES FOR READING ENTIRE ENSEMBLES (OR TRAJECTORIES)
@@ -1800,14 +1816,16 @@ contains
     implicit none
     class(coord) :: self
     integer :: io
-    real(wp) :: energy
+    real(wp),optional :: energy
     real(wp),optional :: gnorm
     character(len=64) :: atmp
     self%xyz = self%xyz * bohr !to Angström
-    if (present(gnorm)) then
+    if (present(gnorm).and.present(energy)) then
       write (atmp,'(a,f22.10,a,f16.8)') ' Etot= ',energy,' grad.norm.= ',gnorm
-    else
+    else if( present(energy) )then
       write (atmp,'(a,f22.10)') ' Etot= ',energy
+    else
+      atmp = ''
     end if
     call wrxyz(io,self%nat,self%at,self%xyz,trim(atmp))
     self%xyz = self%xyz / bohr !back
@@ -1902,6 +1920,11 @@ contains
       if (ic > 0) sout(i:i) = high(ic:ic)
     end do
     sout = trim(adjustl(sout))
+    if (len_trim(sout) .gt. 1) then
+       sout(2:2) = lowerCase(sout(2:2))
+    else
+      sout = sout//' '
+    endif
     call move_alloc(sout,convertlable)
   end function convertlable
 
@@ -1914,97 +1937,20 @@ contains
     character(len=:),allocatable :: c
     integer :: iout
     c = trim(convertlable(cin))
-    select case (c)
-    case ('H'); iout = 1
-    case ('D'); iout = 1
-    case ('T'); iout = 1
-    case ('HE'); iout = 2
-    case ('LI'); iout = 3
-    case ('BE'); iout = 4
-    case ('B'); iout = 5
-    case ('C'); iout = 6
-    case ('N'); iout = 7
-    case ('O'); iout = 8
-    case ('F'); iout = 9
-    case ('NE'); iout = 10
-    case ('NA'); iout = 11
-    case ('MG'); iout = 12
-    case ('AL'); iout = 13
-    case ('SI'); iout = 14
-    case ('P'); iout = 15
-    case ('S'); iout = 16
-    case ('CL'); iout = 17
-    case ('AR'); iout = 18
-    case ('K'); iout = 19
-    case ('CA'); iout = 20
-    case ('SC'); iout = 21
-    case ('TI'); iout = 22
-    case ('V'); iout = 23
-    case ('CR'); iout = 24
-    case ('MN'); iout = 25
-    case ('FE'); iout = 26
-    case ('CO'); iout = 27
-    case ('NI'); iout = 28
-    case ('CU'); iout = 29
-    case ('ZN'); iout = 30
-    case ('GA'); iout = 31
-    case ('GE'); iout = 32
-    case ('AS'); iout = 33
-    case ('SE'); iout = 34
-    case ('BR'); iout = 35
-    case ('KR'); iout = 36
-    case ('RB'); iout = 37
-    case ('SR'); iout = 38
-    case ('Y'); iout = 39
-    case ('ZR'); iout = 40
-    case ('NB'); iout = 41
-    case ('MO'); iout = 42
-    case ('TC'); iout = 43
-    case ('RU'); iout = 44
-    case ('RH'); iout = 45
-    case ('PD'); iout = 46
-    case ('AG'); iout = 47
-    case ('CD'); iout = 48
-    case ('IN'); iout = 49
-    case ('SN'); iout = 50
-    case ('SB'); iout = 51
-    case ('TE'); iout = 52
-    case ('I'); iout = 53
-    case ('XE'); iout = 54
-    case ('CS'); iout = 55
-    case ('BA'); iout = 56
-    case ('LA'); iout = 57
-    case ('CE'); iout = 58
-    case ('PR'); iout = 59
-    case ('ND'); iout = 60
-    case ('PM'); iout = 61
-    case ('SM'); iout = 62
-    case ('EU'); iout = 63
-    case ('GD'); iout = 64
-    case ('TB'); iout = 65
-    case ('DY'); iout = 66
-    case ('HO'); iout = 67
-    case ('ER'); iout = 68
-    case ('TM'); iout = 69
-    case ('YB'); iout = 70
-    case ('LU'); iout = 71
-    case ('HF'); iout = 72
-    case ('TA'); iout = 73
-    case ('W'); iout = 74
-    case ('RE'); iout = 75
-    case ('OS'); iout = 76
-    case ('IR'); iout = 77
-    case ('PT'); iout = 78
-    case ('AU'); iout = 79
-    case ('HG'); iout = 80
-    case ('TL'); iout = 81
-    case ('PB'); iout = 82
-    case ('BI'); iout = 83
-    case ('PO'); iout = 84
-    case ('AT'); iout = 85
-    case ('RN'); iout = 86
-    case default; iout = 0
-    end select
+    if(any(PSE(:).eq.c))then
+      do i=1,118
+        if(trim(PSE(i)).eq.c)then
+          iout = i
+          exit
+        endif
+      enddo
+    else !> special cases
+     select case (trim(c))
+      case ('D'); iout = 1
+      case ('T'); iout = 1
+      case default; iout = 0
+     end select
+    endif
     e2i = iout
   end function e2i
 
@@ -2016,95 +1962,11 @@ contains
     integer,intent(in) :: iin
     character(len=:),allocatable :: c
     character(len=*),optional :: oformat
-    select case (iin)
-    case (1); c = 'H'
-    case (2); c = 'HE'
-    case (3); c = 'LI'
-    case (4); c = 'BE'
-    case (5); c = 'B'
-    case (6); c = 'C'
-    case (7); c = 'N'
-    case (8); c = 'O'
-    case (9); c = 'F'
-    case (10); c = 'NE'
-    case (11); c = 'NA'
-    case (12); c = 'MG'
-    case (13); c = 'AL'
-    case (14); c = 'SI'
-    case (15); c = 'P'
-    case (16); c = 'S'
-    case (17); c = 'CL'
-    case (18); c = 'AR'
-    case (19); c = 'K'
-    case (20); c = 'CA'
-    case (21); c = 'SC'
-    case (22); c = 'TI'
-    case (23); c = 'V'
-    case (24); c = 'CR'
-    case (25); c = 'MN'
-    case (26); c = 'FE'
-    case (27); c = 'CO'
-    case (28); c = 'NI'
-    case (29); c = 'CU'
-    case (30); c = 'ZN'
-    case (31); c = 'GA'
-    case (32); c = 'GE'
-    case (33); c = 'AS'
-    case (34); c = 'SE'
-    case (35); c = 'BR'
-    case (36); c = 'KR'
-    case (37); c = 'RB'
-    case (38); c = 'SR'
-    case (39); c = 'Y'
-    case (40); c = 'ZR'
-    case (41); c = 'NB'
-    case (42); c = 'MO'
-    case (43); c = 'TC'
-    case (44); c = 'RU'
-    case (45); c = 'RH'
-    case (46); c = 'PD'
-    case (47); c = 'AG'
-    case (48); c = 'CD'
-    case (49); c = 'IN'
-    case (50); c = 'SN'
-    case (51); c = 'SB'
-    case (52); c = 'TE'
-    case (53); c = 'I'
-    case (54); c = 'XE'
-    case (55); c = 'CS'
-    case (56); c = 'BA'
-    case (57); c = 'LA'
-    case (58); c = 'CE'
-    case (59); c = 'PR'
-    case (60); c = 'ND'
-    case (61); c = 'PM'
-    case (62); c = 'SM'
-    case (63); c = 'EU'
-    case (64); c = 'GD'
-    case (65); c = 'TB'
-    case (66); c = 'DY'
-    case (67); c = 'HO'
-    case (68); c = 'ER'
-    case (69); c = 'TM'
-    case (70); c = 'YB'
-    case (71); c = 'LU'
-    case (72); c = 'HF'
-    case (73); c = 'TA'
-    case (74); c = 'W'
-    case (75); c = 'RE'
-    case (76); c = 'OS'
-    case (77); c = 'IR'
-    case (78); c = 'PT'
-    case (79); c = 'AU'
-    case (80); c = 'HG'
-    case (81); c = 'TL'
-    case (82); c = 'PB'
-    case (83); c = 'BI'
-    case (84); c = 'PO'
-    case (85); c = 'AT'
-    case (86); c = 'RN'
-    case default; c = 'XX'
-    end select
+    if(iin <= 118 )then
+      c = uppercase(PSE(iin))
+    else
+      c = 'XX'
+    endif
     i2e = trim(c)
     if (present(oformat)) then
       select case (oformat)

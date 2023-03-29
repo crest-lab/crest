@@ -70,6 +70,10 @@ subroutine crest_search_imtdgc(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 
+!>--- sets the MD length according to a flexibility measure
+  call md_length_setup(env) 
+  call env_to_mddat(env)
+
 !===========================================================!
 !>--- Start mainloop 
   env%nreset = 0
@@ -77,10 +81,12 @@ subroutine crest_search_imtdgc(env,tim)
   MAINLOOP : do
     call printiter
     if (.not. start) then
-      call clean_V2i  !--- clean Dir for new iterations
+!>--- clean Dir for new iterations, but leave iteration backup files
+      call clean_V2i 
       env%nreset = env%nreset + 1
-    else !--at the beginning clean existing backup-ensembles
-      call rmrfw('.cre_')
+    else 
+!>--- at the beginning, wipe directory clean
+      call V2cleanup(.false.)
     end if
 !===========================================================!
 !>--- Meta-dynamics loop
@@ -306,7 +312,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
 !>--- read ensemble
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) then
-    write(stdout,*) 'empty ensemble file',trim(ensnam)
+    write(stdout,*) 'empty ensemble file ',trim(ensnam)
     return
   endif
   allocate (xyz(3,nat,nall),at(nat),eread(nall))

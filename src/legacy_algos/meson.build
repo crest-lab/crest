@@ -21,6 +21,7 @@ srcs += files(
   'confscript3.f90',
   'confopt.f90',
   'deprotonate.f90',
+  'flexi.f90',
   'ligands.f90',
   'normmd.f90',
   'pka.f90',

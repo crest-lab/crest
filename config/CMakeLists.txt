@@ -53,7 +53,11 @@ option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP
 
 option(WITH_TBLITE "Enable build with the lightweight tight-binding library" FALSE)
 
+option(WITH_TOMLF "Enable build with toml-f support" TRUE)
+
 option(WITH_GFN0 "Enable build with GFN0-xTB support" TRUE)
+
+option(WITH_GFNFF "Enable build with GFN-FF support" FALSE)
 
 
 if(NOT DEFINED "${PROJECT_NAME}-dependency-method")

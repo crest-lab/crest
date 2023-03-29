@@ -82,9 +82,18 @@ end subroutine confscript2i
 subroutine xtbsp(env,xtblevel)
   use iso_fortran_env,only:wp => real64
   use crest_data
+  use strucrd, only: coord
   implicit none
   type(systemdata) :: env
   integer,intent(in),optional :: xtblevel
+  interface
+   subroutine crest_xtbsp(env,xtblevel,molin)
+   import :: systemdata,coord
+   type(systemdata) :: env
+   integer,intent(in),optional :: xtblevel
+   type(coord),intent(in),optional :: molin
+   end subroutine crest_xtbsp
+  end interface
   if(env%legacy)then
       call xtbsp_legacy(env,xtblevel)
   else
@@ -99,11 +108,19 @@ subroutine xtbsp2(fname,env)
   type(systemdata) :: env
   character(len=*),intent(in) :: fname
   type(coord) :: mol 
+  interface
+   subroutine crest_xtbsp(env,xtblevel,molin)
+   import :: systemdata,coord
+   type(systemdata) :: env
+   integer,intent(in),optional :: xtblevel
+   type(coord),intent(in),optional :: molin
+   end subroutine crest_xtbsp
+  end interface
   if(env%legacy)then
       call xtbsp2_legacy(fname,env)
   else
       call mol%open(trim(fname))
-      call crest_xtbsp(env,-1,mol)
+      call crest_xtbsp(env,xtblevel=-1,molin=mol)
   endif
 end subroutine xtbsp2
 
@@ -116,8 +133,26 @@ subroutine confscript1(env,tim)
   type(systemdata) :: env
   type(timer)   :: tim
   write(stdout,*)
-  write(stdout,*) 'This runtype has been deprecated.'
+  write(stdout,*) 'This runtype has been entirely deprecated.'
   write(stdout,*) 'You may try an older version of the program if you want to use it.'
   stop
 end subroutine confscript1
+
+!=================================================================================!
+
+subroutine nciflexi(env,flexval)
+  use crest_parameters
+  use crest_data
+  use strucrd
+  implicit none
+  type(systemdata) :: env
+  type(coord) ::mol
+  real(wp) :: flexval
+  if(env%legacy)then
+    call nciflexi_legacy(env,flexval)
+  else
+    call env%ref%to(mol)
+    call nciflexi_gfnff(mol,flexval)
+  endif  
+end subroutine nciflexi
 
