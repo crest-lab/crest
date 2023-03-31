@@ -168,9 +168,10 @@ subroutine xtb_dock(env, fnameA, fnameB, solu, clus)
 !   endif
 
    !--- Jobcall docking
-   write (jobcall, '(a,1x,''dock'',1x,a,1x,a,1x,a,1x,f4.2,1x,''--nfrag1'',1x,i0,1x,&
-           & ''--input xcontrol --qcg > xtb_dock.out'',a)') &
-   &     trim(env%ProgName), trim(fnameA), trim(fnameB), trim(env%gfnver), env%optlev, solu%nat, trim(pipe)
+   write (jobcall, '(a,1x,''dock'',1x,a,1x,a,1x,a,1x,f4.2,1x,''--nfrag1'',1x,i0,1x,a,1x&
+           & ''--input xcontrol > xtb_dock.out'',a)') &
+           &     trim(env%ProgName), trim(fnameA), trim(fnameB), trim(env%gfnver),&
+           &     env%optlev, solu%nat, trim(env%docking_qcg_flag), trim(pipe)
    call system(trim(jobcall))
 
 ! cleanup
