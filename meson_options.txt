@@ -50,7 +50,7 @@ option(
 option(
   'WITH_GFNFF',
   type: 'boolean',
-  value: true,
+  value: false,
   description: 'build with GFN-FF integration',
 )
 option(
