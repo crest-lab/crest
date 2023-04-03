@@ -1642,6 +1642,8 @@ subroutine parseflags(env,arg,nra)
         env%qcg_flag = .true.
         call readl(arg(i + 1),xx,j)
         env%max_solv = NINT(xx(1))
+      case ('-normdock')
+        env%docking_qcg_flag = ''
       case ('-nclus')
         env%qcg_flag = .true.
         call readl(arg(i + 1),xx,j)
