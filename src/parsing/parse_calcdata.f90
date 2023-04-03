@@ -688,6 +688,9 @@ contains !> MODULE PROCEDURES START HERE
       mddat%md_hmass = val
     case ('tstep')
       mddat%tstep = val
+    case ('t','temp','temperature' )
+      mddat%tsoll = val
+      mddat%thermostat =.true.
     case default
       return
     end select
@@ -703,6 +706,18 @@ contains !> MODULE PROCEDURES START HERE
     case ('length','dump','hmass','tstep')
       fval = float(val)
       call parse_md(mddat,key,fval)
+    case ('shake')
+      if( val <= 0 )then
+         mddat%shake = .false.
+      else
+         mddat%shake = .true.
+         mddat%shk%shake_mode = min(val,2)
+      endif
+    case ('printstep')
+       mddat%printstep = val
+    case ('t','temp','temperature' )
+      mddat%tsoll = float(val)
+      mddat%thermostat =.true.
     case default
       return
     end select
@@ -725,6 +740,9 @@ contains !> MODULE PROCEDURES START HERE
     character(len=*) :: key
     logical :: val
     select case (key)
+    case ('shake')
+       mddat%shake = val
+       if(val) mddat%shk%shake_mode=1
     case default
       return
     end select

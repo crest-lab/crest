@@ -191,9 +191,13 @@ contains
       !write (*,'('' dumpstep(coords)/fs:'',f8.2,i6)') dump_md,cdump0
       write (*,'('' # deg. of freedom  :'',i8  )') nfreedom
       call thermostatprint(dat,pr)
-      write (*,'('' SHAKE constraint   :'',6x,l  )') dat%shake
+      write (*,'('' SHAKE constraint   :'',6x,l)') dat%shake
       if (dat%shake) then
-        write (*,'('' # SHAKE bonds      :'',i8 )') dat%nshake
+        if(dat%shk%shake_mode==2)then
+          write (*,'('' # SHAKE bonds      :'',i8,a)') dat%nshake, ' (all bonds)'
+        elseif(dat%shk%shake_mode==1)then
+          write (*,'('' # SHAKE bonds      :'',i8,a)') dat%nshake, ' (H only)'
+        endif
       end if
       write (*,'('' hydrogen mass      :'',f8.5  )') dat%md_hmass
     end if

@@ -390,7 +390,7 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
     deallocate (grad)
     calc%calcs(1)%rdwbo = .false.
 
-    shk%shake_mode = 2
+    shk%shake_mode = env%mddat%shk%shake_mode
     call move_alloc(calc%calcs(1)%wbo,shk%wbo)
 
     mddat%shk = shk

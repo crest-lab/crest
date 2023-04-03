@@ -463,6 +463,7 @@ subroutine env_to_mddat(env)
    env%mddat%sdump          = nint(dum)     !> trajectory structure dump every x steps   
    env%mddat%shake          = env%shake > 0 !> SHAKE algorithm?
    env%mddat%shk%shake_mode = env%shake     !> H-only shake =1, all atom =2
+   if(env%shake>0)env%mddat%shake = .true.
    env%mddat%md_hmass       = env%hmass     !> hydrogen mass
    ! TODO: WBO reader if shake is applied and wbo file is present
 
