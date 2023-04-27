@@ -476,7 +476,10 @@ contains !> MODULE PROCEDURES START HERE
           call constr%dummyconstraint(11)
           success = .true.
         end select
-      case (5,9) !> unspecified array
+      case(5)  !> regular array
+        call constr%rdbondconstraint(kv%na,kv%value_fa)
+        success = .true.
+      case (9) !> unspecified array
         call constr%analyzedummy(11,kv%na,kv%value_rawa)
         success = .true.
       case default

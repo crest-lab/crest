@@ -200,6 +200,7 @@ subroutine xtbopt(env)
   if (env%uhf /= 0) then
     jobcall = trim(jobcall)//" --uhf "//to_str(env%uhf)
   end if
+  jobcall = trim(jobcall)//pipe
   call execute_command_line(trim(jobcall),exitstat=io)
 
   call minigrep('xtb.out','optimized geometry written to:',fin)
