@@ -400,6 +400,7 @@ module crest_data
       character(len=20) :: freqver              !Method for frequency computation in qcg mode
       real(wp)          :: freq_scal            !Frequency scaling factor
       character(len=:),allocatable :: solu_file, solv_file !solute  and solvent input file
+      character(len=5) :: docking_qcg_flag = '--qcg'
 
     !--- clustering data
       integer :: maxcluster = 0  ! maximum number of clusters to be generated
