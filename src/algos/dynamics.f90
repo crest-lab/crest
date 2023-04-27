@@ -53,9 +53,8 @@ subroutine crest_moleculardynamics(env,tim)
 !========================================================================================!
 
    !>--- parallelization settings
-   if(env%autothreads)then
-      call ompautoset(env%threads,8,env%omp,env%MAXRUN,env%threads) 
-   endif
+   !call ompautoset(env%threads,7,env%omp,env%MAXRUN,1)
+   call ompprint_intern()
 
   pr = .true.
   mddat = env%mddat
@@ -77,7 +76,7 @@ subroutine crest_moleculardynamics(env,tim)
     deallocate (grad)
     calc%calcs(1)%rdwbo = .false.
 
-    shk%shake_mode = 2
+    shk%shake_mode = mddat%shk%shake_mode
     call move_alloc(calc%calcs(1)%wbo,shk%wbo)
 
     mddat%shk = shk

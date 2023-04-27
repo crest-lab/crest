@@ -81,6 +81,7 @@ module constraints
     procedure :: gapdiffconstraint2 => create_gapdiff_constraint2
     procedure :: dummyconstraint => create_dummy_constraint
     procedure :: analyzedummy => analyze_dummy_bond_constraint
+    procedure :: rdbondconstraint => analyze_dummy_bond_constraint2
   end type constraint
   !=====================================================!
 
@@ -238,6 +239,34 @@ contains  !>--- Module routines start here
 
     return
   end subroutine analyze_dummy_bond_constraint
+
+  subroutine analyze_dummy_bond_constraint2(self,i,fa)
+    implicit none
+    class(constraint) :: self
+    integer,intent(in) :: i
+    real(wp),intent(in) :: fa(i)
+    real(wp) :: k,dist
+    integer :: a1,a2
+
+    call self%deallocate()
+
+    select case( i )
+    case (3)
+      a1 = nint(fa(1))
+      a2 = nint(fa(2))
+      dist = abs(fa(3))
+      call self%bondconstraint(a1,a2,dist)
+    case (4)
+      a1 = nint(fa(1))
+      a2 = nint(fa(2))
+      dist = abs(fa(3))
+      k = abs(fa(4))
+      call self%bondconstraint(a1,a2,dist,k)
+    end select
+
+    return
+  end subroutine analyze_dummy_bond_constraint2
+
 
 
 !========================================================================================!

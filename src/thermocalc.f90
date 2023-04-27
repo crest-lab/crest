@@ -323,11 +323,36 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
     write(jobcall,'(a,1x,a,1x,a,'' --ohess '',a,1x,a,1x,a,'' > xtb.out'')') &
     &  trim(env%ProgName),trim(xname),trim(env%gfnver),trim(env%solv), &
     &  '--ceasefiles',trim(pipe)
+   ! jobcall = ""
+   ! jobcall = trim(jobcall)//trim(env%ProgName)
+   ! jobcall = trim(jobcall)//" "//trim(xname)//' --ohess'
+   ! jobcall = trim(jobcall)//" "//trim(env%gfnver)
+   ! jobcall = trim(jobcall)//" "//trim(env%solv)
+   ! if (env%chrg /= 0) then
+   !   jobcall = trim(jobcall)//" --chrg "//to_str(env%chrg)
+   ! end if
+   ! if (env%uhf /= 0) then
+   !   jobcall = trim(jobcall)//" --uhf "//to_str(env%uhf)
+   ! end if
+   ! jobcall = trim(jobcall)//' --ceasefiles > xtb.out '//trim(pipe)
+
 
     if(bhess)then
     write(jobcall,'(a,1x,a,1x,a,'' --bhess loose '',a,1x,a,1x,a,'' > xtb.out'')') &
     &  trim(env%ProgName),trim(xname),trim(env%gfnver),trim(env%solv), &
     &  '--ceasefiles',trim(pipe)
+   ! jobcall = ""
+   ! jobcall = trim(jobcall)//trim(env%ProgName)
+   ! jobcall = trim(jobcall)//" "//trim(xname)//' --bhess loose'
+   ! jobcall = trim(jobcall)//" "//trim(env%gfnver)
+   ! jobcall = trim(jobcall)//" "//trim(env%solv)
+   ! if (env%chrg /= 0) then
+   !   jobcall = trim(jobcall)//" --chrg "//to_str(env%chrg)
+   ! end if
+   ! if (env%uhf /= 0) then
+   !   jobcall = trim(jobcall)//" --uhf "//to_str(env%uhf)
+   ! end if
+   ! jobcall = trim(jobcall)//' --ceasefiles > xtb.out '//trim(pipe)
     endif
 
 

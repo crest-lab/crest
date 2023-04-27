@@ -476,7 +476,10 @@ contains !> MODULE PROCEDURES START HERE
           call constr%dummyconstraint(11)
           success = .true.
         end select
-      case (5,9) !> unspecified array
+      case(5)  !> regular array
+        call constr%rdbondconstraint(kv%na,kv%value_fa)
+        success = .true.
+      case (9) !> unspecified array
         call constr%analyzedummy(11,kv%na,kv%value_rawa)
         success = .true.
       case default
@@ -688,6 +691,9 @@ contains !> MODULE PROCEDURES START HERE
       mddat%md_hmass = val
     case ('tstep')
       mddat%tstep = val
+    case ('t','temp','temperature' )
+      mddat%tsoll = val
+      mddat%thermostat =.true.
     case default
       return
     end select
@@ -703,6 +709,18 @@ contains !> MODULE PROCEDURES START HERE
     case ('length','dump','hmass','tstep')
       fval = float(val)
       call parse_md(mddat,key,fval)
+    case ('shake')
+      if( val <= 0 )then
+         mddat%shake = .false.
+      else
+         mddat%shake = .true.
+         mddat%shk%shake_mode = min(val,2)
+      endif
+    case ('printstep')
+       mddat%printstep = val
+    case ('t','temp','temperature' )
+      mddat%tsoll = float(val)
+      mddat%thermostat =.true.
     case default
       return
     end select
@@ -725,6 +743,9 @@ contains !> MODULE PROCEDURES START HERE
     character(len=*) :: key
     logical :: val
     select case (key)
+    case ('shake')
+       mddat%shake = val
+       if(val) mddat%shk%shake_mode=1
     case default
       return
     end select
