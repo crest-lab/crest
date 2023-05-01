@@ -110,8 +110,8 @@ subroutine parseflags(env,arg,nra)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
 !>--- parallelization stuff
-  env%Threads = 4                !> total number of threads
-  env%MAXRUN = 4                 !> number of parallel xtb jobs
+  env%Threads = 1                !> total number of threads
+  env%MAXRUN = 1                 !> number of parallel xtb jobs
   env%omp = 1                    !> # of OMP_NUM_THREADS and MKL_NUMTHREADS to be used
   env%autothreads = .false.      !> automatically determine optimal parameters omp and MAXRUN
   env%threadssetmanual = .false. !> did the user set the #threads manually?
