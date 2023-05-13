@@ -62,7 +62,6 @@ srcs += files(
   'msreact.f90',
   'ncigeo.f90',
   'neighbor.f',
-  'newcregen.f90',
   'ompmklset.F90',
   'printouts.f90',
   'prmat.f90',

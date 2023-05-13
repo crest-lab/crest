@@ -933,9 +933,6 @@ subroutine confg_chk3(env)
   type(systemdata) :: env    !> MAIN SYSTEM DATA
 
   call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) !mode=4 --> Program intern Threads max
-  if (.not.env%newcregen) then
-    call cregen2(env)
-  else
     !>-- Special handling qcg, no RMSD, 
     !    because a CMA transformed structure would cause wrong wall pot.
     if (env%crestver .eq. crest_solv) then
@@ -943,7 +940,6 @@ subroutine confg_chk3(env)
     else
       call newcregen(env,0)
     end if
-  end if
   call ompautoset(env%threads,5,env%omp,env%MAXRUN,0) !mode=5 --> Program intern Threads min
 end subroutine confg_chk3
 

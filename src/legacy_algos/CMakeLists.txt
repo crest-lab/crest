@@ -22,6 +22,7 @@ list(APPEND srcs
   "${dir}/confscript2_misc.f90"
   "${dir}/confscript3.f90"
   "${dir}/confopt.f90"
+  "${dir}/cregen_old.f90"
   "${dir}/deprotonate.f90"
   "${dir}/flexi.f90"
   "${dir}/ligands.f90"
