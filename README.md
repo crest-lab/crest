@@ -29,6 +29,8 @@ For building the program from source we recommend the Intel `ifort` and `icc` co
 
 Detailed build instructions can be found at <https://crest-lab.github.io/crest-docs/page/installation>.
 
+For builds with subprojects see [here](./subprojects/README.md).
+
 
 ### Precompiled binaries
 
@@ -47,7 +49,7 @@ tar -xf crest-latest.tar.xz
 The program should be directly executable.
 
 
-### Meson
+### meson
 
 For the setup an configuration of meson see also the [meson setup](https://github.com/grimme-lab/xtb/blob/master/meson/README.adoc) page hosted at the `xtb` repository.
 The chain of commands to build CREST with meson is:
@@ -60,6 +62,7 @@ meson install -C _build
 
 When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Tested with version 10.2 of the GNU compilers.
 
+By default the `meson` build will create a statically linked binary.
 
 ### CMake
 
@@ -75,6 +78,7 @@ make -C _build
 ```
 These two steps assume usage of the `ifort` and `icc` compilers, to use `gfortran`/`gcc`, change the `FC` and `CC` export accordingly.
 
+By default the `cmake` build will create a dynamically linked binary.
 
 ### Conda
 
