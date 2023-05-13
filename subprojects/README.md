@@ -30,6 +30,7 @@ To make the build work, some of the build meson instructions of `tblite` must be
 We have prepared patch files for this located at [packagefiles/tblite/](./packagefile/tblite/)
 After downloading the `tblite` subproject with the above `git` commands, change to the directory, and apply the patches via
 ```bash
-git apply ../packagefile/tblite/*.patch
+cd subprojects/tblite
+git apply ../packagefile/tblite/tblite_patch.patch
 ```
 
