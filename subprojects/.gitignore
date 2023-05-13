@@ -10,6 +10,8 @@ gfnff
 
 !gfn0
 !toml-f
+!tblite
+
 !packagefiles
 !packagefiles/tblite
 !packagefiles/tblite/rm_app_test.patch
