@@ -9,6 +9,7 @@ mctc-lib.wrap
 gfnff
 
 !gfn0
+!toml-f
 !packagefiles
 !packagefiles/tblite
 !packagefiles/tblite/rm_app_test.patch
