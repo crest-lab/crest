@@ -221,3 +221,37 @@ if get_option('WITH_GFNFF')
  exe_deps += gfnff_dep
 endif
 
+
+## ========================================= ##
+## populate the data for crest_metadata.fh
+## ========================================= ##  
+commit = 'unknown commit'
+git = find_program('git', required: false)
+if git.found()
+  git_commit = run_command(git, 'show', '-s', '--format=%h',check:true)
+  if git_commit.returncode() == 0
+    commit = git_commit.stdout().strip()
+  endif
+endif
+# create configuration data
+config = configuration_data({
+  'name': meson.project_name(),
+  'version': meson.project_version(),
+  'description': 'Conformer Rotamer Ensemble Sampling Tool',
+  'commit': commit,
+  'date': run_command('date',check:true).stdout().     strip(),
+  'author': run_command('id','-u','-n', check:true).stdout().strip(),
+  'origin': run_command('hostname', check:true).stdout().strip(),
+  'fcid': fc.get_id(),
+  'fcver': fc.version(),
+  'ccid': cc.get_id(),
+  'ccver': cc.version(),
+  'bsystem': 'meson '+meson.version(),
+  'tomlfvar': get_option('WITH_TOMLF'),
+  'gfn0var': get_option('WITH_GFN0'),
+  'gfnffvar': get_option('WITH_GFNFF'), 
+  'tblitevar': get_option('WITH_TBLITE'),
+})
+message(get_option('WITH_TOMLF'))
+
+
