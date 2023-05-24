@@ -87,7 +87,7 @@ subroutine box3(version,date,commit,author)
     write(*,'(a,a)') repeat(" ",pad_left),trim(logo(i))
   enddo
   write (*,'(a,''Version '',a,'', '',a)') repeat(" ",pad_left),trim(version),trim(date)
-  write (*,'(a,"commit ",a," compiled by ",a)') repeat(" ",pad_left),commit,author
+  write (*,'(a,"commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,author
 end subroutine box3
 
 subroutine disclaimer

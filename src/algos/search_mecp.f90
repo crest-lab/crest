@@ -113,48 +113,54 @@ subroutine crest_search_mecp(env,tim)
 
 !==========================================================!
   return
-contains
-  subroutine print_gapcons(calc)
-    use calc_type
-    use constraints
-    implicit none
-
-    type(calcdata) :: calc
-    integer :: i,t
-    logical :: ex
-
-    if (calc%nconstraints < 1) then
-      write (stdout,*) 'no gap constraint provided'
-    end if
-
-    ex = .false.
-    do i = 1,calc%nconstraints
-      t = calc%cons(i)%type
-      select case (t)
-      case (-1)
-        ex = .true.
-        write (stdout,'(1x,a1x,"[",a,"]")') 'nonadiabatic gap constraint','σ*ΔE²/(ΔE+α)'
-        write (stdout,'(" σ=",f8.5," α=",f8.5)') calc%cons(i)%fc(1:2)
-      case (-2)
-        ex = .true.
-        write (stdout,'(1x,a)') 'nonadiabatic gap constraint'
-        write (stdout,'(1x,"Vgap = [",a,"] with")') &
-        &     'σ*(exp(-β|ΔE|)+C) * ΔE²/(|ΔE|+α)'
-        write (stdout,'(" σ = ",f8.5,/," α = ",f8.5,/," C = ",f8.5,/," β = ",f8.5)') &
-        & calc%cons(i)%fc(1:3),27.2114_wp
-      case default
-        continue
-      end select
-    end do
-
-    if (.not.ex) then
-      write (stdout,*) 'no gap constraint provided'
-      error stop
-    else
-      write (stdout,*)
-    end if
-
-  end subroutine print_gapcons
-
 end subroutine crest_search_mecp
+
+!========================================================================================!
+!========================================================================================!
+
+subroutine print_gapcons(calc)
+  use crest_parameters
+  use calc_type
+  use constraints
+  implicit none
+
+  type(calcdata) :: calc
+  integer :: i,t
+  logical :: ex
+
+  if (calc%nconstraints < 1) then
+    write (stdout,*) 'no gap constraint provided'
+  end if
+
+  ex = .false.
+  do i = 1,calc%nconstraints
+    t = calc%cons(i)%type
+    select case (t)
+    case (-1)
+      ex = .true.
+      write (stdout,'(1x,a1x,"[",a,"]")') 'nonadiabatic gap constraint','σ*ΔE²/(ΔE+α)'
+      write (stdout,'(" σ=",f8.5," α=",f8.5)') calc%cons(i)%fc(1:2)
+    case (-2)
+      ex = .true.
+      write (stdout,'(1x,a)') 'nonadiabatic gap constraint'
+      write (stdout,'(1x,"Vgap = [",a,"] with")') &
+      &     'σ*(exp(-β|ΔE|)+C) * ΔE²/(|ΔE|+α)'
+      write (stdout,'(" σ = ",f8.5,/," α = ",f8.5,/," C = ",f8.5,/," β = ",f8.5)') &
+      & calc%cons(i)%fc(1:3),27.2114_wp
+    case default
+      continue
+    end select
+  end do
+
+  if (.not.ex) then
+    write (stdout,*) 'no gap constraint provided'
+    error stop
+  else
+    write (stdout,*)
+  end if
+
+end subroutine print_gapcons
+
+!========================================================================================!
+!========================================================================================!
 
