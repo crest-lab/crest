@@ -20,6 +20,7 @@ srcs += files(
   'confscript2_misc.f90',
   'confscript3.f90',
   'confopt.f90',
+  'cregen_old.f90',
   'deprotonate.f90',
   'flexi.f90',
   'ligands.f90',

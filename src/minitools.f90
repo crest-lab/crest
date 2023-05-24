@@ -158,11 +158,7 @@ subroutine prepentropy(env,fname,percent)
       env%cgf(3)=.true.
       env%confgo = .true.
       env%ensemblename = 'crest_compact.xyz'
-      if(env%newcregen)then
        call newcregen(env,0)
-      else
-       call cregen2(env)
-      endif
       env%confgo = .false.
       env%ensemblename = 'crest_compact.xyz.sorted'
 

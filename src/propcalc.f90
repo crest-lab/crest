@@ -344,11 +344,9 @@ subroutine propcalc(iname,imode,env,tim)
           close(ich)
           env%ensemblename='crest_property.xyz'
           env%confgo=.true.
-          if(.not.env%newcregen)then
-            call cregen2(env)
-          else
+
             call newcregen(env,0)
-          endif
+
           call rename('crest_property.xyz.sorted', &
           & trim(thispath)//'/crest_property.xyz')
           call remove(env%ensemblename)
@@ -366,11 +364,9 @@ subroutine propcalc(iname,imode,env,tim)
          call wrpropens(TMPCONF,nat,xyz,at,eread)
          env%ensemblename='crest_property.xyz'
          env%confgo=.true.
-         if(.not.env%newcregen)then
-             call cregen2(env)
-         else
+
              call newcregen(env,0)
-         endif
+
          call rename('crest_ensemble.xyz', &
          & trim(thispath)//'/crest_conformers.xyz')
        case( 50:59 )
@@ -393,11 +389,9 @@ subroutine propcalc(iname,imode,env,tim)
          call chdir(thispath)
          if(imode .lt. 59)then !TODO temporary skip for some testing
          env%confgo=.true.
-         if(.not.env%newcregen)then
-             call cregen2(env)
-         else
+
              call newcregen(env,0)
-         endif
+
          env%confgo=.false.
          call rename(trim(env%ensemblename)//'.sorted', &
          & env%ensemblename)  
@@ -413,11 +407,9 @@ subroutine propcalc(iname,imode,env,tim)
           close(ich)
           env%ensemblename='crest_property.xyz'
           env%confgo=.true.
-          if(.not.env%newcregen)then
-            call cregen2(env)
-          else
+
             call newcregen(env,0)
-          endif
+
           call rename('crest_property.xyz.sorted', &
           & trim(thispath)//'/crest_property.xyz')
           call remove(env%ensemblename)

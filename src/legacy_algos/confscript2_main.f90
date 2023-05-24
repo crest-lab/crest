@@ -186,15 +186,11 @@ subroutine confscript2i_legacy(env,tim)
     write (*,'(''========================================'')')
     write (*,'(1x,''Collecting ensmbles.'')')
     call collectcre(env)                      !--- collecting all ensembles saved as ".cre_*.xyz"
-    if (.not. env%newcregen) then
-      call cregen2(env)  !Legacy subroutine
-    else
       if (.not. env%entropic .and. env%crestver .ne. 22) then
         call newcregen(env,0)
       else
         call newcregen(env,2)
       end if
-    end if
     call checkname_xyz(crefile,atmp,btmp)
     call remaining_in(atmp,ewin,nallout) !--- remaining number of structures
     write (*,*)

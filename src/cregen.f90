@@ -1,7 +1,7 @@
 !===============================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2018-2020 Stefan Grimme, Philipp Pracht
+! Copyright (C) 2018-2020 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -17,1536 +17,2904 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !===============================================================================!
 
-!===============================================================================!
-! THIS IS THE OLD VERSION OF CREGEN AND IS ONLY PRESENT FOR LEGACY SUPPORT
-! SEE newcregen.f90 FOR THE ACTUAL ROUTINE USED PER DEFAULT
-!===============================================================================!
+!=========================================================================================!
+!=========================================================================================!
+!> CREGEN is the universal ensemble sorting routine of CREST.
+!> This is a rewrite of the original routines since the old ones
+!> got a bit messy over time.
+!> the quickset variable can be used for some special runtypes:
+!>   quickset:  2 - do symmetry analysis
+!>              3 - switch off equivalency analysis
+!>              6 - energy sorting only
+!>              9 - no sorting, only check groups
+!>             12 - no topology check, turn ewin to infty
+!=========================================================================================!
+!=========================================================================================!
+subroutine newcregen(env,quickset)
+  use crest_parameters
+  use crest_data
+  use strucrd
+  implicit none
+  type(systemdata) :: env      !> MAIN STORAGE OS SYSTEM DATA
+  integer,optional :: quickset !> quick access to predefined CREGEN modes
+  integer :: simpleset
+  character(len=258) :: fname  !> input file
+  character(len=258) :: oname  !> sorted output file
+  character(len=258) :: cname  !> unique structure file
+  !>--- ensemble arguments
+  integer :: nat                      !> number of atoms
+  integer :: nall                     !> number of structures
+  integer,allocatable  :: at(:)       !> atom numbers
+  real(wp),allocatable :: xyz(:,:,:)  !> Cartesian coordinates
+  character(len=128),allocatable :: comments(:)
+  character(len=128),allocatable :: comref(:)
+  real(wp),allocatable :: er(:)       !> energies
+  !>--- dummy ensemble arguments
+  integer :: nallref
+  integer :: nallnew
+  real(wp),allocatable :: xyzref(:,:,:)
+  !>--- sorting arguments
+  integer,allocatable :: gref(:),group(:)
+  integer :: ng
+  integer,allocatable :: degen(:,:)
 
-subroutine cregen2(env)
-      use iso_fortran_env, only : wp => real64, sp => real32, idp => int64
-      use crest_data
-      use crest_parameters, only: bohr
-      use ls_rmsd
-      use iomod
-      use strucrd, only: rdnat,rdcoord,wrc0,i2e,e2i
-      use axis_module
-   !$ use omp_lib
-      implicit none
-      type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  !>--- float data
+  real(wp) :: ewin
+  real(wp) :: rthr
+  real(wp) :: bthr
+  real(wp) :: pthr
+  real(wp) :: ethr
+  real(wp) :: athr
+  real(wp) :: T
+  real(wp) :: couthr
 
-      real(wp),allocatable :: xyz(:,:,:),e(:),p(:),er(:),c1(:,:),c2(:,:)
-      real(wp),allocatable :: c1r(:,:),c2r(:,:)
-      real(wp),allocatable :: xyznew(:,:,:),tmp(:,:),tmp3(:,:),enuc(:)
-      real(wp),allocatable :: edum(:),dist(:,:,:),tmp2(:),cn(:),cn0(:) 
-      real(wp),allocatable :: sd(:,:),rot(:,:),roth(:,:),metric(:,:),jfake(:)
-      real(sp),allocatable :: rmat(:)
-      integer,allocatable  :: at(:),ind(:),double(:),group(:),idum(:),ind2(:)
-      integer,allocatable  :: atr(:)
-      integer,allocatable  :: relat(:,:),equiv(:,:,:),molvec(:)
-      integer,allocatable  :: pair(:),pre(:),nb(:,:),elist(:,:),flist(:,:)
-      integer,allocatable  :: jnd(:),sames(:)
-      logical,allocatable  :: vis(:)
-      real(wp),allocatable :: xx(:),pg(:),rcov(:)
-      real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:), ydum(:)  ! rmsd dummy stuff
-      integer,allocatable:: iref(:),dgen(:),glist(:,:),nmract(:)
-      character(len=40),allocatable :: origin(:),originnew(:)
-      integer,allocatable :: timetag(:)
+  !>--- boolean data
+  logical :: checkbroken
+  logical :: topocheck
+  logical :: checkez
+  logical :: sorte
+  logical :: sortRMSD
+  logical :: sortRMSD2
+  logical :: newfile
+  logical :: repairord
+  logical :: conffile
+  logical :: bonusfiles
+  logical :: anal
+  logical :: saveelow = .true.
 
-      real(wp) :: autokcal,beta,eav,A,T,rthr,s,g
-      real(wp) :: ss,ethr,de,dr,bthr
-      real(wp) :: elow,ewin,pthr,eref,athr,r
-      real(wp) :: dum
-      real(wp) :: rij(3),cnorm,erj
-      !real*8 :: gdum(3,3),Udum(3,3),xdum(3), ydum(3)  ! rmsd dummy stuff
-      real(wp), external :: rotdiff,shortest_distance
+  !--- printout directions
+  integer :: prch  !the main printout channel
+  logical :: pr1,pr2,pr3,pr4
 
-      parameter (autokcal=627.509541d0)
+!====================================================================!
+! S E T T I N G S
+!====================================================================!
+  if (present(quickset)) then
+    simpleset = quickset
+  else
+    simpleset = 0
+  end if
 
-      integer :: i,j,k,l,m,nall,n,ig,ng,nall2
-      integer :: m1,m2,s1,s2,maxg,current,ndoub
-      integer :: molcount0,j1,iat,k2,m1end
-      integer :: kk,memb,irr,ir,nr,jj,nall_old
-      integer :: TID, nproc
-      integer :: ich,ich2,io,ich3,rednat
-      integer, external :: lin
-      integer*8, external :: lina,linr
-      integer(idp) :: klong
-      integer(idp),allocatable :: rmatmap1(:)
-      integer,allocatable :: rmatmap2(:),includeRMSD(:)
+  !-- determine filenames and output channel
+  call cregen_files(env,fname,oname,cname,simpleset,prch)
+  !-- determine which printouts are required
+  call cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
+  !-- determine which subroutines are required
+  call cregen_director(env,simpleset,checkbroken,sorte,sortRMSD,sortRMSD2, &
+  &  repairord,newfile,conffile,bonusfiles,anal,topocheck,checkez)
 
-      character(len=80) :: atmp,btmp,oname,fname,cname
-      character(len=3) :: a3            
-      character(len=512) :: outfile
+!--- DATA SECTION
+  call cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
+  call cregen_filldata2(simpleset,ewin)
 
-      logical :: debug,heavy,l1,l2,ex,newfile,anal,rmsdchk
-      logical :: fail
-      logical :: substruc
-      logical :: ttag
-      logical, external :: distcheck,equalrot,equalrotall
+!--- setting the threads for OMP parallel usage
+  call cregen_setthreads(prch,env,.false.)
 
-      settingNames: associate( crestver => env%crestver, confgo => env%confgo, &
-      &             methautocorr => env%methautocorr, printscoords => env%printscoords,  &
-      &             ensemblename => env%ensemblename, compareens => env%compareens,      &
-      &             elowest => env%elowest, ENSO => env%ENSO, subRMSD => env%subRMSD,    &
-      &             trackorigin => env%trackorigin, autothreads => env%autothreads,      &
-      &             omp => env%omp, MAXRUN => env%MAXRUN, threads => env%threads)
-      rednat = env%rednat
-      allocate(includeRMSD(env%nat))
-      includeRMSD = env%includeRMSD
+!=====================================================================!
 
-      thresholdNames: associate( cgf => env%cgf, thresholds => env%thresholds)
+!--- read in the ensemble parameters
+  call rdensembleparam(fname,nat,nallref)
 
-      outfile='cregen.out.tmp'
-      if(cgf(6))outfile='tmp'
+!--- print a summary about the ensemble and thresholds
+  if (pr1) call cregen_pr1(prch,env,nat,nallref,rthr,bthr,pthr,ewin)
 
-!------ the entire cregen output is printed to a seperate file
-      call remove(outfile)
-      if(confgo.and. .not.(env%properties.eq. -2))then
-       ich=6
-      else
-        open(newunit=ich, file=outfile)
-      endif      
+!--- allocate space and read in the ensemble
+  allocate (at(nat),comments(nallref),xyz(3,nat,nallref))
+  call rdensemble(fname,nat,nallref,at,xyz,comments)
 
-!---- small header
-      write(ich,'(''-------------------------------------'')')
-      write(ich,'(''CREGEN - CONFORMER SYMMETRY ANALYSIS'')')
-      write(ich,'(''-------------------------------------'')')
+!--- check if the ensemble contains broken structures? i.e., fusion or dissociation
+  if (checkbroken) then
+    call discardbroken(prch,env,nat,nallref,at,xyz,comments,nall)
+    !--- if structures were discarded, resize xyz
+    if (nall .lt. nallref) then
+      xyzref = xyz(:,:,1:nall)
+      call move_alloc(xyzref,xyz)
+      comref = comments(1:nall)
+      call move_alloc(comref,comments)
+    end if
+  else
+    nall = nallref
+  end if
 
+!--- compare neighbourlists to sort out chemically transformed structures
+  if (topocheck) then
+    call cregen_topocheck(prch,env,checkez,nat,nall,at,xyz,comments,nallnew)
+    !--- if structures were discarded, resize xyz
+    if (nallnew .lt. nall) then
+      !-- special fallback if all are discared
+      if (nallnew == 0) then
+        call rdcoord('coord',nat,at,xyz(:,:,1))
+        xyz = xyz * bohr
+        write (comments(1),'(f18.8)') env%elowest
+        nallnew = 1
+      end if
+      nall = nallnew
+      xyzref = xyz(:,:,1:nall)
+      call move_alloc(xyzref,xyz)
+      comref = comments(1:nall)
+      call move_alloc(comref,comments)
+    end if
+  end if
+  if (topocheck .or. checkbroken) then
+    write (prch,'('' number of reliable points      :'',i6)') nall
+  end if
 
-      call remove('LOWER_FOUND')
-      
-      allocate(rcov(94),gdum(3,3),Udum(3,3),xdum(3),ydum(3),nmract(100))
-      call setrcov(rcov)
+!--- sort the ensemble by its energies and make a cut (EWIN)
+  if (sorte) then
+    call cregen_esort(prch,nat,nall,xyz,comments,nallnew,ewin)
+    !--- if structures were discarded, resize xyz
+    if (nallnew .lt. nall) then
+      nall = nallnew
+      xyzref = xyz(:,:,1:nall)
+      call move_alloc(xyzref,xyz)
+      comref = comments(1:nall)
+      call move_alloc(comref,comments)
+    end if
+  end if
 
-!---- setting the threads for OMP parallel usage
-      if(autothreads)then
-         call ompautoset(threads,4,omp,MAXRUN,0) !mode=4 --> Program intern Threads max
-!$OMP PARALLEL PRIVATE(TID)
-      TID = OMP_GET_THREAD_NUM()
-      IF (TID .EQ. 0) THEN
-         nproc = OMP_GET_NUM_THREADS()
-         write(ich,*) '============================='
-         write(ich,*) ' # threads =', nproc
-         write(ich,*) '============================='
-      END IF
-!$OMP END PARALLEL 
-      endif
-!=====================================================================================!
-      ewin = env%ewin      !ensemble energy window in kcal
-      rthr = env%rthr      ! RMSD thr in Ang
-      ethr = env%ethr      ! E threshold in kcal
-      bthr = thresholds(4) ! rot const  thr  !legacy 
-      athr = env%athr      ! to det. int. rotation. equal atoms for NMR, CRITICAL!
-      pthr = env%pthr      ! population thr
+!--- do the rotational constants and RMSD check
+  if (sortRMSD) then
+    allocate (group(0:nall))
+    call cregen_CRE(prch,env,nat,nall,at,xyz,comments,nallnew,group)
+    !--- if structures were discarded, resize xyz
+    if (nallnew .lt. nall) then
+      nall = nallnew
+      xyzref = xyz(:,:,1:nall)
+      call move_alloc(xyzref,xyz)
+      comref = comments(1:nall)
+      call move_alloc(comref,comments)
+      allocate (gref(0:nallnew))
+      gref(0:nallnew) = group(0:nallnew)
+      call move_alloc(gref,group)
+      nall = nallnew
+    end if
+    !--- repair the order
+    if (repairord) then
+      call cregen_repairorder(nat,nall,xyz,comments,group)
+    end if
+    !--- get group info to degen
+    ng = group(0)
+    allocate (degen(3,ng))
+    call cregen_groupinfo(nall,ng,group,degen)
+  end if
+  if (sortRMSD2) then
+    allocate (group(0:nall))
+    call cregen_CRE_2(prch,env,nat,nall,at,xyz,comments,nallnew,group)
+  end if
 
-      T    = env%tboltz  ! Temperature   
+!--- align all structures to the first structure using the RMSD
+  call cregen_rmsdalign(nat,nall,at,xyz)
 
-      debug  =cgf(1)
-      newfile=cgf(2)
-      anal   =cgf(3)
-      heavy  =cgf(4) !compare only heavy atoms + OH with RMSD
-      rmsdchk=cgf(5)
+!--- write new file with ALL remaining structures
+  if (newfile) then
+    call cregen_file_wr(env,oname,nat,nall,at,xyz,comments)
+  end if
+!--- write a file only containing the conformers.
+  if (conffile) then
+    call cregen_conffile(env,cname,nat,nall,at,xyz,comments,ng,degen)
+  end if
+  if (saveelow) then
+    env%elowest = grepenergy(comments(1))
+    !-- and update reference geometry (in Bohrs!)
+    env%ref%xyz = xyz(:,:,1) / bohr
+  end if
 
-      end associate thresholdNames
+!--- additional files for entropy mode
+  if (bonusfiles) then
+    call cregen_bonusfiles(ng,degen)
+  end if
 
-      nmract = 0
+!--- several printouts
+  if (pr2) then
+    allocate (er(nall))
+    call cregen_pr2(prch,env,nall,comments,ng,degen,er)
+    call cregen_econf_list(prch,nall,er,ng,degen)
+    deallocate (er)
+  end if
+  if (pr3) then !alternative to pr2
+    call cregen_pr3(prch,oname,nall,comments)
+  end if
+  if (pr4) then !group dara printout
+    call cregen_pr4(prch,fname,nall,group)
+  end if
 
-      substruc=.false.
+!--- analyze nuclear equivalencies, e.g. for NMR and Entropy
+  if (anal) then
+    call cregen_EQUAL(prch,nat,nall,at,xyz,group,athr,.not. env%entropic)
+  end if
 
-!======================================================================================!
+!--- deallocate data
+  if (prch .ne. stdout) then
+    close (prch)
+  end if
+  if (allocated(er)) deallocate (er)
+  if (allocated(degen)) deallocate (degen)
+  if (allocated(group)) deallocate (group)
+  deallocate (xyz,comments,at)
+  return
+end subroutine newcregen
+!=========================================================================================!
+!=========================================================================================!
+!  CREGEN DATA SECTION
+!=========================================================================================!
+!=========================================================================================!
 
-      if(.not.rmsdchk) rthr = bthr  ! use rot thr for doubles check
+!============================================================!
+! subroutine cregen_files
+! handle all settings regarding input and output file names
+! including where to print the cregen output
+!============================================================!
+subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
+  use crest_parameters
+  use crest_data
+  use iomod
+  implicit none
+  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  character(len=*) :: fname
+  character(len=*) :: oname
+  character(len=*) :: cname
+  integer,intent(in) :: simpleset
+  integer,intent(out) :: iounit
+  character(len=:),allocatable :: outfile
+  logical :: ex
+  !--------------------------------------------------------------------
+  outfile = 'cregen.out.tmp'
+  if (env%cgf(6)) outfile = 'tmp'
 
-      beta  =1./(T*8.314510/4.184/1000.+1.d-14)
+  !-- the entire cregen output can be printed printed to a seperate file
+  !   or to the terminal
+  call remove(outfile)
+  if (simpleset > 0) then
+    select case (simpleset)
+    case (6,9,12)
+      iounit = stdout
+    case default
+      open (newunit=iounit,file=outfile)
+    end select
+  else if (env%confgo .and. .not. (env%properties .eq. -2) .and. .not. env%relax) then
+    iounit = stdout
+    !iounit=6
+  else
+    open (newunit=iounit,file=outfile)
+  end if
 
-      fname=trim(ensemblename)
-      if(confgo.and.(index(trim(fname),'none selected').eq.0))then
-        fname=trim(ensemblename)
-        oname=trim(ensemblename)//'.sorted'
-        write(ich,*) 'input  file name : ',trim(fname)
-        write(ich,*) 'output file name : ',trim(oname)
-        cname=ensemblefile !'crest_ensemble.xyz'
-        if(env%fullcre)then
-           ensemblename=trim(oname)
-        endif
-      else
-        call checkname_xyz(crefile,fname,oname)
-        write(ich,*) 'input  file name : ',trim(fname)
-        write(ich,*) 'output file name : ',trim(oname)
-        cname=conformerfile
-      endif
-      
+  fname = trim(env%ensemblename)
+  if (env%confgo .and. (index(trim(fname),'none selected') .eq. 0)) then
+    fname = trim(env%ensemblename)
+    oname = trim(env%ensemblename)//'.sorted'
+    cname = 'crest_ensemble.xyz'
+    if (env%fullcre) then
+      env%ensemblename = trim(oname)
+    end if
+  else !internal mode for conformational search
+    call checkname_xyz(crefile,fname,oname)
+    cname = conformerfile
+  end if
+  if( simpleset == 12 ) then !> MECP files
+    fname = "crest_mecp_search.xyz"
+    oname = "crest_mecp_search.xyz.sorted"
+    cname = "crest_ensemble.xyz"
+  endif
+  if( simpleset == 15 ) then !> crossing files
+    call checkname_xyz('confcross',fname,oname)
+    cname = trim(fname)//'.unique'
+  endif
 
-      nall=1
-      open(unit=1,file=fname)
- 10   read(1,*,end=100) n
-      read(1,'(a)') btmp
-      do i=1,n
-      read(1,'(a)') btmp
-      enddo
-      nall=nall+1
-      goto 10
-100   nall=nall-1
-      if(nall.lt.1)then
-         !stop 'read error'
-         write(*,*) 'no new structures. continue.'
-         return
-      endif
+  write (iounit,*) 'input  file name : ',trim(fname)
+  select case (simpleset)
+  case (9)
+    continue
+  case default
+    write (iounit,*) 'output file name : ',trim(oname)
+  end select
 
-!-----------------------------------------------------------------------------------------
+  inquire (file=fname,exist=ex)
+  if (.not. ex) then
+    write (0,*) 'Warning, file ',trim(fname),' does not exist!'
+    error stop
+  end if
 
-      if(rednat.ne.n .and. subRMSD) substruc=.true.
+  return
+end subroutine cregen_files
 
+!============================================================!
+! subroutine cregen_prout
+! handle all settings regarding which printouts are active
+! (currently only those for default cregen runs)
+!============================================================!
+subroutine cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
+  use crest_parameters
+  use crest_data
+  use iomod
+  implicit none
+  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  integer,intent(in) :: simpleset
+  logical,intent(out) :: pr1,pr2,pr3,pr4
 
-      write(ich,'('' number of atoms                :'',i6)')n
-      if(substruc)then
-      write(ich,'('' atoms included in RMSD         :'',i6)')rednat
-      endif
-      write(ich,'('' number of points on xyz files  :'',i6)')nall
-      write(ich,'('' RMSD threshold                 :'',f9.4)')rthr
-      write(ich,'('' Bconst threshold               :'',f9.4)')bthr
-      write(ich,'('' population threshold           :'',f9.4)')pthr
-      write(ich,'('' conformer energy window  /kcal :'',f9.4)')ewin
+  pr1 = .true.  !threshold summary
+  pr2 = .true.  !detailed energy/group list
+  pr3 = .false. !plain energy list
+  pr4 = .false. !group list printout
 
+  if (simpleset == 6) then
+    pr1 = .false.
+    pr2 = .false.
+    if (env%crestver .ne. crest_solv) pr3 = .true.
+  end if
 
-      allocate(at(n),c1(3,n),c2(3,n),cn0(n),cn(n),molvec(n))
-      allocate(c1r(3,rednat),c2r(3,rednat),atr(rednat))
+  if (simpleset == 9) then
+    pr1 = .true.
+    pr2 = .false.
+    pr3 = .false.
+    pr4 = .true.
+  end if
 
-      call rdcoord('coord',n,at,c1)
-      call mrec(molcount0,c1,n,at,molvec)
-      write(ich,'('' # fragment in coord            :'',i6)')molcount0
+  return
+end subroutine cregen_prout
 
-      if(substruc)then
-        call cpincluded(n,rednat,c1,c1r,includeRMSD)
-        k=1
-        do i=1,n
-          if(includeRMSD(i).gt.0)then
-           atr(k)=at(i)
-           k=k+1
-          endif
-        enddo 
-        call ncoord(rednat,rcov,atr,c1r,cn0,500.0d0)
-      else
-        call ncoord(n,rcov,at,c1,cn0,500.0d0)
-      endif
+!============================================================!
+! subroutine cregen_director !IMPORTANT!
+! handle which comparisons are required and which files shall
+! be written
+!============================================================!
+subroutine cregen_director(env,simpleset,checkbroken,sorte,sortRMSD,sortRMSD2, &
+        &  repairord,newfile,conffile,bonusfiles,anal,topocheck,checkez)
+  use crest_parameters
+  use crest_data
+  use iomod
+  implicit none
+  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  integer,intent(in) :: simpleset
+  logical,intent(out) :: checkbroken
+  logical,intent(out) :: sorte,sortRMSD,sortRMSD2
+  logical,intent(out) :: repairord
+  logical,intent(out) :: newfile,conffile
+  logical,intent(out) :: bonusfiles
+  logical,intent(out) :: anal
+  logical,intent(out) :: topocheck
+  logical,intent(out) :: checkez
 
-!c read file
-      allocate(xx(10),iref(nall))
+  checkbroken = .true.  !fragmentized structures are sorted out
+  sorte = .true.  !sort based on energy
+  sortRMSD = .true.  !sort based on RMSD
+  sortRMSD2 = .false. !check groups for whole ensemble
+  repairord = .true.  !double-check the sorted Ensemble
 
-!--- determine the reliable points on the ensemble file
-!    coord-file is the reference. Hence best use an optimized 
-      rewind 1
-      iref=0
-!===================================================================!
-      if(.not.substruc)then
-!===================================================================!          
-      do j=1,nall
-         read(1,*) k
-         read(1,'(a)') btmp
-         call readl(btmp,xx,k)
-         erj=xx(1)            ! from GMD ensemble i.e. in Eh
-         do i=1,n
-            read(1,*)a3,c2(1:3,i)
-            if(j.eq.1) at(i) = e2i(a3)
-         enddo
-         c1(1:3,1:n)=c2(1:3,1:n)/bohr
-         l1=distcheck(n,c1)  ! distance check
-         cnorm=sum(abs(c1))
-         if(abs(erj).gt.1.d-6.and.cnorm.gt.1.d-6.and.l1) &
-      &  call ncoord(n,rcov,at,c1,cn,500.0d0)    ! further check for reactions based on CN
-         k2=0        
-         do i=1,n
-            if(.not.(cn0(i).gt.0))cycle
-            !if(abs((cn(i)-cn0(i)))/cn0(i).gt.0.3) k2=1       
-         enddo
-         if(k2.eq.1.or. &
-         &  abs(erj).lt.1.d-6.or. &
-         &  cnorm.lt.1.d-6.or. &
-         &  (.not.l1) ) &
-         &  then 
-            write(ich,*) 'removing structure',j !,k2,er(j),cnorm,l1
-            iref(j)=1
-         endif
-      enddo
-!===================================================================!
-      else  !  n /= rednat (only selected atoms contribute
-!===================================================================!
-      do j=1,nall
-         read(1,*) k
-         read(1,'(a)') btmp
-         call readl(btmp,xx,k)
-         erj=xx(1)            ! from GMD ensemble i.e. in Eh
-         l=1
-         do i=1,n
-            if(includeRMSD(i).gt.0)then  
-              read(1,*)a3,c2r(1:3,l)
-              if(j.eq.1) atr(l) = e2i(a3)
-              l=l+1
-            else
-              read(1,'(a)') btmp
-            endif
-         enddo
-         c1r(1:3,1:rednat)=c2r(1:3,1:rednat)/bohr
-         
-         l1=distcheck(rednat,c1r)  ! distance check
-         cnorm=sum(abs(c1r))
-         if(abs(erj).gt.1.d-6.and.cnorm.gt.1.d-6.and.l1) &
-      &  call ncoord(rednat,rcov,atr,c1r,cn,500.0d0)    ! further check for reactions based on CN
-         k2=0
-         do i=1,rednat
-            !if(abs((cn(i)-cn0(i)))/cn0(i).gt.0.3) k2=1
-         enddo
-         if(k2.eq.1.or. &
-         &  abs(erj).lt.1.d-6.or. &
-         &  cnorm.lt.1.d-6.or. &
-         &  (.not.l1) ) &
-         &  then
-            write(ich,*) 'removing structure',j !,k2,er(j),cnorm,l1
-            iref(j)=1
-         endif
-       enddo
-!==================================================================!
-       endif
-!==================================================================!       
-    !---------
-    ! iref is 0 for structures that are ok 
-    ! and 1 for 'broken' structures.
-    !--------
-      nall_old=nall
-      nall=nall-sum(iref(1:nall))
-      nall2=nall
-      write(ich,'('' number of reliable points      :'',i6)')nall    
+  newfile = .true.  !sorted input file
 
-      allocate(xyz(3,n,nall),er(nall),            &
-     &         p(nall),e(nall),ind(nall),double(nall),tmp(3,nall),      &
-     &         xyznew(3,n,nall),tmp2(n),jnd(n),sames(nall),ind2(nall),  &
-     &         group(0:nall),idum(nall),edum(nall),                     &
-     &         relat(0:n,n),enuc(nall),tmp3(3,nall),                    &
-     &         jfake(n*(n+1)/2),sd(n,n),rot(3,nall),roth(3,nall),metric(n,n), &
-     &         vis(n),pre(n),pair(n*(n+1)/2),nb(200,n),elist(n,n),flist(n,n))
+  conffile = .true. !sorted unique structure file
 
+  topocheck = env%checktopo !topology is compared to reference structure
+  checkez = env%checkiso  !check for C=C cis/trans isomerizations
+  if (env%relax) then
+    topocheck = .false.
+  end if
 
-      !array for tracking the origin
-      if(trackorigin)then      
-         allocate(origin(nall),originnew(nall))
-         if(env%entropic)then
-           allocate(timetag(nall))
-         endif
-      endif
+  bonusfiles = .false.
+  if (env%entropic .or. env%doNMR) then
+    bonusfiles = .true.
+  end if
 
-!---- only use the reliable points
-!!!
-! THE ENSEMBLE FILE IS READ HERE
-!!!
-      jj=0
-      rewind 1
-      do j=1,nall_old
-         if(iref(j).eq.0) jj=jj+1
-         read(1,*) k
-         read(1,'(a)') btmp
-         call readl(btmp,xx,k)
-         if(iref(j).eq.0)then
-          er(jj)=xx(1)    
-          if(trackorigin)then
-             call getorigin(trim(btmp),origin(jj))
-          endif
-          do i=1,n
-            read(1,*)a3,xyz(1:3,i,jj)
-          enddo
-         else
-          do i=1,n
-            read(1,*)a3,rij(1:3)
-          enddo
-         endif
-      enddo
-      close(1)
+  anal = .false.
+  if (env%doNMR .or. env%cgf(3) .or. simpleset == 2) then
+    anal = .true.
+  end if
+  if (simpleset == 3) then
+    anal = .false.
+  end if
 
-!---sort
-!!!
-! ind array is used to track the order
-!!!
-      do i=1,nall
-         ind(i)=i
-      enddo
-      call Qsort(er,1,nall,ind) ! sort for E 
-      elow=er(1)
+  if (simpleset == 6) then  !energy sorting only
+    checkbroken = .false.
+    sorte = .true.
+    sortRMSD = .false.
+    repairord = .false.
+    newfile = .true.
+    if ((env%crestver .eq. crest_solv) .and. (.not. env%QCG)) then
+      conffile = .true. !Conffile is needed for confscript in QCG
+    else
+      conffile = .false.
+    end if
+    topocheck = .false.
+    checkez = .false.
+    bonusfiles = .false.
+    anal = .false.
+  end if
 
-      do i=1,nall
-         xyznew(1:3,1:n,i)=xyz(1:3,1:n,ind(i))
-      enddo
+  if (simpleset == 9) then  !optpurge mode
+    checkbroken = .false.
+    sorte = .false.
+    sortRMSD = .false.
+    sortRMSD2 = .true.
+    repairord = .false.
+    newfile = .false.
+    conffile = .false.
+    topocheck = .false.
+    checkez = .false.
+    bonusfiles = .false.
+    anal = .false.
+  end if
 
-      do i=1,nall
-         xyz(1:3,1:n,i)=xyznew(1:3,1:n,i)
-      enddo
-    
-      !--- for the origin tracking. The arrays conatin a lable form which step the structure was obtained
-      if(trackorigin)then
-        do i=1,nall
-         originnew(i)=origin(ind(i))
-        enddo
-        origin=originnew
-      endif
-      !if(trackorigin .and. env%entropic)then !check if we have valid time tags for entropy mode
-      !  atmp=origin(1)
-      !  if(atmp(1:1)=='t')then
-      !      ttag=.true.
-      !  else
-            ttag=.false.
-      !  endif
-      !endif
+  !> MECP search final sorting
+  if (simpleset == 12) then
+    topocheck = .false.
+    checkez = .false.
+    bonusfiles = .false.
+    anal = .false.
+  end if
 
-!---to CMA
-      do i=1,nall
-         c1(1:3,1:n)=xyz(1:3,1:n,i)
-         call axis(n,at,c1,c2,rot(1:3,i))   !-- this does the CMA trafo, and gives rot.const. MHz    
-         !write(*,'(i5,2x,3f10.2)') i,rot(1:3,i) !-- rotational constant printout
-         xyz(1:3,1:n,i)=c2(1:3,1:n)
-      enddo
-      if(substruc)then  !-- we have to do it again for the reduced mode, i.e., if atoms are excluded from the comparison
-         do i=1,nall
-            c1(1:3,1:n)=xyz(1:3,1:n,i)
-            call cpincluded(n,rednat,c1,c1r,includeRMSD)
-            call axis(rednat,atr,c1r,c2r,rot(1:3,i))
-         enddo
-      endif
+  return
+end subroutine cregen_director
 
-      if(.not.env%allrot .and. .not.rmsdchk)then  !-- not needed by default
-      rot = rot /dble(n)**2  !-- normalize such that it can be used instead of the RMSD
-      endif
+!============================================================!
+! subroutine cregen_filldata1
+! get important threshold from "opt" and "sys" objects
+!============================================================!
+subroutine cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
+  use crest_parameters
+  use crest_data
+  implicit none
+  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  real(wp),intent(out) :: ewin,rthr,ethr,bthr,athr,pthr,T,couthr
+  !--------------------------------------------------------------------
+  ewin = env%ewin          !ensemble energy window in kcal/mol
+  rthr = env%rthr          ! RMSD thr in Ang
+  ethr = env%ethr          ! E threshold in kcal
+  bthr = env%bthr2         ! rot const thr (lower bound)
+  athr = env%athr          ! to det. int. rotation. equal atoms for NMR, CRITICAL!
+  pthr = env%pthr          ! population thr
+  T = env%tboltz        ! Temperature
+  couthr = env%couthr      ! coulomb sorting threshold
+  return
+end subroutine cregen_filldata1
+subroutine cregen_filldata2(simpleset,ewin)
+  use crest_parameters
+  use crest_data
+  implicit none
+  integer,intent(in) :: simpleset
+  real(wp),intent(out) :: ewin
+  !--------------------------------------------------------------------
+  if (simpleset == 6) then
+    ewin = 100000
+  end if
+  if (simpleset == 12) then
+    ewin = huge(ewin)
+  end if
+  return
+end subroutine cregen_filldata2
 
-!--------
-      if(env%esort) then    !-- just resort the input and make a cut (if inquired by cmd)
-        open(unit=2,file=oname)                        
-        do i=1,nall
-           if((er(i)-elow)*autokcal.gt.ewin) goto 999
-           c2(1:3,1:n)=xyz(1:3,1:n,i)
-           write(2,'(2x,i0)') n
-           if(.not.trackorigin)then
-             write(2,'(2x,f18.8)') er(i)
-           else
-             write(2,'(2x,f18.8,4x,a)') er(i),'!'//trim(origin(i)) 
-           endif
-           do j=1,n
-              write(2,'(1x,a2,1x,3f18.8)')i2e(at(j),'nc'),c2(1:3,j)
-           enddo
-        enddo
- 999    close(2)
-        write(ich,*) i-1,' out of ',nall,' taken'
-        write(ich,*) 'normal resort termination of confg'
-        goto 666
-      endif
-!--------
-      inquire(file='.tmpxtbmodef',exist=ex)
-      if(ex)then
-       open(unit=66,file='.tmpxtbmodef')
-       read(66,*) i
-       read(66,*) eref
-       close(66)
-      else
-       eref=er(1)
-      endif
-      if(crestver.eq.1)then
-        write(ich,*)'reference state (Hessian) Etot :',eref
-      else
-        write(ich,*)'reference state Etot :',eref
-      endif
-!---get RMSD
-  !========================================================!
-  !--- crucial point: rmat is huge. VERY huge.
-      !klong=nall
-      !klong=klong*(nall+1)
-      !klong=klong/2
-      !write(*,*) nall,klong
+!============================================================!
+! subroutine cregen_groupinfo
+! get info about each conformer group and save it to "degen"
+!============================================================!
+subroutine cregen_groupinfo(nall,ng,group,degen)
+  use crest_parameters
+  implicit none
+  integer :: nall,ng
+  integer :: group(0:nall)
+  integer :: degen(3,ng)
+  integer :: i,j,k
+  integer :: a,b
+  do i = 1,ng
+    a = 0; b = 0; k = 0
+    do j = 1,nall
+      if (group(j) .eq. i) then
+        k = k + 1
+        if (a == 0) a = j
+        b = j
+      end if
+    end do
+    degen(1,i) = k !>-- number of members in group i
+    degen(2,i) = a !>-- first member of group i
+    degen(3,i) = b !>-- last member of group i
+  end do
+  return
+end subroutine cregen_groupinfo
 
-  !--- for large ensembles the size of rmat can be largley reduced
-  !    but this requires additional tracking and counting.
-  !    It will be worth it, however.
-      allocate(rmatmap1(nall),rmatmap2(nall))
-      klong=0
-      do i=1,nall
-         rmatmap1(i)=klong
-         l1=.true.
-         do j=1,i-1
-            !er(j) should always be smaller than er(i) because of presorting
-            de=(er(i)-er(j))*autokcal
+!=========================================================================================!
+!=========================================================================================!
+!  CREGEN SUBROUTINES
+!=========================================================================================!
+!=========================================================================================!
 
-            if(de.lt.ethr)then
-                klong=klong+1
-                if(l1)then
-                    rmatmap2(i)=j
-                    l1=.false.
-                endif
-            endif
-          enddo
-      enddo   
+!============================================================!
+! subroutine discardbroken
+! analyze an ensemble and track broken structures
+! to be discarded.
+!============================================================!
+subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
+  use crest_parameters
+  use crest_data
+  use strucrd
+  implicit none
+  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  integer :: ch ! printout channel
+  integer :: nat,nall
+  integer :: at(nat)
+  real(wp) :: xyz(3,nat,nall)
+  character(len=*) :: comments(nall)
+  integer :: newnall
+  integer :: llan
+  integer,allocatable :: order(:),orderref(:)
+  integer :: nat0
+  real(wp),allocatable :: cref(:,:),c0(:,:),c1(:,:)
+  integer,allocatable  :: at0(:),atdum(:)
+  real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
+  integer :: frag,frag0
+  real(wp) :: erj
+  integer :: j
+  logical :: substruc
+  logical :: distok,distcheck
+  real(wp) :: cnorm
+  logical :: dissoc
 
-      allocate(rmat(klong))
-      rmat=0
-  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
-      if(rmsdchk)then
-  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
-      write(*,'(1x,a)') 'running RMSDs...'
-      if(.not.substruc)then !regular case
-      klong=0    
-      do i=1,nall
-         c1(1:3,1:n)=xyz(1:3,1:n,i)
-!$OMP PARALLEL PRIVATE ( j,klong,c2,xdum,ydum,Udum,gdum,dum,de) &
-!$OMP SHARED ( i,c1,rmat,n,xyz,rmatmap1,rmatmap2,er,ethr)
-!$OMP DO 
-         do j=1,i-1
-           de=(er(i)-er(j))*autokcal
-           if(de.lt.ethr)then
-                c2(1:3,1:n)=xyz(1:3,1:n,j)
-                call rmsd(n,c1,c2,0,Udum,xdum,ydum,dum,.false.,gdum) ! all atoms
-               ! klong=lina(j,i)
-                klong=linr(rmatmap1(i),rmatmap2(i),j)
-                !$omp critical
-                rmat(klong) = real(dum, 4)
-                !$omp end critical
-            endif
-         enddo
-!$OMP END DO
-!$OMP END PARALLEL
-      enddo
-!--- substruc
-      else  ! n /= rednat
-      do i=1,nall
-         c1(1:3,1:n)=xyz(1:3,1:n,i)
-         call cpincluded(n,rednat,c1,c1r,includeRMSD)
-!$OMP PARALLEL PRIVATE ( j,klong,c2,c2r,xdum,ydum,Udum,gdum,dum,de) &
-!$OMP SHARED ( i,c1r,rmat,n,xyz,rednat,includeRMSD,rmatmap1,rmatmap2,er,ethr)
-!$OMP DO 
-         do j=1,i-1
-           de=(er(i)-er(j))*autokcal
-           if(de.lt.ethr)then
-               c2(1:3,1:n)=xyz(1:3,1:n,j)
-               call cpincluded(n,rednat,c2,c2r,includeRMSD)
-               call rmsd(rednat,c1r,c2r,0,Udum,xdum,ydum,dum,.false.,gdum) ! all atoms
-               ! klong=lina(j,i)
-               klong=linr(rmatmap1(i),rmatmap2(i),j)
-               !$omp critical
-               rmat(klong) = real(dum, 4)
-               !$omp end critical
-           endif
-         enddo
-!$OMP END DO
-!$OMP END PARALLEL
-      enddo
-      endif
-      write(*,'(1x,a)') 'done.'
-   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
-      else   !if rotational constants are used instead of rmsd
-   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
-       do i=1,nall
-         do j=1,i-1
-            de=(er(i)-er(j))*autokcal
-            if(de.lt.ethr)then
-            !klong=lina(j,i)
-            klong=linr(rmatmap1(i),rmatmap2(i),j)
-            rmat(klong)=real(rotdiff(i,j,nall,rot), 4)
-            endif
-         enddo
-       enddo
-  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
-      endif
+  !>--- if we don't wish to include all atoms:
+  substruc = (nat .ne. env%rednat .and. env%subRMSD)
 
-!---apply RMSD threshold
-! "sames" is used to track conformers (INCLUDING doubles).
-!  IMPORTANT: we only have to check for duplicates within the boundaries of ETHR.
-!  This allows for a much smaller RMAT
-      double=0
-      sames=0
-      do i=1,nall
-         do j=1,i-1
-            ! klong=lina(j,i)
-            de=(er(i)-er(j))*autokcal
-            if(de.lt.ethr)then
-              klong = linr(rmatmap1(i),rmatmap2(i),j) 
-              dr = rmat(klong)
-            else
-              cycle  
-            endif
-            if(dr.lt.rthr) then
-               double(i)=1  ! i > j, i.e., E(i) > E(j)
-               sames(i)=j
-               !write(*,*) i,j,rmat(k)
-            elseif(dr.lt.2.*rthr) then
-               if(.not.env%allrot)then
-               l1=equalrot(i,j,nall,0.5*bthr,rot)
-               else
-               l1=equalrotall(i,j,nall,bthr,rot)
-               endif
-               if(l1)then !.and.l3) then
-                  double(i)=1  
-                  sames(i)=j
-               endif
-            endif
-         enddo
-      enddo
-      deallocate(rmatmap2,rmatmap1)
-      deallocate(rmat)
+  !>--- settings
+  allocate (rcov(94))
+  call setrcov(rcov)
 
-!---kick out doubles
-      ndoub = 0
-      do i=1,nall 
-         if(double(i).eq.1) then
-            er(i)=1.d+6           !with this high energy the conformer won't be considered later
-            ndoub = ndoub + 1
-         endif
-      enddo
-      write(ich,*)'number of doubles removed by rot/RMSD         :',ndoub
+  !>--- read the reference structure
+  allocate (cref(3,nat),atdum(nat))
+  call rdcoord('coord',nat,atdum,cref)
+  !>--- check fragements
+  allocate (bond(nat,nat),cn(nat),source=0.0_wp)
+  call mreclm(frag0,nat,at,cref,atdum,bond,rcov,cn)
+  deallocate (bond,cn)
 
-!---rel. energies    
-      do i=2,nall
-         er(i)=(er(i)-er(1))*autokcal
-      enddo
-      er(1)=0
+  write (ch,'('' # fragment in coord            :'',i6)') frag0
+  deallocate (atdum)
+  if (substruc) then
+    nat0 = env%rednat
+    allocate (c0(3,nat0),at0(nat0),c1(3,nat0),atdum(nat0))
+    call maskedxyz(nat,nat0,cref,c0,at,at0,env%includeRMSD)
+  else
+    allocate (c0(3,nat),at0(nat),c1(3,nat),atdum(nat))
+    c0 = cref
+    at0 = at
+    nat0 = nat
+  end if
+  !>--- fragments for actual reference
+  allocate (bond(nat0,nat0),cn(nat0))
+  call mreclm(frag0,nat0,at0,c0,atdum,bond,rcov,cn)
 
-!---keep only the true conformers in final ensemble
-      edum=0
-      tmp=0
-      if(trackorigin) originnew=''
-      m=0
-      do i=1,nall
-         if(er(i).gt.ewin) cycle   !--- discard everything >6kcal/mol
-         m=m+1
-         edum(m)=er(i)
-         xyznew(1:3,1:n,m)=xyz(1:3,1:n,i)
-         tmp   (1:3,m)    =rot(1:3,i)
-         !tmp3  (1:3,m)    =roth(1:3,i)
-         if(trackorigin)then
-            originnew(m)=origin(i)
-         endif
-         ind2(m)=i
-      enddo
-      nall  = m
-      xyz   = xyznew
-      er    = edum
-      rot   = tmp
-      !roth  = tmp3
-      write(ich,*)'total number unique points considered further :',nall 
+  allocate (order(nall),orderref(nall))
+  !>--- loop over the structures
+  newnall = 0
+  llan = nall
+  do j = 1,nall
+    erj = grepenergy(comments(j)) !> get energy of structure j
+    if (.not. substruc) then
+      c1(:,:) = xyz(:,:,j) / bohr
+    else
+      call maskedxyz(nat,nat0,xyz(:,:,j),c1,at,at0,env%includeRMSD)
+      c1 = c1 / bohr
+    end if
+    distok = distcheck(nat0,c1) !> distance check
+    cnorm = sum(abs(c1))        !> clash check
 
-      do k=1,nall
-         c1(1:3,1:n)=xyz(1:3,1:n,k)
-         enuc(k)=0                          
-         do i=1,n-1
-            do j=i+1,n
-               r=(c1(1,i)-c1(1,j))**2 &
-           &    +(c1(2,i)-c1(2,j))**2 &
-           &    +(c1(3,i)-c1(3,j))**2+1.d-12
-               enuc(k)=enuc(k)+at(i)*at(j)/r
-            enddo
-         enddo
-      enddo
+    !>--- further checks?
+    dissoc = .false.
+    if (abs(erj) .gt. 1.0d-6 .and. cnorm .gt. 1.0d-6 .and. distok) then
+      dissoc = .false.
+      call mreclm(frag,nat0,at0,c1,atdum,bond,rcov,cn)
+      if (frag .gt. frag0) then
+        dissoc = .true.
+      end if
+    end if
 
-!--- IMPORTANT SORTING PROCEDURE
-!    Loop over pre-sorted structure pairs, and check several things:
-      double=0  !--- grouping tensor                                 
-      SORTI : do i=1,nall
-          SORTJ : do j=1,i 
-            de=er(i)-er(j)                        !-- energy difference
-            if(.not.env%allrot)then
-              l1=equalrot(i,j,nall,bthr,rot)
-            else
-              l1=equalrotall(i,j,nall,bthr,rot)     !-- rotational constant difference
-            endif
+!    if (dissoc .or. (abs(erj) .lt. 1.0d-6) .or. &
+    if (dissoc .or. &
+  &   (cnorm .lt. 1.0d-6) .or. (.not. distok)) then
+      !>--- move broken structures to the end of the matrix
+      orderref(j) = llan
+      llan = llan - 1
+      !write(ch,*) 'removing structure',j
+    else
+      newnall = newnall + 1
+      orderref(j) = newnall
+    end if
+  end do
 
-            l2=2.*abs(enuc(i)-enuc(j))/(enuc(i)+enuc(j)).lt.1.d-3  !-- nuclear permutation
-!           k=lin(i,j)
+  !>--- sort the xyz array (only if structures have been discarded)
+  if (newnall .lt. nall) then
+    order = orderref
+    call xyzqsort(nat,nall,xyz,c0,order,1,nall)
+    order = orderref
+    call stringqsort(nall,comments,1,nall,order)
 
-            if(l1.and.l2.and.i.ne.j  &
-           &   .and.double(i).eq.0   &
-           &   .and.abs(de).lt.ethr) then
-               double(i)=j   !-- this means "structure i is the same conformer as structure j"
-                             !   for j=i it is 0 because the if statement is skipped.
-               cycle SORTI
-               goto 99
-            endif
-          enddo SORTJ
- 99       continue
-      enddo SORTI
+    llan = nall - newnall
+    write (ch,'('' number of removed clashes      :'',i6)') llan
+  end if
+  !--- otherwise the ensemble is ok
 
-       do i=1,nall
-          call backtrack(double,i,j)
-       enddo
+  !write(ch,'('' number of reliable points      :'',i6)')newnall
 
-!---assign structures to identical conformers
-      ig=0      !-- total number of "groups", i.e. unique conformers
-      group=0   !-- grouping tensor -- which structure belongs to which group
-   !-- first, assign a representative for each new group, and determine how many groups there are
-      do i=1,nall
-         if(double(i).eq.0)then
-            ig=ig+1                            !-- ascending order 1-to-"total number of groups"
-            iref(ig)=i                         !-- i=the unique ref.structure in each group
-            group(i)=ig                        !-- assign struc. i to group ig
-         endif
-      enddo
-      ng=ig      !-- number of conformer groups, i.e., unique conformers
-    !-- then, assign all remaining structures to their respective groups
-      !!THE FOLLOWING PART IS WRONG!
-      !k=group(1)
-      !do i=1,nall
-      !   if(group(i).ne.0)then
-      !      k=group(i)
-      !   else
-      !      group(i)=k
-      !   endif
+  deallocate (orderref,order)
+  deallocate (cn,bond)
+  deallocate (atdum,c1,at0,c0)
+  deallocate (cref,rcov)
+  return
+end subroutine discardbroken
+
+!============================================================!
+!> subroutine cregen_topocheck
+!> analyze an ensemble and compare topology (neighbourlist)
+!> to the reference structure
+!============================================================!
+subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
+  use crest_parameters
+  use crest_data
+  use strucrd
+  implicit none
+  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  integer,intent(in) :: ch ! printout channel
+  logical,intent(in) :: checkez
+  integer,intent(in) :: nat,nall
+  integer,intent(in) :: at(nat)
+  real(wp),intent(inout) :: xyz(3,nat,nall)
+  character(len=*),intent(inout) :: comments(nall)
+  integer,intent(out) :: newnall
+  integer :: llan
+  integer,allocatable :: order(:),orderref(:)
+  real(wp),allocatable :: cref(:,:),c1(:,:)
+  integer,allocatable  :: atdum(:)
+  real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
+  integer,allocatable :: toporef(:)
+  integer,allocatable :: topo(:)
+  logical,allocatable :: neighmat(:,:)
+  integer :: nbonds
+  integer :: j,l
+  integer :: ntopo,ncc,ccfail
+  logical :: discard
+  integer,allocatable :: ezat(:,:)
+  real(wp),allocatable :: ezdihedref(:)
+  real(wp),allocatable :: ezdihed(:)
+  real(wp) :: winkeldiff
+
+  !--- settings
+  allocate (rcov(94))
+  call setrcov(rcov)
+
+  !--- read the reference structure
+  allocate (cref(3,nat),atdum(nat))
+  call rdcoord('coord',nat,atdum,cref)
+
+  !--- get the reference topology matrix (bonds)
+  ntopo = nat * (nat + 1) / 2
+  allocate (toporef(ntopo),topo(ntopo))
+  allocate (neighmat(nat,nat),source=.false.)
+  allocate (bond(nat,nat),cn(nat),source=0.0_wp)
+  cn = 0.0d0
+  bond = 0.0d0
+  call xcoord2(nat,atdum,cref,rcov,cn,400.0_wp,bond)
+  !do i=1,nat
+  !   write(*,*) i,i2e(at(i),'nc'),nint(cn(i))
+  !enddo
+  if (allocated(env%excludeTOPO)) then
+    call bondtotopo_excl(nat,at,bond,cn,ntopo,toporef,neighmat,env%excludeTOPO)
+  else
+    call bondtotopo(nat,at,bond,cn,ntopo,toporef,neighmat)
+  end if
+
+  nbonds = sum(toporef)
+  write (ch,'('' # bonds in reference structure :'',i6)') nbonds
+  !--- if required, check for C=C bonds (based only on structure!)
+  if (checkez) then
+    cref = cref * bohr
+    call nezcc(nat,atdum,cref,cn,ntopo,toporef,ncc)
+    if (ncc > 0) then
+      write (ch,'(''   => # of C=C bonds :'',i6)') ncc
+      allocate (ezat(4,ncc))
+      allocate (ezdihedref(ncc),ezdihed(ncc),source=0.0d0)
+      call ezccat(nat,atdum,cref,cn,ntopo,toporef,ncc,ezat)
+      call ezccdihed(nat,cref,ncc,ezat,ezdihedref)
+      !do i=1,ncc
+      !  write(*,'(1x,a,4i4,a,f6.2)') 'C=C bond atoms:',ezat(1:4,i)," angle: ",ezdihedref(i)
       !enddo
-      !!THIS SHOULD BE CORRECT!
-      do i=1,nall
-         if(group(i).eq.0)then
-           j=double(i)
-           group(i)=group(j)
-         endif 
-      enddo
+    end if
+  end if
 
-      !-- repair the group order (can be importent when conformers with very similar energies exist)
-      if(trackorigin .and. env%entropic .and. ttag)then
-        call repairentropic(nall,n,ng,group,xyz,er,trackorigin,originnew)
-        originnew(1) = 't1' !dirty hack, but conceptionally this is rigth -> lowest conformer must be present at the start
+  allocate (order(nall),orderref(nall))
+  allocate (c1(3,nat))
+  !--- loop over the structures
+  ccfail = 0
+  newnall = 0
+  llan = nall
+  do j = 1,nall
+    c1(1:3,1:nat) = xyz(1:3,1:nat,j) / bohr
+    !--- generate topo and compare
+    discard = .false.
+    cn = 0.0d0
+    bond = 0.0d0
+    call xcoord2(nat,at,c1,rcov,cn,400.0_wp,bond)
+    if (allocated(env%excludeTOPO)) then
+      call bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighmat,env%excludeTOPO)
+    else
+      call bondtotopo(nat,at,bond,cn,ntopo,topo,neighmat)
+    end if
+    do l = 1,ntopo
+      if (toporef(l) .ne. topo(l)) then
+        !call revlin(int(l,kind=8),k,i)
+        !write(*,*) 'structure',j,'mismatch in ',k,i
+        !write(*,*) nint(cn(k)),nint(cn(i))
+        discard = .true.   !if there is any mismatch in neighbor lists
+        exit
+      end if
+    end do
+    !--- get E/Z info of C=C, discard isomers
+    if (checkez .and. .not. discard .and. ncc > 0) then
+      c1 = c1 * bohr
+      call ezccdihed(nat,c1,ncc,ezat,ezdihed)
+      do l = 1,ncc
+        winkeldiff = ezdihedref(l) - ezdihed(l)
+        winkeldiff = abs(winkeldiff)
+        if (winkeldiff > 90.0_wp) then
+          discard = .true.
+          ccfail = ccfail + 1
+          exit
+        end if
+      end do
+    end if
+
+    if (discard) then
+      !-- move broken structures to the end of the matrix
+      orderref(j) = llan
+      llan = llan - 1
+      !write(ch,*) 'removing structure',j
+    else
+      newnall = newnall + 1
+      orderref(j) = newnall
+    end if
+  end do
+
+  !--- sort the xyz array (only if structures have been discarded)
+  if (newnall .lt. nall) then
+    order = orderref
+    call xyzqsort(nat,nall,xyz,c1,order,1,nall)
+    order = orderref
+    call stringqsort(nall,comments,1,nall,order)
+
+    llan = nall - newnall
+    write (ch,'('' number of topology mismatches  :'',i6)') llan
+    if (checkez .and. ccfail > 0) then
+      write (ch,'(''  => discared due to E/Z isom.  :'',i6)') ccfail
+    end if
+  end if
+  !--- otherwise the ensemble is ok
+
+  !write(ch,'('' number of reliable points      :'',i6)')newnall
+
+  deallocate (c1)
+  deallocate (orderref,order)
+  if (allocated(ezdihedref)) deallocate (ezdihedref)
+  if (allocated(ezdihed)) deallocate (ezdihed)
+  if (allocated(ezat)) deallocate (ezat)
+  deallocate (cn,bond)
+  deallocate (neighmat)
+  deallocate (topo,toporef)
+  deallocate (atdum)
+  deallocate (cref,rcov)
+  return
+
+contains
+  !=================================================!
+  ! Check how many (potential) C=C bonds are present
+  !=================================================!
+  subroutine nezcc(nat,at,xyz,cn,ntopo,topo,ncc)
+    use crest_parameters
+    integer,intent(in)  :: nat
+    integer,intent(in)  :: at(nat)
+    real(wp),intent(in) :: xyz(3,nat)
+    real(wp),intent(in) :: cn(nat)
+    integer,intent(in)  :: ntopo
+    integer,intent(in)  :: topo(ntopo)
+    integer,intent(out) :: ncc
+    real(wp) :: dist
+    integer :: l
+    integer :: ci,cj,lin
+    real(wp),parameter :: distcc = 1.384_wp
+    ncc = 0
+    do ci = 1,nat
+      do cj = 1,ci - 1
+        if (ci == cj) cycle
+        l = lin(ci,cj)
+        if (topo(l) == 0) cycle
+        if (at(ci) == 6 .and. at(cj) == 6 .and. &
+        &  nint(cn(ci)) == 3 .and. nint(cn(cj)) == 3) then
+          dist = (xyz(1,ci) - xyz(1,cj))**2 + &
+          &    (xyz(2,ci) - xyz(2,cj))**2 + &
+          &    (xyz(3,ci) - xyz(3,cj))**2
+          dist = sqrt(dist)
+          if (dist < distcc) then
+            ncc = ncc + 1
+          end if
+        end if
+      end do
+    end do
+    return
+  end subroutine nezcc
+  !=================================================!
+  ! Check which atoms can be used for C=C dihedral angles
+  !=================================================!
+  subroutine ezccat(nat,at,xyz,cn,ntopo,topo,ncc,ezat)
+    use crest_parameters
+    integer,intent(in)  :: nat
+    integer,intent(in)  :: at(nat)
+    real(wp),intent(in) :: xyz(3,nat)
+    real(wp),intent(in) :: cn(nat)
+    integer,intent(in)  :: ntopo
+    integer,intent(in)  :: topo(ntopo)
+    integer,intent(in)  :: ncc
+    integer,intent(out) :: ezat(4,ncc)
+    real(wp) :: dist
+    integer :: i,j,k,l
+    integer :: ci,cj,lin
+    real(wp),parameter :: distcc = 1.384_wp
+    if (ncc < 1) return
+    k = 0
+    do ci = 1,nat
+      do cj = 1,ci - 1
+        if (ci == cj) cycle
+        l = lin(ci,cj)
+        if (topo(l) == 0) cycle
+        if (at(ci) == 6 .and. at(cj) == 6 .and. &
+        &  nint(cn(ci)) == 3 .and. nint(cn(cj)) == 3) then
+          dist = (xyz(1,ci) - xyz(1,cj))**2 + &
+          &    (xyz(2,ci) - xyz(2,cj))**2 + &
+          &    (xyz(3,ci) - xyz(3,cj))**2
+          dist = sqrt(dist)
+          if (dist < distcc) then
+            k = k + 1
+            ezat(2,k) = ci
+            ezat(3,k) = cj
+            !-- get a neighbour for ci
+            do i = 1,nat
+              if (i == cj .or. i == ci) cycle
+              l = lin(ci,i)
+              if (topo(l) == 1) then
+                ezat(1,k) = i
+                exit
+              end if
+            end do
+            !-- get a neighbour for cj
+            do j = 1,nat
+              if (j == cj .or. j == ci) cycle
+              l = lin(cj,j)
+              if (topo(l) == 1) then
+                ezat(4,k) = j
+                exit
+              end if
+            end do
+          end if
+        end if
+      end do
+    end do
+    return
+  end subroutine ezccat
+  !=================================================!
+  ! Check which atoms can be used for C=C dihedral angles
+  !=================================================!
+  subroutine ezccdihed(nat,xyz,ncc,ezat,ezdihed)
+    use crest_parameters
+    integer,intent(in)  :: nat
+    real(wp),intent(in) :: xyz(3,nat)
+    integer,intent(in)  :: ncc
+    integer,intent(in) :: ezat(4,ncc)
+    real(wp),intent(out) :: ezdihed(ncc)
+    integer :: i,k
+    integer :: a,b,c,d
+    real(wp) :: winkel
+    if (ncc < 1) return
+    k = 0
+    do i = 1,ncc
+      a = ezat(1,i)
+      b = ezat(2,i)
+      c = ezat(3,i)
+      d = ezat(4,i)
+      call DIHED(xyz,a,b,c,d,winkel) !-- from intmodes.f
+      winkel = abs(winkel * (180.0_wp / pi))
+      if (winkel > 180.0_wp) then
+        winkel = 360.0_wp - winkel
+      end if
+      ezdihed(i) = winkel
+    end do
+    return
+  end subroutine ezccdihed
+end subroutine cregen_topocheck
+
+!============================================================!
+!> subroutine cregen_esort
+!> sort the ensemble by energy and determine the new
+!> ensemble size within the energy threshold.
+!> On Input: ch - printout channel
+!>           nat - number of atoms
+!>           nall - number of structure in ensemble
+!>           xyz  - Cartesian coordinates
+!>           comments - commentary lines containing the energy
+!>           ewin - energy window in kcal/mol
+!> On Output: nallout - number of strucutres after cutoff
+!============================================================!
+subroutine cregen_esort(ch,nat,nall,xyz,comments,nallout,ewin)
+  use crest_parameters
+  use strucrd
+  implicit none
+  integer,intent(in) :: ch
+  integer,intent(in) :: nat
+  integer,intent(in) :: nall
+  real(wp),intent(inout) :: xyz(3,nat,nall)
+  character(len=*) :: comments(nall)
+  integer :: nallout
+  real(wp),intent(in) :: ewin
+
+  real(wp),allocatable :: energies(:)
+  integer,allocatable :: orderref(:)
+  integer,allocatable :: order(:)
+  real(wp),allocatable :: c0(:,:)
+  integer :: i
+  real(wp) :: de,emax
+
+  allocate (energies(nall))
+  allocate (orderref(nall),order(nall))
+  do i = 1,nall
+    energies(i) = grepenergy(comments(i))
+    orderref(i) = i
+    order(i) = i
+  end do
+  !-- sort the energies and obtain the order
+  call qsort(energies,1,nall,orderref)
+  !-- after the sorting orderref contains information:
+  !   before the sorting element "i" WAS at position "orderref(i)"
+  !   but to use it as a mask, we need to invert it,
+  !   so that it is: element "i" IS NOW at position "orderref(i)"
+  call maskinvert(nall,orderref)
+
+  !-- sort structures and comments based on the order
+  order = orderref
+  allocate (c0(3,nat))
+  call xyzqsort(nat,nall,xyz,c0,order,1,nall)
+  deallocate (c0)
+  order = orderref
+
+  call stringqsort(nall,comments,1,nall,order)
+
+  !-- determine cut-off of energies
+  emax = maxval(energies(:),1)
+  de = (emax - energies(1)) * autokcal
+  if (de .gt. ewin) then
+    nallout = 1 !lowes is always taken
+    do i = 2,nall
+      de = (energies(i) - energies(1)) * autokcal
+      if (de .lt. ewin) then
+        nallout = nallout + 1
       else
-        call repairorder(nall,n,ng,group,xyz,er,trackorigin,originnew)
-      endif
-     
-      !-- determine # of members in each group (=rotamers)
-      allocate(dgen(nall))
-      dgen=0
-      do i=1,nall
-         dgen(group(i))=dgen(group(i))+1
-      enddo
+        exit
+      end if
+    end do
+    write (ch,'('' number of removed by energy    :'',i6)') (nall - nallout)
+    write (ch,'('' number of remaining points     :'',i6)') nallout
+  else
+    nallout = nall
+  end if
+  write (ch,*) 'reference state Etot :',energies(1)
 
-      allocate(glist(0:nall,ng))
-      glist=0
-      do i=1,ng                                ! det members of indents in each group
-         do j=1,nall
-            if(group(j).eq.i)then
-               glist(0,i)=glist(0,i)+1
-               glist(glist(0,i),i)=j
-            endif
-         enddo
-      enddo
+  deallocate (order,orderref)
+  deallocate (energies)
+  return
+end subroutine cregen_esort
 
-!----
-! ADVANCED TRACKING FOR ENSO
-!---
-      if(ENSO.and.confgo)then
-       do i=1,nall
-         j=ind2(i)
-         !if(i.eq.1.or.group(i-1).ne.group(i))then
-         if(i.ne.1 .and. group(i-1).eq.group(i))then         
-         k=ind2(i-1)
-         sames(i)=k
-         if(k.eq.i)sames(i)=0
-         endif
-       enddo
-       do i=1,nall2
-          j=0
-          call backtrack(sames,i,j)
-       enddo
-       j=sum(sames)
-       open(newunit=ich3,file='cregen.enso')
-       if(j.gt.0)then  !doubles found
-         write(ich3,*) "DUPLICATES FOUND"
-         do i=1,nall2
-            if(sames(i).gt.0)then
-            !write(*,*) ind(i),ind(sames(i))
-             write(ich3,*)ind(i),ind(sames(i))
-            endif
-         enddo
-       else
-         write(ich3,*) "ALL UNIQUE"
-       endif
-       close(ich3)
-      endif
+!============================================================!
+!> subroutine cregen_CRE
+!> sort the ensemble based on rotational constants,RMSD and
+!> energy to determine rotamers and duplicates.
+!> On Input: ch - printout channel
+!>           nat - number of atoms
+!>           nall - number of structure in ensemble
+!>           at   - atom types
+!>           xyz  - Cartesian coordinates
+!>           comments - commentary lines containing the energy
+!> On Output: nallout - new total number of structures
+!>            group   - to which group every structure belongs
+!============================================================!
+subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
+  use crest_parameters, id => dp  
+  use crest_data
+  use strucrd
+  use ls_rmsd
+  use axis_module
+  implicit none
+  type(systemdata) :: env
+  integer,intent(in) :: ch
+  integer,intent(in) :: nat
+  integer,intent(in) :: nall
+  integer,intent(in) :: at(nat)
+  real(wp),intent(inout) :: xyz(3,nat,nall)
+  integer,intent(inout) :: group(0:nall)
+  character(len=*) :: comments(nall)
+  integer :: nallout
+  logical :: enantio = .true.   !check for enantiomers?
 
+  !>--- float data
+  real(wp) :: ewin,rthr,bthr,pthr,ethr,athr,T
+  !>--- energy data
+  real(wp),allocatable :: er(:)
+  integer,allocatable :: orderref(:),order(:)
+  real(wp) :: de
+  !>--- dummy structure data
+  integer,allocatable :: includeRMSD(:)
+  real(wp),allocatable :: c0(:,:),c1(:,:),cdum(:,:)
+  real(wp),allocatable :: c0h(:,:),c1h(:,:)
+  integer,allocatable  :: maskheavy(:)
+  integer,allocatable :: at0(:)
+  logical :: substruc
+  integer :: nat0
+  real(wp),allocatable :: rot(:,:)
+  real(wp) :: rotdum(3),bdum
+  !>--- RMSD data
+  real(sp),allocatable :: rmat(:) !SINGLE PRECISION
+  real(wp) :: rdum,dr,rdum2
+  real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:),ydum(:) !dummy tensors
+  integer(id) :: klong
+  integer(id) :: linr  !this is a function
+  integer(id),allocatable :: rmap1(:)
+  integer,allocatable :: rmap2(:)
+  logical :: l1,l2,l3
+  !>--- CRE comparison data
+  integer,allocatable :: double(:)
+  logical :: equalrotaniso !> this is a function
+  logical,allocatable :: mask(:)
+  real(wp) :: couthr
+  real(wp),allocatable :: enuc(:)
+  real(wp),allocatable :: ecoul(:)
+  real(wp) :: r
+  integer :: i,j,k,l,natnoh
+  logical :: heavy
+
+!>--- set parameters
+  call cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
+  if (env%entropic) enantio = .false.
+  heavy = env%heavyrmsd
+  substruc = (nat .ne. env%rednat .and. env%subRMSD)
+  if (substruc) then
+    nat0 = env%rednat
+    includeRMSD = env%includeRMSD
+  end if
+  allocate (rot(3,nall))
+
+!>--- get energies from the comment line
+  allocate (er(nall))
+  allocate (orderref(nall),order(nall))
+  do i = 1,nall
+    er(i) = grepenergy(comments(i))
+    orderref(i) = i
+  end do
+
+!>--- get dummy structure memory space
+  if (substruc) then
+    allocate (c0(3,nat0),c1(3,nat0),at0(nat0))
+  else
+    allocate (c0(3,nat),c1(3,nat),at0(nat))
+    at0 = at
+    nat0 = nat
+  end if
+
+!>--- transform the coordinates to CMA and get rot.constants
+  do i = 1,nall
+    call axis(nat,at,xyz(:,:,i)) !-- all coordinates to CMA
+    if (substruc) then
+      call maskedxyz(nat,nat0,xyz(:,:,i),c1,at,at0,includeRMSD)
+    else
+      c1(:,:) = xyz(:,:,i)
+    end if
+    call axis(nat0,at0,c1,rot(1:3,i),bdum)  !-- B0 in MHz
+  end do
+
+!>--- Calculate an artificial Coulomb energy used to compare structures
+!    !--- settings
+!    allocate(ecoul(nall), source=0.0_wp)
+!    allocate(rcov(94))
+!    call setrcov(rcov)
+!    allocate(bond(nat,nat),cn(nat), source=0.0_wp)
+!    allocate(cref(3,nat),source=0.0_wp)
+!    allocate(maskheavy(nat), source=0)
+!    call heavymask(nat,at,maskheavy)
+!    !maskheavy=1
+!    do i=1,nall
+!    cn=0.0_wp
+!    bond=0.0_wp
+!    cref(1:3,1:nat) = xyz(1:3,1:nat,i)/bohr
+!    call xcoord2(nat,at,cref,rcov,cn,1400.0_wp,bond)
+!    call calc_ecoul(nat,at,cref,cn,maskheavy,ecoul(i))
+!    if(i>1)then
+!       !courel =  abs(1.0-(ecoul(i)/ecoul(1)))
+!       courel =  abs(ecoul(1)-ecoul(i))
+!       write(*,'(i10,1x,2f16.8)')i,ecoul(i),courel
+!    else
+!      write(*,'(i10,1x,f16.8)')i,ecoul(i)
+!    endif
+!    enddo
+!    deallocate(maskheavy)
+!    deallocate(cref,cn,bond,rcov)
+
+!>--- RMSD part
+  allocate (double(nall),source=0)
+  !========================================================!
+  !>-- crucial point: rmat is huge. VERY huge, potentially.
+  !klong=nall
+  !klong=klong*(nall+1)
+  !klong=klong/2
+  !write(*,*) nall,klong
+
+  !>-- for large ensembles the size of rmat can be strongly reduced
+  !>   but this requires additional tracking and counting.
+  !>   It will pay off, however.
+  allocate (rmap1(nall),rmap2(nall))
+  klong = 0
+  do i = 1,nall
+    rmap1(i) = klong
+    l1 = .true.
+    do j = 1,i - 1
+      !ekcal(j) should always be smaller than ekcal(i) because i>j
+      de = (er(i) - er(j)) * autokcal
+      if (de .lt. ethr) then !>-- we only need RMSDs for structures close in energy
+        klong = klong + 1
+        if (l1) then
+          rmap2(i) = j
+          l1 = .false.
+        end if
+      end if
+    end do
+  end do
+
+  !>-- now klong is the size of rmat with only the minimum required RMSDs
+  !>   rmat itself can be single precision.
+  allocate (rmat(klong),source=0.0_sp)
+  allocate (gdum(3,3),Udum(3,3),xdum(3),ydum(3))
+  !>-- begin calculation of RMSDs
+  klong = 0
+  write (*,'(1x,a)') 'running RMSDs...'
+  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+  if (.not. substruc) then !regular case, all atoms included in RMSD
+    if (.not. heavy) then    !really, the regular case
+      do i = 1,nall
+        c0(1:3,1:nat) = xyz(1:3,1:nat,i)
+!$OMP PARALLEL PRIVATE ( j,klong,c1,xdum,ydum,Udum,gdum,rdum,rdum2,de) &
+!$OMP SHARED ( i,c0,rmat,nat,xyz,rmap1,rmap2,er,ethr,enantio)
+!$OMP DO
+        do j = 1,i - 1
+          de = (er(i) - er(j)) * autokcal
+          if (de .lt. ethr) then
+            c1(1:3,1:nat) = xyz(1:3,1:nat,j)
+            call rmsd(nat,c0,c1,0,Udum,xdum,ydum,rdum,.false.,gdum) ! all atoms
+            if (enantio) then  !also check for enantiomer by inverting a coordinate
+              c1(1,:) = -c1(1,:)
+              call rmsd(nat,c0,c1,0,Udum,xdum,ydum,rdum2,.false.,gdum) ! all atoms
+            else
+              rdum2 = rdum
+            end if
+            klong = linr(rmap1(i),rmap2(i),j)
+            rmat(klong) = real(min(rdum,rdum2),sp)
+          end if
+        end do
+!$OMP END DO
+!$OMP END PARALLEL
+      end do
+    else  !heavy atom case
+      natnoh = nat - counth(nat,at)
+      allocate (c0h(3,natnoh),c1h(3,natnoh),source=0.0_wp)
+      allocate (maskheavy(nat),source=0)
+      call heavymask(nat,at,maskheavy)
+      write (*,*) 'doing heavy atom rmsds with ',natnoh,' atoms'
+      do i = 1,nall
+        call maskedxyz2(nat,natnoh,xyz(:,:,i),c0h,maskheavy)
+!$OMP PARALLEL PRIVATE ( j,klong,c1h,xdum,ydum,Udum,gdum,rdum,rdum2,de) &
+!$OMP SHARED ( i,c0h,rmat,nat,xyz,rmap1,rmap2,er,ethr,enantio,maskheavy)
+!$OMP DO
+        do j = 1,i - 1
+          de = (er(i) - er(j)) * autokcal
+          if (de .lt. ethr) then
+            call maskedxyz2(nat,natnoh,xyz(:,:,j),c1h,maskheavy)
+            call rmsd(natnoh,c0h,c1h,0,Udum,xdum,ydum,rdum,.false.,gdum) ! all atoms
+            if (enantio) then  !also check for enantiomer by inverting a coordinate
+              c1h(1,:) = -c1h(1,:)
+              call rmsd(natnoh,c0h,c1h,0,Udum,xdum,ydum,rdum2,.false.,gdum) ! all atoms
+            else
+              rdum2 = rdum
+            end if
+            klong = linr(rmap1(i),rmap2(i),j)
+            rmat(klong) = real(min(rdum,rdum2),sp)
+          end if
+        end do
+!$OMP END DO
+!$OMP END PARALLEL
+      end do
+      deallocate (maskheavy,c1h,c0h)
+    end if
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+  else !substruc == .true., RMSDs only on a part of the structure
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+    do i = 1,nall
+      call maskedxyz2(nat,nat0,xyz(:,:,i),c0,includeRMSD)
+!$OMP PARALLEL PRIVATE ( j,klong,c1,xdum,ydum,Udum,gdum,rdum,rdum2,de) &
+!$OMP SHARED ( i,c0,rmat,nat,nat0,xyz,rmap1,rmap2,er,ethr,includeRMSD,enantio )
+!$OMP DO
+      do j = 1,i - 1
+        de = (er(i) - er(j)) * autokcal
+        if (de .lt. ethr) then
+          call maskedxyz2(nat,nat0,xyz(:,:,j),c1,includeRMSD)
+          call rmsd(nat0,c0,c1,0,Udum,xdum,ydum,rdum,.false.,gdum) ! all atoms
+          if (enantio) then  !also check for enantiomer by inverting a coordinate
+            c1(1,:) = -c1(1,:)
+            call rmsd(nat0,c0,c1,0,Udum,xdum,ydum,rdum2,.false.,gdum) ! all atoms
+          else
+            rdum2 = rdum
+          end if
+          klong = linr(rmap1(i),rmap2(i),j)
+          rmat(klong) = real(min(rdum,rdum2),sp)
+        end if
+      end do
+!$OMP END DO
+!$OMP END PARALLEL
+    end do
+  end if
+  write (*,'(1x,a)') 'done.'
+  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+!>-- Now, with the RMSDs and rotational constants we can kick out duplicates
+  do i = 1,nall
+    do j = 1,i - 1
+      !-- only check for structures in energy range
+      de = (er(i) - er(j)) * autokcal
+      if (de .lt. ethr) then
+        klong = linr(rmap1(i),rmap2(i),j)
+        dr = rmat(klong)
+      else
+        cycle
+      end if
+      !>-- very small RMSD --> same structure
+      if (dr .lt. rthr) then
+        double(i) = j !-- "i" is the same structure as "j"
+        !>-- slightly larger RMSD, but same rot. constants --> same structure
+      elseif (dr .lt. 2.0_wp * rthr) then
+        l1 = equalrotaniso(i,j,nall,rot,0.5d0 * bthr,env%bthrmax,env%bthrshift)
+        if (l1) then
+          double(i) = j  !>-- "i" is the same structure as "j"
+        end if
+      end if
+    end do
+    !>-- find the original reference. k is a dummy variable
+    call backtrack(double,i,k)
+  end do
+  deallocate (c0,c1,at0)
+  deallocate (ydum,xdum,Udum,gdum)
+  deallocate (rmat,rmap2,rmap1)
+
+  !>-- for ENSO write a file with duplicate info (if required)
+  call enso_duplicates(env,nall,double)
+
+!>-- count how many duplicates we have found
+  allocate (mask(nall))
+  mask(:) = double(:) .ne. 0
+  k = count(mask,1)
+  nallout = nall - k
+  deallocate (mask)
+  write (ch,*) 'number of doubles removed by rot/RMSD         :',k
+  write (ch,*) 'total number unique points considered further :',nallout
+!>-- sort structures, energies, rot const. and comments
+  j = 0
+  l = nall + 1
+  do i = 1,nall
+    if (double(i) .eq. 0) then
+      j = j + 1
+      orderref(i) = j
+    else
+      l = l - 1
+      orderref(i) = l
+    end if
+  end do
+  order = orderref
+  allocate (cdum(3,nat))
+  call xyzqsort(nat,nall,xyz,cdum,order,1,nall)
+  deallocate (cdum)
+  order = orderref
+  call maskqsort(er,1,nall,order)
+  order = orderref
+  call stringqsort(nall,comments,1,nall,order)
+  order = orderref
+  call matqsort(3,nall,rot,rotdum,1,nall,order)
+
+!>-- finally, determine conformer groups and their rotamers
+  allocate (c1(3,nat))
+  allocate (enuc(nallout))
+  do k = 1,nallout
+    c1(1:3,1:nat) = xyz(1:3,1:nat,k)
+    enuc(k) = 0.0_wp
+    do i = 1,nat - 1
+      do j = i + 1,nat
+        r = (c1(1,i) - c1(1,j))**2 &
+    &    + (c1(2,i) - c1(2,j))**2 &
+    &    + (c1(3,i) - c1(3,j))**2 + 1.d-12
+        enuc(k) = enuc(k) + at(i) * at(j) / r
+      end do
+    end do
+  end do
+!>-- check energy, rot. const. and nuclear permutation
+  double = 0 !-- re-use "double"
+  SORTI: do i = 1,nallout
+    SORTJ: do j = 1,i - 1
+      !-- energy difference
+      de = (er(i) - er(j)) * autokcal
+      l3 = double(j) .eq. 0
+      if (.not. l3) cycle
+      if (abs(de) .lt. ethr) then
+        !-- rotational constant difference
+        l1 = equalrotaniso(i,j,nall,rot,bthr,env%bthrmax,env%bthrshift)
+        !-- nuclear permutation
+        l2 = 2.0d0 * abs(enuc(i) - enuc(j)) / (enuc(i) + enuc(j)) .lt. 1.d-3
+        if (l1 .and. l2 .and. l3) then
+          double(i) = j   !-- "i" is a rotamer of "j"
+          call backtrack(double,i,k)
+          cycle SORTI
+        end if
+      end if
+    end do SORTJ
+  end do SORTI
+!>-- assign conformer groups
+  k = 0
+  group = 0
+  do i = 1,nallout
+    if (double(i) .eq. 0) then
+      k = k + 1
+      group(i) = k
+    else
+      j = double(i)
+      group(i) = group(j)
+    end if
+  end do
+  group(0) = k !-- total number of groups
+
+  deallocate (enuc,c1,double)
+  deallocate (order,orderref)
+  if (allocated(ecoul)) deallocate (ecoul)
+  deallocate (er)
+  deallocate (rot)
+  return
+contains
+  function counth(nat,at) result(nh)
+    implicit none
+    integer :: nat
+    integer :: at(nat)
+    integer :: nh,i
+    nh = 0
+    do i = 1,nat
+      if (at(i) == 1) nh = nh + 1
+    end do
+    return
+  end function counth
+  subroutine heavymask(nat,at,mask)
+    implicit none
+    integer :: nat
+    integer :: at(nat)
+    integer :: mask(nat)
+    integer :: i
+    mask = 0
+    do i = 1,nat
+      if (at(i) .ne. 1) mask(i) = 1
+    end do
+    return
+  end subroutine heavymask
+end subroutine cregen_CRE
+!======================================================!
+! subroutine calc_ecoul
+! calculate a (artificial) coulomb energy for a given
+! structure. Some atoms can be ignored via a mask
+!======================================================!
+subroutine calc_ecoul(nat,at,xyz,cn,atommask,ecoulomb)
+  use crest_parameters
+  implicit none
+  integer :: nat
+  integer :: at(nat)
+  real(wp) :: xyz(3,nat) !should be in Bohrs
+  real(wp) :: cn(nat)
+  integer :: atommask(nat) !contains 1 or 0
+  real(wp) :: ecoulomb
+  integer :: i,j
+  real(wp) :: cnexp,rexp,natexp
+  real(wp) :: r,dum,zi,zj
+  ecoulomb = 0.0_wp
+  !cn=1.0_wp  !comment in to ignore cn
+  cnexp = 1.0_wp
+  rexp = 1.0_wp
+  natexp = 3.5_wp
+  do i = 1,nat
+    if (atommask(i) == 0) cycle
+    zi = ((cn(i)**cnexp) * float(at(i)))
+    do j = 1,i - 1
+      if (atommask(j) == 0) cycle
+      r = (xyz(1,i) - xyz(1,j))**2 &
+      &  + (xyz(2,i) - xyz(2,j))**2 &
+      &  + (xyz(3,i) - xyz(3,j))**2
+      r = sqrt(r)
+      zj = ((cn(j)**cnexp) * float(at(j)))
+      dum = (zi * zj)
+      dum = dum / (r**rexp)
+      !dum = dum * exp( -0.5_wp * (r-5)**2)
+      ecoulomb = ecoulomb + dum
+    end do
+  end do
+  !-- normalization to the number of included(!) atoms
+  dum = float(sum(atommask))
+  ecoulomb = ecoulomb / (dum**natexp)
+  ecoulomb = ecoulomb * 627.5095
+  return
+end subroutine calc_ecoul
+
+!============================================================!
+! subroutine cregen_CRE_2
+! an anlternate version to the above routine to be used
+! with an unsorted (small) ensemble to determine
+! duplicate groups, but nothing is sorted!
+! On Input: ch - printout channel
+!           nat - number of atoms
+!           nall - number of structure in ensemble
+!           at   - atom types
+!           xyz  - Cartesian coordinates
+!           comments - commentary lines containing the energy
+! On Output: nallout - new total number of structures
+!            group   - to which group every structure belongs
+!============================================================!
+subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
+  use crest_parameters, id => dp 
+  use crest_data
+  use strucrd
+  use ls_rmsd
+  use axis_module
+  implicit none
+  type(systemdata) :: env
+  integer,intent(in) :: ch
+  integer,intent(in) :: nat
+  integer,intent(in) :: nall
+  integer,intent(in) :: at(nat)
+  real(wp),intent(inout) :: xyz(3,nat,nall)
+  integer,intent(inout) :: group(0:nall)
+  character(len=*) :: comments(nall)
+  integer :: nallout
+  logical :: enantio = .true.   !> check for enantiomers?
+
+  !>--- float data
+  real(wp) :: ewin,rthr,bthr,pthr,ethr,athr,T
+  !>--- energy data
+  real(wp),allocatable :: er(:)
+  integer,allocatable :: orderref(:),order(:)
+  real(wp) :: de
+  !>--- dummy structure data
+  real(wp),allocatable :: c0(:,:),c1(:,:)
+  real(wp),allocatable :: c0h(:,:),c1h(:,:)
+  integer,allocatable  :: maskheavy(:)
+  integer,allocatable :: at0(:)
+  integer :: nat0
+  real(wp),allocatable :: rot(:,:)
+  real(wp) :: bdum
+  !>--- RMSD data
+  real(sp),allocatable :: rmat(:) !> SINGLE PRECISION
+  real(wp) :: rdum,dr,rdum2
+  real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:),ydum(:) !> dummy tensors
+  integer(id) :: klong
+  integer(id) :: lina  !> this is a function
+  integer(id),allocatable :: rmap1(:)
+  integer,allocatable :: rmap2(:)
+  logical :: l1,l2,l3
+  !>--- CRE comparison data
+  integer,allocatable :: double(:)
+  logical :: equalrotaniso !> this is a function
+  logical,allocatable :: mask(:)
+  real(wp),allocatable :: enuc(:)
+  real(wp) :: couthr
+  real(wp),allocatable :: ecoul(:)
+  real(wp) :: r
+  integer :: i,j,k,natnoh
+  logical :: heavy
+
+!>--- set parameters
+  call cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
+  if (env%entropic) enantio = .false.
+  heavy = env%heavyrmsd
+  allocate (rot(3,nall))
+
+!>--- get energies from the comment line
+  allocate (er(nall))
+  allocate (orderref(nall),order(nall))
+  do i = 1,nall
+    er(i) = grepenergy(comments(i))
+    orderref(i) = i
+  end do
+
+!--- get dummy structure memory space
+  allocate (c0(3,nat),c1(3,nat),at0(nat))
+  at0 = at
+  nat0 = nat
+
+!--- transform the coordinates to CMA and get rot.constants
+  do i = 1,nall
+    call axis(nat,at,xyz(:,:,i)) !-- all coordinates to CMA
+    c1(:,:) = xyz(:,:,i)
+    call axis(nat0,at0,c1,rot(1:3,i),bdum)  !-- B0 in MHz
+  end do
+
+!--- Calculate an artificial Coulomb energy used to compare structures
+  !--- settings
+!    allocate(ecoul(nall), source=0.0_wp)
+!    allocate(rcov(94))
+!    call setrcov(rcov)
+!    allocate(bond(nat,nat),cn(nat), source=0.0_wp)
+!    allocate(cref(3,nat),source=0.0_wp)
+!    allocate(maskheavy(nat), source=0)
+!    call heavymask(nat,at,maskheavy)
+!    do i=1,nall
+!    cn=0.0_wp
+!    bond=0.0_wp
+!    cref(1:3,1:nat) = xyz(1:3,1:nat,i)/bohr
+!    call xcoord2(nat,at,cref,rcov,cn,400.0_wp,bond)
+!    call calc_ecoul(nat,at,cref,cn,maskheavy,ecoul(i))
+!    enddo
+!    deallocate(maskheavy)
+!    deallocate(cref,cn,bond,rcov)
+
+!--- RMSD part
+  allocate (double(nall),source=0)
+  !========================================================!
+  !-- crucial point: rmat is huge. VERY huge, potentially.
+  !                  use only for small ensembles!
+  klong = nall
+  klong = klong * (nall + 1)
+  klong = klong / 2
+  !write(*,*) nall,klong
+  allocate (rmat(klong),source=0.0_sp)
+  allocate (gdum(3,3),Udum(3,3),xdum(3),ydum(3))
+  !-- begin calculation of RMSDs
+  klong = 0
+  write (*,'(1x,a)') 'running RMSDs...'
+  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+  if (.not. heavy) then    !really, the regular case
+    do i = 1,nall
+      c0(1:3,1:nat) = xyz(1:3,1:nat,i)
+!$OMP PARALLEL PRIVATE ( j,klong,c1,xdum,ydum,Udum,gdum,rdum,rdum2,de) &
+!$OMP SHARED ( i,c0,rmat,nat,xyz,rmap1,rmap2,er,ethr,enantio)
+!$OMP DO
+      do j = 1,i - 1
+        de = (er(i) - er(j)) * autokcal
+        if (de .lt. ethr) then
+          c1(1:3,1:nat) = xyz(1:3,1:nat,j)
+          call rmsd(nat,c0,c1,0,Udum,xdum,ydum,rdum,.false.,gdum) ! all atoms
+          if (enantio) then  !also check for enantiomer by inverting a coordinate
+            c1(1,:) = -c1(1,:)
+            call rmsd(nat,c0,c1,0,Udum,xdum,ydum,rdum2,.false.,gdum) ! all atoms
+          else
+            rdum2 = rdum
+          end if
+          !klong=linr(rmap1(i),rmap2(i),j)
+          klong = lina(i,j)
+          rmat(klong) = real(min(rdum,rdum2),sp)
+        end if
+      end do
+!$OMP END DO
+!$OMP END PARALLEL
+    end do
+  else  !heavy atom case
+    natnoh = nat - counth(nat,at)
+    allocate (c0h(3,natnoh),c1h(3,natnoh),source=0.0_wp)
+    allocate (maskheavy(nat),source=0)
+    call heavymask(nat,at,maskheavy)
+    write (*,*) 'doing heavy atom rmsds with ',natnoh,' atoms'
+    do i = 1,nall
+      call maskedxyz2(nat,natnoh,xyz(:,:,i),c0h,maskheavy)
+!$OMP PARALLEL PRIVATE ( j,klong,c1h,xdum,ydum,Udum,gdum,rdum,rdum2,de) &
+!$OMP SHARED ( i,c0h,rmat,nat,xyz,rmap1,rmap2,er,ethr,enantio,maskheavy)
+!$OMP DO
+      do j = 1,i - 1
+        de = (er(i) - er(j)) * autokcal
+        if (de .lt. ethr) then
+          call maskedxyz2(nat,natnoh,xyz(:,:,j),c1h,maskheavy)
+          call rmsd(natnoh,c0h,c1h,0,Udum,xdum,ydum,rdum,.false.,gdum) ! all atoms
+          if (enantio) then  !also check for enantiomer by inverting a coordinate
+            c1h(1,:) = -c1h(1,:)
+            call rmsd(natnoh,c0h,c1h,0,Udum,xdum,ydum,rdum2,.false.,gdum) ! all atoms
+          else
+            rdum2 = rdum
+          end if
+          !klong=linr(rmap1(i),rmap2(i),j)
+          klong = lina(i,j)
+          rmat(klong) = real(min(rdum,rdum2),sp)
+        end if
+      end do
+!$OMP END DO
+!$OMP END PARALLEL
+    end do
+    deallocate (maskheavy,c1h,c0h)
+  end if
+  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+  write (*,'(1x,a)') 'done.'
+  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+!-- Now, with the RMSDs and rotational constants we can kick out duplicates
+  do i = 1,nall
+    do j = 1,i - 1
+      !-- only check for structures in energy range
+      de = (er(i) - er(j)) * autokcal
+      if (de .lt. ethr) then
+        !klong= linr(rmap1(i),rmap2(i),j)
+        klong = lina(i,j)
+        dr = rmat(klong)
+      else
+        cycle
+      end if
+      !-- very small RMSD --> same structure
+      if (dr .lt. rthr) then
+        double(i) = j !-- "i" is the same structure as "j"
+        !-- slightly larger RMSD, but same rot. constants --> same structure
+      elseif (dr .lt. 2.0_wp * rthr) then
+        l1 = equalrotaniso(i,j,nall,rot,0.5d0 * bthr,env%bthrmax,env%bthrshift)
+        if (l1) then
+          double(i) = j  !-- "i" is the same structure as "j"
+        end if
+      end if
+    end do
+    !-- find the original reference. k is a dummy variable
+    call backtrack(double,i,k)
+  end do
+  deallocate (c0,c1,at0)
+  deallocate (ydum,xdum,Udum,gdum)
+  deallocate (rmat)
+
+  !-- for ENSO write a file with duplicate info (if required)
+  call enso_duplicates(env,nall,double)
+
+!-- count how many duplicates we have found
+  allocate (mask(nall))
+  mask(:) = double(:) .ne. 0
+  k = count(mask,1)
+  nallout = nall - k
+  deallocate (mask)
+  write (ch,'(1x,a,i10)') 'number of doubles removed by rot/RMSD:',k
+  !write(ch,*)'total number unique points remaining :',nallout
+
+!-- finally, determine conformer groups and their rotamers
+  allocate (c1(3,nat))
+  allocate (enuc(nall))
+  do k = 1,nall
+    c1(1:3,1:nat) = xyz(1:3,1:nat,k)
+    enuc(k) = 0.0_wp
+    do i = 1,nat - 1
+      do j = i + 1,nat
+        r = (c1(1,i) - c1(1,j))**2 &
+    &    + (c1(2,i) - c1(2,j))**2 &
+    &    + (c1(3,i) - c1(3,j))**2 + 1.d-12
+        enuc(k) = enuc(k) + at(i) * at(j) / r
+      end do
+    end do
+  end do
+!-- check energy, rot. const. and nuclear permutation
+  !double=0 !-- re-use "double"  !in this version we do not overwrite
+  SORTI: do i = 1,nall
+    SORTJ: do j = 1,i - 1
+      !-- energy difference
+      de = (er(i) - er(j)) * autokcal
+      l3 = double(j) .eq. 0
+      if (.not. l3) cycle
+      if (abs(de) .lt. ethr) then
+        !-- rotational constant difference
+        l1 = equalrotaniso(i,j,nall,rot,bthr,env%bthrmax,env%bthrshift)
+        !-- nuclear permutation
+        l2 = 2.0d0 * abs(enuc(i) - enuc(j)) / (enuc(i) + enuc(j)) .lt. 1.d-3
+        if (l1 .and. l2 .and. l3) then
+          double(i) = j   !-- "i" is a rotamer of "j"
+          call backtrack(double,i,k)
+          cycle SORTI
+        end if
+      end if
+    end do SORTJ
+  end do SORTI
+!-- assign conformer groups
+  k = 0
+  group = 0
+  do i = 1,nall
+    if (double(i) .eq. 0) then
+      k = k + 1
+      group(i) = k
+    else
+      j = double(i)
+      group(i) = group(j)
+    end if
+  end do
+  group(0) = k !-- total number of groups
+  write (ch,'(1x,a,i10)') 'number of removed rotamers           :', (nallout - k)
+  nallout = k
+  write (ch,'(1x,a,i10)') 'total number unique points remaining :',nallout
+
+  deallocate (enuc,c1,double)
+  deallocate (order,orderref)
+  if (allocated(ecoul)) deallocate (ecoul)
+  deallocate (er)
+  deallocate (rot)
+  return
+contains
+  function counth(nat,at) result(nh)
+    implicit none
+    integer :: nat
+    integer :: at(nat)
+    integer :: nh,i
+    nh = 0
+    do i = 1,nat
+      if (at(i) == 1) nh = nh + 1
+    end do
+    return
+  end function counth
+  subroutine heavymask(nat,at,mask)
+    implicit none
+    integer :: nat
+    integer :: at(nat)
+    integer :: mask(nat)
+    integer :: i
+    mask = 0
+    do i = 1,nat
+      if (at(i) .ne. 1) mask(i) = 1
+    end do
+    return
+  end subroutine heavymask
+end subroutine cregen_CRE_2
+
+!============================================================!
+! subroutine cregen_EQUAL
+! subroutine for the generation of nuclear equivalencies
+! On Input: ch - printout channel
+!           nat - number of atoms
+!           nall - number of structure in ensemble
+!           at   - atom types
+!           xyz  - Cartesian coordinates
+!           group - to which group does every strucutre belong
+!           athr  - threshold for equivalency comparison
+!           rotfil - wirte anmr_rotamer file?
+! On Output: resorted xyz and comments
+!============================================================!
+subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
+  use crest_parameters, id => dp
+  use crest_data
+  use strucrd
+  implicit none
+  integer,intent(in) :: ch
+  integer,intent(in) :: nat
+  integer,intent(in) :: nall
+  integer,intent(in) :: at(nat)
+  real(wp),intent(inout) :: xyz(3,nat,nall)
+  integer,intent(inout) :: group(0:nall)
+  real(wp),intent(in) :: athr
+  logical,intent(in) :: rotfil
+  real(wp),allocatable :: cdum(:,:)
+  integer :: ng,n
+  integer :: i,j,k,l
+  integer :: lin
+  logical :: ex
+
+  !--- arrays and variable for the analysis
+  integer :: gmax
+  integer,allocatable :: glist(:,:)
+  integer :: current
+  real(wp) :: dum
+  real(wp) :: shortest_distance
+  integer,allocatable  :: equiv(:,:,:)
+  integer,allocatable  :: pair(:),pre(:),nb(:,:)
+  logical,allocatable  :: vis(:)
+  real(wp),allocatable :: metric(:,:)
+  real(wp),allocatable :: dist(:,:,:)
+  integer,allocatable  :: relat(:,:)
+  real(wp),allocatable :: tmp2(:)
+  integer :: m,m1,m2,s1,s2,iat,j1,k2
+
+  !-- further NMR-mode related data
+  integer,allocatable :: nmract(:)
+  integer,allocatable :: elist(:,:),flist(:,:)
+  integer,allocatable :: jnd(:)
+  real(wp),allocatable :: sd(:,:),jfake(:),cn(:)
+  real(wp),allocatable :: rcov(:)
+
+  character(len=:),allocatable :: atmp
+  integer :: ig,ir,irr,nr
+
+!--- variable declarations
+  n = nat       !other variable name for number of atoms
+  ng = group(0) !number of different groups (conformers)
+  gmax = 0        !max number of
+  do i = 1,ng
+    k = 0
+    do j = 1,nall
+      if (group(j) == i) k = k + 1
+    end do
+    if (k .gt. gmax) gmax = k
+  end do
+  allocate (glist(0:gmax,ng),source=0)
+  do i = 1,ng
+    k = 0
+    do j = 1,nall
+      if (group(j) == i) then
+        k = k + 1
+        glist(k,i) = j !the k-th member of group i is structure j
+      end if
+    end do
+    glist(0,i) = k !number of members in group i
+  end do
 
 !---distance neighbor list
-      c2(1:3,1:n)=xyz(1:3,1:n,1)/bohr
-      call neighdist(n,at,c2,nb,metric)
-      k=0
-      pair=0
-      do i=1,n-1
-         do j=i+1,n
-!---the shortest bond path
-            current=j
-            dum=shortest_distance(n, i, j, nb, metric, vis, pre)
-            k=0
-            do while (pre(current) /= 0)
-               current = pre(current)
-               k = k + 1
-            end do ! End loop: while precessor(current) /= 0
-            pair(lin(j,i))=k  ! # of bonds between i and j
-         enddo
-      enddo
+  allocate (cdum(3,nat))
 
-      allocate(equiv(0:n,n,0:nall))
-      equiv=0
-! (costly) symmetry analyis of all rotamers for NMR. this is complicated stuff also
-! and the end of the program where this is completed...
-      if(anal)then
-      allocate(dist(n,n,nall))
-      do i=1,nall
-         call distance(n,xyz(1,1,i),dist(1,1,i))   ! distance matrix
-         do j=1,n
-            do k=1,n
-               tmp2(k)=dist(k,j,i)*dble(at(k))  ! the distance of j to all atoms * Z to distinguish
-            enddo
-            call qqsort(tmp2,1,n)
-            dist(1:n,j,i)=tmp2(1:n)
-         enddo
-      enddo
-      write(ich,*) 'compare ...'
-      do i=1,ng 
-         m=glist(0,i)
-         if(m.lt.2) cycle                      ! det equivalent atoms in each group
-         relat=0
-         do m1=1,m
+!--- set up the "pair" array --> how many bonds are between two nuclei?
+  allocate (pair(n * (n + 1) / 2),metric(n,n),vis(n),pre(n),nb(200,n))
+  cdum(1:3,1:n) = xyz(1:3,1:n,1) / bohr
+  call neighdist(n,at,cdum,nb,metric)
+  k = 0
+  pair = 0
+  do i = 1,n - 1
+    do j = i + 1,n
+!---the shortest bond path
+      current = j
+      dum = shortest_distance(n,i,j,nb,metric,vis,pre)
+      k = 0
+      do while (pre(current) /= 0)
+        current = pre(current)
+        k = k + 1
+      end do ! End loop: while precessor(current) /= 0
+      pair(lin(j,i)) = k  ! # of bonds between i and j
+    end do
+  end do
+  deallocate (nb,pre,vis,metric)
+
+  allocate (tmp2(n),relat(0:n,n))
+  allocate (equiv(0:n,n,0:nall),dist(n,n,nall))
+  equiv = 0
+!-- (costly) symmetry analyis of all rotamers for NMR. this is complicated stuff also
+!   and the end of the program where this is completed...
+  do i = 1,nall
+    call distance(n,xyz(1,1,i),dist(1,1,i))   ! distance matrix
+    do j = 1,n
+      do k = 1,n
+        tmp2(k) = dist(k,j,i) * dble(at(k))  ! the distance of j to all atoms * Z to distinguish
+      end do
+      call qqsort(tmp2,1,n)
+      dist(1:n,j,i) = tmp2(1:n)
+    end do
+  end do
+  write (ch,*) 'compare nuclear equivalencies ...'
+  do i = 1,ng
+    m = glist(0,i)
+    if (m .lt. 2) cycle                      ! det equivalent atoms in each group
+    relat = 0
+    do m1 = 1,m
 !$OMP PARALLEL PRIVATE ( m2, s1, s2 ) SHARED ( relat )
-!$OMP DO 
-            do m2=1,m1-1                       ! compare all members 
-               s1=glist(m1,i)                  ! struc 1
-               s2=glist(m2,i)                  ! struc 2
-               call compare(n,nall,s1,s2,dist,athr,relat) ! athr is distance vector equivalence threshold
-            enddo
+!$OMP DO
+      do m2 = 1,m1 - 1                       ! compare all members
+        s1 = glist(m1,i)                  ! struc 1
+        s2 = glist(m2,i)                  ! struc 2
+        call compare(n,nall,s1,s2,dist,athr,relat) ! athr is distance vector equivalence threshold
+      end do
 !$OMP END DO
 !$OMP END PARALLEL
-         enddo
-         equiv(0:n,1:n,i)=relat(0:n,1:n)
-      enddo
-      deallocate(dist)
-! symmetrize result i.e. if iat is in list of jat, jat must be in list of iat
-! done again at the end of this part
-      do i=1,ng 
-         do j1=1,n
-            m1=equiv(0,j1,i)
-            do k=1,m1
-               iat=equiv(k,j1,i)
-!              is atom j1 in the list of atom iat?
-               ex=.false.
-               m2=equiv(0,iat,i)
-               do k2=1,m2
-                  if(j1.eq.equiv(k2,iat,i)) ex=.true.
-               enddo
-               if(.not.ex)then
-                  equiv(0,iat,i)=equiv(0,iat,i)+1
-                  equiv(equiv(0,iat,i),iat,i)=j1
-               endif
-            enddo
-         enddo
-      enddo
+    end do
+    equiv(0:n,1:n,i) = relat(0:n,1:n)
+  end do
+  deallocate (dist)
+!-- symmetrize result i.e. if iat is in list of jat, jat must be in list of iat
+!   done again at the end of this part
+  do i = 1,ng
+    do j1 = 1,n
+      m1 = equiv(0,j1,i)
+      do k = 1,m1
+        iat = equiv(k,j1,i)
+!--            is atom j1 in the list of atom iat?
+        ex = .false.
+        m2 = equiv(0,iat,i)
+        do k2 = 1,m2
+          if (j1 .eq. equiv(k2,iat,i)) ex = .true.
+        end do
+        if (.not. ex) then
+          equiv(0,iat,i) = equiv(0,iat,i) + 1
+          equiv(equiv(0,iat,i),iat,i) = j1
+        end if
+      end do
+    end do
+  end do
 
-      do i=1,ng 
-        if(sum(equiv(0,1:n,i)).eq.0) cycle     
-        if(debug)write(ich,*)'conformer set ',i
-        memb=glist(0,i)
-        do j=1,n
-           m=equiv(0,j,i)
-           if(m.eq.0) cycle         
-           if(debug)write(ich,'(''atom :'',i4,'' equivalent to '',40i3)') &
-        &  j,(equiv(k,j,i),k=1,m)
-        enddo
-      enddo
-      endif ! symmetry analysis
+!-- inlcude equivalence info from the other conformers as well i.e.
+!   assume that all conformers have the same chemical equivalencies
+!   the result is put into equiv(:,:,0)
+  equiv(0:n,1:n,0) = equiv(0:n,1:n,1)
+  ILOOP: do i = 2,ng
+    JLOOP: do j = 1,n
+      m2 = equiv(0,j,0)      ! end of list of lowest
+      MLOOP: do m = 1,equiv(0,j,i)  ! list of higher
+        k = equiv(m,j,i)    ! in the one in the higher list
+        M1LOOP: do m1 = 1,m2
+          if (equiv(m1,j,0) .eq. k) then !already there?
+!                    goto 19
+            cycle MLOOP
+          end if
+        end do M1LOOP
+        equiv(0,j,0) = equiv(0,j,0) + 1 ! append
+        equiv(equiv(0,j,0),j,0) = k
+! 19            continue
+      end do MLOOP
+    end do JLOOP
+  end do ILOOP
 
-!---populations
-      call boltz(nall,T,er,p)
-      allocate(pg(ng))
-      do i=1,ng 
-         m=glist(0,i)
-         pg(i)=0
-         do j=1,m
-            pg(i)=pg(i)+p(glist(j,i))  !-- sum of pops in a group
-         enddo
-         if(pg(i).gt.pthr) maxg=i
-      enddo
+!--- NMR part and writeout
+  !get NMR-active nuclei
+  allocate (nmract(86))
+  call cregen_nmract(ch,nmract)
 
-!---output and write
-      c1(1:3,1:n)=xyz(1:3,1:n,1)
-!      write(ich,*) 'full ensemble on file crest_rotamers_*.xyz'
-!      write(ich,*) 
-!     .'unique structures in ensemble on crest_conformers.xyz and scoord.*'
-!      write(ich,*)'note: enantiomers are included.'
-      if(.not.trackorigin)then
-        write(ich,*)'  Erel/kcal     Etot      weight/tot conformer  set degen'
-        do i=1,nall
-           if(i.eq.1.or.group(i-1).ne.group(i))then
-           write(ich,'(i5,f8.3,1x,3f11.5,2i5)') &
-     &     i,er(i),er(i)/autokcal+elow,p(i),pg(group(i)), &
-     &     group(i),dgen(group(i))
-           else
-           write(ich,'(i5,f8.3,1x,2f11.5,i5)')i,er(i),er(i)/autokcal+elow,p(i)
-           endif
-        enddo
-      else !trackorigin
-        write(ich,*)'  Erel/kcal     Etot      weight/tot conformer  set degen    origin'
-        do i=1,nall
-           if(i.eq.1.or.group(i-1).ne.group(i))then
-           write(ich,'(i5,f8.3,1x,3f11.5,2i5,5x,a)') &
-     &     i,er(i),er(i)/autokcal+elow,p(i),pg(group(i)), &
-     &     group(i),dgen(group(i)),trim(originnew(i))
-           else
-           write(ich,'(i5,f8.3,1x,2f11.5,26x,a)') &
-     &     i,er(i),er(i)/autokcal+elow,p(i),trim(originnew(i))
-           endif
-        enddo
-      endif
-!---- write a mapping file file for "-compare" mode
-      if(compareens)then
-         open(newunit=ich2,file='.cretrack')
-         write(ich2,'(5x,i0)')maxval(group)
-         kk=1
-         do i=2,nall
-            if(group(i-1).ne.group(i))then
-              j=i-1
-              write(ich2,'(1x,i5,1x,i7,1x,i7)')group(j),kk,j    
-              kk=i
-            endif
-            if(i.eq.nall)then
-              write(ich2,'(1x,i5,1x,i7,1x,i7)')group(nall),kk,nall
-            endif
-         enddo
-         close(ich2)
-      endif
-!---write part
-      if(newfile) then
-        open(unit=2,file=oname)
-        do i=1,nall
-           c2(1:3,1:n)=xyz(1:3,1:n,i)
-           call axis(n,at,xyz(:,:,i),c2,xdum)           
-           !--- try to align all conformers the same way
-           call xyzalign(n,c2)
-           write(2,*) n
-           if(.not.trackorigin)then
-           write(2,*) er(i)/autokcal+elow,p(i)
-           else
-           write(2,*) er(i)/autokcal+elow,p(i),'!'//trim(originnew(i))
-           endif
-           do j=1,n
-              write(2,'(1x,a2,1x,3f18.8)')i2e(at(j),'nc'),c2(1:3,j)
-           enddo
-        enddo
-        close(2)
-      endif
-
-!---entropy and G
-      A=0
-      eav=0
-      do i=1,nall
-         A=A+p(i)*log(p(i)+1.d-12)   
-         eav=eav+p(i)*er(i)     
-      enddo
-
-      g = (1./beta)*A
-      s =-1000.*4.184*g/T
-      ss=-1000.*      g/T
-
-      write(ich,'(''T /K                                  :'', F9.2)')T 
-      write(ich,'(''E lowest                              :'',f12.5)')elow
-      elowest=elow  ! <--- global access to elow
-      !---- elow printout in between routines
-      if(.not.confgo)then
-      write(*  ,'(1x,''E lowest :'',f12.5)')elow
-      endif
-      write(ich,'(''ensemble average energy (kcal)        :'', F9.3)')eav
-      write(ich,'(''ensemble entropy (J/mol K, cal/mol K) :'',2F9.3)')s,ss
-      write(ich,'(''ensemble free energy (kcal/mol)       : '',F8.3)')g
-      write(ich,'(''population of lowest in %             : '',F8.3)')pg(1)*100.d0
-
-      if((crestver.eq.1).and.(.not.confgo))then
-      if((elow-eref)*autokcal.lt.-0.2)then
-         write(ich,*) '...............................................'
-         write(ich,*) 'WARNING: new (best) energy less than that from '
-         write(ich,*) 'WARNING: preceding Hessian calculation:  '
-         write(ich,*) 'Improved by ', eref-elow, ' Eh or ',(eref-elow)*autokcal, 'kcal'
-         write(ich,*) '...............................................'
-         call touch('LOWER_FOUND')
-      endif
-      endif
-
-! now write the unique structures
-! and the symmetry info for NMR
-      maxg=0
-      do i=1,ng
-         k=glist(1,i) ! take first 
-         if(er(k).lt.ewin) maxg=maxg+1
-      enddo
-      write(ich,*)'number of unique conformers for further calc ',maxg
-      write(ich,*)'list of relative energies saved as "crest.energies"'
-      open(newunit=ich2,file='crest.energies')
-      do i=1,maxg
-         write(ich2,'(i4,f12.3)') i,er(glist(1,i))
-      enddo
-      close(ich2)
-
-
-
-
-!---NMR part
-      if(anal)then
-   !--- get NMR active nuclei
-      atmp='.anmrrc'  ! <--- name of the .anmrrc written by ENSO
-      call getanmrrc(atmp,fail)
-      if(fail)then  !--- there is no .anmrrc from ENSO
-        write(ich,*)'NMR mode.'
-        nmract=0       ! all nuclei inactive
-        nmract(1) = 1  ! H active
-       !nmract(6) = 1  ! C active
-        nmract(9) = 1  ! F active
-        nmract(15)= 1  ! P active
-      else          !--- there IS a .anmrrc, and it is used.
-         write(ich,*)'NMR mode. Reading <',trim(atmp),'> for atomic NMR data'
-         open(newunit=ich2,file=atmp)
-           read(ich2,'(a)')atmp
-           read(ich2,'(a)')atmp
-           if(index(atmp,'ENSO').ne.0)then
-              read(ich2,'(a)')atmp
-           endif
-           do
-             read(ich2,*,iostat=io)i,xx(1:2),nmract(i)
-             if(io<0) exit
-           enddo
-         close(ich2)
-      endif
-
-
-! inlcude equivalence info from the other conformers as well i.e.
-! assume that all conformers have the same chemical equivalencies
-! the result is put into equiv(:,:,0)
-      equiv(0:n,1:n,0)=equiv(0:n,1:n,1)
-      do i=2,ng
-         do j=1,n
-            m1end=equiv(0,j,0)   ! end of list of lowest
-            do m=1,equiv(0,j,i)  ! list of higher
-               k=equiv(m,j,i)    ! in the one in the higher list
-               do m1=1,m1end
-                  if(equiv(m1,j,0).eq.k) goto 19 !already there?
-               enddo
-               equiv(0,j,0)=equiv(0,j,0)+1 ! append
-               equiv(equiv(0,j,0),j,0)=k
- 19            continue
-            enddo
-         enddo
-      enddo
-
-!cc    this cc commented out code makes equivalencies for all confs seperately
-!cc    do ig=0,ng     ! all conf groups
-!cc    call mkd(ig)   ! make the NMR dir 
-!cc    call getname(ig,'anmr_nucinfo',fname)  ! open the file 
-!cc    open(unit=3,file=fname)
-      ig=0
-      atmp='anmr_nucinfo'
-      open(unit=3,file=atmp)
-!cc    write(*,'(''::::::::::: conformer group '',i3,'':::::::::::'')')ig
-      write(ich,'(''::::::::::: conformer group all :::::::::::'')')
-      write(3,*) n
+  allocate (elist(n,n),flist(n,n))
+  ig = 0
+  atmp = 'anmr_nucinfo'
+  open (unit=3,file=atmp)
+  write (ch,'(''::::::::::: conformer group all :::::::::::'')')
+  write (3,*) n
 !cccccccccccccccccc
 !c chem eq. first
 !cccccccccccccccccc
-      elist=0
-      !write(*,*) equiv(0,:,ig)
-      if(methautocorr)then
-        call methyl_autocomplete(n,c1/bohr,at,equiv(:,:,ig))
-      endif
-      !write(*,*) equiv(0,:,ig)
-      do i=1,n
-         m=equiv(0,i,ig)   
-         do k=1,m              
-            l=equiv(k,i,ig)
-            elist(l,i)=1
-         enddo
-         elist(i,i)=1
-      enddo
-      do i=1,n
-         do j=1,equiv(0,i,ig)
-            k=equiv(j,i,ig)
-            elist(1:n,k)=elist(1:n,k)+elist(1:n,i)
-         enddo
-      enddo
+  elist = 0
+  do i = 1,n
+    m = equiv(0,i,ig)
+    do k = 1,m
+      l = equiv(k,i,ig)
+      elist(l,i) = 1
+    end do
+    elist(i,i) = 1
+  end do
+  do i = 1,n
+    do j = 1,equiv(0,i,ig)
+      k = equiv(j,i,ig)
+      elist(1:n,k) = elist(1:n,k) + elist(1:n,i)
+    end do
+  end do
 !---  prepare write out
-      do i=1,n
-         k=1
-         equiv(1,i,ig)=i
-         elist(i,i)=0
-         do j=1,n
-            if(elist(j,i).ne.0)then
-               k=k+1
-               equiv(k,i,ig)=j               
-            endif
-         enddo
-         equiv(0,i,ig)=k
-      enddo
-      write(ich,*)'chemical equivalencies (mag.active nuclei):'
-      jnd=1
-      do j=1,n
-         m=equiv(0,j,ig)
-         write(3,'(3x,i0,3x,i0)') j, m
-         do l=1,m
-          if(l.ne.m)then
-           write(3,'(1x,i0)',advance='no') equiv(l,j,ig)  ! include the atom ie if there are no equiv.
-          else
-           write(3,'(1x,i0)',advance='yes') equiv(l,j,ig)
-          endif
-         enddo
-         if(nmract(at(j)).eq.0) cycle
-         if(m.gt.1.and.jnd(j).eq.1)then  ! just print
-         write(ich,'(''reference atom'',i4,'' # :'',i2)') equiv(1,j,ig),m
-         do k=1,m
-            jnd(equiv(k,j,ig))=0
-         enddo
-         endif
-      enddo
+  do i = 1,n
+    k = 1
+    equiv(1,i,ig) = i
+    elist(i,i) = 0
+    do j = 1,n
+      if (elist(j,i) .ne. 0) then
+        k = k + 1
+        equiv(k,i,ig) = j
+      end if
+    end do
+    equiv(0,i,ig) = k
+  end do
+  write (ch,*) 'chemical equivalencies (mag.active nuclei):'
+
+  allocate (jnd(n))
+  jnd = 1
+  do j = 1,n
+    m = equiv(0,j,ig)
+    write (3,'(3x,i0,3x,i0)') j,m
+    do l = 1,m
+      if (l .ne. m) then
+        write (3,'(1x,i0)',advance='no') equiv(l,j,ig)  ! include the atom ie if there are no equiv.
+      else
+        write (3,'(1x,i0)',advance='yes') equiv(l,j,ig)
+      end if
+    end do
+    if (nmract(at(j)) .eq. 0) cycle
+    if (m .gt. 1 .and. jnd(j) .eq. 1) then  ! just print
+      write (ch,'(''reference atom'',i4,'' # :'',i2)') equiv(1,j,ig),m
+      do k = 1,m
+        jnd(equiv(k,j,ig)) = 0
+      end do
+    end if
+  end do
 !cccccccccccccccccc
-!c mag eq. 
+!c mag eq.
 !cccccccccccccccccc
 !c make a check list of atoms for the mag. eq.
-      elist=0
-      flist=1
-      do i=1,n
-         m=equiv(0,i,ig)        ! the following lines fill the equiv list  
-         do k=1,m              
-            l=equiv(k,i,ig)
-            elist(l,i)=1
-         enddo
-         elist(i,i)=1
-      enddo
-      flist=elist
+  elist = 0
+  flist = 1
+  do i = 1,n
+    m = equiv(0,i,ig)        ! the following lines fill the equiv list
+    do k = 1,m
+      l = equiv(k,i,ig)
+      elist(l,i) = 1
+    end do
+    elist(i,i) = 1
+  end do
+  flist = elist
 
-      do i=1,n    
-         m=equiv(0,i,ig)
-         do k=1,m
-            l=equiv(k,i,ig)
-            if(l.eq.i) cycle
-            do j=1,n
-               if(flist(j,i).eq.1.or.nmract(at(j)).eq.0) cycle   ! don't check non-magnetic nuclei
+  do i = 1,n
+    m = equiv(0,i,ig)
+    do k = 1,m
+      l = equiv(k,i,ig)
+      if (l .eq. i) cycle
+      do j = 1,n
+        if (flist(j,i) .eq. 1 .or. nmract(at(j)) .eq. 0) cycle   ! don't check non-magnetic nuclei
 !c              write(*,*) l,j,pair(lin(i,j)),pair(lin(l,j))      ! and chem. equiv. ones (ie in the same
-               if(pair(lin(i,j)).ne.pair(lin(l,j))) elist(l,i)=0 ! group
-            enddo
-         enddo
-      enddo
-!---  symmetrize 
-      do i=1,n
-         k=1
-         equiv(1,i,ig)=i
-         elist(i,i)=0
-         do j=1,n
-            if(elist(j,i).ne.0)then
-               k=k+1
-               equiv(k,i,ig)=j               
-            endif
-         enddo
-         equiv(0,i,ig)=k
-      enddo
-      do i=1,n
-         do j=1,equiv(0,i,ig)
-            k=equiv(j,i,ig)
-            elist(1:n,k)=elist(1:n,k)+elist(1:n,i)
-         enddo
-      enddo
+        if (pair(lin(i,j)) .ne. pair(lin(l,j))) elist(l,i) = 0 ! group
+      end do
+    end do
+  end do
+!---  symmetrize
+  do i = 1,n
+    k = 1
+    equiv(1,i,ig) = i
+    elist(i,i) = 0
+    do j = 1,n
+      if (elist(j,i) .ne. 0) then
+        k = k + 1
+        equiv(k,i,ig) = j
+      end if
+    end do
+    equiv(0,i,ig) = k
+  end do
+  do i = 1,n
+    do j = 1,equiv(0,i,ig)
+      k = equiv(j,i,ig)
+      elist(1:n,k) = elist(1:n,k) + elist(1:n,i)
+    end do
+  end do
 !---  prepare write out
-      do i=1,n
-         k=1
-         equiv(1,i,ig)=i
-         elist(i,i)=0
-         do j=1,n
-            if(elist(j,i).ne.0)then
-               k=k+1
-               equiv(k,i,ig)=j               
-            endif
-         enddo
+  do i = 1,n
+    k = 1
+    equiv(1,i,ig) = i
+    elist(i,i) = 0
+    do j = 1,n
+      if (elist(j,i) .ne. 0) then
+        k = k + 1
+        equiv(k,i,ig) = j
+      end if
+    end do
 !old     equiv(0,i,ig)=k
-         if(k.gt.2) then
-            equiv(0,i,ig)=k    ! CH3 etc
-         else
-            equiv(0,i,ig)=1    ! this makes CH2-CH2 not mag. equiv. !
-         endif
-      enddo
-      jnd=1
-      write(ich,*)'magnetic equivalencies:'
-      do j=1,n
-         m=equiv(0,j,ig)
-         write(3,*) j, m
-         write(3,'(20i5)') (equiv(l,j,ig),l=1,m)  ! include the atom ie if there are no equiv.
-         if(nmract(at(j)).eq.0) cycle
-         if(m.gt.1.and.jnd(j).eq.1)then  ! just print
-         write(ich,'(''reference atom'',i4,'' # :'',i2)') equiv(1,j,ig),m
-         do k=1,m
-            jnd(equiv(k,j,ig))=0
-         enddo
-         endif
-      enddo
-      close(3)
-
-!cc    enddo  ! next conformer group (ig)
-
+    if (k .gt. 2) then
+      equiv(0,i,ig) = k    ! CH3 etc
+    else
+      equiv(0,i,ig) = 1    ! this makes CH2-CH2 not mag. equiv. !
+    end if
+  end do
+  jnd = 1
+  write (ch,*) 'magnetic equivalencies:'
+  do j = 1,n
+    m = equiv(0,j,ig)
+    write (3,*) j,m
+    write (3,'(20i5)') (equiv(l,j,ig),l=1,m)  ! include the atom ie if there are no equiv.
+    if (nmract(at(j)) .eq. 0) cycle
+    if (m .gt. 1 .and. jnd(j) .eq. 1) then  ! just print
+      write (ch,'(''reference atom'',i4,'' # :'',i2)') equiv(1,j,ig),m
+      do k = 1,m
+        jnd(equiv(k,j,ig)) = 0
+      end do
+    end if
+  end do
+  close (3)
 
 !ccccccccccccccccccccc
 !c J averaging matrix
 !ccccccccccccccccccccc
- 
-      fname='anmr_rotamer'
-      open(unit=112,file=fname,form='unformatted')
-      !open(unit=112,file=fname)
-      write(112) ng 
+  if (rotfil) then
+    allocate (jfake(n * (n + 1) / 2),sd(n,n),cn(n))
+    allocate (rcov(94))
+    call setrcov(rcov)
+    atmp = 'anmr_rotamer'
+    open (unit=112,file=atmp,form='unformatted')
+    !open(unit=112,file=fname)
+    write (112) ng
+    jfake = 0
+    do ig = 1,ng     ! all conf groups
+      nr = glist(0,ig) ! how many rotamers?
+      write (112) nr
+      do ir = 1,nr
+        irr = glist(ir,ig)
+        call distance(n,xyz(1,1,irr),sd)   ! distance matrix
+        cdum(1:3,1:n) = xyz(1:3,1:n,irr)
+        call ncoord(n,rcov,at,cdum,cn,500.0d0)
+        do i = 1,n - 1
+          do j = i + 1,n
+            jfake(lin(j,i)) = cn(i) * cn(j) * sqrt(dble(at(i) * at(j))) &
+       &    / (dble(pair(lin(j,i))) * sd(j,i)**5) ! the approx. "J" is topologically equivalent to J
+            ! R^3 was wrong in one case because Hs were artificially paired
+            ! R^5 seems to be save
+          end do
+        end do
+        write (112) jfake(1:n * (n + 1) / 2)        ! read by anmr
+      end do
+    end do
+    close (112)
+    deallocate (rcov,cn)
+    deallocate (sd,jfake)
+  end if
 
-      jfake=0
-      do ig=1,ng     ! all conf groups
-      nr=glist(0,ig) ! how many rotamers?
-      write(112) nr         
-      do ir=1,nr
-         irr=glist(ir,ig)
-         call distance(n,xyz(1,1,irr),sd)   ! distance matrix
-         c1(1:3,1:n)=xyz(1:3,1:n,irr)
-         call ncoord(n,rcov,at,c1,cn,500.0d0)
-         do i=1,n-1
-            do j=i+1,n
-               jfake(lin(j,i))=cn(i)*cn(j)*sqrt(dble(at(i)*at(j))) &
-          &    /(dble(pair(lin(j,i)))*sd(j,i)**5) ! the approx. "J" is topologically equivalent to J
-                                                  ! R^3 was wrong in one case because Hs were artificially paired
-                                                  ! R^5 seems to be save
-            enddo
-         enddo
-!c        call prmat(6,dd,n,n,'J fake') 
-         write(112) jfake(1:n*(n+1)/2)        ! read by anmr 
-      enddo
-      enddo
-      close(112)
+  if (allocated(jnd)) deallocate (jnd)
+  if (allocated(elist)) deallocate (elist)
+  if (allocated(flist)) deallocate (flist)
+  if (allocated(equiv)) deallocate (equiv)
+  if (allocated(dist)) deallocate (dist)
+  if (allocated(relat)) deallocate (relat)
+  if (allocated(tmp2)) deallocate (tmp2)
+  if (allocated(pair)) deallocate (pair)
+  if (allocated(glist)) deallocate (glist)
 
-   !--- how many rotamers per conformer   
-      open(newunit=ich3,file='cre_degen')
-      write(ich3,'(3x,i0)') ng
-      do ir=1,ng
-        write(ich3,'(3x,i0,2x,i0)') ir,glist(0,ir)
-      enddo
-      close(ich3) 
+  return
+end subroutine cregen_EQUAL
 
-      !if(env%entropic)then
-      ! if(ttag)then    
-      !  call origin2time(nall,originnew,timetag)
-      ! else
-      !  timetag=1
-      ! endif   
-      !open(newunit=ich3,file='cre_tag')
-      !if(env%mdtime.lt.0.0_wp)then
-      !  write(ich3,'(3x,i0,1x,f10.2)') ng,1.0_wp
-      !else
-      !  write(ich3,'(3x,i0,1x,f10.2)') ng,env%mdtime
-      !endif
-      !do ir=1,ng
-      !  k=glist(1,ir)
-      !  write(ich3,'(3x,i0,2x,i0)') ir,timetag(k)
-      !enddo
-      !close(ich3)
-      !endif    
+!-- util to fill nmract array
+subroutine cregen_nmract(ch,nmract)
+  use crest_parameters
+  implicit none
+  integer :: nmract(86)
+  character(len=:),allocatable :: atmp
+  logical :: fail
+  integer :: io,i
+  real(wp) :: xx(10)
+  integer :: ch,ich2
 
-      endif ! equivalence anal
-!===============================================================!
-      call remove('cre_members')
-      open(newunit=ich3,file='cre_members')
-      write(ich3,'(3x,i0)') ng
-      do i=1,ng
-        k=glist(0,i)
-        write(ich3,'(3x,i5,1x,i10,1x,i10)') &
-      &   k,glist(1,i),glist(k,i)
-      enddo
-      close(ich3)
+  nmract = 0 !reset
+  !--- get NMR active nuclei
+  atmp = '.anmrrc'  ! <--- name of the .anmrrc written by ENSO
+  call getanmrrc(atmp,fail)
+  if (fail) then  !--- there is no .anmrrc from ENSO
+    !write(ch,*)'NMR mode.'
+    nmract = 0       ! all nuclei inactive
+    nmract(1) = 1  ! H active
+    !nmract(6) = 1  ! C active
+    nmract(9) = 1  ! F active
+    nmract(15) = 1  ! P active
+  else          !--- there IS a .anmrrc, and it is used.
+    write (ch,*) 'NMR mode. Reading <',trim(atmp),'> for atomic NMR data'
+    open (newunit=ich2,file=atmp)
+    read (ich2,'(a)') atmp
+    read (ich2,'(a)') atmp
+    if (index(atmp,'ENSO') .ne. 0) then
+      read (ich2,'(a)') atmp
+    end if
+    do
+      read (ich2,*,iostat=io) i,xx(1:2),nmract(i)
+      if (io < 0) exit
+    end do
+    close (ich2)
+  end if
 
-      open(unit=2,file=trim(cname))
-      open(unit=4,file='crest_best.xyz')
-      do i=1,ng  
-         k=glist(1,i) ! take first 
-         if(er(k).ge.ewin) cycle
-         if(i.eq.1.or.printscoords)then   !write a scoord.* for each conformer? ,scoord.1 is always written  
-           call getname1(i,atmp)
-           c2(1:3,1:n)=xyz(1:3,1:n,k)/bohr
-           call wrc0(atmp,n,at,c2)
-         endif
-         write(2,'(2x,i0)') n
-         write(2,'(2x,f18.8)') er(k)/autokcal+elow
-         do j=1,n
-            write(2,'(1x,a2,1x,3f20.10)')i2e(at(j),'nc'),xyz(1:3,j,k)
-         enddo
-         if(i.eq.1)then
-         write(4,'(2x,i0)') n
-         write(4,'(2x,f18.8)') er(k)/autokcal+elow
-         do j=1,n
-            write(4,'(1x,a2,1x,3f20.10)')i2e(at(j),'nc'),xyz(1:3,j,k)
-         enddo
-         endif
-      enddo
-      close(2)
-      close(4)
+  return
+end subroutine cregen_nmract
 
-      !because of "esort"-flag these have to be deallocated first
-      deallocate(pg,glist,dgen)
+!============================================================!
+! subroutine cregen_repairorder
+! resort the ensemble to have groups grouped together
+! (can be important for small energy diff. between conformers)
+! On Input: ch - printout channel
+!           nat - number of atoms
+!           nall - number of structure in ensemble
+!           xyz  - Cartesian coordinates
+!           comments - commentary lines containing the energy
+!           group - to which group does every strucutre belong
+! On Output: resorted xyz and comments
+!============================================================!
+subroutine cregen_repairorder(nat,nall,xyz,comments,group)
+  use crest_parameters, id => dp 
+  use crest_data
+  use strucrd
+  implicit none
+  integer,intent(in) :: nat
+  integer,intent(in) :: nall
+  real(wp),intent(inout) :: xyz(3,nat,nall)
+  integer,intent(inout) :: group(0:nall)
+  character(len=*) :: comments(nall)
+  real(wp),allocatable :: cdum(:,:)
+  integer,allocatable :: order(:),orderref(:)
+  character(len=128) :: btmp
+  real(wp) :: edum
+  logical :: ttag
+  integer,allocatable :: timetag(:)
+  integer :: ng,tmax
+  integer :: i,j,k,l
 
- 666  write(ich,*) 'Normal termination.'
+  !-- check if timetag info is present?
+  ttag = .false.
+  !if(env%entropic)then
+  !  call getorigin(comments(1),atmp)
+  !  if(atmp(1:1)=='t') then
+  !   ttag=.true.
+  !   allocate(timetag(nall))
+  !   do i=1,nall
+  !     call getorigin(comments(i),atmp)
+  !     if(atmp(1:1)=='t')then !should work only with timetag flag
+  !      atmp=atmp(2:) !cut the "t"
+  !      read(atmp,*)timetag(i)
+  !     else
+  !      timetag(i)=1
+  !     endif
+  !   enddo
+  !   tmax=maxval(timetag,1)
+  !  endif
+  !endif
 
-      if(.not.confgo) close(ich) !close the output file
-!deallocate all the rest
-      if(trackorigin)then
-         deallocate(originnew,origin)
-      endif
-      deallocate(flist,elist,nb,pair,pre,vis,metric,rot)
-      deallocate(sd,jfake,enuc,equiv,relat,edum)
-      deallocate(idum,group,jnd,tmp2,xyznew,tmp,double)
-      deallocate(ind,e,p,er,xyz,ind2,sames)
+  ng = group(0)
+  allocate (order(nall),orderref(nall))
+  !-- determine new order
+  k = 0
+  if (ttag) then
+    do i = 1,ng
+      do l = 1,tmax  !-- with timetag info
+        do j = 1,nall
+          if (group(j) .eq. i .and. timetag(j) .eq. l) then
+            k = k + 1
+            orderref(k) = j
+            order(k) = i
+          end if
+        end do
+      end do
+    end do
+  else
+    do i = 1,ng
+      do j = 1,nall !-- without timetag info
+        if (group(j) .eq. i) then
+          k = k + 1
+          orderref(k) = j
+          order(k) = i
+        end if
+      end do
+    end do
+  end if
 
-      deallocate(iref,xx)
+  !-- sort xyz and comments
+  group(1:nall) = order(1:nall)
+  order = orderref
+  allocate (cdum(3,nat))
+  call xyzqsort(nat,nall,xyz,cdum,order,1,nall)
+  deallocate (cdum)
+  order = orderref
+  call stringqsort(nall,comments,1,nall,order)
+  if (ttag) then
+    edum = grepenergy(comments(1))
+    write (btmp,*) edum,'!t1'
+    comments(1) = trim(btmp)
+  end if
 
-      deallocate(molvec,cn,cn0,c2,c1,at)
-      deallocate(nmract,ydum,xdum,Udum,gdum,rcov)
+  deallocate (orderref,order)
+  if (allocated(timetag)) deallocate (timetag)
+  return
+end subroutine cregen_repairorder
 
-      end associate settingNames
-   
-end subroutine cregen2
+!============================================================!
+! recursive subroutine xyzqsort
+! A quicksort derivative for sorting an ensemble.
+! On Input: nat  - number of atoms
+!           nall - number of structures
+!           xyz  - the ensemble ( xyz(3,nat,nall) )
+!           c0   - a dummy coord field for sorting
+!           ord  - order of the ensemble ( ord(nall) )
+!           first - lower limit of sorting (nall dimension)
+!           last  - upperl limit of sorting (nall dimension)
+!============================================================!
+recursive subroutine xyzqsort(nat,nall,xyz,c0,ord,first,last)
+  use crest_parameters
+  implicit none
+  integer :: nat,nall
+  real(wp) :: xyz(3,nat,nall)
+  real(wp) :: c0(3,nat)
+  integer :: ord(nall)
+  integer :: first,last
+  integer :: x,t
+  integer :: i,j
+  x = ord((first + last) / 2)
+  i = first
+  j = last
+  do
+    do while (ord(i) < x)
+      i = i + 1
+    end do
+    do while (x < ord(j))
+      j = j - 1
+    end do
+    if (i >= j) exit
+    t = ord(i); ord(i) = ord(j); ord(j) = t
+    c0(:,:) = xyz(:,:,i)
+    xyz(:,:,i) = xyz(:,:,j)
+    xyz(:,:,j) = c0(:,:)
+    i = i + 1
+    j = j - 1
+  end do
+  if (first < i - 1) call xyzqsort(nat,nall,xyz,c0,ord,first,i - 1)
+  if (j + 1 < last) call xyzqsort(nat,nall,xyz,c0,ord,j + 1,last)
+end subroutine xyzqsort
 
 !================================================
-! cpincluded is a small routine to map only
-! the selected atoms from structure c into
-! structure cr, via the array inc (value 1 or 0)
+! a small routine to get masked xyz coordinates
 !================================================
-subroutine cpincluded(n,nr,c,cr,inc)
-      use iso_fortran_env, only : wp => real64
-      implicit none
-      integer,intent(in) :: n
-      integer,intent(in) :: nr
-      real(wp),intent(in) :: c(3,n)
-      real(wp),intent(out) :: cr(3,nr)
-      integer,intent(in) :: inc(n)
-      integer :: i,k
-      k=1
-      do i=1,n
-        if(inc(i).gt.0)then
-        cr(1:3,k)=c(1:3,i)
-        k=k+1
-        endif
-      enddo
-      return
-end subroutine cpincluded
+subroutine maskedxyz(n,nm,c,cm,at,atm,mask)
+  use crest_parameters, only: wp
+  implicit none
+  integer,intent(in) :: n
+  integer,intent(in) :: nm
+  real(wp),intent(in) :: c(3,n)
+  real(wp),intent(out) :: cm(3,nm)
+  integer,intent(in) :: at(n)
+  integer,intent(out) :: atm(nm)
+  integer,intent(in) :: mask(n)
+  integer :: i,k
+  k = 1
+  do i = 1,n
+    if (mask(i) .gt. 0) then
+      cm(1:3,k) = c(1:3,i)
+      atm(k) = at(i)
+      k = k + 1
+    end if
+  end do
+  return
+end subroutine maskedxyz
+subroutine maskedxyz2(n,nm,c,cm,mask) !without at arraay
+  use crest_parameters, only: wp
+  implicit none
+  integer,intent(in) :: n
+  integer,intent(in) :: nm
+  real(wp),intent(in) :: c(3,n)
+  real(wp),intent(out) :: cm(3,nm)
+  integer,intent(in) :: mask(n)
+  integer :: i,k
+  k = 1
+  do i = 1,n
+    if (mask(i) .gt. 0) then
+      cm(1:3,k) = c(1:3,i)
+      k = k + 1
+    end if
+  end do
+  return
+end subroutine maskedxyz2
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!=============================================!
+! write the output ensemble file
+!=============================================!
+subroutine cregen_file_wr(env,fname,nat,nall,at,xyz,comments)
+  use crest_parameters, only: wp
+  use crest_data
+  use strucrd
+  implicit none
+  type(systemdata) :: env
+  character(len=*) :: fname
+  integer :: nat,nall
+  integer :: at(nat)
+  real(wp) :: xyz(3,nat,nall)
+  character(len=*) :: comments(nall)
+  character(len=128) :: newcomment
 
+  integer :: ich,i
+  real(wp),allocatable :: c0(:,:),xdum(:)
+  real(wp) :: eref,T
+  real(wp),allocatable :: er(:),erel(:),p(:)
+  character(len=40),allocatable :: origin(:)
+  real(wp),parameter :: autokcal = 627.509541_wp
 
-subroutine compare(n,nall,s1,s2,dist,athr,relat)
-      implicit none
-      integer :: n,nall,s1,s2
-      integer :: relat(0:n,n)
-      real*8 :: dist(n,n,nall),athr
+  allocate (er(nall),erel(nall),p(nall),origin(nall))
+  eref = grepenergy(comments(1))
+  do i = 1,nall
+    er(i) = grepenergy(comments(i))
+    erel(i) = (er(i) - eref) * autokcal
+    if (env%trackorigin) then
+      call getorigin(comments(i),origin(i))
+    end if
+  end do
+  T = env%tboltz
+  call boltz(nall,T,erel,p)
 
-      integer :: i,j,k
-      real*8 :: rsum,athr2
-      logical :: ok
+  allocate (c0(3,nat),xdum(3))
+  open (newunit=ich,file=fname)
+  do i = 1,nall
+    c0(:,:) = xyz(:,:,i)
+    if (env%trackorigin) then
+      write (newcomment,*) er(i),p(i),'!'//trim(origin(i))
+    else
+      write (newcomment,*) er(i),p(i)
+    end if
+    call wrxyz(ich,nat,at,c0,newcomment)
+  end do
+  close (ich)
+  deallocate (xdum,c0)
+  deallocate (origin,p,erel,er)
+  return
+end subroutine cregen_file_wr
 
-      athr2=athr*dble(n)
-      do i=1,n
-         do j=1,n
-            if(i.eq.j) cycle
-            rsum=0
-!c           bp=.true.
-            do k=1,n
-               rsum=rsum+abs(dist(k,i,s1)-dist(k,j,s2))
-!c              if(k.ne.i.and.k.ne.j.and.
-!c    .            pair(lin(k,i)).ne.pair(lin(k,j))) then
-!c                 bp=.false. ! check bond path length
-!c                 exit
-!c              endif
-               if(rsum.gt.athr2) goto 99
-            enddo
-!c           if(rsum/n.lt.athr.and.bp) then
-            if(rsum/n.lt.athr       ) then
-               ok=.true.
-               do k=1,relat(0,i)
-                  if(relat(k,i).eq.j) ok=.false.   ! already existing?
-               enddo
-               if(ok)then
-                  relat(0,i)=relat(0,i)+1
-                  relat(relat(0,i),i)=j
-               endif
-            endif
- 99         continue
-         enddo
-      enddo
+!=============================================!
+! write the output ensemble file
+!=============================================!
+subroutine cregen_conffile(env,cname,nat,nall,at,xyz,comments,ng,degen)
+  use crest_parameters, only: wp,bohr
+  use crest_data
+  use strucrd
+  use iomod
+  implicit none
+  type(systemdata) :: env
+  character(len=*) :: cname
+  integer :: nat,nall
+  integer :: at(nat)
+  real(wp) :: xyz(3,nat,nall)
+  character(len=*) :: comments(nall)
+  integer :: ng
+  integer :: degen(3,ng)
+  character(len=128) :: newcomment
+  integer :: ich,ich3,ichenso
+  integer :: i,k
+  real(wp),allocatable :: c0(:,:)
+  real(wp),allocatable :: er(:)
+  allocate (er(nall))
+  do i = 1,nall
+    er(i) = grepenergy(comments(i))
+  end do
+  allocate (c0(3,nat))
+  if (env%enso) then
+    open (newunit=ichenso,file='enso.tags')
+  end if
+  c0(:,:) = xyz(:,:,1)
+  write (newcomment,'(2x,f18.8)') er(1)
+  call wrxyz('crest_best.xyz',nat,at,xyz(:,:,1),newcomment)
+  open (newunit=ich,file=trim(cname))
+  do i = 1,ng
+    k = degen(2,i)
+    if (i .eq. 1 .or. env%printscoords) then   !write a scoord.* for each conformer? scoord.1 is always written
+      call getname1(i,newcomment)
+      c0(:,:) = xyz(:,:,k) / bohr
+      call wrc0(newcomment,nat,at,c0)
+    end if
+    write (newcomment,'(2x,f18.8)') er(k)
+    call wrxyz(ich,nat,at,xyz(:,:,k),newcomment)
+    if (env%enso) write (ichenso,*) trim(comments(k))
+  end do
+  close (ich)
+  deallocate (c0)
+  deallocate (er)
 
-end subroutine compare
+  if (env%enso) then
+    close (ichenso)
+  end if
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+  call remove('cre_members')
+  open (newunit=ich3,file='cre_members')
+  write (ich3,'(3x,i0)') ng
+  do i = 1,ng
+    k = degen(1,i)
+    write (ich3,'(3x,i8,1x,i10,1x,i10)') &
+    &   k,degen(2,i),degen(3,i)
+  end do
+  close (ich3)
 
-logical function distcheck(n,xyz)
-      implicit none
-      real*8,allocatable :: rij(:)
-      integer :: n
-      real*8 :: xyz(3,n)
-      integer i,j
-      distcheck=.true.
-      allocate(rij(3))
-      do i=1,n-1
-         do j=i+1,n
-         rij=xyz(:,j)-xyz(:,i)
-         if(sum(rij*rij).lt.1.d-3) distcheck=.false.
-         enddo
-      enddo
-      deallocate(rij)
-      return
-end function distcheck
+  return
+end subroutine cregen_conffile
 
+!====================================================================================!
+! Algin all structures in xyz to the first structure in the ensemble
+! based on the heavy-atom RMSD
+!====================================================================================!
+subroutine cregen_rmsdalign(nat,nall,at,xyz)
+  use crest_parameters, only: wp
+  use crest_data
+  use ls_rmsd
+  use iomod
+  implicit none
+  integer :: nat,nall
+  integer :: at(nat)
+  real(wp),intent(inout) :: xyz(3,nat,nall)
+  integer :: nath
+  integer :: i,j,k
+  real(wp),allocatable :: c0(:,:)
+  real(wp),allocatable :: c1(:,:)
+  real(wp),allocatable :: c2(:,:)
+  real(wp) ::  g(3,3),U(3,3),x_center(3),y_center(3),rmsdval
 
-!==========================================================!
-! bactrack is used to find the element "val" of array "arr"
-! that contains 0 when the content of each field of arr
-! references another field of it, starting from element i
-!==========================================================!
-recursive subroutine backtrack(arr,i,val)
-      implicit none
-      integer,intent(in) :: i
-      integer,intent(inout) :: arr(*)
-      integer,intent(out) :: val
+  nath = 0
+  do j = 1,nat
+    if (at(j) > 2) nath = nath + 1
+  end do
+  allocate (c0(3,nath),c1(3,nath),source=0.0d0)
 
-      if(arr(i).gt.0)then
-         call backtrack(arr,arr(i),val)
-         arr(i)=val
-      else
-         val=i
-      endif
+  allocate (c2(3,nat))
+  !>--- get the reference structure (the first one)
+  i = 0
+  do j = 1,nat
+    if (at(j) > 2) then
+      i = i + 1
+      c0(1:3,i) = xyz(1:3,j,1)
+    end if
+  end do
 
-      return
-end subroutine backtrack
+  do k = 2,nall
+    !>--- and the other strucutres into c1
+    i = 0
+    do j = 1,nat
+      if (at(j) > 2) then
+        i = i + 1
+        c1(1:3,i) = xyz(1:3,j,k)
+      end if
+    end do
+    call rmsd(i,c1,c0,1,U,x_center,y_center,rmsdval,.false.,g)
 
+    c2 = matmul(U(1:3,1:3),xyz(1:3,1:nat,k))
+    xyz(1:3,1:nat,k) = c2
+  end do
 
-!==========================================================!
-! align a structure in space according to the position
-! of the first atom
-!==========================================================!
-subroutine xyzalign(nat,xyz)
-      use iso_fortran_env, wp => real64
-      use geo, only: rotRz180,rotRx180
-      implicit none
-      integer :: nat
-      real(wp) :: xyz(3,nat)
-      integer :: i
-      if(xyz(1,1).lt.0.0_wp)then
-       do i=1,nat
-         call rotRz180(xyz(1:3,i))
-       enddo
-      endif
-      if(xyz(2,1).lt.0.0_wp)then
-       do i=1,nat
-         call rotRx180(xyz(1:3,i))
-       enddo
-      endif
-      return
-end subroutine xyzalign
+  deallocate (c2)
+  deallocate (c1,c0)
+  return
+end subroutine cregen_rmsdalign
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-subroutine repairorder(nall,n,ng,order,xyz,er,trackorigin,originnew)
-      use iso_fortran_env, wp => real64
-      implicit none
-      integer :: nall
-      integer :: n,ng
-      integer :: order(0:nall)
-      real(wp) :: xyz(3,n,nall)
-      real(wp) :: er(nall)
-      logical :: trackorigin
-      character(len=40) :: originnew(nall)
-      integer :: i,j,k
+!=============================================!
+! write the time tag and degeneracy file
+!=============================================!
+subroutine cregen_bonusfiles(ng,degen)
+  use crest_parameters, only: wp, bohr
+  use crest_data
+  implicit none
+  integer :: ng
+  integer :: degen(3,ng)
+  integer :: i,ich
 
-      integer,allocatable :: dumorder(:)
-      real(wp),allocatable :: dumxyz(:,:,:)
-      real(wp),allocatable :: dumer(:)
-      character(len=40),allocatable :: dumorig(:)
+  !--- how many rotamers per conformer
+  open (newunit=ich,file='cre_degen')
+  write (ich,'(3x,i0)') ng
+  do i = 1,ng
+    write (ich,'(3x,i0,2x,i0)') i,degen(1,i)
+  end do
+  close (ich)
 
-      allocate(dumorder(nall),dumxyz(3,n,nall),dumer(nall))
-      if(trackorigin)then
-      allocate(dumorig(nall))
-      endif
-      k=0
-      do i=1,ng
-         do j=1,nall  
-            if(order(j).eq.i)then
-            k=k+1     
-            dumorder(k)=order(j)
-            dumxyz(:,:,k)=xyz(:,:,j)
-            dumer(k)=er(j)
-            if(trackorigin)then
-            dumorig(k)=originnew(j)
-            endif
-            endif
-         enddo
-      enddo
-      order(1:nall)=dumorder(1:nall)
-      xyz=dumxyz
-      er=dumer
-      if(trackorigin)then
-      originnew=dumorig
-      endif 
+  return
+end subroutine cregen_bonusfiles
 
-      if(trackorigin)then
-      deallocate(dumorig)
-      endif
-      deallocate(dumer,dumxyz,dumorder)
+!=========================================================================================!
+!=========================================================================================!
+!  CREGEN PRINTOUTS
+!=========================================================================================!
+!=========================================================================================!
+subroutine cregen_setthreads(ch,env,pr)
+  use crest_parameters 
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  integer :: ch
+  logical :: pr
+  integer :: TID,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM,nproc
+!---- setting the threads for OMP parallel usage
+  if (env%autothreads) then
+    call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) !mode=4 --> Program intern Threads max
+!$OMP PARALLEL PRIVATE(TID)
+    TID = OMP_GET_THREAD_NUM()
+    IF (TID .EQ. 0 .and. pr) THEN
+      nproc = OMP_GET_NUM_THREADS()
+      write (ch,*) '============================='
+      write (ch,*) ' # threads =',nproc
+      write (ch,*) '============================='
+    END IF
+!$OMP END PARALLEL
+  end if
+  return
+end subroutine cregen_setthreads
 
-      return
-end subroutine repairorder
+subroutine cregen_pr1(ch,env,nat,nall,rthr,bthr,pthr,ewin)
+  use crest_parameters
+  use crest_data
+  implicit none
+  integer :: ch
+  type(systemdata) :: env
+  integer :: nat
+  integer :: nall
+  real(wp) :: rthr,bthr,pthr,ewin
+  logical :: substruc
+  substruc = (nat .ne. env%rednat .and. env%subRMSD)
+  write (ch,'('' number of atoms                :'',3x,i0)') nat
+  if (substruc) then
+    write (ch,'('' atoms included in RMSD         :'',3x,i0)') env%rednat
+  end if
+  write (ch,'('' number of points on xyz files  :'',3x,i0)') nall
+  write (ch,'('' RMSD threshold                 :'',f9.4)') rthr
+  write (ch,'('' Bconst threshold               :'',f9.4)') bthr
+  write (ch,'('' population threshold           :'',f9.4)') pthr
+  if (ewin < 9999.9_wp) then
+    write (ch,'('' conformer energy window  /kcal :'',f9.4)') ewin
+  else
+    write (ch,'('' conformer energy window  /kcal :'',6x,a)') '+∞'
+  end if
 
-!===============================================================================
-subroutine repairentropic(nall,n,ng,order,xyz,er,trackorigin,originnew)
-      use iso_fortran_env, wp => real64
-      implicit none
-      integer :: nall
-      integer :: n,ng
-      integer :: order(0:nall)
-      real(wp) :: xyz(3,n,nall)
-      real(wp) :: er(nall)
-      logical :: trackorigin
-      character(len=40) :: originnew(nall)
-      integer :: i,j,k,t
-      integer :: tmax
+  return
+end subroutine cregen_pr1
 
-      integer,allocatable :: dumorder(:)
-      real(wp),allocatable :: dumxyz(:,:,:)
-      real(wp),allocatable :: dumer(:)
-      character(len=40),allocatable :: dumorig(:)
-      integer,allocatable :: timetag(:)
+subroutine enso_duplicates(env,nall,double)
+  use crest_parameters
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  integer :: nall
+  integer :: double(nall)
+  integer :: i,j,ich
 
-      allocate(dumorder(nall),dumxyz(3,n,nall),dumer(nall))
-      allocate(dumorig(nall))
-      allocate(timetag(nall), source=0)
-      if(trackorigin)then
-      call origin2time(nall,originnew,timetag)
-      endif
-      tmax=maxval(timetag,1)
-      k=0
-      ILOOP : do i=1,ng
-        TLOOP : do t=1,tmax
-         JLOOP : do j=1,nall
-            if(order(j).eq.i .and. timetag(j).eq.t)then
-              k=k+1
-              dumorder(k)=order(j)
-              dumxyz(:,:,k)=xyz(:,:,j)
-              dumer(k)=er(j)
-              if(trackorigin)then
-              dumorig(k)=originnew(j)
-              endif
-            else
-              cycle JLOOP
-            endif
-         enddo JLOOP
-        enddo TLOOP
-      enddo ILOOP
-      order(1:nall)=dumorder(1:nall)
-      xyz=dumxyz
-      er=dumer
-      if(trackorigin)then
-      originnew=dumorig
-      endif
+  if (.not. env%ENSO .or. .not. env%confgo) return
 
-      if(trackorigin)then
-      deallocate(timetag)
-      deallocate(dumorig)
-      endif
-      deallocate(dumer,dumxyz,dumorder)
+  j = sum(double)
+  open (newunit=ich,file='cregen.enso')
+  if (j .gt. 0) then
+    do i = 1,nall
+      if (double(i) .gt. 0) then
+        write (ich,*) i,double(i)
+      end if
+    end do
+  else
+    write (ich,*) "ALL UNIQUE"
+  end if
 
-      return
-end subroutine repairentropic
+  return
+end subroutine enso_duplicates
 
+subroutine create_anmr_dummy(nat)
+  implicit none
+  integer :: nat
+  integer :: i,ich
 
+  open (newunit=ich,file='anmr_nucinfo')
+  write (ich,*) nat
+  do i = 1,nat
+    write (ich,'(3x,i0,3x,i0)') i,1
+    write (ich,'(3x,i0)') i
+  end do
+  do i = 1,nat
+    write (ich,*) i,1
+    write (ich,'(i5)') i
+  end do
+  close (ich)
+  return
+end subroutine create_anmr_dummy
+
+subroutine cregen_pr2(ch,env,nall,comments,ng,degen,er)
+  use crest_parameters
+  use crest_data
+  use strucrd
+  use iomod,only:touch
+  implicit none
+  integer :: ch
+  type(systemdata) :: env
+  integer :: nall
+  character(len=*) :: comments(nall)
+  integer :: ng
+  integer :: degen(3,ng)
+  real(wp) :: er(nall)
+  integer :: ich,chref
+  integer :: i,j,k
+  real(wp),allocatable :: erel(:),egrp(:)
+  real(wp),allocatable :: p(:),pg(:)
+  real(wp) :: eref,T
+  character(len=40),allocatable :: origin(:)
+  integer :: a,b
+  logical :: ex
+  real(wp) :: A0,eav,g,s,ss,beta,elow
+
+  allocate (origin(nall),erel(nall),p(nall))
+  eref = grepenergy(comments(1))
+  env%elowest = eref
+  do i = 1,nall
+    er(i) = grepenergy(comments(i))
+    erel(i) = (er(i) - eref) * autokcal
+    if (env%trackorigin) then
+      call getorigin(comments(i),origin(i))
+    else
+      origin(i) = ''
+    end if
+  end do
+  T = env%tboltz
+  call boltz(nall,T,erel,p)
+  allocate (pg(ng),source=0.0_wp)
+  do i = 1,ng
+    a = degen(2,i)
+    b = degen(3,i)
+    do j = a,b
+      pg(i) = pg(i) + p(j)
+    end do
+  end do
+
+  !-- really long energy list
+  !write(ch,*)'  Erel/kcal     Etot      weight/tot conformer  set degen    origin'
+  write (ch,'(7x,a,8x,a,1x,a,2x,a,5x,a,3x,a,5x,a)') 'Erel/kcal','Etot', &
+  &    'weight/tot','conformer','set','degen','origin'
+  if (env%entropic .and. ng > 50000) then
+    write (ch,'(1x,a)') '<skipped due to lenght and written to seperate file>'
+    chref = ch
+    open (newunit=ch,file='crest.conformerlist')
+  end if
+  k = 0
+  do i = 1,ng
+    k = k + 1
+    a = degen(2,i)
+    b = degen(3,i)
+    write (ch,'(i8,f8.3,1x,3f11.5,2i8,5x,a)') &
+  & k,erel(a),er(a),p(a),pg(i),i,degen(1,i),trim(origin(a))
+    if (.not. env%entropic) then
+      do j = a + 1,b
+        k = k + 1
+        write (ch,'(i8,f8.3,1x,2f11.5,32x,a)') &
+    &   k,erel(j),er(j),p(j),trim(origin(j))
+      end do
+    end if
+  end do
+  if (env%entropic .and. ng > 50000) then
+    close (ch)
+    ch = chref
+  end if
+
+  !-- file for the '-compare' mode
+  if (env%compareens) then
+    open (newunit=ich,file='.cretrack')
+    write (ich,'(5x,i0)') ng
+    do i = 1,ng
+      write (ich,'(1x,i8,1x,i7,1x,i7)') i,degen(2,i),degen(3,i)
+    end do
+    close (ich)
+  end if
+
+  !-- some ensemble data, entropy and G (including all structures)
+  A0 = 0
+  eav = 0
+  do i = 1,nall
+    A0 = A0 + p(i) * log(p(i) + 1.d-12)
+    eav = eav + p(i) * erel(i)
+  end do
+  beta = 1.0d0 / (T * 8.314510 / 4.184 / 1000.+1.d-14)
+  g = (1.0d0 / beta) * A0
+  s = -1000.0d0 * 4.184 * g / T
+  ss = -1000.0d0 * g / T
+
+  write (ch,'(''T /K                                  :'', F9.2)') T
+  write (ch,'(''E lowest                              :'',f12.5)') eref
+  !---- elow printout in between routines
+  if (.not. env%confgo) then
+    write (*,'(1x,''E lowest :'',f12.5)') eref
+  end if
+  if (env%QCG) then
+    write (ch,'(''ensemble average energy (kcal)        :'', F14.8)') eav
+    write (ch,'(''ensemble entropy (cal/mol K)          :'',F14.8)') ss
+    write (ch,'(''ensemble free energy (kcal/mol)       : '',F14.8)') g
+  else
+    write (ch,'(''ensemble average energy (kcal)        :'', F9.3)') eav
+    write (ch,'(''ensemble entropy (J/mol K, cal/mol K) :'',2F9.3)') s,ss
+    write (ch,'(''ensemble free energy (kcal/mol)       : '',F8.3)') g
+  end if
+  write (ch,'(''population of lowest in %             : '',F8.3)') pg(1) * 100.d0
+
+  !-- some ensemble data, entropy and G (including only unique conformers)
+  allocate (egrp(ng),source=0.0_wp)
+  do i = 1,ng
+    a = degen(2,i)
+    egrp(i) = (er(a) - eref) * autokcal
+  end do
+  call boltz(ng,T,egrp,pg)
+  A0 = 0
+  do i = 1,ng
+    A0 = A0 + pg(i) * log(pg(i) + 1.d-12)
+  end do
+  deallocate (egrp)
+  beta = 1.0d0 / (T * 8.314510 / 4.184 / 1000.+1.d-14)
+  g = (1.0d0 / beta) * A0
+  ss = -1000.0d0 * g / T
+  env%emtd%sapprox = ss  ! save for entropy mode
+
+  !-- MF-MD-GC legacy option
+  if ((env%crestver .eq. 1) .and. (.not. env%confgo)) then
+    inquire (file='.tmpxtbmodef',exist=ex)
+    if (ex) then
+      open (unit=66,file='.tmpxtbmodef')
+      read (66,*) i
+      read (66,*) elow
+      close (66)
+    else
+      elow = er(1)
+    end if
+    if ((elow - eref) * autokcal .lt. -0.2) then
+      write (ch,*) '...............................................'
+      write (ch,*) 'WARNING: new (best) energy less than that from '
+      write (ch,*) 'WARNING: preceding Hessian calculation:  '
+      write (ch,*) 'Improved by ',elow - eref,' Eh or ', (elow - eref) * autokcal,'kcal'
+      write (ch,*) '...............................................'
+      call touch('LOWER_FOUND')
+    end if
+  end if
+
+  deallocate (pg)
+  deallocate (p,erel,origin)
+  return
+end subroutine cregen_pr2
+
+subroutine cregen_econf_list(ch,nall,er,ng,degen)
+  use crest_parameters
+  implicit none
+  integer :: nall
+  real(wp) :: er(nall)
+  integer :: ng
+  integer :: degen(3,ng)
+  integer :: ch,ich2,i,j
+  real(wp) :: eref,ewrt
+
+  write (ch,*) 'number of unique conformers for further calc ',ng
+  write (ch,*) 'list of relative energies saved as "crest.energies"'
+  open (newunit=ich2,file='crest.energies')
+  eref = er(1)
+  do i = 1,ng
+    j = degen(2,i)
+    ewrt = er(j) - eref
+    ewrt = ewrt * autokcal
+    write (ich2,'(2x,i0,2x,f12.3)') i,ewrt
+  end do
+  close (ich2)
+
+  return
+end subroutine cregen_econf_list
+
+subroutine cregen_pr3(ch,infile,nall,comments)
+  use crest_parameters
+  use strucrd
+  implicit none
+  integer :: ch
+  character(len=*) :: infile
+  integer :: nall
+  character(len=*) :: comments(nall)
+  real(wp),allocatable :: er(:)
+  real(wp) :: dE
+  integer :: i
+  allocate (er(nall))
+
+  do i = 1,nall
+    er(i) = grepenergy(comments(i))
+  end do
+
+  write (ch,*)
+  write (ch,'(a)') '==================================================='
+  write (ch,'(a)') '============= ordered structure list =============='
+  write (ch,'(a)') '==================================================='
+  write (ch,'(a,a,a)') ' written to file <',trim(infile),'>'
+  write (ch,*)
+  write (ch,'(''   structure    ΔE(kcal/mol)    Etot(Eh)'')')
+  do i = 1,nall
+    dE = (er(i) - er(1)) * autokcal
+    write (ch,'(i10,3x,F12.2,2x,F14.6)') i,dE,er(i)
+  end do
+  write (ch,*)
+
+  deallocate (er)
+  return
+end subroutine cregen_pr3
+
+subroutine cregen_pr4(ch,infile,nall,group)
+  use crest_parameters
+  use strucrd
+  implicit none
+  integer :: ch
+  character(len=*) :: infile
+  integer :: nall
+  integer :: group(0:nall)
+  integer :: i,ich
+  integer :: maxgroup
+  !write(ch,*) group(1:nall)
+  maxgroup = group(0)
+  write (ch,'(1x,i0,a,i0,a,a,a)') maxgroup,' unique groups for ', &
+  &    nall,' structures in file <',trim(infile),'>'
+
+  open (newunit=ich,file='.groups')
+  write (ich,'(5x,i0,3x,i0)') nall,maxgroup
+  do i = 1,nall
+    write (ich,'(2x,i10,2x,i10)') i,group(i)
+  end do
+  close (ich)
+  return
+end subroutine cregen_pr4
 

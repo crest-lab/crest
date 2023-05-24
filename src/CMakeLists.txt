@@ -64,7 +64,6 @@ list(APPEND srcs
   "${dir}/msreact.f90"
   "${dir}/ncigeo.f90"
   "${dir}/neighbor.f"
-  "${dir}/newcregen.f90"
   "${dir}/ompmklset.F90"
   "${dir}/printouts.f90"
   "${dir}/prmat.f90"

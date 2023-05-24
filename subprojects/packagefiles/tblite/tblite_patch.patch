@@ -32,3 +32,6 @@ index 9855640..4dbe3ff 100644
 +   ser = toml_serializer()
  
     call self%dump(table, error)
+
+-
++

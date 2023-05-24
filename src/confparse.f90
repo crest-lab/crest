@@ -102,6 +102,9 @@ subroutine parseflags(env,arg,nra)
     if (index(arg(i),'-legacy') .ne. 0)then  !> as in CREST version <3.0
       env%legacy = .true.
     endif
+    if (index(arg(i),'-dry').ne.0)then   !> "dry" run to print settings 
+        env%dryrun = .true.
+    endif
   end do
 
 !========================================================================================!
@@ -2204,7 +2207,8 @@ end subroutine parseRC2
 !> final ensemble back into this format
 !========================================================================================!
 subroutine inputcoords(env,arg)
-  use iso_fortran_env,only:wp => real64
+!  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   use crest_data
   use strucrd
   use axis_module
@@ -2233,7 +2237,12 @@ subroutine inputcoords(env,arg)
   inquire (file=arg,exist=ex)
   inquire (file='coord',exist=ex2)
   if (.not. ex .and. .not. ex2) then
-    error stop 'No (valid) input file! exit.'
+    if(env%dryrun)then
+      write(stdout,*) 'No (valid) input file, but ignoring for dry run.'
+      return
+    else
+      error stop 'No (valid) input file! exit.'
+    endif
   end if
   if (ex2) then 
 !>-- save coord as reference
