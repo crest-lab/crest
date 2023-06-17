@@ -1856,6 +1856,9 @@ subroutine parseflags(env,arg,nra)
           case ('singlepoint','sp')      !singlepoint calculation and ensemble sorting
           env%properties2 = 999
           env%pclean = .true.
+          case ('dipole')      !singlepoint calculation and dipole grepping
+          env%properties2 = 998
+          env%pclean = .true.
           case default
           env%properties2 = 0
           end select PROPARG
