@@ -305,7 +305,7 @@ program CREST
     do i = 1,env%npq
       j = env%pqueue(i)
       select case (j)
-      case (1:8,10,20,100)
+      case (1:8,10,20,100,998)
         call propcalc(conformerfile,j,env,tim)
       case (45)
         call tim%start(15,'entropy eval.')

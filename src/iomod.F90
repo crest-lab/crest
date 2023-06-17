@@ -421,6 +421,60 @@ contains !> MODULE PROCEDURES START HERE
     return
   end subroutine grepval
 
+
+!---------------------------------------------------------------------------
+! grepcntx: a grep subroutine that returns the entire line containing "str"
+! or the specified line after the occurence of "str", given
+! If str is not present, "bool" returns .false.
+!---------------------------------------------------------------------------
+  subroutine grepcntxt(fil,str,bool,line, context)
+    implicit none
+    integer :: ich,och
+    logical :: ex
+    logical,intent(out) :: bool
+    logical :: track
+    character(len=*),intent(in) :: fil
+    character(len=*),intent(in) :: str
+    character(len=*),intent(out) :: line 
+    integer,intent(in),optional :: context
+    integer :: cntxt
+    character(len=512) :: tmp
+    real(wp) :: val
+    integer :: io,itrack,reftrack
+    bool = .false.
+    track = .false.
+    val = 0.0d0
+    line = ''
+    itrack = 0
+    if(present(context))then
+      reftrack = max(0,context)
+    else
+      reftrack = 0 
+    endif
+    open (newunit=ich,file=fil)
+    do
+      read (ich,'(a)',iostat=io) tmp
+      if (io < 0) exit
+      io = index(tmp,str,.true.)
+      if (io .ne. 0) then
+        bool = .true.
+        track = .true.
+      end if
+      if(track)then
+        if(itrack == reftrack)then
+          line = trim(tmp)
+          exit 
+        else
+          itrack = itrack + 1
+        endif 
+      endif
+    end do
+    close (ich)
+    return
+  end subroutine grepcntxt
+
+
+
 !--------------------------------------------------------------------------------------
 ! Write a file with a single line (INT)
 !--------------------------------------------------------------------------------------
