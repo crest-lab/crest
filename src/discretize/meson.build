@@ -15,5 +15,7 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
+   'bessel.f90',
+   'probability.f90',
    'discretize.f90',
 )

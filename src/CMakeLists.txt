@@ -24,7 +24,9 @@ add_subdirectory("qcg")
 add_subdirectory("qmhelpers")
 add_subdirectory("graphs")
 add_subdirectory("rigidconf")
+add_subdirectory("discretize")
 add_subdirectory("legacy_algos")
+
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 

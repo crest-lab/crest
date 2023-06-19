@@ -23,6 +23,7 @@ subdir('parsing')
 subdir('qmhelpers')
 subdir('graphs') 
 subdir('rigidconf')
+subdir('discretize')
 subdir('legacy_algos')
 
 

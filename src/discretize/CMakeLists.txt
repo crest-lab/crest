@@ -17,6 +17,8 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
+  "${dir}/bessel.f90"
+  "${dir}/probability.f90"
   "${dir}/discretize.f90"
 )
 

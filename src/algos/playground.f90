@@ -77,46 +77,7 @@ subroutine crest_playground(env,tim)
   write(*,*) 
 !========================================================================================!
 
-  allocate(grad(3,mol%nat),source=0.0_wp)
-  calc = env%calc
-  
-
-  write(*,*) 'job type',calc%calcs(1)%id
-  write(*,*) 'etemp',calc%calcs(1)%etemp
-  write(*,*) 'chrg',calc%calcs(1)%chrg,'uhf', calc%calcs(i)%uhf
-  write(*,*) 'accuracy',calc%calcs(1)%accuracy
-  write(*,*) 'maxscc',calc%calcs(1)%maxscc
-  call engrad(mol,calc,energy,grad,io)
-  write(*,*) 'iostatus',io  
-
-  call write_wbo(calc%calcs(1)%wbo, cutoff=0.05_wp)
-
-   if(calc%calcs(1)%rdwbo .and. allocated(calc%calcs(1)%wbo))then
-   write(*,*)
-   write(*,*) 'WBOs:'
-   do i=1,mol%nat
-     do j=i+1,mol%nat
-       if(calc%calcs(1)%wbo(i,j) .gt. 0.05_wp)then
-         write(*,*) i,j,calc%calcs(1)%wbo(i,j)
-       endif
-     enddo
-   enddo
-   endif
-   write(*,*)
-   write (*,*) 'Energy: ',energy
-   write (*,*) 'Gradient:'
-   do i = 1,mol%nat
-      write (*,'(3f18.8)') grad(1:3,i)
-   end do
-   write(*,*)
-
-
-  deallocate(grad)
-
-!========================================================================================!
-  
-  maxgen = 5000 
-  call crest_crossing(env,maxgen,env%ensemblename,env%gcmaxparent)
+  call test_vonMises(env)
 
 
 !========================================================================================!

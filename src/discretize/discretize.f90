@@ -23,34 +23,6 @@
 !========================================================================================!
 !========================================================================================!
 subroutine discretize_trj(env,mol)
-!************************************************************
-!* Generate conformers in a straight-forward approach.
-!* Selected dihedral angles may have a set of possible values.
-!* All combinations of these values will be generated.
-!* The generation process follows a simple recursive strategy,
-!* which can be interpreted as setting up an undirected tree graph
-!* e.g., A,B,C,... being dihedral angles:
-!*
-!*  ref.
-!*   └──┐
-!*      ├──A1
-!*      │  ├──B1
-!*      ┊  │  ├──C1
-!*      ┊  │     ...
-!*      ┊  ├──B2
-!*      ┊  ┊  ├──C1
-!*      ┊        ...
-!*      ├─A2
-!*      │  ├──B1
-!*      ┊  ┊  ├─┄...
-!*      ┊     ...
-!*      etc.
-!*
-!* Input:
-!*    env  - CREST's systemdata
-!*    mol  - Input (reference) geometry
-!*
-!************************************************************
   use crest_parameters
   use crest_data
   use strucrd
@@ -152,89 +124,12 @@ subroutine discretize_trj(env,mol)
     !call print_zmat(stdout,mol%nat,mol%at,zmat,na,nb,nc,.true.)
    end if
 
-
-!========================================================================================!
-!>--- For now, I am limiting the max. number of dihedral angles to 10.
-!>    At some point we will have to think about what to allow.
-  if (ndieder > 10) then
-    error stop 'Too many dihedral angles. '
-  end if
-
 !========================================================================================!
   write (stdout,*)
-  call smallhead('Rule-based conformer genration')
-
-!>--- Allocate space for combination "fingerprints"
-  ncombi_f = float(dvalues(1))
-  do i = 2,ndieder
-    ncombi_f = ncombi_f*float(dvalues(i))
-  end do
-  if (ncombi_f .gt. float(huge(ncombi))) then
-    error stop 'cannot allocate combi()'
-  else
-    ncombi = nint(ncombi_f)
-    allocate (combi(ndieder,ncombi),source=1_int8)
-    write (stdout,'(">",1x,i0,a,i0,a)') ndieder,' dihedral angles resulting in ', &
-    &     ncombi,' possible conformers.'
-  end if
-
-!>--- Generate combinations recursively
-  write(stdout,'(">",1x,a)',advance='no') 'Generating combination references ...'
-  flush(stdout)
-  allocate (wcombi(ndieder),source=1_int8)
-  iteratord = 1
-  iteratork = 0
-  call generate_dihedral_combinations(ndieder,wcombi,ncombi,combi, &
-  &                    dvalues,iteratord,iteratork)
-  write(stdout,*) 'done.'
+  call smallhead('Discretization of dihedral angles')
 
 
-!========================================================================================!
-!>--- Calculate reference CNs
-  allocate (rcov(94),cnref(mol%nat),source=0.0_wp)
-  call setrcov(rcov)
-  call ycoord(mol%nat,rcov,mol%at,mol%xyz,cnref,100.0d0) !> refernce CNs
-  
-!>--- Generate all the conformers and check for CN clashes
-  allocate(zmat_new(3,mol%nat), source=0.0_wp)
-  allocate(sane(ncombi), source=.false.)
-  
-  open(newunit=ich, file=outputfile)
-  write(stdout,'(">",1x,a)',advance='no') 'Reconstructing structures and checking for CN clashes ...'
-  flush(stdout)
-  do i=1,ncombi
 
-!>--- Generate new zmat from zmat and combi entry
-    call construct_new_zmat(mol%nat,zmat,combi(:,i),ndieder,dvalues,dstep,ztod,zmat_new) 
-
-!>--- Reconstruct Cartesian coordinates for new zmat
-    call reconstruct_zmat_to_mol(mol%nat,mol%at,zmat_new,na,nb,nc,newmol)
-
-!>--- Check new structure for CN clashes w.r.t. reference and cthr
-    call ycoord2(newmol%nat,rcov,newmol%at,newmol%xyz,cnref,100.d0,cthr,sane(i)) !> CN clashes
-    sane(i) = .not.sane(i)
-
-!>--- Dump to file
-    if(sane(i))then
-    call newmol%append(ich)
-    endif
-    
-  enddo
-  write(stdout,*) 'done.'
-  close(ich) 
-
-  nremain = count(sane,1)
-  p = float(nremain)/float(ncombi) * 100.0_wp
-  write(stdout,'(">",1x,i0,1x,a,1x,i0,1x,a,f5.1,a)') nremain,'of',ncombi, &
-  & 'structures remaining (',p,'%). Clashes discarded.'
-  write(stdout,'(">",1x,a,1x,a)') 'Written to file',outputfile
-
-!========================================================================================!
-!>--- Post-processing
-
-  !=================================================!
-  !> IMPLEMENTATION (or subroutine call) GOES HERE <!
-  !=================================================!
 
 !========================================================================================!
   if (allocated(sane)) deallocate(sane)
@@ -251,48 +146,44 @@ subroutine discretize_trj(env,mol)
   if (allocated(zmat)) deallocate (zmat)
   if (allocated(Amat)) deallocate (Amat)
   return
-!========================================================================================!
-contains
-!========================================================================================!
-  recursive subroutine generate_dihedral_combinations(ndieder,wcombi,ncombi,combi, &
-  &                    dvalues,iteratord,iteratork)
-    implicit none
-    integer,intent(in) :: ndieder
-    integer(int8),intent(inout) :: wcombi(ndieder)
-    integer,intent(in) :: ncombi
-    integer(int8),intent(inout) :: combi(ndieder,ncombi)
-    integer,intent(in) :: dvalues(ndieder)
-    integer,intent(inout) :: iteratord,iteratork
-
-    integer :: i,j,k
-
-    if (iteratork > ncombi) return
-!>-- if we reached the last dihedral in the list, dump and return
-    if (iteratord > ndieder) then
-      iteratork = iteratork+1
-      combi(:,iteratork) = wcombi(:)
-      return
-    end if
-
-!>-- iterate the current dihedral angle (j)
-    j = iteratord
-    k = iteratord+1
-    do i = 1,dvalues(j)
-!>--- set the combination value to
-      wcombi(j) = int(i,int8)
-!>--- go to the next dihedral angle (k)
-      call generate_dihedral_combinations(ndieder,wcombi,ncombi,combi, &
- &                    dvalues,k,iteratork)
-!>--- reset after the last value for the current dihedral angle
-      if (i == dvalues(j)) then
-        wcombi(j) = 1_int8
-      end if
-    end do
-
-  end subroutine generate_dihedral_combinations
-!========================================================================================!
-
 end subroutine discretize_trj
+!========================================================================================!
+
+subroutine test_vonMises(env)
+   use crest_parameters
+   use crest_data
+   use probabilities_module
+   implicit none
+   type(systemdata),intent(inout) :: env
+   real(wp) :: theta,kappa,p,dpdt,dpdt2
+   real(wp) :: mu(3)
+
+   integer :: i,j,k,l
+   integer :: ich
+
+   !> Plot an example von Mises distribution
+   !mu(1:999) = 0.0_wp
+   !mu(1000:1999) = 120_wp*degtorad
+   !mu(2000:3000) = 240_wp*degtorad
+   mu(1) = 0.0_wp
+   mu(2) = 120_wp*degtorad
+   mu(3) = 240_wp*degtorad
+
+   kappa = 100.0_wp
+
+   theta = 0.0_wp
+
+   open(newunit=ich,file='vonmises.txt')
+   do i=1,360
+     theta = theta + degtorad
+    call vonMises(theta,kappa,mu,p,dpdt,dpdt2)
+    !write(ich,'(4f16.8)') theta*radtodeg,p,dpdt,dpdt2
+    write(ich,'(3f16.8)') p,dpdt,dpdt2
+   enddo
+   close(ich)
+
+end subroutine test_vonMises
+
 !========================================================================================!
 !========================================================================================!
 
