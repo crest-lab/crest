@@ -149,38 +149,37 @@ subroutine discretize_trj(env,mol)
 end subroutine discretize_trj
 !========================================================================================!
 
-subroutine test_vonMises(env)
+subroutine test_vonMises(env,kappa,n,mu)
    use crest_parameters
    use crest_data
    use probabilities_module
+   use discretize_module
    implicit none
    type(systemdata),intent(inout) :: env
-   real(wp) :: theta,kappa,p,dpdt,dpdt2
-   real(wp) :: mu(3)
-
-   integer :: i,j,k,l
+   integer,intent(in) :: n
+   real(wp),intent(in) :: mu(n)
+   real(wp),intent(in) ::  kappa
+   real(wp) :: theta,p,dpdt,dpdt2,numdpdt,pp,pm,tmp
+   real(wp),parameter :: d=1.0d-1
+   integer :: i,j,k,l, NM
    integer :: ich
 
    !> Plot an example von Mises distribution
-   !mu(1:999) = 0.0_wp
-   !mu(1000:1999) = 120_wp*degtorad
-   !mu(2000:3000) = 240_wp*degtorad
-   mu(1) = 0.0_wp
-   mu(2) = 120_wp*degtorad
-   mu(3) = 240_wp*degtorad
-
-   kappa = 100.0_wp
 
    theta = 0.0_wp
-
    open(newunit=ich,file='vonmises.txt')
    do i=1,360
      theta = theta + degtorad
     call vonMises(theta,kappa,mu,p,dpdt,dpdt2)
     !write(ich,'(4f16.8)') theta*radtodeg,p,dpdt,dpdt2
-    write(ich,'(3f16.8)') p,dpdt,dpdt2
+     write(ich,'(3f16.8)') p,dpdt,dpdt2
    enddo
    close(ich)
+
+  call probability_count_minima(0.0_wp,2.0*pi,kappa,mu,NM) 
+  write(*,*)
+  write(*,*) 'Distirbution has ',NM,' minima'
+  write(*,*)  
 
 end subroutine test_vonMises
 

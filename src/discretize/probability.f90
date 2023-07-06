@@ -137,7 +137,6 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine vonMises_fraction
 
 !========================================================================================!
-
   subroutine vonMises_avg(theta,kappa,mu,p,dpdt,dpdt2)
 !********************************************************************
 !* The subroutine computes a smooth probability density
@@ -171,6 +170,7 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: Nf,skappa
     real(wp) :: tmp,tmp2,tmp3
     real(wp) :: tmpdpdt,tmpdpdt2
+    real(wp) :: t1,t2,t3
 
     N = size(mu,1)
     Nf = float(N)
@@ -182,18 +182,19 @@ contains  !> MODULE PROCEDURES START HERE
     tmpdpdt2 = 0.0_wp
 
     skappa = vonMises_scale(kappa,Nf)
-    tmp = 2.0_wp*pi*Nf*bessel_In(0,skappa)
+    tmp = 2.0_wp*pi*Nf*bessel_I0(skappa)
     tmp = 1.0_wp/tmp
 
     do i = 1,N
       tmp2 = exp(skappa*cos(theta-mu(i)))
       p = p+tmp*tmp2
       !> first derivative
-      tmp3 = tmp*skappa*sin(mu(i)-theta)*exp(skappa*cos(mu(i)-theta))
+      t1 = cos(mu(i)-theta)
+      t2 = sin(mu(i)-theta)
+      tmp3 = tmp*skappa*t2*exp(skappa*t1)
       tmpdpdt = tmpdpdt+tmp3
       !> second derivative
-      tmp3 = tmp*skappa*exp(skappa*cos(mu(i)-theta))*(-cos(mu(i)-theta) &
-      &      +skappa*(sin(mu(i)-theta)**2))
+      tmp3 = tmp*skappa*exp(skappa*t1)*(-t1+skappa*(t2*t2))
       tmpdpdt2 = tmpdpdt2+tmp3
     end do
 
@@ -202,6 +203,7 @@ contains  !> MODULE PROCEDURES START HERE
 
   end subroutine vonMises_avg
 
+!========================================================================================!
   function vonMises_scale(kappa,Nf) result(skappa)
 !*****************************************************************
 !* Computes the modified concentration parameter κ' from κ
