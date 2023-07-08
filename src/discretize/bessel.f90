@@ -35,7 +35,10 @@ contains  !> MODULE PROCEDURES START HERE
 
 !************************************************************
 !* Modified Bessel function of first kind routines
-!* adapted from Fortran Numerical Recepies, Chapter 6.6
+!* adapted from 
+!*
+!*      Fortran Numerical Recepies, Chapter 6.6
+!*
 !************************************************************
   function bessel_I0(x) result(bessel)
 !************************************************************

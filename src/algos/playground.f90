@@ -95,6 +95,8 @@ subroutine crest_playground(env,tim)
 
   call test_vonMises(env,kappa,3000,mu)
 
+  call discretize_trj(env)
+
 !========================================================================================!
   call tim%stop(14)
   return

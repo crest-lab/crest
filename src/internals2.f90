@@ -78,7 +78,6 @@
     deallocate (prev,dist)
 
     !>-- finally, generate zmatrix and save to geo
-    !call XYZGEO(xyz,nat,NA,NB,NC,1.0_wp,geo)
     call XYZGEO2(nat,xyz,NA,NB,NC,1.0_wp,GEO)
     RETURN
   CONTAINS
@@ -292,6 +291,24 @@
 
 !========================================================================================!
   SUBROUTINE GMETRY2(nat,geo,coord,na,nb,nc)
+!***********************************************************************
+!*
+!*   GMETRY2 converts coordinates from internal to cartesian
+!*
+!*    INPUT:
+!*      nat    = number of atoms
+!*      geo    = array of internal coordinates (distance in Bohr, 2x angle in rad)
+!*      NA     = NUMBERS OF ATOM TO WHICH ATOMS ARE RELATED
+!*               BY DISTANCE
+!*      NB     = NUMBERS OF ATOM TO WHICH ATOMS ARE RELATED
+!*               BY ANGLE
+!*      NC     = NUMBERS OF ATOM TO WHICH ATOMS ARE RELATED
+!*               BY DIHEDRAL
+!*
+!*    OUTPUT:
+!*      COORD  = cartesian coordinates
+!*
+!***********************************************************************
     use crest_parameters
     implicit none
     integer,intent(in)   :: nat
@@ -310,19 +327,19 @@
 
     !COORD(:,:) = 0.0_wp
     COORD(:,:) = huge(tmp)
-    allocate (taken(nat))
-    taken(:) = .false.
+    !allocate (taken(nat))
+    !taken(:) = .false.
 
 !>--- first atom at origin
     COORD(1:3,1) = 0.0_wp
-    taken(1) = .true.
+    !taken(1) = .true.
 !>--- second atom
     do i = 2,nat
       if (na(i) == 1.and.nb(i) == 0.and.nc(i) == 0) then
         COORD(1,i) = GEO(1,i)
         COORD(2,i) = 0.0_wp
         COORD(3,i) = 0.0_wp
-        taken(i) = .true.
+        !taken(i) = .true.
       else
         cycle
       end if
@@ -339,7 +356,7 @@
         end if
         COORD(2,i) = GEO(1,i)*SIN(GEO(2,i))
         COORD(3,i) = 0.0_wp
-        taken(i) = .true.
+        !taken(i) = .true.
       else
         cycle
       end if
@@ -349,10 +366,14 @@
    TAKELOOP : do while ( any(COORD(:,:) > verylarge))
       DO I = 2,nat
 !>--- CYCLE the atom if already generated
-        if (taken(i)) cycle
+        !if (taken(i)) cycle
+        if (COORD(1,i) < verylarge ) cycle
 !>--- CYCLE if any of the depending atoms have not been generated
-        if ((.not.taken(NA(i))).or.(.not.taken(NB(i))) &
-       &   .or.(.not.taken(NC(i)))) cycle
+       ! if ((.not.taken(NA(i))).or.(.not.taken(NB(i))) &
+       !&   .or.(.not.taken(NC(i)))) cycle
+        if ( coord(1,NA(i)) > verylarge .or. &
+        &    coord(1,NB(i)) > verylarge .or. &
+        &    coord(1,NC(i)) > verylarge) cycle
 
         COSA = COS(GEO(2,I))
         MB = NB(I)
@@ -440,13 +461,13 @@
         COORD(2,I) = YQD+COORD(2,MC)
         COORD(3,I) = ZQD+COORD(3,MC)
 
-        taken(I) = .true.
+        !taken(I) = .true.
       END DO
     end do TAKELOOP
 100 CONTINUE
 110 CONTINUE
 
-    deallocate (taken)
+    !deallocate (taken)
     RETURN
   END SUBROUTINE GMETRY2
 

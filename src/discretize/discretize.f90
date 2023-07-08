@@ -22,17 +22,18 @@
 
 !========================================================================================!
 !========================================================================================!
-subroutine discretize_trj(env,mol)
+subroutine discretize_trj(env)
   use crest_parameters
   use crest_data
   use strucrd
   use zdata,only:readwbo
   use adjacency
+  use discretize_module
   implicit none
   !> INPUT/OUTPUT
   type(systemdata),intent(inout) :: env
-  type(coord),intent(in) :: mol  !> by convention mol is in Bohrs
   !> LOCAL
+  type(coord) :: mol  !> by convention mol is in Bohrs
   real(wp),allocatable :: wbo(:,:)
   integer,allocatable  :: na(:),nb(:),nc(:)
   real(wp),allocatable :: zmat(:,:),zmat_new(:,:)
@@ -42,38 +43,26 @@ subroutine discretize_trj(env,mol)
   !> number of dihedral angles that are adjusted
   !> this defines the overall number of conformers
   integer :: ndieder
-  !> the number of values each of the dihedral angles
-  !> can assume (equally spaced in -180°< ϕ <180° )
-  !> i.e., if dvalues(i)=3, the dihedral i will have 3 defined values,
-  !> ϕ (as in the input geometry), ϕ+120°, and ϕ+240°
-  integer,allocatable :: dvalues(:)
-  !> the step size for each dihedral angle, in Radians
-  real(wp),allocatable :: dstep(:)
-  !> mapping zmat entry to selected dihedral angles. multiple zmat entries
-  !> may coincide with the same bond, making this mapping necessary.
-  integer,allocatable :: ztod(:)
-  !> saved combinations of dihedral angles in RAM. We first generate
-  !> these "fingerprints" using the recursive strategy, and only
-  !> later reconstruct the molecular structures. This allows running
-  !> the structure checks in parallel
   integer :: ncombi
   real(wp) :: ncombi_f
-  integer(int8),allocatable :: combi(:,:)
-  !> work space array for the recursive routine and iteration variables
-  integer(int8),allocatable :: wcombi(:)
-  integer :: iteratord, iteratork
-
   !> data for new structure and reference checks
-  logical,allocatable :: sane(:)
-  type(coord) :: newmol
-  real(wp),allocatable :: rcov(:),cnref(:)
   real(wp) :: cthr,p 
   integer :: nremain
+  !> trajectory data
+  integer :: nall,nat
+  integer,allocatable :: trjat(:)
+  real(wp),allocatable :: trjxyz(:,:,:) 
+  real(wp),allocatable :: trje(:)
+  real(wp),allocatable :: trjzmat(:,:,:)
 
-  character(len=19),parameter :: outputfile = "crest_rigidconf.xyz"
+  !> discretization data  
+  type(struc_info),allocatable :: discinfo(:)
 
 !========================================================================================!
    cthr = 0.3d0 !> CN clash threshold
+
+!>--- get reference mol
+   call env%ref%to( mol ) 
 
 !========================================================================================!
 !>--- generate the topology information
@@ -101,44 +90,48 @@ subroutine discretize_trj(env,mol)
 !--- Note: zmat angles (columns 2 and 3) are in Radians
 
 !========================================================================================!
-!>--- analyze dihedral angles encoded in the zmatrix to select the ones to vary
-!>    and how to vary them
-
-  !=================================================!
-  !> IMPLEMENTATION (or subroutine call) GOES HERE <!
-  !=================================================!
-
-!>--- fallback implementation for testing: All single-bonds with a corresponding
-!>    entry in the zmatrix (this excludes terminal atoms, e.g. H)
-  if (.true.) then
+!>--- analyze dihedral angles encoded in the zmatrix
+   !TODO this is also where to select dihedral angles to put into the
+   !discretization routines. For now I just take any
+   if(.true.)then
     call rigidconf_count_fallback(mol%nat,na,nb,nc,wbo,ndieder)
-    if (ndieder < 1) stop 'no dihedral angles selected!'
-    allocate (dvalues(ndieder),source=0)
-    allocate (dstep(ndieder),source=0.0_wp)
-    allocate (ztod(mol%nat),source=0)
-    call rigidconf_analyze_fallback(env,mol,zmat,na,nb,nc,wbo, &
-    &                               ndieder,dvalues,dstep,ztod)
-    
-    !call prune_zmat_dihedrals(mol%nat, mol%xyz, zmat, na,nb,nc, ztod )
-    !call smallhead('New internal coordinates:')
-    !call print_zmat(stdout,mol%nat,mol%at,zmat,na,nb,nc,.true.)
+    if (ndieder < 1) stop 'no dihedral angles detected!'
    end if
+  
 
 !========================================================================================!
   write (stdout,*)
-  call smallhead('Discretization of dihedral angles')
+  call smallhead('Reading trajectory')
+  !>---- read the input ensemble
+  call rdensembleparam(env%ensemblename,nat,nall)
+  if (nall .lt. 1) return
+  allocate (trjxyz(3,nat,nall),trjat(nat),trje(nall))
+  call rdensemble(env%ensemblename,nat,nall,trjat,trjxyz,trje)
+  write (stdout,'(a,3(i0,a))') '> ',nall,' structures with ',nat,' atoms and ', &
+  & ndieder,' dihedral angles'
 
-
-
+  allocate(trjzmat(3,nat,nall),source=0.0_wp)
+  write (stdout,'(a)',advance='no') '> converting to internal coordinates ... '
+  flush(stdout)
+  do i=1,nall
+     call XYZGEO2(nat,trjxyz,NA,NB,NC,1.0_wp,zmat)  
+     trjzmat(:,:,i) = zmat(:,:)
+  enddo
+  write (stdout,'(a)') 'done.'
 
 !========================================================================================!
-  if (allocated(sane)) deallocate(sane)
+  write (stdout,*)
+  call smallhead('Analyzing dihedral angle distributions')
+  allocate(discinfo(ndieder))
+  do j=1,ndieder
+   
+  enddo
+
+!========================================================================================!
+  if (allocated(trjat)) deallocate(trjat)
+  if (allocated(trjxyz)) deallocate(trjxyz)
+  if(allocated(trjzmat)) deallocate(trjzmat)
   if (allocated(zmat_new)) deallocate(zmat_new) 
-  if (allocated(wcombi)) deallocate(wcombi)
-  if (allocated(combi)) deallocate (combi)
-  if (allocated(dvalues)) deallocate (dvalues)
-  if (allocated(dstep)) deallocate (dstep)
-  if (allocated(ztod)) deallocate (ztod)
   if (allocated(wbo)) deallocate (wbo)
   if (allocated(na)) deallocate (na)
   if (allocated(nb)) deallocate (nb)
@@ -163,6 +156,7 @@ subroutine test_vonMises(env,kappa,n,mu)
    real(wp),parameter :: d=1.0d-1
    integer :: i,j,k,l, NM
    integer :: ich
+   type(struc_info) :: disctest   
 
    !> Plot an example von Mises distribution
 
@@ -176,7 +170,9 @@ subroutine test_vonMises(env,kappa,n,mu)
    enddo
    close(ich)
 
-  call probability_count_minima(0.0_wp,2.0*pi,kappa,mu,NM) 
+  !call probability_count_minima(0.0_wp,2.0*pi,kappa,mu,NM) 
+  call disctest%setup(kappa,mu)
+  NM = disctest%nmax
   write(*,*)
   write(*,*) 'Distirbution has ',NM,' minima'
   write(*,*)  

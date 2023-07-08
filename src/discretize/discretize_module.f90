@@ -34,6 +34,7 @@ module discretize_module
 
     !> discretized data
     integer :: nmax
+    real(wp),allocatable :: maxpos(:)
     real(wp),allocatable :: maxintv(:,:)
     real(wp),allocatable :: maxprob(:)
 
