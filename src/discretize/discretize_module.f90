@@ -38,9 +38,13 @@ module discretize_module
     real(wp),allocatable :: maxintv(:,:)
     real(wp),allocatable :: maxprob(:)
 
+    !> marginal entropy
+    real(wp) :: S
+
   contains
     procedure :: deallocate => struc_info_deallocate
     procedure :: setup => struc_info_setup
+    procedure :: entropy => struc_marginal_entropy
 
   end type struc_info
 !******************************************************************************!
@@ -101,7 +105,7 @@ contains  !> MODULE PROCEDURES START HERE
 
   subroutine probability_locate_minima(R1,R2,kappa,mu,N,minpos,ngrid)
 !****************************************************************
-!* The subroutine locates the N minima expected for a probability 
+!* The subroutine locates the N minima expected for a probability
 !* density within the interval [R1,R2] via a grid-based approach
 !****************************************************************
     implicit none
@@ -136,8 +140,8 @@ contains  !> MODULE PROCEDURES START HERE
       if (dl < 0.0_wp.and.dl2 >= 0.0_wp) then
         k = k+1
         !> TODO implement refinement function here
-        tmin = theta - d*0.5_wp !> for now just place it between theta and theta+d
-        minpos(k) = tmin     
+        tmin = theta-d*0.5_wp !> for now just place it between theta and theta+d
+        minpos(k) = tmin
       end if
       p_old = p
       dpdt_old = dpdt
@@ -145,6 +149,48 @@ contains  !> MODULE PROCEDURES START HERE
     end do
 
   end subroutine probability_locate_minima
+
+!========================================================================================!
+  subroutine probability_locate_maximum(R1,R2,kappa,mu,N,maxpos,ngrid)
+!****************************************************************
+!* The subroutine locates the maximum for a probability
+!* density within the interval [R1,R2] via a grid-based approach
+!****************************************************************
+    implicit none
+    !> INPUT
+    real(wp),intent(in) :: R1,R2
+    real(wp),intent(in) :: kappa
+    real(wp),intent(in) :: mu(:)
+    integer,intent(in)  :: N
+    integer,intent(in),optional :: ngrid
+    !> OUTPUT
+    real(wp),intent(out) :: maxpos
+    !> LOCAL
+    integer :: ng,i,k
+    real(wp) :: diff,d,theta,dl,dl2,tmin
+    real(wp) :: p,p_old,dpdt,dpdt_old,dpdt2,dpdt2_old
+    real(wp) :: maxref
+    if (present(ngrid)) then
+      ng = ngrid
+    else
+      ng = 1000
+    end if
+    maxpos = 0.0_wp
+    k = 0
+    diff = abs(R1-R2)
+    d = diff/float(ng)
+    theta = min(R1,R2)
+    maxref = 0.0_wp
+    do i = 1,ng
+      call vonMises(theta,kappa,mu,p)
+      if (p > maxref) then
+        maxref = p
+        maxpos = theta
+      end if
+      theta = theta+d
+    end do
+
+  end subroutine probability_locate_maximum
 
 !========================================================================================!
   subroutine probability_num_int(R1,R2,kappa,mu,norm,integral,ngrid)
@@ -214,64 +260,94 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-subroutine struc_info_deallocate(self)
-   implicit none
-   class(struc_info) :: self
+  subroutine struc_info_deallocate(self)
+    implicit none
+    class(struc_info) :: self
 
-   self%ndata = 0
-   if(allocated(self%data)) deallocate(self%data)
+    self%ndata = 0
+    if (allocated(self%data)) deallocate (self%data)
 
-   self%nmax = 0
-   if(allocated(self%maxintv)) deallocate(self%maxintv)
-   if(allocated(self%maxprob)) deallocate(self%maxprob)
-end subroutine struc_info_deallocate
+    self%nmax = 0
+    if (allocated(self%maxintv)) deallocate (self%maxintv)
+    if (allocated(self%maxprob)) deallocate (self%maxprob)
+  end subroutine struc_info_deallocate
 
-subroutine struc_info_setup(self,kappa,mu)
-   implicit none
-   class(struc_info) :: self
-   real(wp),intent(in) :: kappa
-   real(wp),intent(in) :: mu(:)
-   integer :: N,nmin
-   real(wp) :: norm,R1,R2
-   real(wp),allocatable :: minpos(:)
-   integer :: i,j,k
+  subroutine struc_info_setup(self,kappa,mu)
+    implicit none
+    class(struc_info) :: self
+    real(wp),intent(in) :: kappa
+    real(wp),intent(in) :: mu(:)
+    integer :: N,nmin
+    real(wp) :: norm,R1,R2
+    real(wp),allocatable :: minpos(:)
+    integer :: i,j,k,ngrid
+    real(wp) :: integral,maxpos
 
-   call self%deallocate()
+    call self%deallocate()
 
-   !> set data
-   N = size(mu,1)
-   self%ndata = N
-   allocate(self%data(N))
-   self%data(:) = mu(:)
+    !> set data
+    N = size(mu,1)
+    self%ndata = N
+    allocate (self%data(N))
+    self%data(:) = mu(:)
 
-   !> find minima
-   R1 = 0.0_wp
-   R2 = 2.0_wp*pi
-   call probability_count_minima(R1,R2,kappa,mu,nmin)
-   allocate(minpos(nmin))
-   call probability_locate_minima(R1,R2,kappa,mu,nmin,minpos) 
+    !> find minima
+    R1 = 0.0_wp
+    R2 = 2.0_wp*pi
+    call probability_count_minima(R1,R2,kappa,mu,nmin)
+    allocate (minpos(nmin))
+    call probability_locate_minima(R1,R2,kappa,mu,nmin,minpos)
 
-   !> allocate intervals
-   self%nmax = nmin !> nmin = nmax due to periodicity
-   allocate(self%maxintv(2,nmin))
-   allocate(self%maxprob(nmin))
-   do i=1,nmin
- 
-   enddo  
+    !> allocate intervals
+    self%nmax = nmin !> nmin = nmax due to periodicity
+    allocate (self%maxintv(2,nmin))
+    allocate (self%maxprob(nmin),self%maxpos(nmin))
+    do i = 1,nmin
+      self%maxintv(2,i) = minpos(i)
+      if (i == 1) then
+        self%maxintv(1,i) = minpos(nmin)-2.0_wp*pi
+      else
+        self%maxintv(1,i) = minpos(i+1)
+      end if
+    end do
 
-   !> get normalization constant
-   call probability_num_norm(R1,R2,kappa,mu,norm)
+    !> get normalization constant
+    ngrid = 36000
+    call probability_num_norm(R1,R2,kappa,mu,norm,ngrid)
 
+    !> integrate to get probabilities and get maxima positions
+    ngrid = nint(float(nmin)/float(ngrid))
+    do i = 1,nmin
+      R1 = self%maxintv(1,i)
+      R2 = self%maxintv(2,i)
+      call probability_num_int(R1,R2,kappa,mu,norm,integral,ngrid)
+      self%maxprob(i) = integral
+      call probability_locate_maximum(R1,R2,kappa,mu,N,maxpos)
+      self%maxpos(i) = maxpos
+    end do
 
-   !> integrate to get probabilities#
-   do i = 1,nmin
+  end subroutine struc_info_setup
 
-   enddo
-   
+  subroutine struc_marginal_entropy(self,entropy)
+    implicit none
+    class(struc_info) :: self
+    real(wp),intent(out),optional :: entropy
+    real(wp) :: S,p
+    integer :: i
+    real(wp),parameter :: R = 8.31446261815324_wp/4.184_wp
+    S = 0.0_wp
 
-end subroutine struc_info_setup
+    if (allocated(self%maxprob)) then
+      do i = 1,self%nmax
+        p = self%maxprob(i)
+        S = S-R*p*log(p)
+      end do
+    end if
 
+    self%S = S
+    if (present(entropy)) entropy = S
 
+  end subroutine struc_marginal_entropy
 
 !========================================================================================!
 !========================================================================================!
