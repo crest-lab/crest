@@ -28,6 +28,8 @@ subroutine discretize_trj(env)
   use strucrd
   use zdata,only:readwbo
   use adjacency
+  use INTERNALS_mod
+  use rigidconf_analyze
   use discretize_module
   implicit none
   !> INPUT/OUTPUT
@@ -38,7 +40,10 @@ subroutine discretize_trj(env)
   integer,allocatable  :: na(:),nb(:),nc(:)
   real(wp),allocatable :: zmat(:,:),zmat_new(:,:)
   integer,allocatable  :: Amat(:,:)
-  integer :: i,j,k,l,ich
+  integer,allocatable  :: ztod(:)
+  integer,allocatable  :: drep(:)
+  integer :: zmax
+  integer :: i,j,k,l,m,ich
   character(len=124) :: stmp
   !> number of dihedral angles that are adjusted
   !> this defines the overall number of conformers
@@ -94,10 +99,21 @@ subroutine discretize_trj(env)
    !TODO this is also where to select dihedral angles to put into the
    !discretization routines. For now I just take any
    if(.true.)then
-    call rigidconf_count_fallback(mol%nat,na,nb,nc,wbo,ndieder)
+    zmax = mol%nat
+    allocate(ztod(zmax), source=0)
+    call rigidconf_count_fallback(mol%nat,na,nb,nc,wbo,ndieder,ztod)
     if (ndieder < 1) stop 'no dihedral angles detected!'
-   end if
-  
+
+   allocate(drep(ndieder), source=0)
+   do j=1,ndieder
+   do i=1,zmax
+     if(ztod(i) == j)then
+       drep(j) = i; exit
+     endif
+   enddo   
+   enddo
+   endif
+
 
 !========================================================================================!
   write (stdout,*)
@@ -124,7 +140,8 @@ subroutine discretize_trj(env)
   call smallhead('Analyzing dihedral angle distributions')
   allocate(discinfo(ndieder))
   do j=1,ndieder
-   
+     m = drep(i) 
+     !...
   enddo
 
 !========================================================================================!

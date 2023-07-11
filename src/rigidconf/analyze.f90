@@ -20,8 +20,21 @@
 ! under the Open-source software LGPL-3.0 Licencse.
 !================================================================================!
 
+module rigidconf_analyze
+  use crest_parameters
+  use crest_data
+  use strucrd
+  use geo
+  use INTERNALS_mod
+  implicit none
+  public
+
 !========================================================================================!
 !========================================================================================!
+contains !> MODULE PROCEDURES START HERE
+!========================================================================================!
+!========================================================================================!
+
 subroutine rigidconf_analyze_fallback(env,mol,zmat,na,nb,nc,wbo, &
 &                                     ndieder,dvalues,dstep,ztod )
 !************************************************************
@@ -39,9 +52,6 @@ subroutine rigidconf_analyze_fallback(env,mol,zmat,na,nb,nc,wbo, &
 !*    dvalues, dstep, ztod
 !*   
 !************************************************************
-  use crest_parameters
-  use crest_data
-  use strucrd
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -89,15 +99,13 @@ subroutine rigidconf_analyze_fallback(env,mol,zmat,na,nb,nc,wbo, &
   if(allocated(Amap)) deallocate(Amap)
   return
 end subroutine rigidconf_analyze_fallback
+
 !========================================================================================!
-subroutine rigidconf_count_fallback(nat,na,nb,nc,wbo,ndieder)
+subroutine rigidconf_count_fallback(nat,na,nb,nc,wbo,ndieder,ztod)
 !************************************************************
 !* Count number of unique single-bond dihedral angles that
 !* correspond to an entry in the zmat.
 !************************************************************
-  use crest_parameters
-  use crest_data
-  use strucrd
   implicit none
   !> INPUT
   integer,intent(in)  :: nat
@@ -105,6 +113,7 @@ subroutine rigidconf_count_fallback(nat,na,nb,nc,wbo,ndieder)
   real(wp),intent(in) :: wbo(nat,nat)
   !> OUTPUT
   integer,intent(out)  :: ndieder
+  integer,intent(out),optional :: ztod(nat)
   !> LOCAL
   integer :: V,i,j,k,l,m
   integer,allocatable :: Amap(:,:)
@@ -115,6 +124,7 @@ subroutine rigidconf_count_fallback(nat,na,nb,nc,wbo,ndieder)
   allocate(Amap(V,V), source=0) !> mapping matrix
   k = 0
   do i=1,V
+    m = 0
     if( nc(i) > 0 ) then !> to skip the three incomplete zmate entries
       j=na(i)
       l=nb(i)
@@ -129,6 +139,7 @@ subroutine rigidconf_count_fallback(nat,na,nb,nc,wbo,ndieder)
         endif
       endif  
     endif
+    if(present(ztod)) ztod(i) = m
   enddo
   ndieder = k
   if(allocated(Amap)) deallocate(Amap)
@@ -143,8 +154,6 @@ subroutine prune_zmat_dihedrals(nat, xyz, zmat, na,nb,nc, ztod )
 !* to the same bond and replace them with internal
 !* dihedral angles. There you go, Christoph...
 !********************************************************
-   use crest_parameters
-   use geo
    implicit none
    integer,intent(in)  :: nat
    real(wp),intent(in) :: xyz(3,nat)
@@ -180,3 +189,4 @@ subroutine prune_zmat_dihedrals(nat, xyz, zmat, na,nb,nc, ztod )
 end subroutine prune_zmat_dihedrals
 !========================================================================================!
 !========================================================================================!
+end module rigidconf_analyze

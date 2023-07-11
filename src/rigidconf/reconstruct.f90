@@ -70,6 +70,7 @@ end subroutine construct_new_zmat
 subroutine reconstruct_zmat_to_mol(nat,at,zmat,na,nb,nc,mol)
    use crest_parameters
    use strucrd
+   use INTERNALS_mod, only: GMETRY2
    implicit none
    !> INPUT
    integer,intent(in)  :: nat

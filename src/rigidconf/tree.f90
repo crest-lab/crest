@@ -56,6 +56,8 @@ subroutine rigidconf_tree(env,mol)
   use strucrd
   use zdata,only:readwbo
   use adjacency
+  use INTERNALS_mod
+  use rigidconf_analyze
   implicit none
   !> INPUT/OUTPUT
   type(systemdata),intent(inout) :: env
