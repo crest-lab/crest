@@ -191,45 +191,6 @@ subroutine discretize_trj(env)
   if (allocated(Amat)) deallocate (Amat)
   return
 end subroutine discretize_trj
-!========================================================================================!
-
-subroutine test_vonMises(env,kappa,n,mu)
-  use crest_parameters
-  use crest_data
-  use probabilities_module
-  use discretize_module
-  implicit none
-  type(systemdata),intent(inout) :: env
-  integer,intent(in) :: n
-  real(wp),intent(in) :: mu(n)
-  real(wp),intent(in) ::  kappa
-  real(wp) :: theta,p,dpdt,dpdt2,numdpdt,pp,pm,tmp
-  real(wp),parameter :: d = 1.0d-1
-  integer :: i,j,k,l,NM
-  integer :: ich
-  type(struc_info) :: disctest
-
-  !> Plot an example von Mises distribution
-
-  theta = 0.0_wp
-  open (newunit=ich,file='vonmises.txt')
-  do i = 1,360
-    theta = theta+degtorad
-    call vonMises(theta,kappa,mu,p,dpdt,dpdt2)
-    !write(ich,'(4f16.8)') theta*radtodeg,p,dpdt,dpdt2
-    write (ich,'(3f16.8)') p,dpdt,dpdt2
-  end do
-  close (ich)
-
-  !call probability_count_minima(0.0_wp,2.0*pi,kappa,mu,NM)
-  call disctest%setup(kappa,mu)
-  NM = disctest%nmax
-  write (*,*)
-  write (*,*) 'Distirbution has ',NM,' minima'
-  write (*,*)
-
-end subroutine test_vonMises
 
 !========================================================================================!
 !========================================================================================!
-

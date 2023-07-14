@@ -20,7 +20,6 @@ list(APPEND srcs
   "${dir}/bessel.f90"
   "${dir}/probability.f90"
   "${dir}/discretize_module.f90"
-  "${dir}/mie.f90"
   "${dir}/discretize.f90"
 )
 

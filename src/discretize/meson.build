@@ -18,6 +18,5 @@ srcs += files(
    'bessel.f90',
    'probability.f90',
    'discretize_module.f90',
-   'mie.f90',
    'discretize.f90',
 )

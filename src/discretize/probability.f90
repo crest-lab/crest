@@ -25,6 +25,8 @@ module probabilities_module
   private
 
   real(wp),parameter :: pi = acos(0.0_wp)*2.0_wp
+  real(wp),parameter,public :: radtodeg = 180.0_wp / pi
+  real(wp),parameter,public :: degtorad = 1.0_wp / radtodeg
 
   public :: normal_dist
 
@@ -33,6 +35,7 @@ module probabilities_module
     module procedure vonMises_fraction
     module procedure vonMises_avg
   end interface vonMises
+  public :: vonMises_plot
 
 !========================================================================================!
 !========================================================================================!
@@ -234,6 +237,36 @@ contains  !> MODULE PROCEDURES START HERE
     skappa = skappa*(1.0_wp/t1)
     skappa = skappa**(2.0_wp/5.0_wp)
   end function vonMises_scale
+
+
+!========================================================================================!
+
+  subroutine vonMises_plot(kappa,mu,n)
+!*******************************************************
+!* Plot an example von Mises distribution with n points
+!*******************************************************  
+  implicit none
+  integer,intent(in) :: n
+  real(wp),intent(in) :: mu(:)
+  real(wp),intent(in) ::  kappa
+  real(wp) :: theta,p,dpdt,dpdt2,numdpdt,pp,pm,tmp
+  real(wp) :: d
+  integer :: i,j,k,l,NM
+  integer :: ich
+
+  d = (2.0_wp*pi)/float(n)
+  theta = 0.0_wp
+  open (newunit=ich,file='vonmises.txt')
+  do i = 1,n
+    call vonMises(theta,kappa,mu,p,dpdt,dpdt2)
+    write (ich,'(2f16.8)') theta,p
+    theta = theta+d
+  end do
+  close (ich)
+
+end subroutine vonMises_plot
+
+  
 
 !========================================================================================!
 !========================================================================================!
