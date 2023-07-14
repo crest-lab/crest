@@ -222,6 +222,18 @@ if get_option('WITH_GFNFF')
 endif
 
 
+# XHCFF
+if get_option('WITH_XHCFF')
+ add_project_arguments('-DWITH_XHCFF', language: 'fortran')
+ xhcff_dep = dependency(
+   'xhcff',
+   fallback: ['xhcff', 'xhcff_dep'],
+   default_options: ['default_library=static'],
+ )
+ exe_deps += xhcff_dep
+endif
+
+
 ## ========================================= ##
 ## populate the data for crest_metadata.fh
 ## ========================================= ##  
@@ -251,7 +263,8 @@ config = configuration_data({
   'gfn0var': get_option('WITH_GFN0'),
   'gfnffvar': get_option('WITH_GFNFF'), 
   'tblitevar': get_option('WITH_TBLITE'),
+  'xhcffvar': get_option('WITH_XHCFF'),
 })
-message(get_option('WITH_TOMLF'))
+#message(get_option('WITH_TOMLF'))
 
 
