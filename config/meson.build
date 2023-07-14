@@ -227,7 +227,7 @@ if get_option('WITH_XHCFF')
  add_project_arguments('-DWITH_XHCFF', language: 'fortran')
  xhcff_dep = dependency(
    'xhcff',
-   fallback: ['xhcff', 'xhcff_dep'],
+   fallback: ['xhcff', 'xhcfflib_dep'],
    default_options: ['default_library=static'],
  )
  exe_deps += xhcff_dep

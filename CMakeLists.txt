@@ -107,6 +107,17 @@ if(WITH_GFNFF)
   )
 endif()
 
+# XHCFF
+if(WITH_XHCFF)
+  find_package("xhcff" REQUIRED)
+  add_definitions(-DWITH_XHCFF)
+  list(
+    APPEND libs
+    xhcff::xhcff
+  )
+endif()
+
+
 
 
 #
