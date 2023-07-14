@@ -381,6 +381,7 @@ module crest_data
     !--- Entropy static MTDs object
       type(entropyMTD) :: eMTD  
       real(wp) :: XH3 = 0
+      real(wp) :: kappa = 1.5_wp   !> vM-kernel discretization
 
     !--- thermo data
       type(thermodata) :: thermo  

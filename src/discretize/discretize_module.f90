@@ -18,7 +18,7 @@
 !================================================================================!
 
 module discretize_module
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   use probabilities_module
   implicit none
 
@@ -45,11 +45,13 @@ module discretize_module
     procedure :: deallocate => struc_info_deallocate
     procedure :: setup => struc_info_setup
     procedure :: entropy => struc_marginal_entropy
-
+    procedure :: info => struc_prinfo
+    procedure :: discrete => struc_discrete
   end type struc_info
 !******************************************************************************!
 
   public :: probability_count_minima
+  public :: write_data_matrix_bin,read_data_matrix_bin
 
 !========================================================================================!
 !========================================================================================!
@@ -92,7 +94,7 @@ contains  !> MODULE PROCEDURES START HERE
       dl2 = (dpdt2+dpdt2_old)/2.0_wp
       if (dl < 0.0_wp.and.dl2 >= 0.0_wp) then
         N = N+1
-        write (*,*) theta*(180_wp/pi)
+        !write (*,*) theta*(180_wp/pi)
       end if
       p_old = p
       dpdt_old = dpdt
@@ -193,7 +195,7 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine probability_locate_maximum
 
 !========================================================================================!
-  subroutine probability_num_int(R1,R2,kappa,mu,norm,integral,ngrid)
+  subroutine probability_num_int(R1,R2,kappa,mu,norm,integral,ngrid,maxpos)
 !****************************************************************
 !* The subroutine performs a numerical integration of the
 !* probability density within the interval [R1,R2]
@@ -207,11 +209,15 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in),optional :: ngrid
     !> OUTPUT
     real(wp),intent(out) :: integral
+    real(wp),intent(out),optional :: maxpos
     !> LOCAL
     integer :: ng,i
     real(wp) :: diff,d,theta,dl,dl2
     real(wp) :: p,p_old,dpdt,dpdt_old,dpdt2,dpdt2_old
+    real(wp) :: maxref,maxp
     integral = 1.0_wp
+    maxref = 0.0_wp
+    maxp = R1
     if (present(ngrid)) then
       ng = ngrid
     else
@@ -223,10 +229,15 @@ contains  !> MODULE PROCEDURES START HERE
     integral = 0.0_wp
     do i = 1,ng
       call vonMises(theta,kappa,mu,p)
+      if (p > maxref) then
+        maxref = p
+        maxp = theta
+      end if
       integral = integral+p*d
       theta = theta+d
     end do
     integral = norm*integral
+    if(present(maxpos)) maxpos = maxp
   end subroutine probability_num_int
 
 !========================================================================================!
@@ -273,6 +284,14 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine struc_info_deallocate
 
   subroutine struc_info_setup(self,kappa,mu)
+!************************************************************************
+!* This routine does the entire setup for a struc_info object
+!* The input mu(:) is the data input (an array of angular values in rad)
+!* and kappa is the von-Mises discretization parameter (empirical).
+!* A probability density is set up from mu, minima and maxima are
+!* identified and ranges are determined. Also calculates the probability
+!* for each range and a mariginal (first order) entropy for the struc_info
+!***********************************************************************
     implicit none
     class(struc_info) :: self
     real(wp),intent(in) :: kappa
@@ -307,40 +326,46 @@ contains  !> MODULE PROCEDURES START HERE
       if (i == 1) then
         self%maxintv(1,i) = minpos(nmin)-2.0_wp*pi
       else
-        self%maxintv(1,i) = minpos(i+1)
+        self%maxintv(1,i) = minpos(i-1)
       end if
     end do
 
     !> get normalization constant
-    ngrid = 36000
+    ngrid = 3600
     call probability_num_norm(R1,R2,kappa,mu,norm,ngrid)
 
     !> integrate to get probabilities and get maxima positions
-    ngrid = nint(float(nmin)/float(ngrid))
+    ngrid = nint(float(ngrid)/float(nmin))
     do i = 1,nmin
       R1 = self%maxintv(1,i)
       R2 = self%maxintv(2,i)
-      call probability_num_int(R1,R2,kappa,mu,norm,integral,ngrid)
+      call probability_num_int(R1,R2,kappa,mu,norm,integral,ngrid,maxpos)
       self%maxprob(i) = integral
-      call probability_locate_maximum(R1,R2,kappa,mu,N,maxpos)
+!      call probability_locate_maximum(R1,R2,kappa,mu,N,maxpos)
       self%maxpos(i) = maxpos
     end do
 
+    call self%entropy()
+
   end subroutine struc_info_setup
 
+!========================================================================================!
   subroutine struc_marginal_entropy(self,entropy)
     implicit none
     class(struc_info) :: self
     real(wp),intent(out),optional :: entropy
     real(wp) :: S,p
     integer :: i
-    real(wp),parameter :: R = 8.31446261815324_wp/4.184_wp
+    real(wp),parameter :: R = Rcal
+
     S = 0.0_wp
 
     if (allocated(self%maxprob)) then
       do i = 1,self%nmax
         p = self%maxprob(i)
+        if(p > 0.0_wp)then 
         S = S-R*p*log(p)
+        endif
       end do
     end if
 
@@ -348,6 +373,102 @@ contains  !> MODULE PROCEDURES START HERE
     if (present(entropy)) entropy = S
 
   end subroutine struc_marginal_entropy
+
+
+!========================================================================================!
+  function struc_discrete(self,var) result(dvar)
+     implicit none
+     class(struc_info) :: self
+     real(wp),intent(in) :: var
+     integer :: dvar
+     real(wp) :: vartmp
+     integer :: i,j,m
+     dvar = 0
+     vartmp = var
+     if(var < self%maxintv(1,1))then
+        vartmp = var + 2.0_wp*pi
+     endif
+     m = self%nmax
+     if(var > self%maxintv(2,m))then
+       vartmp = var - 2.0_wp*pi
+     endif
+     do i=1,m
+       if(vartmp >= self%maxintv(1,i) .and. &
+       &  vartmp <= self%maxintv(2,i))then
+         dvar = i
+         exit
+       endif
+     enddo
+  end function struc_discrete
+
+!========================================================================================!
+  subroutine struc_prinfo(self,k,conv)
+    implicit none
+    class(struc_info) :: self
+    integer,intent(in),optional :: k
+    real(wp),intent(in),optional :: conv
+    real(wp) :: convert
+    integer :: i
+
+    write(stdout,*)
+    if(present(k))then
+    write(stdout,'(a,i5,2x,a,i5,2x,a,f12.6)') '> discrete variable',k,'  maxima',self%nmax, &
+    & '  marginal entropy',self%S
+    else
+    write(stdout,'(a,7x,a,i5,2x,a,f12.6)') '> discrete variable','  maxima',self%nmax, &
+    & '  marginal entropy',self%S
+
+    endif
+
+    convert = 1.0_wp
+    if(present(conv))then
+       convert = conv
+    endif
+    if(self%nmax > 0)then
+    write(stdout,'(2x,3a18,a16)') 'max','lower','upper','p'
+    do i=1,self%nmax
+       write(stdout,'(2x,3f18.6,f16.8)') self%maxpos(i)*convert,self%maxintv(1:2,i)*convert, &
+       &                                 self%maxprob(i)   
+    enddo
+    endif
+   
+  end subroutine struc_prinfo
+
+!========================================================================================!
+
+
+  subroutine write_data_matrix_bin(datmat)
+     implicit none
+     integer,intent(in) :: datmat(:,:)
+     integer :: n,m
+     integer :: ich,i
+     n = size(datmat,1)
+     m = size(datmat,2)
+     open(newunit=ich, file='ddata.bin', action='readwrite', form='unformatted', &
+     & access='stream', status='replace')
+     write(ich) n,m
+     write(ich) datmat
+     close(ich)
+     open(newunit=ich, file='ddata.txt')
+     write(ich,*) n,m
+       write(ich,*) datmat
+     close(ich)
+  end subroutine write_data_matrix_bin
+
+
+  subroutine read_data_matrix_bin(n,m,datmat)
+     implicit none
+     integer,allocatable,intent(out) :: datmat(:,:)
+     integer,intent(out) :: n,m
+     integer :: ich,i
+     open(newunit=ich, file='ddata.bin', action='readwrite', form='unformatted', &
+     & access='stream', status='old')
+     read(ich) n,m
+     allocate(datmat(n,m), source = 0)
+     read(ich) datmat
+     close(ich)
+  end subroutine read_data_matrix_bin
+
 
 !========================================================================================!
 !========================================================================================!

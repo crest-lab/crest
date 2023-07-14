@@ -80,20 +80,20 @@ subroutine crest_playground(env,tim)
 !========================================================================================!
 
    
-  allocate(mu(3000))
-  do i=1,3000 
-    call random_number(rrad)
-    rrad = rrad * 0.100 * degtorad
-    mu(i) = rrad
-  enddo 
-  !mu(1:1000) = mu(1:1000) + 120.0_wp*degtorad
-  !mu(1001:2000) = mu(1001:2000) + 120.0_wp*degtorad
-  !mu(2001:3000) = mu(2001:3000) + 240.0_wp*degtorad
-  mu(1:1500) = mu(1:1500) + 210.0_wp*degtorad
-  mu(1501:3000) = mu(1501:3000) + 240.0_wp*degtorad
-  kappa = 1.5_wp
-
-  call test_vonMises(env,kappa,3000,mu)
+!  allocate(mu(3000))
+!  do i=1,3000 
+!    call random_number(rrad)
+!    rrad = rrad * 0.100 * degtorad
+!    mu(i) = rrad
+!  enddo 
+!  !mu(1:1000) = mu(1:1000) + 120.0_wp*degtorad
+!  !mu(1001:2000) = mu(1001:2000) + 120.0_wp*degtorad
+!  !mu(2001:3000) = mu(2001:3000) + 240.0_wp*degtorad
+!  mu(1:1500) = mu(1:1500) + 210.0_wp*degtorad
+!  mu(1501:3000) = mu(1501:3000) + 240.0_wp*degtorad
+!  kappa = 1.5_wp
+!
+!  call test_vonMises(env,kappa,3000,mu)
 
   call discretize_trj(env)
 

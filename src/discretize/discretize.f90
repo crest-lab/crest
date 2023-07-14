@@ -41,7 +41,6 @@ subroutine discretize_trj(env)
   real(wp),allocatable :: zmat(:,:),zmat_new(:,:)
   integer,allocatable  :: Amat(:,:)
   integer,allocatable  :: ztod(:)
-  integer,allocatable  :: drep(:)
   integer :: zmax
   integer :: i,j,k,l,m,ich
   character(len=124) :: stmp
@@ -51,23 +50,28 @@ subroutine discretize_trj(env)
   integer :: ncombi
   real(wp) :: ncombi_f
   !> data for new structure and reference checks
-  real(wp) :: cthr,p 
+  real(wp) :: cthr,p
   integer :: nremain
   !> trajectory data
   integer :: nall,nat
   integer,allocatable :: trjat(:)
-  real(wp),allocatable :: trjxyz(:,:,:) 
+  real(wp),allocatable :: trjxyz(:,:,:)
   real(wp),allocatable :: trje(:)
   real(wp),allocatable :: trjzmat(:,:,:)
 
-  !> discretization data  
-  type(struc_info),allocatable :: discinfo(:)
+  !> discretization data
+  integer,allocatable  :: drep(:)              !> mapping zmat entry to unique dihedral
+  type(struc_info),allocatable :: discinfo(:)  !> discretization data (position min/max, prob)
+  real(wp),allocatable :: mutmp(:)             !> temporary data array
+  integer,allocatable :: datmat(:,:)           !> data matrix, discretized values
+  integer,allocatable :: dummat(:,:)
+  real(wp) :: dtmp
 
 !========================================================================================!
-   cthr = 0.3d0 !> CN clash threshold
+  cthr = 0.3d0 !> CN clash threshold
 
 !>--- get reference mol
-   call env%ref%to( mol ) 
+  call env%ref%to(mol)
 
 !========================================================================================!
 !>--- generate the topology information
@@ -90,30 +94,30 @@ subroutine discretize_trj(env)
   allocate (na(mol%nat),nb(mol%nat),nc(mol%nat),source=0)
   allocate (zmat(3,mol%nat),source=0.0_wp)
   call BETTER_XYZINT(mol%nat,mol%xyz,Amat,na,nb,nc,zmat)
-  call smallhead('Internal coordinates:')
+  call smallhead('Internal coordinates of reference structure:')
   call print_zmat(stdout,mol%nat,mol%at,zmat,na,nb,nc,.true.)
 !--- Note: zmat angles (columns 2 and 3) are in Radians
 
 !========================================================================================!
 !>--- analyze dihedral angles encoded in the zmatrix
-   !TODO this is also where to select dihedral angles to put into the
-   !discretization routines. For now I just take any
-   if(.true.)then
+  !TODO this is also where to select dihedral angles to put into the
+  !discretization routines. For now I just take any
+  if (.true.) then
     zmax = mol%nat
-    allocate(ztod(zmax), source=0)
+    allocate (ztod(zmax),source=0)
     call rigidconf_count_fallback(mol%nat,na,nb,nc,wbo,ndieder,ztod)
     if (ndieder < 1) stop 'no dihedral angles detected!'
 
-   allocate(drep(ndieder), source=0)
-   do j=1,ndieder
-   do i=1,zmax
-     if(ztod(i) == j)then
-       drep(j) = i; exit
-     endif
-   enddo   
-   enddo
-   endif
-
+    allocate (drep(ndieder),source=0)
+    do j = 1,ndieder
+      do i = 1,zmax
+        if (ztod(i) == j) then
+          drep(j) = i
+          exit
+        end if
+      end do
+    end do
+  end if
 
 !========================================================================================!
   write (stdout,*)
@@ -126,29 +130,59 @@ subroutine discretize_trj(env)
   write (stdout,'(a,3(i0,a))') '> ',nall,' structures with ',nat,' atoms and ', &
   & ndieder,' dihedral angles'
 
-  allocate(trjzmat(3,nat,nall),source=0.0_wp)
+  allocate (trjzmat(3,nat,nall),source=0.0_wp)
   write (stdout,'(a)',advance='no') '> converting to internal coordinates ... '
-  flush(stdout)
-  do i=1,nall
-     call XYZGEO2(nat,trjxyz,NA,NB,NC,1.0_wp,zmat)  
-     trjzmat(:,:,i) = zmat(:,:)
-  enddo
+  flush (stdout)
+  do i = 1,nall
+    call XYZGEO2(nat,trjxyz(:,:,i),NA,NB,NC,1.0_wp,zmat)
+    trjzmat(:,:,i) = zmat(:,:)
+  end do
   write (stdout,'(a)') 'done.'
 
 !========================================================================================!
   write (stdout,*)
   call smallhead('Analyzing dihedral angle distributions')
-  allocate(discinfo(ndieder))
-  do j=1,ndieder
-     m = drep(i) 
-     !...
-  enddo
+  allocate(mutmp(nall))
+  allocate (discinfo(ndieder))
+  do j = 1,ndieder
+    m = drep(j)
+    mutmp(:) = trjzmat(3,m,:)
+    call discinfo(j)%setup(env%kappa,mutmp)
+    call discinfo(j)%info(j,radtodeg)
+  end do
+  deallocate(mutmp)
+
+  write(stdout,*)
+  write(stdout,'(a,a)') '> ',repeat('*',73)
+  write(stdout,'(a,f18.8,a)') '> Total marginal (first order) entropy :',sum(discinfo(:)%S),' cal mol⁻¹ K⁻¹'
+  write(stdout,'(a,a)') '> ',repeat('*',73)
 
 !========================================================================================!
-  if (allocated(trjat)) deallocate(trjat)
-  if (allocated(trjxyz)) deallocate(trjxyz)
-  if(allocated(trjzmat)) deallocate(trjzmat)
-  if (allocated(zmat_new)) deallocate(zmat_new) 
+  allocate(datmat(ndieder,nall), source = 0)
+  write (stdout,*)
+  write (stdout,'(a)',advance='no') '> discretizing ensemble data ... '
+  flush (stdout)
+  do i=1,nall
+    do j=1,ndieder
+       m = drep(j)
+       dtmp = trjzmat(3,m,i)
+       datmat(j,i) = discinfo(j)%discrete( dtmp )
+    enddo
+  enddo 
+  write (stdout,'(a)') 'done.'
+  
+  call write_data_matrix_bin(datmat)
+  write (stdout,'(a)') '> written discretized data to binary file ddata.bin'
+  !call read_data_matrix_bin(i,j,dummat)
+  !write(*,*) i,j,all(datmat==dummat)
+
+!========================================================================================!
+  if (allocated(datmat)) deallocate(datmat)
+  if (allocated(drep)) deallocate(drep)
+  if (allocated(trjat)) deallocate (trjat)
+  if (allocated(trjxyz)) deallocate (trjxyz)
+  if (allocated(trjzmat)) deallocate (trjzmat)
+  if (allocated(zmat_new)) deallocate (zmat_new)
   if (allocated(wbo)) deallocate (wbo)
   if (allocated(na)) deallocate (na)
   if (allocated(nb)) deallocate (nb)
@@ -160,39 +194,39 @@ end subroutine discretize_trj
 !========================================================================================!
 
 subroutine test_vonMises(env,kappa,n,mu)
-   use crest_parameters
-   use crest_data
-   use probabilities_module
-   use discretize_module
-   implicit none
-   type(systemdata),intent(inout) :: env
-   integer,intent(in) :: n
-   real(wp),intent(in) :: mu(n)
-   real(wp),intent(in) ::  kappa
-   real(wp) :: theta,p,dpdt,dpdt2,numdpdt,pp,pm,tmp
-   real(wp),parameter :: d=1.0d-1
-   integer :: i,j,k,l, NM
-   integer :: ich
-   type(struc_info) :: disctest   
+  use crest_parameters
+  use crest_data
+  use probabilities_module
+  use discretize_module
+  implicit none
+  type(systemdata),intent(inout) :: env
+  integer,intent(in) :: n
+  real(wp),intent(in) :: mu(n)
+  real(wp),intent(in) ::  kappa
+  real(wp) :: theta,p,dpdt,dpdt2,numdpdt,pp,pm,tmp
+  real(wp),parameter :: d = 1.0d-1
+  integer :: i,j,k,l,NM
+  integer :: ich
+  type(struc_info) :: disctest
 
-   !> Plot an example von Mises distribution
+  !> Plot an example von Mises distribution
 
-   theta = 0.0_wp
-   open(newunit=ich,file='vonmises.txt')
-   do i=1,360
-     theta = theta + degtorad
+  theta = 0.0_wp
+  open (newunit=ich,file='vonmises.txt')
+  do i = 1,360
+    theta = theta+degtorad
     call vonMises(theta,kappa,mu,p,dpdt,dpdt2)
     !write(ich,'(4f16.8)') theta*radtodeg,p,dpdt,dpdt2
-     write(ich,'(3f16.8)') p,dpdt,dpdt2
-   enddo
-   close(ich)
+    write (ich,'(3f16.8)') p,dpdt,dpdt2
+  end do
+  close (ich)
 
-  !call probability_count_minima(0.0_wp,2.0*pi,kappa,mu,NM) 
+  !call probability_count_minima(0.0_wp,2.0*pi,kappa,mu,NM)
   call disctest%setup(kappa,mu)
   NM = disctest%nmax
-  write(*,*)
-  write(*,*) 'Distirbution has ',NM,' minima'
-  write(*,*)  
+  write (*,*)
+  write (*,*) 'Distirbution has ',NM,' minima'
+  write (*,*)
 
 end subroutine test_vonMises
 
