@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 - 2022 Philipp Pracht
+! Copyright (C) 2021 - 2023 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -23,47 +23,50 @@ module calc_type
 !>--- api types
   use tblite_api
   use gfn0_api
-  use gfnff_api, only: gfnff_data
+  use gfnff_api,only:gfnff_data
+  use xhcff_api,only:xhcff_data
   implicit none
 
   character(len=1),public,parameter :: sep = '/'
   character(len=12),public,parameter :: dev0 = ' 2>/dev/null'
 
+!&<
+  !> job type enumerator
+  type ,private:: enum_jobtype
+    integer :: unknown   = 0
+    integer :: xtbsys    = 1
+    integer :: generic   = 2
+    integer :: turbomole = 3
+    integer :: orca      = 4
+    integer :: terachem  = 5
+    integer :: tblite    = 6
+    integer :: gfn0      = 7
+    integer :: gfn0occ   = 8
+    integer :: gfnff     = 9
+    integer :: xhcff     = 10
+  end type enum_jobtype
+  type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
 
-   !> job type enumerator
-   type ,private:: enum_jobtype
-      integer :: unknown   = 0
-      integer :: xtbsys    = 1
-      integer :: generic   = 2
-      integer :: turbomole = 3
-      integer :: orca      = 4
-      integer :: terachem  = 5
-      integer :: tblite    = 6
-      integer :: gfn0      = 7
-      integer :: gfn0occ   = 8
-      integer :: gfnff     = 9
-   end type enum_jobtype
-   type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
-
-   character(len=45),parameter,private :: jobdescription(10) = [ &
-      & 'Unknown calculation type                    ', &
-      & 'xTB calculation via external binary         ', &
-      & 'Generic script execution                    ', &
-      & 'Systemcall to the Turbomole program package ', &
-      & 'Systemcall to the ORCA program package      ', &
-      & 'Systemcall to the TeraChem program package  ', &
-      & 'xTB calculation via tblite lib              ', &
-      & 'GFN0-xTB calculation via GFN0 lib           ', &
-      & 'GFN0*-xTB calculation via GFN0 lib          ', &
-      & 'GFN-FF calculation via GFNFF lib            ' ]
-
+  character(len=45),parameter,private :: jobdescription(11) = [ &
+     & 'Unknown calculation type                    ', &
+     & 'xTB calculation via external binary         ', &
+     & 'Generic script execution                    ', &
+     & 'Systemcall to the Turbomole program package ', &
+     & 'Systemcall to the ORCA program package      ', &
+     & 'Systemcall to the TeraChem program package  ', &
+     & 'xTB calculation via tblite lib              ', &
+     & 'GFN0-xTB calculation via GFN0 lib           ', &
+     & 'GFN0*-xTB calculation via GFN0 lib          ', &
+     & 'GFN-FF calculation via GFNFF lib            ', &
+     & 'XHCFF calculation via XHCFF-lib             ' ]
+!&>
 
 !=========================================================================================!
 !>--- data object that contains the data for a *SINGLE* calculation
   public :: calculation_settings
   type :: calculation_settings
 
-    integer :: id   !> calculation type (see "jobtype" parameter above)
+    integer :: id  = 0  !> calculation type (see "jobtype" parameter above)
     integer :: prch = stdout
 
     integer :: chrg = 0
@@ -76,8 +79,8 @@ module calc_type
     character(len=:),allocatable :: path
     character(len=:),allocatable :: other
     character(len=:),allocatable :: binary     !> binary or generic script
-    character(len=:),allocatable :: systemcall !> systemcall for running generic scripts 
-    character(len=:),allocatable :: description 
+    character(len=:),allocatable :: systemcall !> systemcall for running generic scripts
+    character(len=:),allocatable :: description
 
 !>--- gradient format specifications
     integer :: gradtype = 0
@@ -92,7 +95,7 @@ module calc_type
     !> bond orders
     logical :: rdwbo = .false.
     real(wp),allocatable :: wbo(:,:)
-    !> dipole and dipole gradient 
+    !> dipole and dipole gradient
     logical :: rddip = .false.
     real(wp) :: dip(3) = 0
     logical :: rddipgrad = .false.
@@ -101,16 +104,16 @@ module calc_type
 !>--- API constructs
     integer  :: tblitelvl = 2
     real(wp) :: etemp = 300.0_wp
-    real(wp) :: accuracy = 1.0_wp 
+    real(wp) :: accuracy = 1.0_wp
     logical  :: apiclean = .true.
-    integer  :: maxscc = 500 
+    integer  :: maxscc = 500
     logical  :: saveint = .false.
     character(len=:),allocatable :: solvmodel
     character(len=:),allocatable :: solvent
     !> tblite data
     type(wavefunction_type),allocatable  :: wfn
     type(tblite_calculator),allocatable  :: tbcalc
-    type(tblite_ctx),allocatable         :: ctx 
+    type(tblite_ctx),allocatable         :: ctx
     type(tblite_resultstype),allocatable :: tbres
     type(wavefunction_type),allocatable  :: wfn_backup
     !> GFN0-xTB data
@@ -120,6 +123,11 @@ module calc_type
     real(wp),allocatable :: occ(:)
     !> GFN-FF data
     type(gfnff_data),allocatable :: ff_dat
+    !> XHCFF data
+    integer :: ngrid = 230 !lebedev grid points per atom
+    real(wp) :: extpressure = 1.0_wp
+    real(wp) :: probrad = 1.5_wp
+    type(xhcff_data),allocatable :: xhcff_dat
 
 !>--- Type procedures
   contains
@@ -133,7 +141,7 @@ module calc_type
 !> data object that collects settings for *ALL* calculations and constraints.
   public :: calcdata
   type :: calcdata
-    integer :: id = 0
+    integer :: id = 0  !> this parameter will decide how to return or add up energies and gradients
 
 !>--- calculations
     integer :: ncalculations = 0
@@ -152,8 +160,8 @@ module calc_type
 !>--- scans
     integer :: nscans = 0
     logical :: relaxscan = .true.
-    real(wp) :: scansforce = 0.5_wp  
-    type(scantype),allocatable :: scans(:) 
+    real(wp) :: scansforce = 0.5_wp
+    type(scantype),allocatable :: scans(:)
 
 !>--- results/property requests
     real(wp) :: epot
@@ -192,7 +200,6 @@ module calc_type
     procedure :: removeconstraint => calculation_remove_constraint
   end type calcdata
 
-
 !========================================================================================!
 !========================================================================================!
 contains  !>--- Module routines start here
@@ -228,11 +235,11 @@ contains  !>--- Module routines start here
     if (allocated(self%elog)) deallocate (self%elog)
 
     if (allocated(self%etmp)) deallocate (self%etmp)
-    if (allocated(self%grdtmp)) deallocate(self%grdtmp)
+    if (allocated(self%grdtmp)) deallocate (self%grdtmp)
     if (allocated(self%etmp2)) deallocate (self%etmp2)
-    if (allocated(self%grdtmp2)) deallocate(self%grdtmp2)
-  
-    if (allocated(self%g0calc)) deallocate(self%g0calc)
+    if (allocated(self%grdtmp2)) deallocate (self%grdtmp2)
+
+    if (allocated(self%g0calc)) deallocate (self%g0calc)
 
     return
   end subroutine calculation_reset
@@ -253,15 +260,16 @@ contains  !>--- Module routines start here
     if (allocated(self%dipgrad)) deallocate (self%dipgrad)
     if (allocated(self%gradkey)) deallocate (self%gradkey)
     if (allocated(self%efile)) deallocate (self%efile)
-    if (allocated(self%solvmodel)) deallocate(self%solvmodel)
-    if (allocated(self%solvent)) deallocate(self%solvent)
+    if (allocated(self%solvmodel)) deallocate (self%solvmodel)
+    if (allocated(self%solvent)) deallocate (self%solvent)
     if (allocated(self%wfn)) deallocate (self%wfn)
-    if (allocated(self%tbcalc)) deallocate(self%tbcalc)
-    if (allocated(self%ctx)) deallocate(self%ctx)
-    if (allocated(self%tbres)) deallocate(self%tbres)
-    if (allocated(self%wfn_backup)) deallocate(self%wfn_backup)
-    if (allocated(self%g0calc)) deallocate(self%g0calc)
-   
+    if (allocated(self%tbcalc)) deallocate (self%tbcalc)
+    if (allocated(self%ctx)) deallocate (self%ctx)
+    if (allocated(self%tbres)) deallocate (self%tbres)
+    if (allocated(self%wfn_backup)) deallocate (self%wfn_backup)
+    if (allocated(self%g0calc)) deallocate (self%g0calc)
+    if (allocated(self%ff_dat)) deallocate (self%ff_dat)
+    if (allocated(self%xhcff_dat)) deallocate(self%xhcff_dat)
 
     self%id = 0
     self%prch = stdout
@@ -285,6 +293,11 @@ contains  !>--- Module routines start here
     self%maxscc = 500
     self%saveint = .false.
 
+    self%ngrid = 230 
+    self%extpressure = 1.0_wp
+    self%probrad = 1.5_wp
+
+
     return
   end subroutine calculation_settings_deallocate
 
@@ -302,7 +315,7 @@ contains  !>--- Module routines start here
       self%ncalculations = 1
       self%calcs(1) = cal
     else
-      i = self%ncalculations + 1
+      i = self%ncalculations+1
       j = self%ncalculations
       allocate (callist(i))
       callist(1:j) = self%calcs(1:j)
@@ -328,7 +341,7 @@ contains  !>--- Module routines start here
       self%nconstraints = 1
       self%cons(1) = constr
     else
-      i = self%nconstraints + 1
+      i = self%nconstraints+1
       j = self%nconstraints
       allocate (conslist(i))
       conslist(1:j) = self%cons(1:j)
@@ -354,7 +367,7 @@ contains  !>--- Module routines start here
       self%nscans = 1
       self%scans(1) = scn
     else
-      i = self%nscans + 1
+      i = self%nscans+1
       j = self%nscans
       allocate (scnlist(i))
       scnlist(1:j) = self%scans(1:j)
@@ -365,7 +378,6 @@ contains  !>--- Module routines start here
 
     return
   end subroutine calculation_add_scan
-
 
 !=========================================================================================!
 
@@ -378,19 +390,19 @@ contains  !>--- Module routines start here
 
     if (self%nconstraints < d) return
 
-    i = self%nconstraints - 1
+    i = self%nconstraints-1
     j = self%nconstraints
     allocate (conslist(i))
-    if(d == 1)then
-    conslist(1:i) = self%cons(2:j)
-    else if( d == j)then
-    conslist(1:i) = self%cons(1:i)    
+    if (d == 1) then
+      conslist(1:i) = self%cons(2:j)
+    else if (d == j) then
+      conslist(1:i) = self%cons(1:i)
     else
-    d1=d-1
-    d2=d+1
-    conslist(1:d1) = self%cons(1:d1)
-    conslist(d:i) = self%cons(d2:j)
-    endif
+      d1 = d-1
+      d2 = d+1
+      conslist(1:d1) = self%cons(1:d1)
+      conslist(d:i) = self%cons(d2:j)
+    end if
     call move_alloc(conslist,self%cons)
     self%nconstraints = i
 
@@ -407,15 +419,15 @@ contains  !>--- Module routines start here
     if (self%nconstraints < 1) then
       return
     else
-      if(present(chnl))then
-      i = chnl
+      if (present(chnl)) then
+        i = chnl
       else
-      i = stdout
-      endif
+        i = stdout
+      end if
       !write(i,*)
-      do j =1,self%nconstraints
+      do j = 1,self%nconstraints
         call self%cons(j)%print(i)
-      enddo
+      end do
     end if
 
     return
@@ -448,14 +460,14 @@ contains  !>--- Module routines start here
     !self%calcs = src%calcs
     do i = 1,self%ncalculations
       call self%add(src%calcs(i))
-    enddo
+    end do
 
     self%nconstraints = src%nconstraints
     if (allocated(self%cons)) deallocate (self%cons)
     !self%cons = src%cons
     do i = 1,self%nconstraints
       call self%add(src%cons(i))
-    enddo
+    end do
 
     self%optlev = src%optlev
     self%micro_opt = src%micro_opt
@@ -469,13 +481,12 @@ contains  !>--- Module routines start here
     self%tsopt = src%tsopt
     self%iupdat = src%iupdat
 
-    self%pr_energies = src%pr_energies 
+    self%pr_energies = src%pr_energies
     self%eout_unit = src%eout_unit
     self%elog = src%elog
 
     return
   end subroutine calculation_copy
-
 
 !=========================================================================================!
 
@@ -488,11 +499,10 @@ contains  !>--- Module routines start here
     integer,allocatable :: configtmp(:,:)
 
     l = size(config,1)
-    if(allocated(self%config)) deallocate(self%config)
-    allocate( self%config(l) )
+    if (allocated(self%config)) deallocate (self%config)
+    allocate (self%config(l))
     self%config = config
   end subroutine calculation_settings_addconfig
-
 
 !=========================================================================================!
 
@@ -504,17 +514,17 @@ contains  !>--- Module routines start here
     integer :: i,j
     character(len=50) :: nmbr
 
-    if(.not.allocated(self%description))then
-    !> add a short description
+    if (.not.allocated(self%description)) then
+      !> add a short description
       self%description = trim(jobdescription(self%id))
-    endif
+    end if
 
-    if(.not.allocated(self%calcspace))then   
-    !> I've decided to perform all calculations in a separate directory to
-    !> avoid accumulation of files in the main workspace
-       write(nmbr,'(i0)') id
-       self%calcspace='calculation.level.'//trim(nmbr)
-    endif
+    if (.not.allocated(self%calcspace)) then
+      !> I've decided to perform all calculations in a separate directory to
+      !> avoid accumulation of files in the main workspace
+      write (nmbr,'(i0)') id
+      self%calcspace = 'calculation.level.'//trim(nmbr)
+    end if
   end subroutine calculation_settings_autocomplete
 
 !=========================================================================================!

@@ -26,6 +26,7 @@ srcs += files(
   'api_helpers.F90',
   'api_engrad.f90', 
   'gradreader.f90',
+  'xhcff.F90',
   'xtb_sc.f90',
   'generic_sc.f90',
 )
