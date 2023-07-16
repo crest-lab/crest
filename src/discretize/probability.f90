@@ -25,8 +25,8 @@ module probabilities_module
   private
 
   real(wp),parameter :: pi = acos(0.0_wp)*2.0_wp
-  real(wp),parameter,public :: radtodeg = 180.0_wp / pi
-  real(wp),parameter,public :: degtorad = 1.0_wp / radtodeg
+  real(wp),parameter,private :: radtodeg = 180.0_wp / pi
+  real(wp),parameter,private :: degtorad = 1.0_wp / radtodeg
 
   public :: normal_dist
 
