@@ -156,3 +156,39 @@ subroutine nciflexi(env,flexval)
   endif  
 end subroutine nciflexi
 
+!================================================================================!
+
+subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
+        &  nt,temps,et,ht,gt,stot,bhess)
+!******************************************
+!* Wrapper for a Hessian calculation
+!* to get thermodynamics of the molecule
+!*****************************************
+  use crest_parameters, only: wp
+  use crest_data
+  implicit none
+  !> INPUT
+  type(systemdata) :: env
+  logical,intent(in) :: pr
+  integer,intent(in) :: nat
+  integer,intent(inout) :: at(nat)
+  real(wp),intent(inout) :: xyz(3,nat)  !> in Angstroem!
+  character(len=*) :: dirname
+  integer,intent(in)  :: nt
+  real(wp),intent(in)  :: temps(nt)
+  logical,intent(in) :: bhess       !> calculate bhess instead?
+  !> OUTPUT
+  real(wp),intent(out) :: et(nt)    !> enthalpy in Eh
+  real(wp),intent(out) :: ht(nt)    !> enthalpy in Eh
+  real(wp),intent(out) :: gt(nt)    !> free energy in Eh
+  real(wp),intent(out) :: stot(nt)  !> entropy in cal/molK
+
+  if(env%legacy)then
+    call thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
+    &                    nt,temps,et,ht,gt,stot,bhess)
+  else
+    error stop 'thermo_wrap not yet implemented for API version'
+  endif
+end subroutine thermo_wrap
+
+!================================================================================!

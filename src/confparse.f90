@@ -301,7 +301,7 @@ subroutine parseflags(env,arg,nra)
 !>--- get the CREST version/runtype
   env%crestver = crest_imtd  !> confscript version (v.1 = MF-MD-GC, v.2 = MTD)
   env%runver = 1      !> default
-  env%properties = 0      !> additional calculations/options before or after confsearch
+  env%properties = 0       !> additional calculations/options before or after confsearch
   env%properties2 = 0      !> backup for env%properties
   env%iterativeV2 = .true. !> iterative crest V2 version
   env%preopt = .true.
@@ -393,7 +393,7 @@ subroutine parseflags(env,arg,nra)
       case ('-compare')                                         !flag for comparing two ensembles, analysis tool
         env%compareens = .true.
         env%crestver = 5
-        env%properties = -2
+        env%properties = p_compare
         env%ensemblename = 'none selected'
         env%ensemblename2 = 'none selected'
         if (nra .ge. (i + 2)) then
@@ -580,7 +580,7 @@ subroutine parseflags(env,arg,nra)
         end if
         stop
       case ('-exlig','-exligand','-exchligand')
-        env%properties = -355
+        env%properties = p_ligand
         env%ptb%infile = trim(arg(1))
         ctmp = trim(arg(i + 1))
         env%ptb%newligand = trim(ctmp)
@@ -920,10 +920,10 @@ subroutine parseflags(env,arg,nra)
               env%rdens = xx(1)
             end if
           end if
-          env%properties = -312
+          env%properties = p_reactorset
           env%preactorpot = .true.
         case ('-genmtd')
-          env%properties = -312
+          env%properties = p_reactorset
           env%mdtime = 20.0d0
           if (i + 1 .le. nra) then
             atmp = trim(arg(i + 1))
@@ -1026,7 +1026,7 @@ subroutine parseflags(env,arg,nra)
           dtmp = trim(arg(i + 1))
           ctmp = ctmp//dtmp
         end if
-        if (env%properties == -92) then
+        if (env%properties == p_isomerize) then
           ctmp = 'stereoisomers'
         end if
         select case (ctmp) !> GFN
@@ -1119,7 +1119,7 @@ subroutine parseflags(env,arg,nra)
       case ('-readbias')
         env%readbias = .true.
       case ('-useonly')
-        env%properties = -227
+        env%properties = p_useonly
         env%autozsort = .false.
         env%dummypercent = 1.0_wp
         if (nra .ge. i + 1) then
@@ -1299,7 +1299,7 @@ subroutine parseflags(env,arg,nra)
         end if
       case ('-mergebias','-mergebias+','-gesc+')
         env%properties = -9224
-        if (index(argument,'+') > 0) env%properties = -9225
+        if (index(argument,'+') > 0) env%properties = p_gesc2
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
         if (ex) then
@@ -1348,7 +1348,7 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
       case ('-cregen','-oldcregen')                                        !cregen standalone
         env%confgo = .true.
-        env%properties = -1
+        env%properties = p_cregen
         env%autozsort = .false.
         atmp = ''
         env%ensemblename = 'none selected'
@@ -1379,9 +1379,8 @@ subroutine parseflags(env,arg,nra)
         env%maxcompare = nint(xx(1))
       case ('-ewin')                                           !set energy threshold in kcal/mol
         call readl(arg(i + 1),xx,j)
-        !env%thresholds(1)=abs(xx(1))
         env%ewin = abs(xx(1))
-        if (env%properties .le. -3 .and. env%properties .ge. -5) then
+        if (any((/ p_protonate, p_deprotonate, p_tautomerize /) == env%properties))then
           env%ptb%ewin = abs(xx(1))
         end if
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i + 1))
@@ -1474,7 +1473,7 @@ subroutine parseflags(env,arg,nra)
 !-------- PROPERTY CALCULATION related flags
 !========================================================================================!
       case ('-protonate')             !protonation tool
-        env%properties = -3
+        env%properties = p_protonate
         env%autozsort = .false.
         env%ptb%threshsort = .true.
       case ('-swel')                  !switch out H+ to something else in protonation script
@@ -1482,18 +1481,18 @@ subroutine parseflags(env,arg,nra)
           call swparse(arg(i + 1),env%ptb)
         end if
       case ('-deprotonate')           !deprotonation tool
-        env%properties = -4
+        env%properties = p_deprotonate
         env%autozsort = .false.
         env%ptb%threshsort = .true.
       case ('-tautomerize')           !tautomerization tool
-        env%properties = -5
+        env%properties = p_tautomerize
         env%autozsort = .false.
         env%ptb%threshsort = .true.
       case ('-tautomerize2','-exttautomerize')
-        if (env%properties == -666) then
-          env%properties = -555
+        if (env%properties == p_propcalc) then
+          env%properties = p_tautomerize2
         else
-          call env%addjob(555)
+          call env%addjob(abs(p_tautomerize2))
         end if
         env%autozsort = .false.
         env%ptb%threshsort = .true.
@@ -1540,33 +1539,39 @@ subroutine parseflags(env,arg,nra)
           end if
         end if
 !========================================================================================!
-      case ('-entropy','-entropic')    !new, specialized calculation of molecular entropies
+      case ('-entropy','-entropic')  !> new, specialized calculation of molecular entropies
         write (*,'(2x,a,'' : enhanced ensemble entropy calculation'')') trim(arg(i))
-        if (env%properties == -666) then !for standalone use
-          env%properties = -45
-        elseif (env%confgo .and. env%properties == -1) then !as extension for CREGEN
+        if (env%properties == p_propcalc) then 
+        !>--- for standalone use
+          env%properties = p_CREentropy
+
+        elseif (env%confgo .and. env%properties == -1) then 
+        !>--- as extension for CREGEN
           env%entropic = .true.
           env%fullcre = .true.
-        else if (env%crestver == crest_imtd) then  !works as an extensiton to the conformational search
-          env%properties = 45
-          env%autozsort = .false.    !turn off zsort (since we are not going to GC anyways)
-          env%performCross = .false.   !turn off GC
-          env%entropic = .true.      !indicator for this runtype
-          env%Maxrestart = 1           !turn off MTD iterations (just do one)
-          env%rotamermds = .false.     !turn off normMDs
-          env%entropymd = .true.       !special static MTDs
+
+        else if (env%crestver == crest_imtd) then  
+        !>--- works as an extensiton to the conformational search
+          env%properties = abs(p_CREentropy)
+          env%autozsort = .false.     !> turn off zsort (since we are not going to GC anyways)
+          env%performCross = .false.  !> turn off GC
+          env%entropic = .true.       !> indicator for this runtype
+          env%Maxrestart = 1          !> turn off MTD iterations (just do one)
+          env%rotamermds = .false.    !> turn off normMDs
+          env%entropymd = .true.      !> special static MTDs
           call read_bhess_ref(env,'coord')
         end if
-        env%runver = 111             !version  for selection of MTD bias settings
-        env%doNMR = .true.           !we need equivalencies
+        env%runver = 111             !> version  for selection of MTD bias settings
+        env%doNMR = .true.           !> we need equivalencies
         if (i + 1 .le. nra) then
-          ctmp = trim(arg(i + 1))            !second argument can be the temperature
+          ctmp = trim(arg(i + 1))    !> second argument can be the temperature
           if (index(ctmp,'-') .eq. 0) then
             call readl(arg(i + 1),xx,j)
             env%tboltz = xx(1)
           end if
         end if
         call env%addjob(env%properties)
+
       case ('-scthr','-entropy_cthr')
         read (arg(i + 1),*,iostat=io) rdum
         if (io == 0) env%emtd%confthr = rdum
@@ -1621,17 +1626,17 @@ subroutine parseflags(env,arg,nra)
       case ('-trange')    !provide a range of temperatures (min max step) for entropy evaluation
         read (arg(i + 1),*,iostat=io) rdum
         if (io == 0 .and. (index(arg(i + 1),'-') .eq. 0)) then
-          env%thermo%trange(1) = rdum  !T start
+          env%thermo%trange(1) = rdum  !> T start
         end if
         read (arg(i + 2),*,iostat=io) rdum
         if (io == 0 .and. (index(arg(i + 2),'-') .eq. 0)) then
-          env%thermo%trange(2) = rdum  !T stop (approx.)
+          env%thermo%trange(2) = rdum  !> T stop (approx.)
         end if
         read (arg(i + 3),*,iostat=io) rdum
         if (io == 0 .and. (index(arg(i + 3),'-') .eq. 0)) then
-          env%thermo%trange(3) = rdum    !T step
+          env%thermo%trange(3) = rdum  !> T step
         end if
-      case ('-tread')   !read a file with temperatures (one per line) for entropy evaluation
+      case ('-tread')   !> read a file with temperatures (one per line) for entropy evaluation
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
         if (ex) then
@@ -1749,16 +1754,19 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
       case ('-cluster')
         write (*,'(2x,a,'' : ensemble clustering'')') trim(arg(i))
-        if (env%properties == -666) then !for standalone use
+        if (env%properties == p_propcalc) then 
+        !>--- for standalone use
           env%properties = p_cluster
-        elseif (env%confgo .and. env%properties == -1) then !as extension for CREGEN
+        elseif (env%confgo .and. env%properties == p_cregen) then 
+        !>--- as extension for CREGEN
           env%cluster = .true.
-        else if (any((/crest_imtd,crest_imtd2/) == env%crestver)) then  !works as an extensiton to the conformational search
-          env%properties = 70
-        elseif (env%QCG) then !as extension for CREGEN
-          env%properties = 70
+        else if (any((/crest_imtd,crest_imtd2/) == env%crestver)) then
+        !>--- works as an extensiton to the conformational search
+          env%properties = abs(p_cluster)
+        elseif (env%QCG) then 
+          env%properties = abs(p_cluster)
         end if
-        env%doNMR = .true.           !we need equivalencies
+        env%doNMR = .true.     !> we need equivalencies
         call env%addjob(env%properties)
         if (i + 1 .le. nra) then !second argument a distinct number of clusters
           read (arg(i + 1),*,iostat=io) j
@@ -1824,8 +1832,8 @@ subroutine parseflags(env,arg,nra)
 !---------- PROPERTY MODE
 !========================================================================================!
       case ('-prop')
-        if ((env%properties == 0 .or.     &
-        &  env%properties == -666)) then         !property selection
+        if ((env%properties == p_none .or.    &
+        &  env%properties == p_propcalc )) then         !property selection
           ctmp = trim(arg(i + 1))
           PROPARG:select case(ctmp)
           case ('hess')                  !hessian calculation to free energies for all conformers
@@ -2014,10 +2022,10 @@ subroutine parseflags(env,arg,nra)
   end if
 
 !>-- final settings for property mode (-prop)
-  if (env%properties .eq. 0) then
+  if (env%properties .eq. p_none) then
     env%properties = env%properties2
   end if
-  if (env%properties .eq. -666) then
+  if (env%properties .eq. p_propcalc) then
     env%autozsort = .false.
   end if
 

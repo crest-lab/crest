@@ -15,5 +15,9 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
+   'thermocalc.f90',
+   'thermo.f90',
    'mie.f90',
+   'entropic.f90',
+   'entropy.f90',
 )

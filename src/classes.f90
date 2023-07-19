@@ -57,6 +57,7 @@ module crest_data
 !============================================================================!
 ! runtype variables
 !============================================================================!
+!>---- runtypes (variables for crest%crestver)
    integer,parameter,public :: crest_none     = 0
    integer,parameter,public :: crest_mfmdgc   = 1    
    integer,parameter,public :: crest_imtd     = 2
@@ -69,7 +70,7 @@ module crest_data
    integer,parameter,public :: crest_msreac   = 9
    integer,parameter,public :: crest_pka      = 14
    integer,parameter,public :: crest_solv     = 15
-   !>> runtypes with IDs between use non-legacy routines  <<!
+!>> runtypes with IDs between use non-legacy routines  <<!
    integer,parameter,public :: crest_sp         = 264
    integer,parameter,public :: crest_optimize   = 265
    integer,parameter,public :: crest_moldyn     = 266
@@ -78,27 +79,30 @@ module crest_data
    integer,parameter,public :: crest_numhessian = 269
    integer,parameter,public :: crest_scanning   = 270
    integer,parameter,public :: crest_rigcon     = 271
-   !>> <<! 
+!>> <<! 
    integer,parameter,public :: crest_test       = 456
-!---- tools
-   integer,parameter,public :: p_cregen      = -1
-   integer,parameter,public :: p_compare     = -2
-   integer,parameter,public :: p_protonate   = -3
-   integer,parameter,public :: p_deprotonate = -4
-   integer,parameter,public :: p_tautomerize = -5
+
+!>---- tools (variables for env%properties)
+   integer,parameter,public :: p_none         =  0
+   integer,parameter,public :: p_cregen       = -1
+   integer,parameter,public :: p_compare      = -2
+   integer,parameter,public :: p_protonate    = -3
+   integer,parameter,public :: p_deprotonate  = -4
+   integer,parameter,public :: p_tautomerize  = -5
    integer,parameter,public :: p_tautomerize2 = -555
-   integer,parameter,public :: p_isomerize   = -92
-   integer,parameter,public :: p_reactorset  = -312
-   integer,parameter,public :: p_CREentropy  = -45   
-   integer,parameter,public :: p_rrhoaverage = -4450
-   integer,parameter,public :: p_cluster     = -70
-   integer,parameter,public :: p_propcalc    = -666
-   integer,parameter,public :: p_acidbase    = -788
-   integer,parameter,public :: p_ligand      = -355
-   integer,parameter,public :: p_gesc1       = -9224
-   integer,parameter,public :: p_gesc2       = -9225
-   integer,parameter,public :: p_thermo      = -3654
-   integer,parameter,public :: p_qcg         = 37
+   integer,parameter,public :: p_isomerize    = -92
+   integer,parameter,public :: p_reactorset   = -312
+   integer,parameter,public :: p_CREentropy   = -45   
+   integer,parameter,public :: p_rrhoaverage  = -4450
+   integer,parameter,public :: p_cluster      = -70
+   integer,parameter,public :: p_propcalc     = -666
+   integer,parameter,public :: p_acidbase     = -788
+   integer,parameter,public :: p_ligand       = -355
+   integer,parameter,public :: p_gesc1        = -9224
+   integer,parameter,public :: p_gesc2        = -9225
+   integer,parameter,public :: p_thermo       = -3654
+   integer,parameter,public :: p_useonly      = -227
+   integer,parameter,public :: p_qcg          = 37
 
 !===========================================================================!
 

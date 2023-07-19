@@ -17,7 +17,11 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
+  "${dir}/thermocalc.f90"
+  "${dir}/thermo.f90"
   "${dir}/mie.f90"
+  "${dir}/entropic.f90"
+  "${dir}/entropy.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

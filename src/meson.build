@@ -24,6 +24,7 @@ subdir('qmhelpers')
 subdir('graphs') 
 subdir('rigidconf')
 subdir('discretize')
+subdir('entropy')
 subdir('legacy_algos')
 
 
@@ -43,8 +44,6 @@ srcs += files(
   'crest_pars.f90',
   'data.f90',
   'ensemblecomp.f90',
-  'entropic.f90',
-  'entropy.f90',
   'eval_timer.f90',
   'filemod.f90',
   'flexi.F90',
@@ -83,8 +82,6 @@ srcs += files(
   'symmetry_i.c',
   'syscheck.f90',
   'testmol.f90',
-  'thermocalc.f90',
-  'thermo.f90',
   'trackorigin.f90',
   'trialmd.f90',
   'utilities.f',

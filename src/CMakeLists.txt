@@ -25,6 +25,7 @@ add_subdirectory("qmhelpers")
 add_subdirectory("graphs")
 add_subdirectory("rigidconf")
 add_subdirectory("discretize")
+add_subdirectory("entropy")
 add_subdirectory("legacy_algos")
 
 
@@ -46,8 +47,6 @@ list(APPEND srcs
   "${dir}/crest_pars.f90"
   "${dir}/data.f90"
   "${dir}/ensemblecomp.f90"
-  "${dir}/entropic.f90"
-  "${dir}/entropy.f90"
   "${dir}/eval_timer.f90"
   "${dir}/filemod.f90"
   "${dir}/flexi.F90"
@@ -86,8 +85,6 @@ list(APPEND srcs
   "${dir}/symmetry_i.c"
   "${dir}/syscheck.f90"
   "${dir}/testmol.f90"
-  "${dir}/thermocalc.f90"
-  "${dir}/thermo.f90"
   "${dir}/trackorigin.f90"
   "${dir}/trialmd.f90"
   "${dir}/utilities.f"
