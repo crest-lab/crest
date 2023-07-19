@@ -17,13 +17,11 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-subroutine crest_search_imtdgc(env,tim)
+subroutine crest_search_entropy(env,tim)
 !*******************************************************************
-!* This is the re-implementation of CREST's iMTD-GC default workflow
-!* 
-!* Compared to the legacy implementation, this version
-!* is separated from the entropy algo to keep things clean
-!* The entropy algo (sMTD-iMTD) can be found in search_entropy.f90
+!* This is the re-implementation of CREST's sMTD-iMTD workflow
+!* with calculation of conformational entropy
+!* This is a TODO
 !*******************************************************************
   use crest_parameters, only: wp,stdout
   use crest_data
@@ -62,7 +60,7 @@ subroutine crest_search_imtdgc(env,tim)
 !>--- printout header
   write (stdout,*)
   write (stdout,'(10x,"┍",49("━"),"┑")')
-  write (stdout,'(10x,"│",14x,a,13x,"│")') "CREST iMTD-GC SAMPLING"
+  write (stdout,'(10x,"│",14x,a,13x,"│")') "CREST ENTROPY SAMPLING"
   write (stdout,'(10x,"┕",49("━"),"┙")')
   write (stdout,*)
 
@@ -239,192 +237,18 @@ subroutine crest_search_imtdgc(env,tim)
 
 !==========================================================!
   return
-end subroutine crest_search_imtdgc
+end subroutine crest_search_entropy
 
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !========================================================================================!
 
-subroutine crest_multilevel_wrap(env,ensnam,level)
-!*************************************************
-!* wrapper for the multilevel_oloop to select
-!* only a single optimization level
-!*************************************************
-  use crest_parameters, only: wp,stdout,bohr
-  use crest_data
-  use strucrd
-  use calc_type
-  use calc_module
-  implicit none
-  type(systemdata) :: env
-  character(len=*),intent(in) :: ensnam
-  integer,intent(in) :: level
-  logical :: multilevel(6)
-  integer :: k
-  multilevel = .false.
-  select case(level)
-  case( 1:6 )
-    multilevel(level) =.true.
-  case default
-  !>-- map global variable to multilevel selection
-    k = optlevmap_alt(env%optlev) 
-    multilevel(k) =.true.
-  end select
-  call crest_multilevel_oloop(env,ensnam,multilevel)
-end subroutine crest_multilevel_wrap
-
 !========================================================================================!
-subroutine crest_multilevel_oloop(env,ensnam,multilevel)
-!*******************************************************
-!* multilevel optimization loop.
-!* construct consecutive optimizations starting with
-!* crude thresholds to very tight ones
-!*******************************************************
-  use crest_parameters, only: wp,stdout,bohr
-  use crest_data
-  use strucrd
-  use calc_type
-  use calc_module
-  implicit none
-  type(systemdata) :: env 
-  character(len=*),intent(in) :: ensnam
-  logical,intent(in) :: multilevel(6)
-  integer :: nat,nall
-  real(wp),allocatable :: eread(:)
-  real(wp),allocatable :: xyz(:,:,:)
-  integer,allocatable  :: at(:)
-  logical :: dump,pr
-  character(len=128) :: inpnam,outnam
-  integer :: i,l
-  real(wp) :: ewinbackup,rthrbackup
-  real(wp) :: hlowbackup
-  integer :: microbackup
-  integer :: optlevelbackup
-
-!>--- save backup thresholds
-  ewinbackup     = env%ewin
-  rthrbackup     = env%rthr
-  optlevelbackup = env%calc%optlev
-  hlowbackup     = env%calc%hlow_opt
-  microbackup    = env%calc%micro_opt
-
-  pr = .false.
-  l = count(multilevel)
-  if( l > 1 )then
-  pr = .true.
-  write(stdout,*)
-  write(stdout,'(1x,a)') '======================================'
-  write(stdout,'(1x,a)') '|  Multilevel Ensemble Optimization  |'
-  write(stdout,'(1x,a)') '======================================'
-  endif
-
-!>--- read ensemble
-  call rdensembleparam(ensnam,nat,nall)
-  if (nall .lt. 1) then
-    write(stdout,*) 'empty ensemble file ',trim(ensnam)
-    return
-  endif
-  allocate (xyz(3,nat,nall),at(nat),eread(nall))
-  call rdensemble(ensnam,nat,nall,at,xyz,eread)
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
-!>--- Important: crest_oloop requires coordinates in Bohrs
-  xyz = xyz / bohr
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
-
-  write(stdout,'(1x,a,i0,a,a,a)')'Optimizing all ',nall, &
-  & ' structures from file "',trim(ensnam),'" ...'
-
-!>--- sequential optimizations of ensembles
-  dump = .true. !> optimized structures will be written to crest_ensemble.xyz
-  do i=1,6
-    if(multilevel(i))then
-     !>--- set threads
-       call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
-     !>--- set optimization parameters
-       call set_multilevel_options(env,i,.true.)
-     !>--- run parallel optimizations
-       call crest_oloop(env,nat,nall,at,xyz,eread,dump)
-     !>--- rename ensemble and sort
-       call checkname_xyz(crefile,inpnam,outnam)
-       call rename(ensemblefile,trim(inpnam))
-       call sort_and_check(env,trim(inpnam))
-       call checkname_xyz(crefile,inpnam,outnam)
-     !>--- read new ensemble for next iteration
-       deallocate(eread,at,xyz)
-       call rdensembleparam(trim(inpnam),nat,nall)
-       if (nall .lt. 1) then
-         write(stdout,*) 'empty ensemble file',trim(inpnam)
-         stop
-       endif
-       allocate (xyz(3,nat,nall),at(nat),eread(nall))
-       call rdensemble(trim(inpnam),nat,nall,at,xyz,eread)
-     !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
-     !>--- Important: crest_oloop requires coordinates in Bohrs
-       xyz = xyz / bohr
-     !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
-     !>--- restore default sorting thresholds
-       env%ewin        = ewinbackup
-       env%rthr        = rthrbackup
-       env%calc%optlev = optlevelbackup
-       env%calc%hlow_opt  = hlowbackup
-       env%calc%micro_opt = microbackup
-    endif
-  enddo
-
-  if(allocated(eread)) deallocate(eread)
-  if(allocated(at))  deallocate(at)
-  if(allocated(xyz)) deallocate(xyz)
-  return
-contains
-  subroutine set_multilevel_options(env,i,pr)
-    implicit none
-    type(systemdata) :: env
-    integer,intent(in) :: i
-    logical,intent(in) :: pr 
-
-    env%calc%hlow_opt  = env%hlowopt
-    env%calc%micro_opt = nint(env%microopt)
-
-    select case( i )  
-    case( 1 )
-     if(pr) call smallhead('crude pre-optimization')
-     env%calc%optlev =  -3
-     !> larger thresholds
-     env%rthr = env%rthr * 2.0d0
-     env%ewin = aint(env%ewin * 2.0d0)
-    case( 2 )
-     if(pr) call smallhead('optimization with very loose thresholds')
-     env%calc%optlev =  -2
-     env%rthr = env%rthr *1.5d0
-     env%ewin = aint(env%ewin * 2.0d0)
-    case( 3 )
-     if(pr) call smallhead('optimization with loose thresholds')
-     env%calc%optlev =  -1
-      env%ewin = aint(env%ewin*(10.0d0/6.0d0))
-    case( 4 )
-     if(pr) call smallhead('optimization with regular thresholds')
-     env%calc%optlev =  0
-    case( 5 )
-     if(pr) call smallhead('optimization with tight thresholds')
-     env%calc%optlev =  1
-    case( 6 )
-     if(pr) call smallhead('optimization with very tight thresholds')
-     env%calc%optlev =  2
-    case default
-     if(pr) call smallhead('optimization with default thresholds')
-     env%ewin        = 6.0_wp
-     env%rthr        = 0.125_wp
-     env%calc%optlev = 0
-    end select
-
-  end subroutine set_multilevel_options
-end subroutine crest_multilevel_oloop
-
-!========================================================================================!
-subroutine crest_rotamermds(env,ensnam)
+subroutine crest_smtd_mds(env,ensnam)
 !***********************************************************
-!* set up and perform several MDs at different temperatures
-!* on the lowest few conformers
+!* set up and perform several sMTD's on a number of 
+!* conformers obtained from clustering
+!* This is a TODO
 !***********************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
@@ -508,69 +332,4 @@ subroutine crest_rotamermds(env,ensnam)
   if(allocated(mols))deallocate(mols)
   if(allocated(mddats))deallocate(mddats) 
   return
-end subroutine crest_rotamermds
-
-!========================================================================================!
-subroutine crest_newcross3(env)
-!*********************************************************
-!* wrapper for the conformational crossing
-!* takes the latest crest_rotamers_*, crosses structures
-!* and writes the optimized ones back to the file
-!*********************************************************
-  use crest_parameters
-  use crest_data
-  use iomod
-  implicit none
-  type(systemdata) :: env  
-  real(wp) :: ewinbackup
-  integer  :: i,imax,tmpconf,nremain
-  character(len=128) :: inpnam,outnam,refnam
-  character(len=512) :: thispath,tmppath
-  logical :: multilevel(6)
-  real(wp),allocatable :: backupthr(:)
-
-  multilevel = .false.
-  call getcwd(thispath)
-
-  do i = 1,1  !>-- technically it would be possible to repeat the crossing
-!>-- determine max number of new structures
-    imax = min(nint(env%mdtime*50.0d0),5000)
-    if (env%setgcmax) then
-      imax = nint(env%gcmax)
-    else if(imax<0)then
-      imax=5000
-    end if
-    if (env%quick) then
-      imax = nint(float(imax)*0.5d0)
-    end if
-
-!>-- call the crossing routine
-    call checkname_xyz(crefile,refnam,tmppath)
-    call touch(trim(tmppath)) 
-    call crest_crossing(env,imax,trim(refnam),env%gcmaxparent)
-    if (imax .lt. 1) then
-      return
-      exit
-    end if
-
-!>-- optimize ensemble
-    if (env%gcmultiopt) then !>-- optionally split into two steps
-      multilevel(3) = .true.
-      multilevel(5) = .true.
-    else
-      multilevel(4) = .true.
-    end if
-    call crest_multilevel_oloop(env,'confcross.xyz',multilevel)
-
-!>-- append optimized crossed structures and original to a single file
-    call checkname_xyz(crefile,inpnam,outnam)
-    write(stdout,'(a,a)')'appending new structures to ',trim(refnam)
-    call appendto(trim(inpnam),trim(refnam))
-    do while(trim(inpnam).ne.trim(refnam))
-      call remove(trim(inpnam))
-      call checkname_xyz(crefile,inpnam,outnam)
-    enddo
-  end do
-end subroutine crest_newcross3
-
-
+end subroutine crest_smtd_mds

@@ -310,8 +310,8 @@ subroutine confscript2i_legacy(env,tim)
     exit MAINLOOP !--- if this point is reached, i.e., there weren't any further restarts, exit the loop
   end do MAINLOOP
 
-!=====================================================================================================!
-!=====================================================================================================!
+!==========================================================================================!
+!==========================================================================================!
 
   !if(.not.env%entropic .and. .not.(env%crestver == 22))then
   if (.not. env%entropymd) then
@@ -322,9 +322,9 @@ subroutine confscript2i_legacy(env,tim)
     write (*,'(3x,''|           Final Geometry Optimization        |'')')
     write (*,'(3x,''================================================'')')
 
-    if (doNMR) cgf(3) = .true.                        !--- if NMR equivalencies are requested, turn them on here
+    if (doNMR) cgf(3) = .true.  !--- if NMR equivalencies are requested, turn them on here
     call tim%start(7,'')
-    call multilevel_opt(env,99)   !--- the last CREGEN is done within this subroutine
+    call multilevel_opt(env,99) !--- the last CREGEN is done within this subroutine
     call tim%stop(7)                                 !--- optlevel is userset
   else
     !------ or just sort the last ensemble for entropy mode
@@ -332,7 +332,7 @@ subroutine confscript2i_legacy(env,tim)
     !call confg_chk3(env)
   end if
 
-!---- print CREGEN results and clean up Directory a bit
+!>---- print CREGEN results and clean up Directory a bit
   if (env%crestver .ne. crest_solv) then
     call V2terminating()
   end if

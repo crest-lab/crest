@@ -25,5 +25,6 @@ srcs += files(
   'search_1.f90',
   'search_mecp.f90',
   'search_imtdgc.f90',
+  'search_entropy.f90',
   'parallel.f90' 
 )
