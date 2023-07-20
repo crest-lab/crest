@@ -20,6 +20,7 @@
 subroutine crest_search_entropy(env,tim)
 !*******************************************************************
 !* This is the re-implementation of CREST's sMTD-iMTD workflow
+!* from https://doi.org/10.1039/d1sc00621e
 !* with calculation of conformational entropy
 !* This is a TODO
 !*******************************************************************
@@ -62,6 +63,10 @@ subroutine crest_search_entropy(env,tim)
   write (stdout,'(10x,"┍",49("━"),"┑")')
   write (stdout,'(10x,"│",14x,a,13x,"│")') "CREST ENTROPY SAMPLING"
   write (stdout,'(10x,"┕",49("━"),"┙")')
+  write (stdout,*)
+  write (stdout,'(1x,a)') 'please cite:'
+  write (stdout,'(1x,a)') '• P.Pracht, S.Grimme, Chem. Sci., 2021, 12, 6551-6568.'
+  write (stdout,'(1x,a)') '• J.Gorges, S.Grimme, A.Hansen, P.Pracht, PCCP, 2022,24, 12249-12259.'
   write (stdout,*)
 
 !===========================================================!
@@ -176,9 +181,6 @@ subroutine crest_search_entropy(env,tim)
     ensnam = 'crest_dynamics.trj'
     call appendto(ensnam,trim(atmp))
     call tim%start(3,'geom. optimization')
-    !multilevel = .false.
-    !multilevel(5) = .true.
-    !call crest_multilevel_oloop(env,trim(atmp),multilevel)
     call crest_multilevel_wrap(env,trim(atmp),5)
     call tim%stop(3)
 
@@ -192,20 +194,60 @@ subroutine crest_search_entropy(env,tim)
   end if
 
 !=========================================================!
-!>--- (optional) Perform GC step
-    if (env%performCross) then
-      call tim%start(5,'GC')
-      call crest_newcross3(env)
-      call tim%stop(5)
-      call confg_chk3(env)
-      call elowcheck(lower,env)
-      if (lower) then
-        call checkname_xyz(crefile,atmp,str)
-        call checkname_xyz('.cre',str,btmp)
-        call rename(atmp,btmp)
-        if (env%iterativeV2) cycle MAINLOOP
-      end if
-    end if
+!!>---- Entropy mode iterative statically biased MDs
+!    if (env%entropymd) then
+!      call mtdatoms(env)
+!      call tim%start(6,'static MTD')
+!      call emtdcopy(env,0,stopiter,fail)
+!      bref = env%emtd%nbias
+!
+!      ENTROPYITER: do eit = 1,env%emtd%iter
+!        dum = nint(float(env%emtd%nbias) * env%emtd%nbiasgrow)
+!        !env%emtd%nbias = nint(float(env%emtd%nbias) * env%emtd%nbiasgrow)
+!        env%emtd%nbias = max(env%emtd%nbias + 1,dum)
+!        fail = .false.
+!        EFALLBACK: do k = 1,env%emtd%maxfallback
+!          call printiter2(eit)
+!          call tim%start(6,'static MTD')
+!          call entropyMD_para_OMP(env)
+!          call tim%stop(6)
+!          call emtdcheckempty(env,fail,env%emtd%nbias)
+!          if (fail) then
+!            if (k == env%emtd%maxfallback) then
+!              stopiter = .true.
+!            else
+!              cycle EFALLBACK
+!            end if
+!          else
+!            call tim%start(3,'multilevel OPT')
+!            if (env%optlev >= -1.0d0) then
+!              call multilevel_opt(env,2)
+!            end if
+!            call multilevel_opt(env,99)
+!
+!            call tim%stop(3)
+!            !--- if in the entropy mode a lower structure was found
+!            !    --> cycle, required for extrapolation
+!            call elowcheck(lower,env)
+!            if (lower .and. env%entropic) then
+!              env%emtd%nbias = bref  !IMPORTANT, reset for restart
+!              cycle MAINLOOP
+!            end if
+!            !--- file handling
+!            eit2 = eit
+!            call emtdcopy(env,eit2,stopiter,fail)
+!            env%emtd%iterlast = eit2
+!          end if
+!          if (.not. lower .and. fail .and. .not. stopiter) then
+!            cycle EFALLBACK
+!          end if
+!          exit EFALLBACK  !fallback loop is exited on first opportuinity
+!        end do EFALLBACK
+!        if (stopiter) then
+!          exit ENTROPYITER
+!        end if
+!      end do ENTROPYITER
+!    end if
 
 !==========================================================!
 !>--- exit mainloop
@@ -213,21 +255,15 @@ subroutine crest_search_entropy(env,tim)
   enddo MAINLOOP
 
 !==========================================================!
-!>--- final ensemble optimization
-    write (stdout,'(/)')
-    write (stdout,'(3x,''================================================'')')
-    write (stdout,'(3x,''|           Final Geometry Optimization        |'')')
-    write (stdout,'(3x,''================================================'')')
-    call tim%start(3,'geom. optimization')
-    call checkname_xyz(crefile,atmp,str)
-    call crest_multilevel_wrap(env,trim(atmp),0) 
-    call tim%stop(3)                 
-
-!==========================================================!
-!>--- final ensemble sorting
-!  call newcregen(env,0) 
-!> this is actually done within the last crest_multilevel_
-!> call, so I comment it out here
+!!>--- final ensemble optimization
+!    write (stdout,'(/)')
+!    write (stdout,'(3x,''================================================'')')
+!    write (stdout,'(3x,''|           Final Geometry Optimization        |'')')
+!    write (stdout,'(3x,''================================================'')')
+!    call tim%start(3,'geom. optimization')
+!    call checkname_xyz(crefile,atmp,str)
+!    call crest_multilevel_wrap(env,trim(atmp),0) 
+!    call tim%stop(3)                 
 
 !==========================================================!
 !>--- print CREGEN results and clean up Directory a bit

@@ -112,6 +112,7 @@ subroutine parseflags(env,arg,nra)
 !>    D E F A U L T   S E T T I N G S
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
+!&<
 !>--- parallelization stuff
   env%Threads = 1                !> total number of threads
   env%MAXRUN = 1                 !> number of parallel xtb jobs
@@ -172,18 +173,18 @@ subroutine parseflags(env,arg,nra)
   env%cgf(6) = .false.         !> write confg output to file <tmp> instead of <confg.out>
 
 !>--- general runtype settings (shared for V1 & V2 and other functionallities)
-  env%autozsort = .false.        !> zsort at the beginning
-  env%onlyZsort = .false.        !> perform only the zsort routine
-  env%performCross = .true.      !> do the GC in V1 and V2
+  env%autozsort = .false.      !> zsort at the beginning
+  env%onlyZsort = .false.      !> perform only the zsort routine
+  env%performCross = .true.    !> do the GC in V1 and V2
   env%slow = .false.
   env%setgcmax = .false.       !> adjust max. number of structures for GC?
-  env%quick = .false.            !> use loose options for a quick conformation search
-  env%superquick = .false.       !> very crude variant of quick-mode
-  env%niceprint = .false.        !> progressbar printout for some of the steps
+  env%quick = .false.          !> use loose options for a quick conformation search
+  env%superquick = .false.     !> very crude variant of quick-mode
+  env%niceprint = .false.      !> progressbar printout for some of the steps
   env%multilevelopt = .true.   !> perform multilevel optimization
-  env%trackorigin = .true.       !> for v2 track generation step by default
-  env%compareens = .false.       !> compare two given ensembles
-  env%maxcompare = 10            !> maximum number of (lowest) conformers to compare when using "-compare"
+  env%trackorigin = .true.     !> for v2 track generation step by default
+  env%compareens = .false.     !> compare two given ensembles
+  env%maxcompare = 10          !> maximum number of (lowest) conformers to compare when using "-compare"
   env%QCG = .false.          !> special QCG usage
 
 !>--- The following settings are mainly for v.1 (MF-MD-GC)
@@ -226,9 +227,8 @@ subroutine parseflags(env,arg,nra)
   env%useqmdff = .false.    !> use qmdff for the MDs?
   env%iru = .false.         !> re-use previously found conformers as bias in iterative approach
   !>--- array to determine if RMSD are included
-  !allocate(env%includeRMSD(env%nat))
   env%keepModef = .false.   !> delete intermediate Directories
-  env%nmetadyn = 0        !> number of METADYNs (dummy argument at this point; set later)
+  env%nmetadyn = 0          !> number of METADYNs (dummy argument at this point; set later)
 
   env%forceconst = 0.02_wp !> force constant (mainly for GFN-FF iMTD-GC)
   bondconst = .false.      !> constrain all bonds
@@ -294,16 +294,18 @@ subroutine parseflags(env,arg,nra)
   env%max_solv = 150
   env%solv_file = ''
   env%solu_file = ''
-  
+ 
+!&>
+ 
 !=========================================================================================!
 !=========================================================================================!
 !=========================================================================================!
 !>--- get the CREST version/runtype
-  env%crestver = crest_imtd  !> confscript version (v.1 = MF-MD-GC, v.2 = MTD)
-  env%runver = 1      !> default
-  env%properties = 0       !> additional calculations/options before or after confsearch
-  env%properties2 = 0      !> backup for env%properties
-  env%iterativeV2 = .true. !> iterative crest V2 version
+  env%crestver = crest_imtd !> confscript version (v.1 = MF-MD-GC, v.2 = MTD)
+  env%runver = 1            !> default
+  env%properties  = p_none  !> additional calculations/options before or after confsearch
+  env%properties2 = p_none  !> backup for env%properties
+  env%iterativeV2 = .true.  !> iterative crest V2 version
   env%preopt = .true.
 !>--- check for input file
   do i = 1,nra
@@ -1539,6 +1541,8 @@ subroutine parseflags(env,arg,nra)
           end if
         end if
 !========================================================================================!
+!--------- ENTROPY related settings
+!========================================================================================!
       case ('-entropy','-entropic')  !> new, specialized calculation of molecular entropies
         write (*,'(2x,a,'' : enhanced ensemble entropy calculation'')') trim(arg(i))
         if (env%properties == p_propcalc) then 
@@ -2040,6 +2044,15 @@ subroutine parseflags(env,arg,nra)
     env%autozsort = .false.
   end if
 
+!========================================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
+!> FALLBACK setup of new calculator
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
+!========================================================================================!
+  if(.not.env%legacy .and. env%calc%ncalculations == 0 )then
+    call env2calc_setup(env)
+  endif
+
   return
 end subroutine parseflags
 
@@ -2218,7 +2231,6 @@ end subroutine parseRC2
 !> final ensemble back into this format
 !========================================================================================!
 subroutine inputcoords(env,arg)
-!  use iso_fortran_env,only:wp => real64
   use crest_parameters
   use crest_data
   use strucrd

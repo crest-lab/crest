@@ -390,7 +390,7 @@ module crest_data
     !--- thermo data
       type(thermodata) :: thermo  
 
-    !--- thermo data
+    !--- reference structure data (the input structure)
       type(refdata) :: ref
       type(refdata) :: qcg_solvent
       type(refdata) :: qcg_solute

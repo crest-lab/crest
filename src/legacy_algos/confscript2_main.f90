@@ -253,7 +253,7 @@ subroutine confscript2i_legacy(env,tim)
 !====================================================================!
 !---- Entropy mode iterative statically biased MDs
     if (env%entropymd) then
-      call mtdatoms('coord',env)
+      call mtdatoms(env)
       call tim%start(6,'static MTD')
       call emtdcopy(env,0,stopiter,fail)
       bref = env%emtd%nbias

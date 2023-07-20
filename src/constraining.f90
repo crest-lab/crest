@@ -725,19 +725,20 @@ end subroutine build_atlist
 !-----------------------------------------------------------------------------
 ! A control option for static Metadynamics: select only heavy atoms
 !-----------------------------------------------------------------------------
-subroutine mtdatoms(filname,env)
+subroutine mtdatoms(env)
   use crest_data
   use strucrd
   use zdata
   type(systemdata) :: env
   type(coord) :: mol
   type(zmolecule) :: zmol
-  character(len=*) :: filname
+!  character(len=*) :: filname
   integer :: i,j
   integer,allocatable :: inc(:)
   character(len=256) :: atstr
   integer :: r,rs
-  call mol%open(trim(filname))
+!  call mol%open(trim(filname))
+  call env%ref%to(mol)
   call simpletopo(mol%nat,mol%at,mol%xyz,zmol,.false.,.true.,'')
   allocate (inc(env%nat),source=0)
   !-- exclude H atoms
