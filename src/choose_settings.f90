@@ -392,27 +392,29 @@ subroutine adjustnormmd(env)
 !>--- total number of NORMMDs is temps*nrotammds
   end if
 
+!==============================================!
 !>--- settings for static MTDS in entropy mode
-  if (env%entropymd) then !special case for entropy mode
-    env%emtd%iter = 20            !max number of iterations
-    env%emtd%nbias = min(150,nint(env%tmtd/4)) !max number of bias structures
-    env%emtd%nbiasgrow = min(1.4d0,1.2d0+env%tmtd*1.d-3)!increase of nBias in each cycle
-    env%emtd%nMDs = 36          !number of static MTDs
-    env%emtd%lenfac = 0.5d0     !length (relativ to regular MTDs)
-    env%emtd%temperature = env%nmdtemp !sMTD temperature (default 600 K)
-    env%emtd%kpush = 1.d-4+env%tmtd*1.0d-6   !kpush constant PER ATOM, a bit more for flexible systems 1.d-4+env%tmtd*1.d-6 1.5 zu viel, 0.5 zu wenig
-    env%emtd%alpha = 1.0d0        !some alpha
-    env%emtd%mtdramp = 0.015d0    !parameter to control how "fast" bias is applied in MTD
+!==============================================!
+  if (env%entropymd) then 
+    env%emtd%iter = 20    !> max number of iterations
+    env%emtd%nbias = min(150,nint(env%tmtd/4)) !> max number of bias structures
+    env%emtd%nbiasgrow = min(1.4d0,1.2d0+env%tmtd*1.d-3) !> increase of nBias in each cycle
+    env%emtd%nMDs = 36          !> number of static MTDs
+    env%emtd%lenfac = 0.5d0     !> length (relativ to regular MTDs)
+    env%emtd%temperature = env%nmdtemp !> sMTD temperature (default 600 K)
+    env%emtd%kpush = 1.d-4+env%tmtd*1.0d-6   !> kpush constant PER ATOM, a bit more for flexible systems 1.d-4+env%tmtd*1.d-6 1.5 zu viel, 0.5 zu wenig
+    env%emtd%alpha = 1.0d0        !> some alpha
+    env%emtd%mtdramp = 0.015d0    !> parameter to control how "fast" bias is applied in MTD
     if (env%crestver == crest_imtd) then
       if (env%emtd%confthr < 0.0d0) then
-        env%emtd%confthr = 0.02d0    !if we gain less than x% NEW conformers, exit
+        env%emtd%confthr = 0.02d0    !> if we gain less than x% NEW conformers, exit
       end if
       if (env%emtd%sconvthr < 0.0d0) then
-        env%emtd%sconvthr = 0.005d0   !if we gain less than x% NEW entropy, exit
+        env%emtd%sconvthr = 0.005d0   !> if we gain less than x% NEW entropy, exit
       end if
     end if
 
-    if (env%nmdtemp < 0.d0) then   !if temperature is not set by the user
+    if (env%nmdtemp < 0.d0) then   !> if temperature is not set by the user
       env%nmdtemp = 600.0d0
     end if
 
@@ -423,20 +425,21 @@ subroutine adjustnormmd(env)
       allocate (env%emtd%klist(ndum))
       env%emtd%klist(1) = env%emtd%kpush
       env%emtd%klist(2) = env%emtd%kpush*2.5d0
-      env%emtd%nMDs = 12         !number of static MTDs
-      env%emtd%lenfac = 0.5d0      !half the length because we have 2 kpush
+      env%emtd%nMDs = 12           !> number of static MTDs
+      env%emtd%lenfac = 0.5d0      !> half the length because we have 2 kpush
       if (env%emtd%confthr < 0.0d0) then
-        env%emtd%confthr = 0.05d0    !if we gain less than x% NEW conformers, exit
+        env%emtd%confthr = 0.05d0  !> if we gain less than x% NEW conformers, exit
       end if
       if (env%emtd%sconvthr < 0.0d0) then
-        env%emtd%sconvthr = 0.01d0   !if we gain less than x% NEW entropy, exit
+        env%emtd%sconvthr = 0.01d0  !> if we gain less than x% NEW entropy, exit
       end if
     end if
 
 !>--- Exclude atoms from static MTD bias
-    env%emtd%rmax = 0    ! ignore small rings up to this size in bias
-    call mtdatoms('coord',env)
+    env%emtd%rmax = 0    !> ignore small rings up to this size in bias
+    call mtdatoms(env)
   end if
+!==============================================!
 
   return
 end subroutine adjustnormmd

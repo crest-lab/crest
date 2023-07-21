@@ -646,14 +646,18 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
     llan = nall - newnall
     write (ch,'('' number of removed clashes      :'',i6)') llan
   end if
-  !--- otherwise the ensemble is ok
+  !>--- otherwise the ensemble is ok
 
-  !write(ch,'('' number of reliable points      :'',i6)')newnall
-
-  deallocate (orderref,order)
-  deallocate (cn,bond)
-  deallocate (atdum,c1,at0,c0)
-  deallocate (cref,rcov)
+  if(allocated(orderref)) deallocate(orderref)
+  if(allocated(order))  deallocate (order)
+  if(allocated(cn)) deallocate(cn)
+  if(allocated(bond)) deallocate(bond)
+  if(allocated(atdum)) deallocate(atdum)
+  if(allocated(c1)) deallocate(c1)
+  if(allocated(at0)) deallocate(at0)
+  if(allocated(c0)) deallocate(c0)
+  if(allocated(cref)) deallocate(cref)
+  if(allocated(rcov)) deallocate(rcov)
   return
 end subroutine discardbroken
 

@@ -25,8 +25,8 @@ module probabilities_module
   private
 
   real(wp),parameter :: pi = acos(0.0_wp)*2.0_wp
-  real(wp),parameter,public :: radtodeg = 180.0_wp / pi
-  real(wp),parameter,public :: degtorad = 1.0_wp / radtodeg
+  real(wp),parameter,private :: radtodeg = 180.0_wp / pi
+  real(wp),parameter,private :: degtorad = 1.0_wp / radtodeg
 
   public :: normal_dist
 
@@ -250,20 +250,31 @@ contains  !> MODULE PROCEDURES START HERE
   real(wp),intent(in) :: mu(:)
   real(wp),intent(in) ::  kappa
   real(wp) :: theta,p,dpdt,dpdt2,numdpdt,pp,pm,tmp
-  real(wp) :: d
+  real(wp) :: d,maxp
   integer :: i,j,k,l,NM
   integer :: ich
+  real(wp),allocatable :: values(:)
 
+  allocate(values(n),source = 0.0_wp)
   d = (2.0_wp*pi)/float(n)
   theta = 0.0_wp
-  open (newunit=ich,file='vonmises.txt')
   do i = 1,n
     call vonMises(theta,kappa,mu,p,dpdt,dpdt2)
-    write (ich,'(2f16.8)') theta,p
+    values(i) = p
+    theta = theta+d
+  end do
+
+  open (newunit=ich,file='vonmises.txt')
+  theta = 0.0_wp
+  maxp = maxval(values,1)
+  values = values/maxp 
+  do i = 1,n
+    write (ich,'(2f16.8)') theta,values(i)
     theta = theta+d
   end do
   close (ich)
 
+  deallocate(values) 
 end subroutine vonMises_plot
 
   

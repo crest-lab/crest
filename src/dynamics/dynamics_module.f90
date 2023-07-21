@@ -135,7 +135,7 @@ contains
     real(wp) :: tstep_au
     real(wp) :: epot,ekin,edum
     real(wp) :: temp,thermoscal
-    !>--- averages & errors
+!>--- averages & errors
     real(wp) :: Tav,Epav,Ekav,Eerror
 
     real(wp),allocatable :: grd(:,:)
@@ -157,19 +157,19 @@ contains
     logical :: ex
 
     call initsignal()
-    !>--- pre-settings and calculations
+!>--- pre-settings and calculations
     term = 0
     tstep_au = dat%tstep * fstoau
     nfreedom = 3 * mol%nat
     if (dat%shake) nfreedom = nfreedom - dat%nshake
-    !>--- averages
+!>--- averages
     tav = 0.0_wp
     eerror = 0.0_wp
     ekav = 0.0_wp
     epav = 0.0_wp
     temp = 0.0_wp
 
-    !>--- allocate data fields
+!>--- allocate data fields
     allocate (xyz_angstrom(3,mol%nat))
     allocate (molo%at(mol%nat),molo%xyz(3,mol%nat))
     allocate (grd(3,mol%nat),vel(3,mol%nat),velo(3,mol%nat),source=0.0_wp)
@@ -179,7 +179,7 @@ contains
     allocate (dat%blocke(dat%blockl),dat%blockt(dat%blockl))
     allocate (dat%blockrege(dat%maxblock))
 
-    !>--- settings printout
+!>--- settings printout
     if (pr) then
       write (*,*)
       write (*,'('' MD time /ps        :'',f8.2)') dat%length_ps
@@ -202,7 +202,7 @@ contains
       write (*,'('' hydrogen mass      :'',f8.5  )') dat%md_hmass
     end if
 
-    !>--- set atom masses
+!>--- set atom masses
     molmass = 0.0_wp
     do i = 1,mol%nat
       molmass = molmass + ams(mol%at(i))
@@ -216,7 +216,7 @@ contains
     end do
     molmass = molmass * amutokg
 
-    !>--- initialize velocities (or read from restart file)
+!>--- initialize velocities (or read from restart file)
     if (dat%thermostat) then
       f = 1.0_wp
     else
@@ -226,7 +226,7 @@ contains
     call mdinitu(mol,dat,velo,mass,edum,pr)
     call ekinet(mol%nat,velo,mass,ekin)
 
-    !>--- initialize MTDs (if required)
+!>--- initialize MTDs (if required)
     !$omp critical
     if (dat%simtype == type_mtd) then
       call md_init_mtd(mol,dat,pr)
@@ -257,8 +257,8 @@ contains
 
     dcount = 0
     printcount = 1
-    !===============================================================!
-    !>--- begin MD loop
+!===============================================================!
+!>--- begin MD loop
     MD: do t = 1,dat%length_steps
       call initsignal()
 
@@ -373,14 +373,14 @@ contains
 
       !if (t == dat%length_steps) exit MD
     end do MD
-    !>--- finish MD loop
-    !===============================================================!
-    !>--- close trajectory file
+!>--- finish MD loop
+!===============================================================!
+!>--- close trajectory file
     !$omp critical
     close (trj)
     !$omp end critical
 
-    !>--- averages printout
+!>--- averages printout
     if (pr) then
       write (*,*)
       write (*,*) 'average properties '
@@ -391,10 +391,10 @@ contains
       write (*,*) '<T>                  :',Tav / float(t)
     end if
 
-    !>--- write restart file
+!>--- write restart file
     call wrmdrestart(mol,dat,velo)
 
-    !>--- termination printout
+!>--- termination printout
     if (pr) then
       select case (term)
       case (0)
@@ -406,7 +406,7 @@ contains
       end select
     end if
 
-    !>--- deallocate data
+!>--- deallocate data
     deallocate (dat%blockrege,dat%blockt,dat%blocke)
     deallocate (mass,acc,veln)
     deallocate (vel,velo,grd)

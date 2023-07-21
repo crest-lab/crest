@@ -14,17 +14,20 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-srcs += files(
-  'singlepoint.f90',
-  'dynamics.f90',
-  'numhess.f90',
-  'optimization.f90',
-  'playground.f90',
-  'crossing.f90',
-  'scan.f90',
-  'search_1.f90',
-  'search_mecp.f90',
-  'search_imtdgc.f90',
-  'search_entropy.f90',
-  'parallel.f90' 
+set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
+
+list(APPEND srcs
+  "${dir}/thermocalc.f90"
+  "${dir}/thermo.f90"
+  "${dir}/mie.f90"
+  "${dir}/entropic.f90"
+  "${dir}/entropy.f90"
 )
+
+set(srcs ${srcs} PARENT_SCOPE)
+
+
+
+
+
+

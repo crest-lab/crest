@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2022 Philipp Pracht
+! Copyright (C) 2023 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -18,8 +18,12 @@
 !================================================================================!
 
 !================================================================================!
-!> This piece of code generates a calcdata object from the global settings in env
 subroutine env2calc(env,calc,molin)
+!******************************************
+!* This piece of code generates a calcdata
+!* object from the global settings in env
+!******************************************
+   use crest_parameters
    use crest_data 
    use calc_type
    use strucrd
@@ -55,14 +59,33 @@ subroutine env2calc(env,calc,molin)
    end select
    if(present(molin))then
      mol = molin
-   else
-     call mol%open('coord')
+   !else
+   !  call mol%open('coord')
    endif
 
    call calc%add( cal )   
 
    return
 end subroutine env2calc
+
+subroutine env2calc_setup(env)
+!***********************************
+!* Setup the calc object within env
+!***********************************
+  use crest_data
+  use calc_type
+  use strucrd
+  implicit none
+   !> INOUT
+   type(systemdata),intent(inout) :: env
+   !> LOCAL
+   type(calcdata) :: calc
+   type(coord) :: mol
+
+   call env2calc(env,calc,mol)
+
+   env%calc = calc
+end subroutine  env2calc_setup
 
 !================================================================================!
 subroutine confscript2i(env,tim)
@@ -74,7 +97,11 @@ subroutine confscript2i(env,tim)
   if(env%legacy)then
       call confscript2i_legacy(env,tim)
   else
-      call crest_search_imtdgc(env,tim)
+     if(.not.env%entropic)then
+        call crest_search_imtdgc(env,tim)
+     else
+        call crest_search_entropy(env,tim)
+     endif
   endif
 end subroutine confscript2i
 
@@ -156,3 +183,39 @@ subroutine nciflexi(env,flexval)
   endif  
 end subroutine nciflexi
 
+!================================================================================!
+
+subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
+        &  nt,temps,et,ht,gt,stot,bhess)
+!******************************************
+!* Wrapper for a Hessian calculation
+!* to get thermodynamics of the molecule
+!*****************************************
+  use crest_parameters, only: wp
+  use crest_data
+  implicit none
+  !> INPUT
+  type(systemdata) :: env
+  logical,intent(in) :: pr
+  integer,intent(in) :: nat
+  integer,intent(inout) :: at(nat)
+  real(wp),intent(inout) :: xyz(3,nat)  !> in Angstroem!
+  character(len=*) :: dirname
+  integer,intent(in)  :: nt
+  real(wp),intent(in)  :: temps(nt)
+  logical,intent(in) :: bhess       !> calculate bhess instead?
+  !> OUTPUT
+  real(wp),intent(out) :: et(nt)    !> enthalpy in Eh
+  real(wp),intent(out) :: ht(nt)    !> enthalpy in Eh
+  real(wp),intent(out) :: gt(nt)    !> free energy in Eh
+  real(wp),intent(out) :: stot(nt)  !> entropy in cal/molK
+
+  if(env%legacy)then
+    call thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
+    &                    nt,temps,et,ht,gt,stot,bhess)
+  else
+    error stop 'thermo_wrap not yet implemented for API version'
+  endif
+end subroutine thermo_wrap
+
+!================================================================================!

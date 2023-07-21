@@ -184,7 +184,9 @@ end subroutine crest_oloop
 !========================================================================================!
 
 subroutine crest_search_multimd(env,mol,mddats,nsim)
-!> this runs nsim MDs on the same structure
+!*****************************************************
+!* this runs nsim MDs on the same structure (mol)
+!*****************************************************
   use crest_parameters,only:wp,stdout
   use crest_data
   use strucrd
@@ -473,7 +475,9 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
 end subroutine crest_search_multimd_init2
 !========================================================================================!
 subroutine crest_search_multimd2(env,mols,mddats,nsim)
-!> this runs nsim MDs on nsim different structures
+!*******************************************************************
+!* this runs nsim MDs on nsim selected different structures (mols)
+!*******************************************************************
   use crest_parameters,only:wp,stdout
   use crest_data
   use strucrd

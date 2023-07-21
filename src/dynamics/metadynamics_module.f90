@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 - 2022 Philipp Pracht
+! Copyright (C) 2021 - 2023 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -31,19 +31,6 @@ module metadynamics_module
   !======================================================================================!
   !--- private module variables and parameters
   private
-
-  !--- some constants and name mappings
-!  real(wp),parameter :: bohr = 0.52917726_wp
-!  real(wp),parameter :: autokcal = 627.509541_wp
-!  real(wp),parameter :: autoaa = 0.52917726_wp
-!  real(wp),parameter :: aatoau = 1.0_wp / autoaa
-!  real(wp),parameter :: amutokg = 1.660539040e-27_wp
-!  real(wp),parameter :: metokg = 9.10938356e-31_wp
-!  real(wp),parameter :: kgtome = 1.0_wp / metokg
-!  real(wp),parameter :: amutoau = amutokg * kgtome
-!  real(wp),parameter :: fstoau = 41.3413733365614_wp
-!  real(wp),parameter :: kB = 3.166808578545117e-06_wp !in Eh/K
-
   integer,parameter :: std_mtd = 1
   integer,parameter :: rmsd_mtd = 2
   integer,parameter :: damp_heaviside = 3
@@ -77,7 +64,6 @@ module metadynamics_module
     real(wp) :: ramp = 0.03_wp
     real(wp) :: damp = 1.0_wp
     real(wp),allocatable :: damping(:)  !input for snapshot-specific damping
-    
 
   contains
     procedure :: deallocate => mtd_deallocate
@@ -89,12 +75,17 @@ module metadynamics_module
   public :: cv_dump
   public :: calc_mtd
 
-contains
 !========================================================================================!
-! subroutine mtd_ini
-! initialize mtd settings
-!-------------------------!
+!========================================================================================!
+contains  !> MODULE PROCEDURES START HERE
+!========================================================================================!
+!========================================================================================!
+
   subroutine mtd_ini(mol,pot,tstep,mdlength,pr)
+!*************************************
+!* subroutine mtd_ini
+!* initialize metadynamics settings
+!*************************************
     implicit none
     type(coord) :: mol
     type(mtdpot) :: pot
@@ -110,29 +101,29 @@ contains
       write (*,'(" alpha   :",f9.3)') pot%alpha
     end if
 
-    dum1 = anint((mdlength * 1000.0_wp) / tstep)
-    idum1 =nint(dum1)
+    dum1 = anint((mdlength*1000.0_wp)/tstep)
+    idum1 = nint(dum1)
 
     select case (pot%mtdtype)
     case (std_mtd) !>--- "standard" MTD
-       pot%nmax = idum1
-      allocate(pot%cv(idum1),source=0.0_wp)
-      allocate(pot%cvgrd(3,mol%nat),source=0.0_wp)
+      pot%nmax = idum1
+      allocate (pot%cv(idum1),source=0.0_wp)
+      allocate (pot%cvgrd(3,mol%nat),source=0.0_wp)
 
     case (rmsd_mtd) !>--- RMSD MTD
       if (pot%cvdump_fs <= 0.0_wp) return !> structure dumpstep in fs must be given
-      dum2 = max(1.0_wp, (pot%cvdump_fs / tstep))
+      dum2 = max(1.0_wp, (pot%cvdump_fs/tstep))
       dum2 = anint(dum2)
       pot%cvdumpstep = nint(dum2) !> bias structure dump step in MD steps
-      dum1 = dum1 / dum2
+      dum1 = dum1/dum2
       dum1 = floor(dum1)
       pot%nmax = nint(dum1) !> max number of bias structure dump
       if (pot%maxsave == 0) pot%maxsave = nint(dum1)
-      if(allocated(pot%cvxyz)) deallocate(pot%cvxyz)
+      if (allocated(pot%cvxyz)) deallocate (pot%cvxyz)
       allocate (pot%cvxyz(3,mol%nat,pot%maxsave),source=0.0_wp)
-      !>--- automatic ramp parameter
+      !>--- automatic ramp parameter (acounted for different MD time steps)
       !> (should yield damp≈0.5 for cvdumpstep/2, but is at least 0.03 as in xtb)
-      pot%ramp = log(3.0_wp) / (0.5_wp * dum2)
+      pot%ramp = log(3.0_wp)/(0.5_wp*dum2)
       pot%ramp = max(pot%ramp,0.03_wp)
       if (pr) then
         write (*,'(" ramp    :",f9.3)') pot%ramp
@@ -149,14 +140,16 @@ contains
   end subroutine mtd_ini
 
 !========================================================================================!
-! subroutine mtd_deallocate
-! type internal procedure to deallocate data
   subroutine mtd_deallocate(self)
+!**********************************************
+!* subroutine mtd_deallocate
+!* type internal procedure to deallocate data
+!**********************************************
     class(mtdpot) :: self
     if (allocated(self%cvxyz)) deallocate (self%cvxyz)
     if (allocated(self%atinclude)) deallocate (self%atinclude)
-    if(allocated(self%cv)) deallocate(self%cv)
-    if(allocated(self%cvgrd)) deallocate(self%cvgrd)
+    if (allocated(self%cv)) deallocate (self%cv)
+    if (allocated(self%cvgrd)) deallocate (self%cvgrd)
 
     self%mtdtype = 0
     self%nmax = 0
@@ -175,10 +168,11 @@ contains
   end subroutine mtd_deallocate
 
 !========================================================================================!
-! subroutine cv_dump
-! update the list of CVs at the current MD timestep
-!---------------------------------------------------!
   subroutine cv_dump(mol,pot,cv,pr)
+!*****************************************************
+!* subroutine cv_dump
+!* update the list of CVs at the current MD timestep
+!*****************************************************
     implicit none
     type(coord) :: mol
     type(mtdpot) :: pot
@@ -187,33 +181,70 @@ contains
 
     select case (pot%mtdtype)
     case (std_mtd) !>--- CV update for "standard" MTD
-      pot%ncur = pot%ncur + 1
+      pot%ncur = pot%ncur+1
       pot%cv(pot%ncur) = cv
+
     case (rmsd_mtd) !>--- structure mapping for RMSD MTD
-      pot%cvdump = pot%cvdump + 1
+      pot%cvdump = pot%cvdump+1
       if (pot%cvdump == pot%cvdumpstep) then
         pot%cvdump = 0
-        pot%ncur = pot%ncur + 1
+        pot%ncur = pot%ncur+1
         pot%cvxyz(:,:,pot%ncur) = mol%xyz(:,:)
-        if(pr)then
-        write (*,'(2x,"adding snapshot to metadynamics bias, now at ",i0," CVs")')pot%ncur
+        if( pot%ncur == 1)then
+          !>--- The first one should be sligthly distorted
+          call rmsdcv_perturb(mol%nat,pot%cvxyz(:,:,pot%ncur))
         endif
+        if (pr) then
+          write (*,'(2x,"adding snapshot to metadynamics bias, now at ",i0," CVs")') pot%ncur
+        end if
       end if
+
     case default
       return
     end select
 
     return
+
   end subroutine cv_dump
 
+!=========================================================================================!
+  subroutine rmsdcv_perturb(nat,xyz)
+!************************************************
+!* Slightly perturb a given geometry for RMSD CV
+!* to avoid singularities if the CV is exactly the
+!* current structure
+!*************************************************
+    implicit none
+    integer,intent(in) :: nat
+    real(wp),intent(inout) :: xyz(3,nat)
+    real(wp) :: r(3)
+    integer :: i,j
+    real(wp),parameter :: tol = 1.0e-8_wp
+    real(wp),parameter :: displace = 1.0e-6_wp
+    do i = 1,nat
+      do
+        !> generate a random vector r in [-1,1]
+        call random_number(r)
+        r = (r-0.5_wp)*2.0_wp
+        !> check that displacement is large enough
+        if (norm2(r) >= 1e-8_wp) exit
+      end do
+      !> normalize
+      r = r/norm2(r)
+      !> displace
+      xyz(:,i) = xyz(:,i)+displace*r
+    end do
+  end subroutine rmsdcv_perturb
+
 !========================================================================================!
-! subroutine calc_mtd
-! select how the MTD potential is calculated.
-! On Output:
-!             emtd - final MTD energy contribution
-!           mtdgrd - final MTD gradient contribution
-!----------------------------------------------------!
   subroutine calc_mtd(mol,pot,emtd,grdmtd)
+!*******************************************************
+!* subroutine calc_mtd
+!* select how the MTD potential is calculated.
+!* On Output:
+!*             emtd - final MTD energy contribution
+!*           mtdgrd - final MTD gradient contribution
+!********************************************************
     implicit none
     type(coord) :: mol
     type(mtdpot) :: pot
@@ -230,54 +261,60 @@ contains
     case (rmsd_mtd)
       call calc_damp(pot,rmsd_mtd,0.0_wp)
       call calc_rmsd_mtd(mol,pot,emtd,grdmtd)
+
     case default
       emtd = 0.0_wp
       grdmtd = 0.0_wp
+
     end select
 
     return
   end subroutine calc_mtd
 
 !========================================================================================!
-! subroutine calc_damp
-! calculate a MTD-type-specific damping factor.
-! If/how/where the damping factor is applied
-! depends on the MTD type
-!-----------------------------------------------!
   subroutine calc_damp(pot,dt,x)
+!**************************************************
+!* subroutine calc_damp
+!* calculate a MTD-type-specific damping factor.
+!* If/how/where the damping factor is applied
+!* depends on the MTD type
+!**************************************************
     implicit none
     type(mtdpot) :: pot
     integer :: dt
     real(wp) :: x
 
     select case (dt) !>-- select damping parameter calculation
-    case (rmsd_mtd) 
-      pot%damp = (2.0_wp / (1.0_wp + &
-      &       exp(-pot%ramp * float(pot%cvdump))) - 1.0_wp)
-    case( damp_heaviside ) !> simple heaviside switch
-      pot%damp = sign(0.5_wp,x) + 0.5_wp
+    case (rmsd_mtd)
+      pot%damp = (2.0_wp/(1.0_wp+ &
+      &       exp(-pot%ramp*float(pot%cvdump)))-1.0_wp)
+
+    case (damp_heaviside) !> simple heaviside switch
+      pot%damp = sign(0.5_wp,x)+0.5_wp
+
     case default
       pot%damp = 1.0_wp
+
     end select
 
     return
   end subroutine calc_damp
 
 !========================================================================================!
-! subroutine calc_damp2
-! damping routine for snapshot-cv-specific 
-! damping parameter
-!-----------------------------------------------!
   subroutine calc_damp2(pot,t,damp)
+!*********************************************
+!* subroutine calc_damp2
+!* damping routine for snapshot-cv-specific
+!* damping parameter
+!*********************************************
     implicit none
     type(mtdpot) :: pot
     integer :: t !> snapshot
     real(wp) :: damp
 
-
     select case (pot%damptype) !>-- select damping parameter calculation
-    case( damp_heaviside_cv ) !> simple heaviside switch
-      damp = sign(0.5_wp,pot%damping(t)) + 0.5_wp
+    case (damp_heaviside_cv) !> simple heaviside switch
+      damp = sign(0.5_wp,pot%damping(t))+0.5_wp
     case default
       pot%damp = 1.0_wp
     end select
@@ -286,16 +323,17 @@ contains
   end subroutine calc_damp2
 
 !========================================================================================!
-! subroutine calc_rmsd_mtd
-! calculate energy and gradient contribution from the RMSD
-! of the current structure (mol) to any structure in a list
-! of documented references.
-! Optionally, atoms for which the RMSD is to be calculated
-! can be specified.
-! Since RMSD calculation can be costly for many structures
-! there is some OMP parallelization going on.
-!-----------------------------------------------------------!
   subroutine calc_rmsd_mtd(mol,pot,ebias,grdmtd)
+!**************************************************************
+!* subroutine calc_rmsd_mtd
+!* calculate energy and gradient contribution from the RMSD
+!* of the current structure (mol) to any structure in a list
+!* of documented references.
+!* Optionally, atoms for which the RMSD is to be calculated
+!* can be specified.
+!* Since RMSD calculation can be costly for many structures
+!* there is some OMP parallelization going on.
+!**************************************************************
     implicit none
     type(coord) :: mol
     type(mtdpot) :: pot
@@ -315,7 +353,7 @@ contains
 
     if (pot%ncur < 1) return
 
-    if (.not. allocated(pot%atinclude)) then !>-- include all atoms in RMSD
+    if (.not.allocated(pot%atinclude)) then !>-- include all atoms in RMSD
       allocate (xyzref(3,mol%nat),grad(3,mol%nat),source=0.0_wp)
       !$omp parallel default(none) &
       !$omp shared(pot,mol) &
@@ -327,17 +365,18 @@ contains
         xyzref = pot%cvxyz(:,:,i)
         call rmsd(mol%nat,mol%xyz,xyzref,1,U,x_center,y_center,rmsdval, &
         &          .true.,grad)
-        E = pot%kpush * exp(-pot%alpha * rmsdval**2)
+        E = pot%kpush*exp(-pot%alpha*rmsdval**2)
         if (i == pot%ncur) then
-          E = E * pot%damp
+          E = E*pot%damp
         end if
-        ebias = ebias + E
-        dEdr = -2.0_wp * pot%alpha * e * rmsdval
-        grdmtd = grdmtd + dEdr * grad
+        ebias = ebias+E
+        dEdr = -2.0_wp*pot%alpha*e*rmsdval
+        grdmtd = grdmtd+dEdr*grad
       end do
       !$omp enddo
       !$omp end parallel
       deallocate (grad,xyzref)
+
     else !>--- use only selected atoms in RMSD
       k = count(pot%atinclude,1)
       if (k < 1) return
@@ -353,24 +392,24 @@ contains
         l = 0
         do j = 1,mol%nat
           if (pot%atinclude(j)) then
-            l = l + 1
+            l = l+1
             xyzcp(:,l) = mol%xyz(:,j)
             xyzref(:,l) = pot%cvxyz(:,j,i)
           end if
         end do
         call rmsd(k,xyzcp,xyzref,1,U,x_center,y_center,rmsdval, &
         &          .true.,grad)
-        E = pot%kpush * exp(-pot%alpha * rmsdval**2)
+        E = pot%kpush*exp(-pot%alpha*rmsdval**2)
         if (i == pot%ncur) then
-          E = E * pot%damp
+          E = E*pot%damp
         end if
-        ebias = ebias + E
-        dEdr = -2.0_wp * pot%alpha * e * rmsdval
+        ebias = ebias+E
+        dEdr = -2.0_wp*pot%alpha*e*rmsdval
         l = 0
         do j = 1,mol%nat
           if (pot%atinclude(j)) then
-            l = l + 1
-            grdmtd(:,j) = grdmtd(:,j) + dEdr * grad(:,l)
+            l = l+1
+            grdmtd(:,j) = grdmtd(:,j)+dEdr*grad(:,l)
           end if
         end do
       end do
@@ -380,15 +419,15 @@ contains
     end if
 
     return
-
   end subroutine calc_rmsd_mtd
 
 !========================================================================================!
-! subroutine calc_std_mtd
-! calculate energy and gradient contribution from the 
-! standard MTD formulation (list of CVs)
-!-----------------------------------------------------------!
   subroutine calc_std_mtd(mol,pot,cvt,ebias,grdmtd)
+!*******************************************************
+!* subroutine calc_std_mtd
+!* calculate energy and gradient contribution from the
+!* standard MTD formulation (list of CVs)
+!*******************************************************
     implicit none
     type(coord) :: mol
     type(mtdpot) :: pot
@@ -406,23 +445,23 @@ contains
 
     if (pot%ncur < 1) return
 
-      !$omp parallel default(none) &
-      !$omp shared(pot,mol,cvt) &
-      !$omp private(U,x_center,y_center,dcv,damp2,E,dEdr) &
-      !$omp reduction(+:ebias,grdmtd)
-      !$omp do schedule(dynamic)
-      do i = 1,pot%ncur
-        dcv = cvt - pot%cv(i) 
-        E = pot%kpush * exp(-pot%alpha * dcv**2)  !> Gaussian shaped potential
-        E = E * pot%damp
-        call calc_damp2(pot,i,damp2)
-        E = E * damp2
-        ebias = ebias + E
-        dEdr = -2.0_wp * pot%alpha * e * dcv
-        grdmtd = grdmtd + dEdr * pot%cvgrd
-      end do
-      !$omp enddo
-      !$omp end parallel
+    !$omp parallel default(none) &
+    !$omp shared(pot,mol,cvt) &
+    !$omp private(U,x_center,y_center,dcv,damp2,E,dEdr) &
+    !$omp reduction(+:ebias,grdmtd)
+    !$omp do schedule(dynamic)
+    do i = 1,pot%ncur
+      dcv = cvt-pot%cv(i)
+      E = pot%kpush*exp(-pot%alpha*dcv**2)  !> Gaussian shaped potential
+      E = E*pot%damp
+      call calc_damp2(pot,i,damp2)
+      E = E*damp2
+      ebias = ebias+E
+      dEdr = -2.0_wp*pot%alpha*e*dcv
+      grdmtd = grdmtd+dEdr*pot%cvgrd
+    end do
+    !$omp enddo
+    !$omp end parallel
 
     return
 
