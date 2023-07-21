@@ -288,49 +288,74 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: at(nat)
     real(wp),intent(in) :: xyz(3,nat)
     type(calcdata) :: calc
-    real(wp),intent(out) :: hess(nat * 3,nat * 3)
+    real(wp),intent(out) :: hess(nat * 3,nat * 3,calc%ncalculations)
     integer,intent(out)  :: io
 
     type(coord) :: mol !> coord type, so that the input remains unchanged
-    real(wp) :: energy,el,er
+    real(wp) :: energy,el,er,hij
     real(wp),allocatable :: gradr(:,:),gradl(:,:)
-    real(wp),parameter :: step = 0.00001_wp,step2 = 0.5_wp / step
-    integer :: i,j,k,l,ii,jj
+    real(wp),allocatable :: gradr_tmp(:,:,:), gradl_tmp(:,:,:)
+    real(wp),parameter :: step = 0.005_wp,step2 = 0.5_wp / step !0.00001_wp
+    integer :: i,j,k,l,m,ii,jj
 
     hess = 0.0_wp
     io = 0
     mol%nat = nat
     mol%at = at
     mol%xyz = xyz
-    allocate (gradr(3,mol%nat),source=0.0_wp)
-    allocate (gradl(3,mol%nat),source=0.0_wp)
+    
+    allocate (gradr(3,mol%nat),source=0.0_wp) !dummy
+    allocate (gradl(3,mol%nat),source=0.0_wp) !dummy
+
+    allocate (gradr_tmp(3,mol%nat,calc%ncalculations),source=0.0_wp)
+    allocate (gradl_tmp(3,mol%nat,calc%ncalculations),source=0.0_wp)
 
     do i = 1,mol%nat
       do j = 1,3
         ii = (i - 1) * 3 + j
-        gradr = 0.0_wp
+        !gradr = 0.0_wp
         mol%xyz(j,i) = mol%xyz(j,i) + step
         call engrad(mol%nat,mol%xyz,mol%at,calc,er,gradr,io)
 
-        gradl = 0.0_wp
+        gradr_tmp = calc%grdtmp
+
+        !gradl = 0.0_wp
         mol%xyz(j,i) = mol%xyz(j,i) - 2.0_wp * step
         call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io)
 
+        gradl_tmp = calc%grdtmp
+
         mol%xyz(j,i) = mol%xyz(j,i) + step
-        do k = 1,mol%nat
-          do l = 1,3
-            jj = (k - 1) * 3 + l
-            hess(jj,ii) = (gradr(l,k) - gradl(l,k)) * step2
+
+        do m = 1,calc%ncalculations
+          do k = 1,mol%nat
+            do l = 1,3
+              jj = (k - 1) * 3 + l
+              hess(jj,ii,m) = (gradr_tmp(l,k,m) - gradl_tmp(l,k,m)) * step2
+            end do
           end do
         end do
       end do
     end do
 
+    !Symmetrize Hessian
+    do m = 1,calc%ncalculations
+      do i = 1,nat*3
+        do j = i,nat*3
+          hij = (hess(i,j,m) + hess(j,i,m))*0.5_wp 
+          hess(i,j,m) = hij
+          hess(j,i,m) = hij
+        end do
+      end do
+    end do
+
+    call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io) !>- to get the gradient of the non-displaced structure
+
+    deallocate (gradl_tmp,gradr_tmp)
     deallocate (gradl,gradr)
     call mol%deallocate()
     return
   end subroutine numhess
-
 !========================================================================================!
 !> subroutine constrhess
 !> routine to perform a numerical Hessian calculation
