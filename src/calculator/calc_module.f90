@@ -52,7 +52,7 @@ module calc_module
     module procedure :: calc_print_energies2
   end interface calc_eprint
 
-  public :: numhess
+  public :: numhess1,numhess2
   public :: constrhess
 
 !========================================================================================!
@@ -231,9 +231,12 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 !========================================================================================!
-!> subroutine numgrad
-!> routine to perform a numerical gradient calculation
+
   subroutine numgrad(mol,calc,angrad)
+!*******************************************************
+!* subroutine numgrad
+!* routine to perform a numerical gradient calculation
+!*******************************************************
     implicit none
 
     type(coord) :: mol
@@ -279,9 +282,84 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine numgrad
 
 !========================================================================================!
-!> subroutine numhess
-!> routine to perform a numerical hessian calculation
-  subroutine numhess(nat,at,xyz,calc,hess,io)
+  subroutine numhess1(nat,at,xyz,calc,hess,io)
+!***************************************************
+!* Calculate and return the Hessian for the
+!* COMBINED energy and gradient from engrad,
+!* including constraints
+!***************************************************
+    implicit none
+
+    integer,intent(in) :: nat
+    integer,intent(in) :: at(nat)
+    real(wp),intent(in) :: xyz(3,nat)
+    type(calcdata) :: calc
+    real(wp),intent(out) :: hess(nat * 3, nat*3)
+    integer,intent(out)  :: io
+
+    type(coord) :: mol !> coord type, so that the input remains unchanged
+    real(wp) :: energy,el,er,hij
+    real(wp),allocatable :: gradr(:,:),gradl(:,:)
+    real(wp),allocatable :: gradr_tmp(:,:,:), gradl_tmp(:,:,:)
+    real(wp),parameter :: step = 0.005_wp,step2 = 0.5_wp / step !0.00001_wp
+    integer :: i,j,k,l,m,ii,jj
+
+    hess = 0.0_wp
+    io = 0
+    mol%nat = nat
+    mol%at = at
+    mol%xyz = xyz
+    
+    allocate (gradr(3,mol%nat),source=0.0_wp) !dummy
+    allocate (gradl(3,mol%nat),source=0.0_wp) !dummy
+
+    do i = 1,mol%nat
+      do j = 1,3
+        ii = (i - 1) * 3 + j
+        gradr = 0.0_wp
+        mol%xyz(j,i) = mol%xyz(j,i) + step
+        call engrad(mol, calc,er,gradr,io)
+
+        gradl = 0.0_wp
+        mol%xyz(j,i) = mol%xyz(j,i) - 2.0_wp * step
+        call engrad(mol, calc,el,gradl,io)
+
+        mol%xyz(j,i) = mol%xyz(j,i) + step
+
+          do k = 1,mol%nat
+            do l = 1,3
+              jj = (k - 1) * 3 + l
+              hess(jj,ii) = (gradr(l,k) - gradl(l,k)) * step2
+            end do
+          end do
+
+      end do
+    end do
+
+    !Symmetrize Hessian
+      do i = 1,nat*3
+        do j = i,nat*3
+          hij = (hess(i,j) + hess(j,i))*0.5_wp 
+          hess(i,j) = hij
+          hess(j,i) = hij
+        end do
+      end do
+
+    call engrad(mol,calc,el,gradl,io) !>- to get the gradient of the non-displaced structure
+
+    deallocate (gradl_tmp,gradr_tmp)
+    deallocate (gradl,gradr)
+    call mol%deallocate()
+    return
+  end subroutine numhess1
+
+!========================================================================================!
+  subroutine numhess2(nat,at,xyz,calc,hess,io)
+!***************************************************
+!* Calculate and return the Hessian for EACH of the
+!* calculation levels, but contributions from
+!* constraints are ignored.
+!***************************************************
     implicit none
 
     integer,intent(in) :: nat
@@ -349,22 +427,25 @@ contains  !> MODULE PROCEDURES START HERE
       end do
     end do
 
-    call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io) !>- to get the gradient of the non-displaced structure
+    call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io) !>- to get the gradient of the non-displaced s
 
     deallocate (gradl_tmp,gradr_tmp)
     deallocate (gradl,gradr)
     call mol%deallocate()
     return
-  end subroutine numhess
+  end subroutine numhess2
+
+
 !========================================================================================!
-!> subroutine constrhess
-!> routine to perform a numerical Hessian calculation
-!> but ONLY include contributions of the constraints.
-!>
-!> phess is the packed Hessian on which the constraint
-!> contributions are added.
-!>--------------------------------------------------------
   subroutine constrhess(nat,at,xyz,calc,phess)
+!*********************************************************
+!* subroutine constrhess
+!* routine to perform a numerical Hessian calculation
+!* but ONLY include contributions of the constraints.
+!*
+!* phess is the packed Hessian on which the constraint
+!* contributions are added.
+!*********************************************************
     implicit none
 
     integer,intent(in) :: nat
@@ -390,7 +471,7 @@ contains  !> MODULE PROCEDURES START HERE
     n3 = nat * 3
     allocate (hess(n3,n3),source=0.0_wp)
 
-    call numhess(nat,at,xyz,dummycalc,hess,io)
+    call numhess1(nat,at,xyz,dummycalc,hess,io)
 
     k = 0
     do i = 1,n3
@@ -403,8 +484,8 @@ contains  !> MODULE PROCEDURES START HERE
     deallocate (hess)
     return
   end subroutine constrhess
-!==========================================================================================!
 
+!==========================================================================================!
   subroutine calc_print_energies(calc,energy,energies)
     implicit none
     type(calcdata) :: calc
@@ -429,7 +510,6 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine calc_print_energies
 
 !==========================================================================================!
-
   subroutine calc_print_energies2(calc,energy,energies,chnl)
     implicit none
     type(calcdata) :: calc
@@ -452,5 +532,6 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end subroutine calc_print_energies2
 
+!==========================================================================================!
 !==========================================================================================!
 end module calc_module
