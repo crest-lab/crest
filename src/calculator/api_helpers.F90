@@ -26,6 +26,7 @@ module api_helpers
   !> APIs
   use tblite_api
   use gfn0_api
+  use gfnff_api
 !=========================================================================================!
   implicit none
   public
@@ -259,6 +260,21 @@ contains    !> MODULE PROCEDURES START HERE
     if (calc%apiclean) loadnew = .true.
 #endif
   end subroutine gfnff_init
+  subroutine gfnff_wbos(calc,mol,iostatus)
+    implicit none
+    type(calculation_settings),intent(inout) :: calc
+    type(coord),intent(in) :: mol
+    integer,intent(out) :: iostatus
+    integer :: i,j
+    iostatus = 0
+#ifdef WITH_GFNFF
+    if (.not.calc%rdwbo) return
+    if (allocated(calc%wbo)) deallocate (calc%wbo)
+    allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
+    call gfnff_getwbos(calc%ff_dat,mol%nat,calc%wbo)
+#endif
+  end subroutine gfnff_wbos
+
 
 !========================================================================================!
 end module api_helpers

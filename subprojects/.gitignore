@@ -6,11 +6,11 @@ multicharge.wrap
 s-dftd3.wrap
 test-drive.wrap
 mctc-lib.wrap
-gfnff
 xhcff
 
 !gfn0
 !toml-f
+!gfnff
 
 !packagefiles
 !packagefiles/tblite

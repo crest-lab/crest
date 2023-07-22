@@ -303,6 +303,10 @@ contains    !> MODULE PROCEDURES START HERE
     end if
 
 !>--- postprocessing, getting other data
+    !$omp critical
+    call gfnff_wbos(calc,mol,iostatus)
+    !$omp end critical
+
 
     return
   end subroutine gfnff_engrad

@@ -37,6 +37,7 @@ module gfnff_api
   public :: gfnff_api_setup
   public :: gfnff_sp
   public :: gfnff_printout
+  public :: gfnff_getwbos
 
 #ifndef WITH_GFNFF
   !> these are placeholders if no gfnff module is used!
@@ -117,6 +118,24 @@ contains  !> MODULE PROCEDURES START HERE
     error stop
 #endif
   end subroutine gfnff_printout
+
+
+!========================================================================================!
+  subroutine gfnff_getwbos(ff_dat,nat,wbo)
+!********************************************************
+!* obtain connectivity information from GFN-FF topology
+!* This is obviously not a true WBO
+!********************************************************
+    implicit none
+    type(gfnff_data),intent(in) :: ff_dat
+    integer,intent(in) :: nat
+    real(wp),intent(out) :: wbo(nat,nat)
+
+    wbo = 0.0_wp
+#ifdef WITH_GFNFF
+    call gfnff_get_fake_wbo(ff_dat,nat,wbo)
+#endif
+  end subroutine gfnff_getwbos
 
 
 

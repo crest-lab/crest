@@ -54,6 +54,8 @@ subroutine env2calc(env,calc,molin)
      case( '--gfn2' )
        cal%id = jobtype%tblite
        cal%tblitelvl = 2
+     case( '--gff','--gfnff' )
+       cal%id = jobtype%gfnff
      case default
        cal%id = jobtype%gfn0
    end select
@@ -62,6 +64,8 @@ subroutine env2calc(env,calc,molin)
    !else
    !  call mol%open('coord')
    endif
+
+   call cal%autocomplete(1)
 
    call calc%add( cal )   
 

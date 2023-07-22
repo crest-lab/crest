@@ -22,8 +22,10 @@
 !> Naturally, this is quite imporant for the overall performance of CREST
 
 !=========================================================================================!
-!>--- set the total run time according to flexibility measures
 subroutine md_length_setup(env)
+!***********************************************************
+!* set the total run time according to flexibility measures
+!***********************************************************
   use crest_parameters
   use crest_data
   use strucrd
@@ -49,7 +51,7 @@ subroutine md_length_setup(env)
   write(stdout,'(''------------------------------------------------'')')
 
   if ((env%crestver .ne. crest_solv).and..not.env%NCI) then
-    write(stdout,'(1x,a)',advance='no') 'Calculating WBOs...'
+    write(stdout,'(1x,a)',advance='no') 'Calculating GFN0-xTB WBOs ...'
 !>-- xtb singlepoint to get WBOs (always GFN0)
     call xtbsp(env,0)
     write (stdout,'(1x,a)') 'done.'
@@ -131,10 +133,11 @@ subroutine md_length_setup(env)
 end subroutine md_length_setup
 
 !===========================================================================================!
-! Set METADYN default Guiding Force Parameter
-! There are different combinations depending on the runtype
-!===========================================================================================!
 subroutine defaultGF(env)
+!************************************************************
+!* Setmetadynamics default Guiding Force Parameter
+!* There are different combinations depending on the runtype
+!************************************************************
   use crest_parameters 
   use crest_data
   use filemod
@@ -327,18 +330,21 @@ subroutine defaultGF(env)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++!
   end if
   return
+!====================================================================!
 contains
-!>-----------------------------------------------
-!> subroutine gfdistribute
-!> for a given number of requested MTDs (nsoll),
-!> specify the number of different kpush (k) and
-!> alpha (a) values, and from the product (k*a),
-!> determine how many MTDs have to be neglected (nrem).
-!> I.e.,
-!>        (k*a)-nrem = nsoll
-!>
-!>-----------------------------------------------
+!====================================================================!
+
   subroutine gfdistribute(nsoll,k,a,rem)
+!**********************************************************
+!* subroutine gfdistribute
+!* for a given number of requested MTDs (nsoll),
+!* specify the number of different kpush (k) and
+!* alpha (a) values, and from the product (k*a),
+!* determine how many MTDs have to be neglected (nrem).
+!* I.e.,
+!*        (k*a)-nrem = nsoll
+!*
+!**********************************************************
     implicit none
     integer,intent(in) :: nsoll
     integer,intent(out) :: k,a,rem
@@ -358,12 +364,13 @@ contains
   end subroutine gfdistribute
 end subroutine defaultGF
 
-!=========================================================================!
-! Dynamically determine the number of normMDs and settings of staticMTDs
-! Set their number and the different temperatures.
-! Defaults for the static MTDs are more lengthy...
-!=========================================================================!
+!=========================================================================================!
 subroutine adjustnormmd(env)
+!*************************************************************************
+!* Dynamically determine the number of normMDs and settings of staticMTDs
+!* Set their number and the different temperatures.
+!* Defaults for the static MTDs are more lengthy...
+!*************************************************************************
   use crest_parameters
   use crest_data
   implicit none

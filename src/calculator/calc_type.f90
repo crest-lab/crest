@@ -43,7 +43,7 @@ module calc_type
       integer :: gfn0occ   = 8
       integer :: gfnff     = 9
    end type enum_jobtype
-   type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
+   type(enum_jobtype), parameter,public :: jobtype = enum_jobtype() 
 
    character(len=45),parameter,private :: jobdescription(10) = [ &
       & 'Unknown calculation type                    ', &
@@ -89,9 +89,11 @@ module calc_type
     real(wp) :: epot = 0.0_wp
     real(wp) :: efix = 0.0_wp
     real(wp) :: etot = 0.0_wp
+
     !> bond orders
     logical :: rdwbo = .false.
     real(wp),allocatable :: wbo(:,:)
+
     !> dipole and dipole gradient 
     logical :: rddip = .false.
     real(wp) :: dip(3) = 0
@@ -107,17 +109,20 @@ module calc_type
     logical  :: saveint = .false.
     character(len=:),allocatable :: solvmodel
     character(len=:),allocatable :: solvent
+
     !> tblite data
     type(wavefunction_type),allocatable  :: wfn
     type(tblite_calculator),allocatable  :: tbcalc
     type(tblite_ctx),allocatable         :: ctx 
     type(tblite_resultstype),allocatable :: tbres
     type(wavefunction_type),allocatable  :: wfn_backup
+
     !> GFN0-xTB data
     type(gfn0_data),allocatable          :: g0calc
     integer :: nconfig = 0
     integer,allocatable :: config(:)
     real(wp),allocatable :: occ(:)
+
     !> GFN-FF data
     type(gfnff_data),allocatable :: ff_dat
 
@@ -126,6 +131,7 @@ module calc_type
     procedure :: deallocate => calculation_settings_deallocate
     procedure :: addconfig => calculation_settings_addconfig
     procedure :: autocomplete => calculation_settings_autocomplete
+    procedure :: info => calculation_settings_info
   end type calculation_settings
 !=========================================================================================!
 
@@ -190,6 +196,7 @@ module calc_type
     procedure :: copy => calculation_copy
     procedure :: printconstraints => calculation_print_constraints
     procedure :: removeconstraint => calculation_remove_constraint
+    procedure :: info => calculation_info
   end type calcdata
 
 
@@ -504,10 +511,10 @@ contains  !>--- Module routines start here
     integer :: i,j
     character(len=50) :: nmbr
 
-    if(.not.allocated(self%description))then
+    !if(.not.allocated(self%description))then
     !> add a short description
-      self%description = trim(jobdescription(self%id))
-    endif
+      self%description = trim(jobdescription(self%id+1))
+    !endif
 
     if(.not.allocated(self%calcspace))then   
     !> I've decided to perform all calculations in a separate directory to
@@ -516,6 +523,100 @@ contains  !>--- Module routines start here
        self%calcspace='calculation.level.'//trim(nmbr)
     endif
   end subroutine calculation_settings_autocomplete
+
+!=========================================================================================!
+  subroutine calculation_settings_info(self,iunit)
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in) :: iunit
+    integer :: i,j
+    character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
+    character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
+    character(len=*),parameter :: fmt3 = '(1x,a20," : ",a)'
+
+    if(allocated(self%description))then
+     write(iunit,'(2x,a)') trim(self%description)
+    else
+     write(iunit,fmt1) 'Job type',self%id
+    endif
+
+    write(iunit,fmt1) 'Molecular charge',self%chrg
+    if(self%uhf /= 0)then
+    write(iunit,fmt1) 'UHF parameter',self%uhf
+    endif
+   
+    if(allocated(self%solvmodel))then
+     write(iunit,fmt3) 'Solvation model',trim(self%solvmodel)
+    endif
+    if(allocated(self%solvent))then
+     write(iunit,fmt3) 'Solvent',trim(self%solvent)
+    endif
+
+    !> xTB specific parameters
+    if( any((/jobtype%tblite, jobtype%xtbsys, jobtype%gfn0, jobtype%gfn0occ/)==self%id))then
+      write(iunit,fmt2) 'Fermi temperature',self%etemp
+      write(iunit,fmt2) 'Accuracy',self%accuracy 
+      write(iunit,fmt1) 'max SCC cycles',self%maxscc
+    endif
+    
+    if(self%apiclean) write(iunit,fmt3) 'Reset data?','  yes'
+    if(self%rdwbo) write(iunit,fmt3) 'Read WBOs?','  yes'
+    if(self%rddip) write(iunit,fmt3) 'Read dipoles?','  yes'
+
+  end subroutine calculation_settings_info
+!========================================================================================!
+  subroutine calculation_info(self,iunit)
+    implicit none
+    class(calcdata) :: self
+    integer,intent(in) :: iunit
+    integer :: i
+    character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
+    character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
+
+    write(iunit,'(1x,a)') '----------------'
+    write(iunit,'(1x,a)') 'Calculation info'
+    write(iunit,'(1x,a)') '----------------'
+    if(self%ncalculations <= 0)then
+      write(iunit,'("> ",a)') 'No calculation levels set up!'
+    else if(self%ncalculations > 1)then
+      do i=1,self%ncalculations
+       write(iunit,'("> ",a,i0)') 'Calculation level ',i
+       call self%calcs(i)%info(iunit)
+       write(iunit,fmt1) 'weight',self%calcs(i)%weight
+      enddo
+    else
+      write(iunit,'("> ",a)') 'Calculation level'
+      call self%calcs(1)%info(iunit)
+    endif
+    write(iunit,*)
+
+    if(self%nconstraints > 0)then
+    write(iunit,'("> ",a)') 'User-defined constraints:'
+    do i=1,self%nconstraints
+      call self%cons(i)%print(iunit)
+    enddo 
+    write(iunit,*)
+    endif
+
+    if(self%ncalculations > 1)then
+    write(iunit,'("> ",a)') 'Energy and gradient processing:'
+    select case( self%id )
+    case ( 1: )
+      write(iunit,'(1x,a,i0)') 'Energies and gradients of calculation level ',self%id, &
+      &  ' will be used'
+    case ( -1 )
+      write(iunit,'(1x,a)') 'Special MECP energy and gradients will be constructed'
+      write(iunit,'(1x,a)') 'See https://doi.org/10.1021/acs.jpclett.3c00494'
+    case default
+       write(iunit,'(1x,a)') 'Energies and gradients of all calculation levels will be'// &
+       & ' added according to their weights'
+    end select
+    endif 
+
+    return
+  end subroutine calculation_info
+
+
 
 !=========================================================================================!
 end module calc_type

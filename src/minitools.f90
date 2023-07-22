@@ -467,8 +467,6 @@ subroutine testtopo(fname,env,tmode)
           deallocate(inc)
 
        case('thermo')
-          !call prepthermo(zmol%nat,zmol%at,xyz,.true., &
-          !&    molmass,rabc,avmom,symnum,symchar)    
           if(.not.allocated(env%thermo%temps))then
              call env%thermo%get_temps()
           endif
