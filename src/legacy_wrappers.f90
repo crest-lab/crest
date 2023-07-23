@@ -65,6 +65,18 @@ subroutine env2calc(env,calc,molin)
    !  call mol%open('coord')
    endif
 
+   !> implicit solvation
+   if(env%gbsa)then
+     if(index(env%solv,'gbsa').ne.0)then
+       cal%solvmodel = 'gbsa'
+     else if( index(env%solv,'alpb').ne.0)then
+       cal%solvmodel = 'alpb'
+     else
+       cal%solvmodel = 'unknown'
+     endif
+     cal%solvent = trim(env%solvent)
+   endif
+
    call cal%autocomplete(1)
 
    call calc%add( cal )   

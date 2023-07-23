@@ -1101,6 +1101,10 @@ subroutine parseflags(env,arg,nra)
           env%gfnver = '--gfn2'
         end select !> GFN
       case ('-gfn2@gfn0','-gfn2@gfn1','-gfn2@gff','-gfn2@ff','-gfn2@gfnff')
+        if(.not.env%legacy)then !TODO
+         write(*,'("> ",a,1x,a)')argument,'option not yet available with new calculator'
+         error stop
+        endif
         select case (argument) !> GFN2ON
         case ('-gfn2@gfn0')
           env%gfnver = '--gfn0'
@@ -1117,6 +1121,10 @@ subroutine parseflags(env,arg,nra)
         call env%checkhy()
         env%reweight = .false.
       case ('-gfn2//gfnff')
+        if(.not.env%legacy)then !TODO
+         write(*,'("> ",a,1x,a)')argument,'option not yet available with new calculator'
+         error stop
+        endif
         env%gfnver = '--gff'
         env%mdstep = 2.0d0
         env%gfnver2 = '--gfn2'

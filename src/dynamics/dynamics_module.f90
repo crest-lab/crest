@@ -39,16 +39,8 @@ module dynamics_module
   logical :: ex
 
 !  !--- some constants and name mappings
-!  real(wp),parameter :: bohr = 0.52917726_wp
-!  real(wp),parameter :: autokcal = 627.509541_wp
-!  real(wp),parameter :: autoaa = 0.52917726_wp
-!  real(wp),parameter :: aatoau = 1.0_wp / autoaa
-!  real(wp),parameter :: amutokg = 1.660539040e-27_wp
-!  real(wp),parameter :: metokg = 9.10938356e-31_wp
-!  real(wp),parameter :: kgtome = 1.0_wp / metokg
   real(wp),parameter :: amutoau = amutokg * kgtome
   real(wp),parameter :: fstoau = 41.3413733365614_wp
-!  real(wp),parameter :: kB = 3.166808578545117e-06_wp !in Eh/K
 
   !-- filetypes as integers
   integer,parameter,public :: type_md = 1
@@ -62,36 +54,36 @@ module dynamics_module
 
     logical :: requested = .false.
 
-    integer :: md_index = 0 ! some index for parallelization
-    integer :: simtype = type_md ! type of the molecular dynamics simulation
+    integer :: md_index = 0      !> some index for parallelization
+    integer :: simtype = type_md !> type of the molecular dynamics simulation
     logical :: restart = .false.
     character(len=:),allocatable :: restartfile
     character(len=:),allocatable :: trajectoryfile
     !>--- data
-    real(wp) :: length_ps = 20.0_wp ! total simulation length in ps
-    integer :: length_steps = 20000 ! total simulation length in steps
-    real(wp) :: tstep = 1.0_wp ! timestep in fs
-    real(wp) :: dumpstep = 1000.0_wp !snapshot dump step in fs
-    integer :: sdump = 1000 ! snapshot dump to trajectory every x steps
-    integer :: dumped = 0 !count how many structures have been written
-    integer :: printstep = 200 !control how often (in steps) to print
+    real(wp) :: length_ps = 0.0_wp !20.0_wp  !> total simulation length in ps
+    integer :: length_steps = 0 !20000       !> total simulation length in steps
+    real(wp) :: tstep = 0.0_wp !1.0_wp       !> timestep in fs
+    real(wp) :: dumpstep = 0.0_wp !1000.0_wp !> snapshot dump step in fs
+    integer :: sdump = 0 !1000 !> snapshot dump to trajectory every x steps
+    integer :: dumped = 0      !> count how many structures have been written
+    integer :: printstep = 200 !> control how often (in steps) to print
 
-    real(wp) :: md_hmass = 1.00794075_wp ! hydrogen mass
+    real(wp) :: md_hmass = 0.0_wp !1.00794075_wp !> hydrogen mass
 
-    logical :: shake = .true. ! use SHAKE algorithm
-    integer :: nshake = 0 ! number of bonds considered in SHAKE
-    type(shakedata) :: shk ! SHAKE bond information
+    logical :: shake = .true. !> use SHAKE algorithm
+    integer :: nshake = 0  !> number of bonds considered in SHAKE
+    type(shakedata) :: shk !> SHAKE bond information
 
-    real(wp) :: tsoll = 298.15_wp ! wanted temperature
-    logical :: thermostat = .true. ! apply thermostat?
+    real(wp) :: tsoll = 0.0_wp !298.15_wp  !> wanted temperature
+    logical :: thermostat = .true. !> apply thermostat?
     character(len=64) :: thermotype = 'berendsen'
-    real(wp) :: thermo_damp = 500.0_wp ! thermostat damping parameter
+    real(wp) :: thermo_damp = 500.0_wp !> thermostat damping parameter
     logical :: samerand = .false.
 
-    integer :: blockl ! block length in MD steps
-    integer :: iblock = 0 ! block counter
-    integer :: nblock = 0 ! continuous block counter
-    integer :: blocknreg = 0 !block regression points
+    integer :: blockl        !> block length in MD steps
+    integer :: iblock = 0    !> block counter
+    integer :: nblock = 0    !> continuous block counter
+    integer :: blocknreg = 0 !> block regression points
     integer :: maxblock
     real(wp),allocatable :: blockrege(:)
     real(wp),allocatable :: blocke(:)
@@ -105,6 +97,7 @@ module dynamics_module
     contains
     generic,public :: add =>  md_add_mtd
     procedure,private :: md_add_mtd
+    procedure :: defaults => md_defaults_fallback
   end type mddata
 
   public :: dynamics
@@ -117,19 +110,25 @@ module dynamics_module
   !public :: h_abort_sigint
   !public :: h_abort_sigterm
 
-contains
 !========================================================================================!
-! subroutine dynamics
-! perform a molecular dynamics simulation
-! the coordinate propagation is of the Velocity-Verlet type
+!========================================================================================!
+contains  !> MODULE PROCEDURES START HERE
+!========================================================================================!
+!========================================================================================!
+
   subroutine dynamics(mol,dat,calc,pr,term)
+!*************************************************************
+!* subroutine dynamics
+!* perform a molecular dynamics simulation
+!* the coordinate propagation is of the Velocity-Verlet type
+!*************************************************************
     implicit none
 
-    type(coord) :: mol ! molecule data (should be in Bohr)
-    type(mddata) :: dat ! MD data
-    type(calcdata) :: calc ! calculation control
-    logical,intent(in) :: pr ! printout control
-    integer,intent(out) :: term ! termination status
+    type(coord) :: mol          !> molecule data (should be in Bohr)
+    type(mddata) :: dat         !> MD data
+    type(calcdata) :: calc      !> calculation control
+    logical,intent(in) :: pr    !> printout control
+    integer,intent(out) :: term !> termination status
 
     integer :: t,nfreedom
     real(wp) :: tstep_au
@@ -158,10 +157,15 @@ contains
 
     call initsignal()
 !>--- pre-settings and calculations
+    call dat%defaults() !> check for unset parameters
     term = 0
     tstep_au = dat%tstep * fstoau
     nfreedom = 3 * mol%nat
-    if (dat%shake) nfreedom = nfreedom - dat%nshake
+    if (dat%shake)then
+      call init_shake(mol%nat,mol%at,mol%xyz,dat%shk,pr)
+      dat%nshake = dat%shk%ncons
+      nfreedom = nfreedom - dat%nshake
+    endif
 !>--- averages
     tav = 0.0_wp
     eerror = 0.0_wp
@@ -182,24 +186,24 @@ contains
 !>--- settings printout
     if (pr) then
       write (*,*)
-      write (*,'('' MD time /ps        :'',f8.2)') dat%length_ps
-      write (*,'('' dt /fs             :'',f8.2)') dat%tstep
-      write (*,'('' temperature /K     :'',f8.2)') dat%tsoll
-      write (*,'('' max steps          :'',i8  )') dat%length_steps
+      write (*,'('' MD time /ps        :'',f10.2)') dat%length_ps
+      write (*,'('' dt /fs             :'',f10.2)') dat%tstep
+      write (*,'('' temperature /K     :'',f10.2)') dat%tsoll
+      write (*,'('' max steps          :'',i10  )') dat%length_steps
       !write (*,'('' block length (av.) :'',i6  )') blockl
-      write (*,'('' dumpstep(trj) /fs  :'',f8.2,i6)') dat%dumpstep,dat%sdump
+      write (*,'('' dumpstep(trj) /fs  :'',f10.2,i6)') dat%dumpstep,dat%sdump
       !write (*,'('' dumpstep(coords)/fs:'',f8.2,i6)') dump_md,cdump0
-      write (*,'('' # deg. of freedom  :'',i8  )') nfreedom
+      write (*,'('' # deg. of freedom  :'',i10  )') nfreedom
       call thermostatprint(dat,pr)
-      write (*,'('' SHAKE constraint   :'',6x,l)') dat%shake
+      write (*,'('' SHAKE constraint   :'',8x,l)') dat%shake
       if (dat%shake) then
         if(dat%shk%shake_mode==2)then
-          write (*,'('' # SHAKE bonds      :'',i8,a)') dat%nshake, ' (all bonds)'
+          write (*,'('' # SHAKE bonds      :'',i10,a)') dat%nshake, ' (all bonds)'
         elseif(dat%shk%shake_mode==1)then
-          write (*,'('' # SHAKE bonds      :'',i8,a)') dat%nshake, ' (H only)'
+          write (*,'('' # SHAKE bonds      :'',i10,a)') dat%nshake, ' (H only)'
         endif
       end if
-      write (*,'('' hydrogen mass      :'',f8.5  )') dat%md_hmass
+      write (*,'('' hydrogen mass /u   :'',f10.5 )') dat%md_hmass
     end if
 
 !>--- set atom masses
@@ -417,11 +421,12 @@ contains
   end subroutine dynamics
 
 !========================================================================================!
-! subroutine mdautoset
-! convert real-time settings (ps,fs) to steps
-! and other fallbacks
-
   subroutine mdautoset(dat,iostatus)
+!************************************************
+!* subroutine mdautoset
+!* convert real-time settings (ps,fs) to steps
+!* Intended to restore settings once reset
+!************************************************
     implicit none
     type(mddata) :: dat
     integer,intent(out) :: iostatus
@@ -1030,6 +1035,58 @@ contains
     return
   end subroutine md_calc_mtd
 
+!========================================================================================!
 
+  subroutine md_defaults_fallback(self)
+!********************************************
+!* Check if selected parameters that are
+!* necessary to be able to run an MD
+!* have been set, and restore default 
+!* values if not so
+!********************************************
+    implicit none
+    class(mddata) :: self
+    real(wp) :: dum
+
+   if(self%length_ps <= 0.0_wp)then
+   !> total runtime in ps
+     self%length_ps    = 20.0_wp
+   endif
+   if(self%tstep <= 0.0_wp)then 
+   !> time step in fs
+     self%tstep = 1.0_wp  
+   endif
+   if(self%length_steps <= 0)then 
+   !> simulation steps
+     self%length_steps = nint(self%length_ps*1000.0_wp / self%tstep) 
+   endif
+   if(self%tsoll <= 0.0_wp)then 
+   !> target temperature
+     self%tsoll = 298.15_wp    
+   endif 
+
+   if(self%dumpstep <= 0.0_wp)then
+   !> dump frequency in fs
+     self%dumpstep     = 1000.0_wp
+   endif
+   if(self%sdump <= 0)then
+   !> trajectory structure dump every x steps
+     dum = max(1.0_wp, (self%dumpstep / self%tstep))
+     self%sdump          = nint(dum)   
+   endif
+   
+   if(self%md_hmass <= 0.0_wp)then
+   !> hydrogen mass
+    self%md_hmass = 1.00794075_wp
+   endif
+
+   if( self%shake )then
+   !> SHAKE, if turned on but no mode selected 
+      if( self%shk%shake_mode == 0 )then
+        self%shk%shake_mode = 2 !> all bonds
+      endif
+   endif
+
+  end subroutine md_defaults_fallback
 !========================================================================================!
 end module dynamics_module

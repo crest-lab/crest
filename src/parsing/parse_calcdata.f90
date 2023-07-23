@@ -39,7 +39,8 @@ module parse_calcdata
   implicit none
   private
 
-  interface parse_setting
+!>-- routines for parsing a calculation_settings object
+  interface parse_setting  
     module procedure :: parse_setting_auto
     module procedure :: parse_setting_float
     module procedure :: parse_setting_int
@@ -47,6 +48,7 @@ module parse_calcdata
     module procedure :: parse_setting_bool
   end interface parse_setting
 
+!>-- routines for parsing a calcdata object
   interface parse_calc
     module procedure :: parse_calc_auto
     module procedure :: parse_calc_float
@@ -55,6 +57,8 @@ module parse_calcdata
     module procedure :: parse_calc_bool
   end interface parse_calc
 
+
+!>-- routines for parsing a mddata object
   interface parse_md
     module procedure :: parse_md_auto
     module procedure :: parse_md_float
@@ -63,6 +67,7 @@ module parse_calcdata
     module procedure :: parse_md_bool
   end interface parse_md
 
+!>-- routines for parsing a mtdpot object
   interface parse_mtd
     module procedure :: parse_metadyn_auto
     module procedure :: parse_mtd_float
@@ -683,7 +688,7 @@ contains !> MODULE PROCEDURES START HERE
     character(len=*) :: key
     real(wp) :: val
     select case (key)
-    case ('length')
+    case ('length','length_ps')
       mddat%length_ps = val
     case ('dump')
       mddat%dumpstep = val
@@ -706,7 +711,7 @@ contains !> MODULE PROCEDURES START HERE
     integer :: val
     real(wp) :: fval
     select case (key)
-    case ('length','dump','hmass','tstep')
+    case ('length','length_ps','dump','hmass','tstep')
       fval = float(val)
       call parse_md(mddat,key,fval)
     case ('shake')
@@ -751,6 +756,7 @@ contains !> MODULE PROCEDURES START HERE
     end select
     return
   end subroutine parse_md_bool
+
 !========================================================================================!
 !> The following routines are used to
 !> read information into the "metadynamics" object

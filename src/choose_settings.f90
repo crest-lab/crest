@@ -22,6 +22,7 @@
 !> Naturally, this is quite imporant for the overall performance of CREST
 
 !=========================================================================================!
+!=========================================================================================!
 subroutine md_length_setup(env)
 !***********************************************************
 !* set the total run time according to flexibility measures
@@ -132,7 +133,8 @@ subroutine md_length_setup(env)
   return
 end subroutine md_length_setup
 
-!===========================================================================================!
+!========================================================================================!
+!========================================================================================!
 subroutine defaultGF(env)
 !************************************************************
 !* Setmetadynamics default Guiding Force Parameter
@@ -365,6 +367,7 @@ contains
 end subroutine defaultGF
 
 !=========================================================================================!
+!=========================================================================================!
 subroutine adjustnormmd(env)
 !*************************************************************************
 !* Dynamically determine the number of normMDs and settings of staticMTDs
@@ -451,32 +454,61 @@ subroutine adjustnormmd(env)
   return
 end subroutine adjustnormmd
 
-
+!========================================================================================!
 !========================================================================================!
 subroutine env_to_mddat(env)
+!**********************************************
+!* Convert CREST's global MD settings to the
+!* MD calculator object that will be used as
+!* A basis for the newer calculator routines
+!**********************************************
   use crest_parameters
   use crest_data
   implicit none
   type(systemdata) :: env
   real(wp) :: dum
-!>--- dont override user-defined settings
-  if(env%mddat%requested) return
+!!>--- dont override user-defined settings
+!  if(env%mddat%requested) return
+!> we will check if any default settings were already set individually, instead
+!> the if-statements in the following take care of that
 
 !>--- necessary transfer global settings into mddat object
-   env%mddat%length_ps    = env%mdtime  !> total runtime in ps 
-   env%mddat%tstep        = env%mdstep  !> time step in fs
-   env%mddat%length_steps = nint(env%mdtime*1000.0_wp / env%mdstep) !> simulation steps
-   env%mddat%tsoll        = env%mdtemp    !> target temperature
+   if(env%mddat%length_ps <= 0.0_wp)then
+   !> total runtime in ps
+     env%mddat%length_ps    = env%mdtime
+   endif
+   if(env%mddat%tstep <= 0.0_wp)then
+   !> time step in fs 
+     env%mddat%tstep        = env%mdstep
+   endif
+   !> simulation steps (would be recovered automatically later, but just to make sure)
+   env%mddat%length_steps = nint(env%mddat%length_ps*1000.0_wp / env%mddat%tstep)
+   if(env%mddat%tsoll <= 0.0_wp)then
+   !> target temperature
+     env%mddat%tsoll = env%mdtemp
+   endif
 
-   env%mddat%dumpstep     = float(env%mddumpxyz) !> dump frequency in fs
-   dum = max(1.0_wp, (env%mddat%dumpstep / env%mddat%tstep))
-   env%mddat%sdump          = nint(dum)     !> trajectory structure dump every x steps   
-   env%mddat%shake          = env%shake > 0 !> SHAKE algorithm?
+   if( env%mddat%dumpstep <= 0.0_wp ) then 
+   !> dump frequency in fs
+     env%mddat%dumpstep = float(env%mddumpxyz)
+   endif
+   if(env%mddat%sdump <= 0)then
+   !> trajectory structure dump every x steps 
+     dum = max(1.0_wp, (env%mddat%dumpstep / env%mddat%tstep))
+     env%mddat%sdump = nint(dum)
+   endif
+
+   !> The SHAKE setup (special condition referring to the default)
+   env%mddat%shake          = env%mddat%shake .and.(env%shake > 0) !> SHAKE algorithm?
    env%mddat%shk%shake_mode = env%shake     !> H-only shake =1, all atom =2
-   if(env%shake>0)env%mddat%shake = .true.
-   env%mddat%md_hmass       = env%hmass     !> hydrogen mass
-   ! TODO: WBO reader if shake is applied and wbo file is present
 
+
+   if(env%mddat%md_hmass <= 0.0_wp)then
+   !> hydrogen mass (to enable longer timesteps)
+     env%mddat%md_hmass = env%hmass 
+   endif
+
+   ! TODO: WBO reader if shake is applied and wbo file is present
 
 !>--- set flag to signal present settings
   env%mddat%requested = .true.
