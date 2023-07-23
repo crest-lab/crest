@@ -663,11 +663,21 @@ subroutine parseflags(env,arg,nra)
       case( '-sp' ) !> singlepoint calculation (uses new calculator routines)
         env%crestver = crest_sp
         env%preopt = .false.
+        env%legacy = .false.
         exit
 
       case ('-optimize','-ancopt') !> ANCOPT structure optimization (uses new calculator routines)
         env%preopt = .false.
         env%crestver = crest_optimize
+        env%legacy = .false.
+        exit
+
+      case ('-dynamics','-dyn') !> molecular dynamics (uses new calculator routines)
+        env%preopt = .false.
+        env%crestver = crest_moldyn
+        env%legacy = .false.
+        exit
+
 
 
       case ('-SANDBOX')

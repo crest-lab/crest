@@ -77,6 +77,9 @@ subroutine env2calc(env,calc,molin)
      cal%solvent = trim(env%solvent)
    endif
 
+   !> do not reset parameters between calculations (opt for speed)
+   cal%apiclean = .false.
+
    call cal%autocomplete(1)
 
    call calc%add( cal )   

@@ -67,6 +67,7 @@ subroutine parseinputfile(env,fname)
     return
   else
     write (stdout,*) 'reading ',trim(fname)
+    env%legacy = .false.
   end if
 
 !>--- read the file into the object 'dict'

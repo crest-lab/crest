@@ -121,7 +121,6 @@ contains   !> MODULE PROCEDURES START HERE
         env%preopt = .false.
         env%crestver = crest_imtd
         env%runver = 1
-        env%legacy = .false.
       case ('numhess','numerical hessian')
         env%preopt = .false.
         env%crestver = crest_numhessian

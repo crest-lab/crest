@@ -500,8 +500,9 @@ subroutine env_to_mddat(env)
 
    !> The SHAKE setup (special condition referring to the default)
    env%mddat%shake          = env%mddat%shake .and.(env%shake > 0) !> SHAKE algorithm?
+   if( env%mddat%shake .and. env%mddat%shk%shake_mode == 0)then
    env%mddat%shk%shake_mode = env%shake     !> H-only shake =1, all atom =2
-
+   endif 
 
    if(env%mddat%md_hmass <= 0.0_wp)then
    !> hydrogen mass (to enable longer timesteps)
