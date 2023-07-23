@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 - 2022 Philipp Pracht
+! Copyright (C) 2021 - 2023 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -186,6 +186,7 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- settings printout
     if (pr) then
       write (*,*)
+      write (*,'("> ",a)')'Molecular dynamics settings'
       write (*,'('' MD time /ps        :'',f10.2)') dat%length_ps
       write (*,'('' dt /fs             :'',f10.2)') dat%tstep
       write (*,'('' temperature /K     :'',f10.2)') dat%tsoll
@@ -250,11 +251,12 @@ contains  !> MODULE PROCEDURES START HERE
 
     !>--- begin printout
     if (pr) then
+      write (*,'(/,"> ",a)') 'Starting simulation' 
       if (.not. dat%thermostat) then
-        write (*,'(/,9x,''time (ps)'',4x,''<Epot>'',6x,''Ekin   <T>   T'',5x, &
+        write (*,'(/,9x,''time (ps)'',4x,''<Epot>'',5x,''Ekin   <T>    T'',5x, &
            &         ''Etot'',7x,''error'','' '')')
       else
-        write (*,'(/,9x,''time (ps)'',4x,''<Epot>'',6x,''Ekin   <T>   T'',5x, &
+        write (*,'(/,9x,''time (ps)'',4x,''<Epot>'',5x,''Ekin   <T>    T'',5x, &
            &              ''Etot'')')
       end if
     end if

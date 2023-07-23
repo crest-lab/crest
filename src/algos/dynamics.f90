@@ -62,11 +62,13 @@ subroutine crest_moleculardynamics(env,tim)
   write (stdout,*)
 !========================================================================================!
 
-   !>--- parallelization settings
-   !call ompautoset(env%threads,7,env%omp,env%MAXRUN,1)
-   call ompprint_intern()
+  !>--- parallelization settings
+  !call ompautoset(env%threads,7,env%omp,env%MAXRUN,1)
+  call ompprint_intern()
 
   pr = .true.
+  !>--- default settings from env
+  call env_to_mddat(env)
   mddat = env%mddat
   calc = env%calc
   !>--- check if we have any MD & calculation settings allocated
@@ -77,6 +79,9 @@ subroutine crest_moleculardynamics(env,tim)
     write (stdout,*) 'MD requested, but no calculation settings present.'
     return
   end if
+
+  !>--- print calculation info
+  call calc%info( stdout )
 
   !>--- init SHAKE? --> we need connectivity info
   if (mddat%shake) then
