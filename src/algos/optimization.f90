@@ -37,6 +37,7 @@ subroutine crest_optimization(env,tim)
   real(wp),allocatable :: grad(:,:)
 
   character(len=80) :: atmp
+  character(len=*),parameter :: partial = '∂E/∂'
 !========================================================================================!
   call tim%start(14,'geometry optimization')
   call env%ref%to(mol)
@@ -44,10 +45,6 @@ subroutine crest_optimization(env,tim)
   call smallhead('Input structure:')
   call mol%append(stdout)
   write (stdout,*)
-
-  !call smallhead( 'Calculation constraints:' )
-  !call env%calc%printconstraints()
-  !write (stdout,*)
 
 !========================================================================================!
 
@@ -57,7 +54,10 @@ subroutine crest_optimization(env,tim)
   if (calc%ncalculations < 1) then
     write (stdout,*) 'no calculations allocated'
     return
+  else
+    call calc%info( stdout )
   end if
+  write(stdout,'(a)') repeat('-',80)
 
   !>--- first energy&gradient calculation
   call engrad(mol,calc,energy,grad,io)
@@ -70,6 +70,8 @@ subroutine crest_optimization(env,tim)
   if (io == 0) then
     write (stdout,*) 'geometry successfully optimized!'
     write (stdout,*)
+    write(stdout,'(a)') repeat('-',80)
+    write (stdout,*)
     call smallhead( 'Output structure:') 
     call molnew%append(stdout)
     write (stdout,*)
@@ -80,7 +82,59 @@ subroutine crest_optimization(env,tim)
     open (newunit=ich,file='crestopt.xyz')
     call molnew%append(ich)
     close (ich)
+  else
+    write (stdout,*) 'geometry optimization FAILED!'
   end if
+
+!========================================================================================!
+!>--- print out the results
+   if(any(calc%calcs(:)%rdwbo))then
+   write(stdout,*)
+   write(stdout,*) 'Connectivity information (bond order):'
+   do k=1,calc%ncalculations
+     if(calc%calcs(k)%rdwbo)then
+       write(stdout,'("> ",a,i0)') 'Calculation level ',k
+       write(stdout,'(a12,a12,a10)') 'Atom A','Atom B','BO(A-B)'
+       do i=1,mol%nat
+         do j=1,i-1
+           if(calc%calcs(k)%wbo(i,j) > 0.0002_wp)then
+            write(stdout,*) i,j,calc%calcs(k)%wbo(i,j)
+           endif
+         enddo
+       enddo
+     endif
+   enddo
+   endif
+   write(stdout,*)
+
+   write(stdout,'(a)') repeat('-',80)
+   write(stdout,'(a)') '> Final molecular gradient ( Eh/a0 ):'
+   write(stdout,'(13x,a,13x,a,13x,a)')partial//'x',partial//'y',partial//'z'
+   do i = 1,mol%nat
+      write (stdout,'(3f18.8)') grad(1:3,i)
+   end do
+   write(stdout,'(a,f18.8,a)') '> Gradient norm:',norm2(grad),' Eh/α'
+
+   if(calc%ncalculations > 1)then
+   write(stdout,*)
+   write(stdout,'(a)') '> Individual energies and gradient norms:'
+     do k=1,calc%ncalculations
+       write(stdout,'(1x,a,i0,2f18.8)') 'calculation ',k,calc%etmp(k),norm2(calc%grdtmp(:,:,k))
+     enddo
+     if(calc%nconstraints > 0)then
+       write(stdout,'(1x,a)') '(+ constraints contribution)'
+     endif
+   endif
+
+   write(stdout,*)
+   write(stdout,'(a)') repeat('=',40)
+   write(stdout,'(1x,a,f20.10,a)') 'TOTAL ENERGY ',energy,' Eh'
+   write(stdout,'(1x,a,f20.10,a)') 'GRADIENT NORM',norm2(grad),' Eh/α'
+   write(stdout,'(a)') repeat('=',40)
+   
+   if(io /= 0)then
+    write (stdout,*) 'WARNING: geometry optimization FAILED!'
+   endif
 
   deallocate (grad)
 !========================================================================================!

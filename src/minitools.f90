@@ -440,17 +440,21 @@ subroutine testtopo(fname,env,tmode)
      select case( tmode )
        case( 'sym','symmetry' )
          call analsym(zmol,dum,.true.)
+
        case( 'flexi' )
          allocate(inc(zmol%nat), source=1)  
          call flexi(mol,zmol%nat,inc,flex) 
          write(*,'(1x,a,4x,f6.4)') 'flexibility measure:',flex
          deallocate(inc)
+
        case( 'zmat' )
          call ztopozmat(zmol,.true.)  
+
        case( 'formula','sumform' )
          write(*,'(/,1x,a)') trim(sumform(zmol%nat,zmol%at))
          write(*,'(1x,a,i16)') '# atoms: ',zmol%nat
          write(*,'(1x,a,f16.5)') 'Mol.weight: ',molweight(zmol%nat,zmol%at)
+
        case( 'all' )  
           call ztopozmat(zmol,.true.) 
           write(*,'(/,1x,a)') trim(sumform(zmol%nat,zmol%at))
@@ -461,9 +465,8 @@ subroutine testtopo(fname,env,tmode)
           call flexi(mol,zmol%nat,inc,flex)
           write(*,'(1x,a,4x,f6.4)') 'flexibility measure:',flex
           deallocate(inc)
+
        case('thermo')
-          !call prepthermo(zmol%nat,zmol%at,xyz,.true., &
-          !&    molmass,rabc,avmom,symnum,symchar)    
           if(.not.allocated(env%thermo%temps))then
              call env%thermo%get_temps()
           endif
@@ -473,6 +476,7 @@ subroutine testtopo(fname,env,tmode)
           call thermo_wrap(env,.true.,zmol%nat,zmol%at,xyz,'', &
           &    nt,temps,et,ht,gt,stot,.false.) 
           deallocate(stot,gt,ht,et,temps)
+
        case( 'methyl' )
            do i=1,zmol%nat
            l1=zmol%methyl(i)

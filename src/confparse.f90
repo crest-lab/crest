@@ -299,6 +299,8 @@ subroutine parseflags(env,arg,nra)
  
 !=========================================================================================!
 !=========================================================================================!
+!> MAIN RUNTYPE SELECTION VIA CMD
+!=========================================================================================!
 !=========================================================================================!
 !>--- get the CREST version/runtype
   env%crestver = crest_imtd !> confscript version (v.1 = MF-MD-GC, v.2 = MTD)
@@ -327,7 +329,8 @@ subroutine parseflags(env,arg,nra)
     end if
     if (argument .ne. '') then
       select case (argument) !> RUNTYPES
-      case ('-v1')                                              !confscript version 1 (MF-MD-GC)
+
+      case ('-v1') !> confscript version 1 (MF-MD-GC)
         env%crestver = crest_mfmdgc
         write (*,'(2x,a,'' : MF-MD-GC'')') trim(arg(i))
         env%mdtime = 40.0d0       !simulation length of the MD, 40ps total (2*20ps)(default for QMDFF would be 500)
@@ -336,18 +339,21 @@ subroutine parseflags(env,arg,nra)
         env%performModef = .true. !do the MF in V1
         env%trackorigin = .false.      !for v1 there is not much insight from this
         exit
-      case ('-v2')                                              !confscript version 2 (MTD-GC)
+
+      case ('-v2') !> confscript version 2 (MTD-GC)
         env%crestver = crest_imtd
         write (*,'(2x,a,'' : MTD-GC'')') trim(arg(i))
         env%iterativeV2 = .false.  !iterative crest V2 version
         env%Maxrestart = 1       !for non-iterative MTD-GC only
         exit
-      case ('-v3','-v2i')                                       !confscript version 2 but iterativ (iMTD-GC)
+
+      case ('-v3','-v2i') !> confscript version 2 but iterativ (iMTD-GC)
         env%crestver = crest_imtd
         env%iterativeV2 = .true.
         write (*,'(2x,a,'' : iMTD-GC'')') trim(arg(i))
         exit
-      case ('-v4')
+
+      case ('-v4') !> sMTD-iMTD (same as entropy mode)
         env%crestver = crest_imtd2
         env%iterativeV2 = .true.
         env%entropymd = .true.
@@ -356,7 +362,8 @@ subroutine parseflags(env,arg,nra)
         env%emtd%maxfallback = 1
         write (*,'(2x,a,'' : iMTD-sMTD'')') trim(arg(i))
         exit
-      case ('-mdopt','-purge')                                           ! MDOPT
+
+      case ('-mdopt','-purge') !> MDOPT
         env%crestver = crest_mdopt
         atmp = ''
         env%preopt = .false.
@@ -368,7 +375,8 @@ subroutine parseflags(env,arg,nra)
         call xyz2coord(env%ensemblename,'coord') !write coord from lowest structure
         env%inputcoords = env%ensemblename !just for a printout
         exit
-      case ('-screen')                                          ! SCREEN
+
+      case ('-screen')  !> SCREEN
         env%crestver = crest_screen
         atmp = ''
         env%ensemblename = 'none selected'
@@ -379,7 +387,8 @@ subroutine parseflags(env,arg,nra)
         call xyz2coord(env%ensemblename,'coord') !write coord from lowest structure
         env%inputcoords = env%ensemblename !just for a printout
         exit
-      case ('-pka','-pKa')  !pKa calculation script
+     
+      case ('-pka','-pKa')  !> pKa calculation script
         env%crestver = crest_pka
         env%runver = 33
         !env%relax=.true.
@@ -392,7 +401,8 @@ subroutine parseflags(env,arg,nra)
         env%ptb%h_acidic = 0
         call pka_argparse(arg(i + 1),env%ptb%h_acidic)
         if (env%ptb%h_acidic == -2) env%ptb%pka_baseinp = trim(arg(i + 1))
-      case ('-compare')                                         !flag for comparing two ensembles, analysis tool
+
+      case ('-compare')   !> flag for comparing two ensembles, analysis tool
         env%compareens = .true.
         env%crestver = 5
         env%properties = p_compare
@@ -413,24 +423,29 @@ subroutine parseflags(env,arg,nra)
         end if
         write (*,'(1x,a,1x,a,1x,a)') trim(arg(i)),trim(env%ensemblename),trim(env%ensemblename2)
         exit
-      case ('-protonate')                         !protonation tool
+
+      case ('-protonate') !>protonation tool
         env%properties = p_protonate
         write (*,'(2x,a,'' : automated protonation script'')') trim(arg(i))
         exit
-      case ('-deprotonate')                     !deprotonation tool
+
+      case ('-deprotonate') !> deprotonation tool
         env%properties = p_deprotonate
         write (*,'(2x,a,'' : automated deprotonation script'')') trim(arg(i))
         exit
-      case ('-tautomerize')                     !tautomerization tool
+
+      case ('-tautomerize') !> tautomerization tool
         env%properties = p_tautomerize
         write (*,'(2x,a,'' : automated tautomerization script'')') trim(arg(i))
         exit
-      case ('-isomerize','-stereomers')          !isomerization tool
+
+      case ('-isomerize','-stereomers') !> isomerization tool
         env%properties = p_isomerize
         write (*,'(2x,a,'' : automated stereoisomerization script'')') trim(arg(i))
         write (*,'(2x,''Note: Use of GFN-FF required for stereoisomer generation.'')')
         exit
-      case ('-forall','-for')                               !ensemble as input
+
+      case ('-forall','-for') !> property mode with ensemble as input
         env%properties = p_propcalc
         atmp = ''
         env%ensemblename = 'none selected'
@@ -449,7 +464,8 @@ subroutine parseflags(env,arg,nra)
           env%ptb%alldivers = .true.
         end if
         exit
-      case ('-rrhoav')  ! calculate hessians along given ensemble and average
+
+      case ('-rrhoav')  !> Hessians along given ensemble and average
         env%properties = p_rrhoaverage
         atmp = ''
         env%ensemblename = 'none selected'
@@ -463,10 +479,12 @@ subroutine parseflags(env,arg,nra)
           error stop
         end if
         exit
-      case ('-reactor')
+
+      case ('-reactor')  !> xtb nanoreactor workarounds
         env%preopt = .false.
         env%crestver = crest_nano
         exit
+
       case ('-solvtool','-qcg')
 !               env%mddumpxyz = 1000
         env%preopt = .false.
@@ -483,6 +501,7 @@ subroutine parseflags(env,arg,nra)
            env%solv_file = trim(arg(i + 1))
         endif  
         exit
+
       case ('-compress')
         env%crestver = crest_compr
         env%runver = 77
@@ -490,10 +509,12 @@ subroutine parseflags(env,arg,nra)
         env%mddump = 2000
         env%autozsort = .false.
         exit
+
       case ('-msreact')
         env%crestver = crest_msreac
         env%preopt = .false.
         env%presp = .true.
+
       case ('-splitfile')
         ctmp = trim(arg(i + 1))
         k = huge(j)
@@ -512,6 +533,7 @@ subroutine parseflags(env,arg,nra)
         end if
         call splitfile(ctmp,k,l)
         stop
+
       case ('-printaniso')
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
@@ -519,6 +541,7 @@ subroutine parseflags(env,arg,nra)
           call printaniso(ctmp,0.01_wp,0.025_wp,0.5_wp)
         end if
         stop
+
       case ('-printboltz')
         if (nra >= i + 2) then
           ctmp = trim(arg(i + 1))
@@ -528,7 +551,8 @@ subroutine parseflags(env,arg,nra)
           ctmp = trim(arg(i + 1))
           call prbweight(ctmp,'')
         end if
-      case ('-wbotopo','-usewbo')  !try to use a WBO file in topology analysis
+
+      case ('-wbotopo','-usewbo')  !> try to use a WBO file in topology analysis
         ctmp = trim(arg(i + 1))
         if (ctmp(1:1) .ne. '-' .and. (nra >= i + 1)) then
           env%wbofile = trim(ctmp)
@@ -536,6 +560,7 @@ subroutine parseflags(env,arg,nra)
           env%wbofile = 'wbo'
         end if
         env%wbotopo = .true.
+
       case ('-testtopo')
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
@@ -548,6 +573,7 @@ subroutine parseflags(env,arg,nra)
         if (ex) then
           call testtopo(ctmp,env,dtmp)
         end if
+
       case ('-resortensemble')
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
@@ -555,6 +581,7 @@ subroutine parseflags(env,arg,nra)
           call resort_ensemble(ctmp)
         end if
         stop
+
       case ('-thermo','-thermotool')
         env%properties = p_thermo
         ctmp = trim(arg(1))  !either first argument
@@ -565,6 +592,7 @@ subroutine parseflags(env,arg,nra)
         if (ctmp(1:1) .ne. '-') then
           env%inputcoords = trim(ctmp)
         end if
+
       case ('-rmsd','-rmsdheavy')
         ctmp = trim(arg(i + 1))
         dtmp = trim(arg(i + 2))
@@ -574,6 +602,7 @@ subroutine parseflags(env,arg,nra)
           call quick_rmsd_tool(ctmp,dtmp,.false.)
         end if
         stop
+
       case ('-symmetries')
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
@@ -581,6 +610,7 @@ subroutine parseflags(env,arg,nra)
           call ensemble_analsym(trim(ctmp),.true.)
         end if
         stop
+
       case ('-exlig','-exligand','-exchligand')
         env%properties = p_ligand
         env%ptb%infile = trim(arg(1))
@@ -595,6 +625,7 @@ subroutine parseflags(env,arg,nra)
           env%ptb%ligand = j
         end if
         exit
+
       case ("-acidbase","-ab",'-abprep','-pkaprep','-gdissprep')  !-- acid base correction
         !> crest --ab <acid.xyz> <base.xyz> --chrg <acidchrg>
         env%properties = p_acidbase
@@ -616,6 +647,7 @@ subroutine parseflags(env,arg,nra)
         end if
         env%solv = '--alpb h2o'
         env%gfnver = '--gfn2'
+
       case ('-redoextrapol')
         ctmp = trim(arg(i + 1))
         read (arg(i + 2),*,iostat=io) j
@@ -625,9 +657,19 @@ subroutine parseflags(env,arg,nra)
           call redo_extrapol(ctmp,0)
         end if
         stop
-      case ('-optimize','-ancopt')
+
+
+
+      case( '-sp' ) !> singlepoint calculation (uses new calculator routines)
+        env%crestver = crest_sp
+        env%preopt = .false.
+        exit
+
+      case ('-optimize','-ancopt') !> ANCOPT structure optimization (uses new calculator routines)
         env%preopt = .false.
         env%crestver = crest_optimize
+
+
       case ('-SANDBOX')
         !>--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
         !>-----
@@ -642,6 +684,8 @@ subroutine parseflags(env,arg,nra)
     end if
   end do
 
+!=========================================================================================!
+!=========================================================================================!
 !=========================================================================================!
 !>--- options for the xtb Nano-reactor
   if (any((/crest_nano,crest_compr/) == env%crestver)) then
@@ -1057,6 +1101,10 @@ subroutine parseflags(env,arg,nra)
           env%gfnver = '--gfn2'
         end select !> GFN
       case ('-gfn2@gfn0','-gfn2@gfn1','-gfn2@gff','-gfn2@ff','-gfn2@gfnff')
+        if(.not.env%legacy)then !TODO
+         write(*,'("> ",a,1x,a)')argument,'option not yet available with new calculator'
+         error stop
+        endif
         select case (argument) !> GFN2ON
         case ('-gfn2@gfn0')
           env%gfnver = '--gfn0'
@@ -1073,6 +1121,10 @@ subroutine parseflags(env,arg,nra)
         call env%checkhy()
         env%reweight = .false.
       case ('-gfn2//gfnff')
+        if(.not.env%legacy)then !TODO
+         write(*,'("> ",a,1x,a)')argument,'option not yet available with new calculator'
+         error stop
+        endif
         env%gfnver = '--gff'
         env%mdstep = 2.0d0
         env%gfnver2 = '--gfn2'

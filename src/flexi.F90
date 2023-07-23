@@ -245,7 +245,7 @@ subroutine nciflexi_gfnff(mol,flexval)
   allocate (grad(3,mol%nat),source=0.0_wp)
 
 !>--- set up a GFN-FF calculation
-  write (stdout,'(1x,a)',advance='no') 'Calculating NCI flexibility...'
+  write (stdout,'(1x,a)',advance='no') 'Calculating NCI flexibility ...'
   flush (stdout)
   call gfnff_api_setup(mol,mol%chrg,ff_dat,io,.false.)
   if (io /= 0) then

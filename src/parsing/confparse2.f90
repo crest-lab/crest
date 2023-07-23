@@ -90,6 +90,7 @@ subroutine parseinputfile(env,fname)
   call parse_calculation_data(newcalc,dict,l1)
   if (l1) then
     env%calc = newcalc
+    call env_calcdat_specialcases(env)
   end if
 
 !>--- check for molecular dynamics setup
@@ -105,11 +106,12 @@ end subroutine parseinputfile
 
 !========================================================================================!
 !========================================================================================!
-!> subroutine internal_constraint_setup
-!> 'repair' settings for constraints set up
-!> for the internal calculation engine
-!>----------------------------------------------------
 subroutine internal_constraint_repair(env)
+!*******************************************
+!* subroutine internal_constraint_setup
+!* 'repair' settings for constraints set up
+!* for the internal calculation engine
+!*******************************************
   use crest_parameters
   use crest_data
   use constraints
@@ -144,3 +146,30 @@ subroutine internal_constraint_repair(env)
   return
 end subroutine internal_constraint_repair
 
+!========================================================================================!
+!========================================================================================!
+subroutine env_calcdat_specialcases(env)
+!****************************************************
+!* Some special treatments are sometimes necessary
+!* depending on a choosen calculation level,
+!* for example, a MD timestep adjustment for GFN-FF. 
+!* This routine takes care of that, 
+!* but some stuff (in particular MD settings) may be 
+!* overwritten later in the respective block.
+!***************************************************
+  use crest_parameters
+  use crest_data
+  use calc_type
+  implicit none
+  type(systemdata) :: env
+
+  !> special case for GFN-FF calculations
+  if(any(env%calc%calcs(:)%id == jobtype%gfnff))then
+    env%mdstep = 1.5d0
+    env%hmass = 5.0d0
+    env%cts%cbonds_md = .true.
+    env%checkiso = .true.
+  endif
+
+
+end subroutine env_calcdat_specialcases

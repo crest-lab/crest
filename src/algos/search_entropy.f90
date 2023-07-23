@@ -201,17 +201,21 @@ subroutine crest_search_entropy(env,tim)
 !      call emtdcopy(env,0,stopiter,fail)
 !      bref = env%emtd%nbias
 !
+!!>--- sMTD iterations, done until max iterations or convergence
 !      ENTROPYITER: do eit = 1,env%emtd%iter
+         !> Modify bias
 !        dum = nint(float(env%emtd%nbias) * env%emtd%nbiasgrow)
-!        !env%emtd%nbias = nint(float(env%emtd%nbias) * env%emtd%nbiasgrow)
 !        env%emtd%nbias = max(env%emtd%nbias + 1,dum)
 !        fail = .false.
+
+!!>--- Loop handling fallbacks
 !        EFALLBACK: do k = 1,env%emtd%maxfallback
 !          call printiter2(eit)
 !          call tim%start(6,'static MTD')
 !          call entropyMD_para_OMP(env)
 !          call tim%stop(6)
 !          call emtdcheckempty(env,fail,env%emtd%nbias)
+
 !          if (fail) then
 !            if (k == env%emtd%maxfallback) then
 !              stopiter = .true.
@@ -219,33 +223,37 @@ subroutine crest_search_entropy(env,tim)
 !              cycle EFALLBACK
 !            end if
 !          else
-!            call tim%start(3,'multilevel OPT')
-!            if (env%optlev >= -1.0d0) then
-!              call multilevel_opt(env,2)
-!            end if
-!            call multilevel_opt(env,99)
-!
-!            call tim%stop(3)
-!            !--- if in the entropy mode a lower structure was found
-!            !    --> cycle, required for extrapolation
+
+!!>--- Reoptimization of trajectories
+!    call tim%start(3,'geom. optimization')
+!    multilevel = (/.true.,.false.,.false.,.false.,.true.,.false./)
+!    call crest_multilevel_oloop(env,ensnam,multilevel)
+!    call tim%stop(3)
+
+!!>--- if in the entropy mode a lower structure was found -> cycle (required for extrapolation)
 !            call elowcheck(lower,env)
 !            if (lower .and. env%entropic) then
-!              env%emtd%nbias = bref  !IMPORTANT, reset for restart
+!              env%emtd%nbias = bref  !> IMPORTANT, reset for restart
 !              cycle MAINLOOP
 !            end if
-!            !--- file handling
+
+!!>--- otherwise, handle files andfile handling
 !            eit2 = eit
 !            call emtdcopy(env,eit2,stopiter,fail)
 !            env%emtd%iterlast = eit2
 !          end if
+
 !          if (.not. lower .and. fail .and. .not. stopiter) then
 !            cycle EFALLBACK
 !          end if
-!          exit EFALLBACK  !fallback loop is exited on first opportuinity
+
+!          exit EFALLBACK  !> fallback loop is exited on first opportuinity
 !        end do EFALLBACK
+
 !        if (stopiter) then
 !          exit ENTROPYITER
 !        end if
+
 !      end do ENTROPYITER
 !    end if
 

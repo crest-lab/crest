@@ -44,6 +44,16 @@ subroutine crest_moleculardynamics(env,tim)
   character(len=80) :: atmp
   character(len=*),parameter :: trjf='crest_dynamics.trj'
 !========================================================================================!
+  write(stdout,*)
+  !call system('figlet dynamics')
+  write(stdout,*) "      _                             _           " 
+  write(stdout,*) "   __| |_   _ _ __   __ _ _ __ ___ (_) ___ ___  "
+  write(stdout,*) "  / _` | | | | '_ \ / _` | '_ ` _ \| |/ __/ __| "
+  write(stdout,*) " | (_| | |_| | | | | (_| | | | | | | | (__\__ \ "
+  write(stdout,*) "  \__,_|\__, |_| |_|\__,_|_| |_| |_|_|\___|___/ "
+  write(stdout,*) "        |___/                                   "
+  write(stdout,*)
+!========================================================================================!
   call tim%start(14,'molecular dynamics')
   call env%ref%to(mol)
   write (stdout,*)
@@ -68,24 +78,20 @@ subroutine crest_moleculardynamics(env,tim)
     return
   end if
 
-  !>--- init SHAKE?
+  !>--- init SHAKE? --> we need connectivity info
   if (mddat%shake) then
     calc%calcs(1)%rdwbo = .true.
     allocate (grad(3,mol%nat),source=0.0_wp)
     call engrad(mol,calc,energy,grad,io)
     deallocate (grad)
     calc%calcs(1)%rdwbo = .false.
-
-    shk%shake_mode = mddat%shk%shake_mode
-    call move_alloc(calc%calcs(1)%wbo,shk%wbo)
-
-    mddat%shk = shk
-    call init_shake(mol%nat,mol%at,mol%xyz,mddat%shk,pr)
-    mddat%nshake = mddat%shk%ncons
+    call move_alloc(calc%calcs(1)%wbo,mddat%shk%wbo)
+    !> moved to within the MD call
+    !call init_shake(mol%nat,mol%at,mol%xyz,mddat%shk,pr)
+    !mddat%nshake = mddat%shk%ncons
   end if
 
   !>--- complete real-time settings to steps
-  call mdautoset(mddat,io)
   mddat%trajectoryfile = trjf
 
   !>--- run the MD

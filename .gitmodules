@@ -6,3 +6,7 @@
 	path = subprojects/toml-f
 	url = https://github.com/toml-f/toml-f.git
     branch = main
+[submodule "subprojects/gfnff"]
+	path = subprojects/gfnff
+	url = https://github.com/pprcht/gfnff
+    branch = master 

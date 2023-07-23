@@ -24,9 +24,6 @@ module shake_module
   use crest_parameters
   implicit none
 
-  !real(wp),private,parameter :: autoaa = 0.52917726_wp
-  !real(wp),private,parameter :: aatoau = 1.0_wp / autoaa
-
   integer,private,parameter :: metal(1:86) = [&
      & 0,0,1,1,1,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1, &
      & 1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,1,1,1,1, &
@@ -61,6 +58,8 @@ module shake_module
   !data object that contains settings for a molecular dynamics simulation.
   type :: shakedata
 
+    logical :: initialized = .false.
+
     integer :: shake_mode = 0 ! 0 = off/user, 1 = H only, 2 = all
 
     !>--- user defined SHAKE bonds
@@ -86,11 +85,19 @@ module shake_module
   public :: init_shake
   public :: do_shake
 
-contains
+
 !========================================================================================!
-! subroutine init_shake
-! initialize SHAKE algorithm by documenting which pairs of atoms to constrain
+!========================================================================================!
+contains !> MODULE PROCEDURES START HERE
+!========================================================================================!
+!========================================================================================!
+
   subroutine init_shake(nat,at,xyz,shk,pr)
+!********************************************
+!* subroutine init_shake
+!* initialize SHAKE algorithm by documenting 
+!* which pairs of atoms to constrain
+!********************************************
     implicit none
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
@@ -109,6 +116,9 @@ contains
 
     integer :: n2
     integer,allocatable :: cons2(:,:)
+
+    !>--- if shake was already set up, return
+    if(shk%initialized) return
 
     !>--- reset counter
     nconsu = 0
@@ -200,6 +210,8 @@ contains
       end if
     end if
 
+    shk%initialized = .true.
+
     shk%ncons = nconsu
     if (nconsu .lt. 1) then
       if (allocated(cons2)) deallocate (cons2)
@@ -231,9 +243,11 @@ contains
   end subroutine init_shake
 
 !========================================================================================!
-! subroutine do_shake
-!
   subroutine do_shake(nat,xyzo,xyz,velo,acc,mass,tstep,shk,pr)
+!**************************************************
+!* subroutine do_shake
+!* Calculation of the actual SHAKE constraint
+!**************************************************
     implicit none
     integer,intent(in) :: nat
     type(shakedata) :: shk
@@ -317,8 +331,10 @@ contains
   end subroutine do_shake
 
 !========================================================================================!
-! helper function lin
   integer function shake_lin(i1,i2)
+!**********************
+!* helper function lin
+!**********************
     integer :: i1,i2,idum1,idum2
     idum1 = max(i1,i2)
     idum2 = min(i1,i2)
