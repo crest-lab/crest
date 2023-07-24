@@ -140,6 +140,7 @@ contains  !> MODULE PROCEDURES START HERE
             read (calc%calcs(i)%other,*) dum1,dum2
           end if
           call lj_engrad(mol%nat,mol%xyz,dum1,dum2,calc%etmp(i),calc%grdtmp(:,:,i))
+
         case default
           !write (*,*) 'Nothing selected for energy and gradient calculation.'
           calc%etmp(i) = 0.0_wp
@@ -347,7 +348,6 @@ contains  !> MODULE PROCEDURES START HERE
 
     call engrad(mol,calc,el,gradl,io) !>- to get the gradient of the non-displaced structure
 
-    deallocate (gradl_tmp,gradr_tmp)
     deallocate (gradl,gradr)
     call mol%deallocate()
     return

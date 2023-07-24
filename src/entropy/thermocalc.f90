@@ -25,7 +25,7 @@ subroutine prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,symnum,symchar)
 !***********************************************************************
 !* Prepare the calculation of thermodynamic properties of a structure
 !* In particular, determine rotational constants and check the symmetry
-!*********************************************************************** 
+!***********************************************************************
   use crest_parameters,only:wp,bohr,stdout
   use atmasses,only:molweight
   use iomod,only:to_lower
@@ -289,7 +289,7 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
 !* Legacy version that uses xtb and reads
 !* the frequencies from a vibspectrum file
 !*********************************************
-  use crest_parameters, only: wp,stdout
+  use crest_parameters,only:wp,stdout
   use crest_data
   use iomod
   use strucrd
@@ -340,13 +340,7 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
   i = len_trim(dirname)
   if (i > 0) subdir = .true.
 
-  !write(jobcall,'(a,1x,a,1x,a,'' --ohess '',a,1x,a,1x,a,'' > xtb.out'')') &
-  !&  trim(env%ProgName),trim(xname),trim(env%gfnver),trim(env%solv), &
-  !&  '--ceasefiles',trim(pipe)
-
-  !write(jobcall,'(a,1x,a,1x,a,'' --bhess loose '',a,1x,a,1x,a,'' > xtb.out'')') &
-  !&  trim(env%ProgName),trim(xname),trim(env%gfnver),trim(env%solv), &
-  !&  '--ceasefiles',trim(pipe)
+  !>-- build the jobcall
   jobcall = ""
   jobcall = trim(jobcall)//trim(env%ProgName)
   if (bhess) then
@@ -376,7 +370,9 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
     call getcwd(thispath)
     io = sylnk(trim(thispath)//'/'//'gfnff_topo',trim(optpath)//'gfnff_topo')
   end if
+  if(index(env%fixfile,'none selected').eq.0)then
   io = sylnk(trim(thispath)//'/'//env%fixfile,trim(optpath)//env%fixfile)
+  endif 
 
 !$omp critical
   open (unit=ich,file=trim(optpath)//xname)
@@ -428,8 +424,8 @@ subroutine rdfreq(fname,nmodes,freq)
 !**************************************
 !* read vibspectrum file in TM format
 !**************************************
-  use crest_parameters, only: wp 
-  use crest_data 
+  use crest_parameters,only:wp
+  use crest_data
   use iomod
   implicit none
   character(len=*),intent(in) :: fname
@@ -470,6 +466,125 @@ subroutine rdfreq(fname,nmodes,freq)
   close (ich)
   return
 end subroutine rdfreq
+
+!=========================================================================================!
+
+subroutine thermo_wrap_new(env,pr,nat,at,xyz,dirname, &
+        &  nt,temps,et,ht,gt,stot,bhess)
+!**********************************************
+!* Wrapper for a Hessian calculation to get
+!* the thermodynamics of the molecule.
+!* Updated version without xtb subprocess
+!* WARNING: xyz is expected in ANGSTROEM
+!*********************************************
+  use crest_parameters,only:wp,stdout,aatoau
+  use crest_data
+  use iomod
+  use strucrd
+  use calc_type
+  use calc_module
+  use hessian_tools
+  implicit none
+  !> INPUT
+  type(systemdata) :: env
+  logical,intent(in) :: pr
+  integer,intent(in) :: nat
+  integer,intent(inout) :: at(nat)
+  real(wp),intent(inout) :: xyz(3,nat)  !> in Angstroem!
+  character(len=*) :: dirname
+  integer,intent(in)  :: nt
+  real(wp),intent(in)  :: temps(nt)
+  logical,intent(in) :: bhess       !> calculate bhess instead?
+  !> OUTPUT
+  real(wp),intent(out) :: et(nt)    !> enthalpy in Eh
+  real(wp),intent(out) :: ht(nt)    !> enthalpy in Eh
+  real(wp),intent(out) :: gt(nt)    !> free energy in Eh
+  real(wp),intent(out) :: stot(nt)  !> entropy in cal/molK
+  !> LOCAL
+  type(coord) :: mol
+  type(calcdata) :: calctmp
+  character(len=10) :: atmp
+  logical :: subdir,ex
+  integer :: i,io,r,ich
+  real(wp) :: etot
+  integer :: nfreq
+  real(wp),allocatable :: hess(:,:)
+  real(wp),allocatable :: freq(:)
+  real(wp) :: ithr,fscal,sthr
+
+  integer :: TID,OMP_GET_THREAD_NUM
+
+!!$OMP PARALLEL PRIVATE(TID)
+  TID = OMP_GET_THREAD_NUM()
+  !awrite(*,*) '---->',TID
+!!$OMP END PARALLEL
+  ich = (TID+1)*1000   ! generate CPU dependent file channel number
+
+  call initsignal()
+
+  subdir = .false.
+  if(len_trim(dirname) > 0) subdir = .true.
+
+!>-- create a calculation object locally, modify calc dir
+!$omp critical
+  calctmp = env%calc
+  mol%nat = nat
+  mol%at = at
+  mol%xyz = xyz*aatoau
+
+  do i=1,calctmp%ncalculations
+    write(atmp,'(".",i0)') i
+    if(subdir)then
+    calctmp%calcs(i)%calcspace = trim(dirname)
+    else if(allocated(calctmp%calcs(i)%calcspace))then
+     deallocate(calctmp%calcs(i)%calcspace)
+    endif
+  enddo 
+!>-- also, allocate frequncy and hessian space
+  nfreq = 3*nat
+  allocate (freq(nfreq), source = 0.0_wp)
+  allocate (hess(nfreq,nfreq), source = 0.0_wp)
+!$omp end critical
+
+!>-- numerical Hessian
+
+  !TODO bhess currently not coded with new calculator
+  if (bhess) then
+   write(stdout,'("> ",a)') 'bhess not implemented for calculator routines'
+  endif 
+  !else
+     call numhess1(mol%nat,mol%at,mol%xyz,calctmp,hess,io)
+  !end if
+
+  if (io /= 0) then  !if the calc failed
+    return
+  end if
+
+!>-- project and get frequencies
+!$omp critical
+   !>-- Projects and mass-weights the Hessian
+   call prj_mw_hess(mol%nat,mol%at,nfreq,mol%xyz,hess)
+   !>-- Computes the Frequencies
+   call frequencies(mol%nat,mol%at,mol%xyz,nfreq,calctmp,hess,freq,io)
+!$omp end critical
+
+!>--- get thermodynamics
+!$omp critical
+  et = 0.0_wp
+  ht = 0.0_wp
+  gt = 0.0_wp
+  stot = 0.0_wp
+
+  ithr = env%thermo%ithr
+  fscal = env%thermo%fscal
+  sthr = env%thermo%sthr
+  call calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr, &
+  &    nt,temps,et,ht,gt,stot)
+  deallocate (hess,freq)
+!$omp end critical
+  call initsignal()
+  return
+end subroutine thermo_wrap_new
 
 !=========================================================================================!
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
@@ -565,14 +680,17 @@ subroutine calcSrrhoav(env,ensname)
     g = 1
   end if
 
+!========================================================================================!
+!> FREQUENCY CALCULATION AND THERMODYNAMICS
+!========================================================================================!
 !>--- determine how many hessians must be calculated
   allocate (erel(nall),pdum(nall))
   erel = (er-er(1))*kcal
   call entropy_boltz(nall,Tref,erel,g,pdum)
 
-  ncalc = 1  !always the lowest
+  ncalc = 1  !> always the lowest
   psum = pdum(1)
-  nlimit = env%thermo%pcap !limit strucs (for VERY large SE)
+  nlimit = env%thermo%pcap !> limit strucs (for VERY large SE)
   do i = 2,nall
     psum = psum+pdum(i)
     ncalc = ncalc+1
@@ -585,7 +703,7 @@ subroutine calcSrrhoav(env,ensname)
   end do
   deallocate (pdum)
 
-!--- print something
+!>--- print something
   write (stdout,'(1x,a,i0)') 'Nconf on file      : ',nall
   write (atmp,'(1x,a,f6.2,a)') '(=',psum*100.0d0,'% total population)'
   write (stdout,'(1x,a,i0,a)') 'Taken for Hessians : ',ncalc,trim(atmp)
@@ -636,14 +754,14 @@ subroutine calcSrrhoav(env,ensname)
     !$omp critical
     write (tmppath,'(''hess'',i0)') vz
     c0(1:3,1:nat) = xyz(1:3,1:nat,vz)
-
     !$omp end critical
+
     call thermo_wrap(env,.false.,nat,at,c0,tmppath, &
     &    nt,temps,et,ht,gt,stot,avbhess)
+
     !$omp critical
     gatt(vz,1:nt) = gt(1:nt)
     satt(vz,1:nt) = stot(1:nt)
-
     !$omp end critical
     if (.not.env%keepModef) call rmrf(trim(tmppath))
 
@@ -676,6 +794,7 @@ subroutine calcSrrhoav(env,ensname)
   end if
   call chdir(thispath)
   if (.not.env%keepModef) call rmrf('HESSIANS')
+!========================================================================================!
 
 !>--- process the calculated free energies and entropies into accurate populations
   allocate (srrho(nt),sav(nt),gav(nt),efree(nall,nt))
