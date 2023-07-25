@@ -23,68 +23,68 @@ subroutine env2calc(env,calc,molin)
 !* This piece of code generates a calcdata
 !* object from the global settings in env
 !******************************************
-   use crest_parameters
-   use crest_data 
-   use calc_type
-   use strucrd
-   implicit none 
-   !> INPUT
-   type(systemdata),intent(in) :: env
-   type(coord),intent(in),optional :: molin
-   !> OUTPUT 
-   type(calcdata) :: calc
-   !> LOCAL
-   type(calculation_settings) :: cal
-   type(coord) :: mol
+  use crest_parameters
+  use crest_data
+  use calc_type
+  use strucrd
+  implicit none
+  !> INPUT
+  type(systemdata),intent(in) :: env
+  type(coord),intent(in),optional :: molin
+  !> OUTPUT
+  type(calcdata) :: calc
+  !> LOCAL
+  type(calculation_settings) :: cal
+  type(coord) :: mol
 
-   call calc%reset()
+  call calc%reset()
 
-   cal%uhf  = env%uhf
-   cal%chrg = env%chrg
-   !>-- obtain WBOs OFF by default
-   cal%rdwbo = .false.
+  cal%uhf = env%uhf
+  cal%chrg = env%chrg
+  !>-- obtain WBOs OFF by default
+  cal%rdwbo = .false.
 
-   !>-- defaults to whatever env has selected or gfn0
-   select case(trim(env%gfnver))
-     case( '--gfn0' )
-       cal%id = jobtype%gfn0
-     case( '--gfn1' )
-       cal%id = jobtype%tblite
-       cal%tblitelvl = 1
-     case( '--gfn2' )
-       cal%id = jobtype%tblite
-       cal%tblitelvl = 2
-     case( '--gff','--gfnff' )
-       cal%id = jobtype%gfnff
-     case default
-       cal%id = jobtype%gfn0
-   end select
-   if(present(molin))then
-     mol = molin
-   !else
-   !  call mol%open('coord')
-   endif
+  !>-- defaults to whatever env has selected or gfn0
+  select case (trim(env%gfnver))
+  case ('--gfn0')
+    cal%id = jobtype%gfn0
+  case ('--gfn1')
+    cal%id = jobtype%tblite
+    cal%tblitelvl = 1
+  case ('--gfn2')
+    cal%id = jobtype%tblite
+    cal%tblitelvl = 2
+  case ('--gff','--gfnff')
+    cal%id = jobtype%gfnff
+  case default
+    cal%id = jobtype%gfn0
+  end select
+  if (present(molin)) then
+    mol = molin
+    !else
+    !  call mol%open('coord')
+  end if
 
-   !> implicit solvation
-   if(env%gbsa)then
-     if(index(env%solv,'gbsa').ne.0)then
-       cal%solvmodel = 'gbsa'
-     else if( index(env%solv,'alpb').ne.0)then
-       cal%solvmodel = 'alpb'
-     else
-       cal%solvmodel = 'unknown'
-     endif
-     cal%solvent = trim(env%solvent)
-   endif
+  !> implicit solvation
+  if (env%gbsa) then
+    if (index(env%solv,'gbsa') .ne. 0) then
+      cal%solvmodel = 'gbsa'
+    else if (index(env%solv,'alpb') .ne. 0) then
+      cal%solvmodel = 'alpb'
+    else
+      cal%solvmodel = 'unknown'
+    end if
+    cal%solvent = trim(env%solvent)
+  end if
 
-   !> do not reset parameters between calculations (opt for speed)
-   cal%apiclean = .false.
+  !> do not reset parameters between calculations (opt for speed)
+  cal%apiclean = .false.
 
-   call cal%autocomplete(1)
+  call cal%autocomplete(1)
 
-   call calc%add( cal )   
+  call calc%add(cal)
 
-   return
+  return
 end subroutine env2calc
 
 subroutine env2calc_setup(env)
@@ -95,16 +95,16 @@ subroutine env2calc_setup(env)
   use calc_type
   use strucrd
   implicit none
-   !> INOUT
-   type(systemdata),intent(inout) :: env
-   !> LOCAL
-   type(calcdata) :: calc
-   type(coord) :: mol
+  !> INOUT
+  type(systemdata),intent(inout) :: env
+  !> LOCAL
+  type(calcdata) :: calc
+  type(coord) :: mol
 
-   call env2calc(env,calc,mol)
+  call env2calc(env,calc,mol)
 
-   env%calc = calc
-end subroutine  env2calc_setup
+  env%calc = calc
+end subroutine env2calc_setup
 
 !================================================================================!
 subroutine confscript2i(env,tim)
@@ -113,38 +113,38 @@ subroutine confscript2i(env,tim)
   implicit none
   type(systemdata) :: env
   type(timer)   :: tim
-  if(env%legacy)then
-      call confscript2i_legacy(env,tim)
+  if (env%legacy) then
+    call confscript2i_legacy(env,tim)
   else
-     if(.not.env%entropic)then
-        call crest_search_imtdgc(env,tim)
-     else
-        call crest_search_entropy(env,tim)
-     endif
-  endif
+    if (.not.env%entropic) then
+      call crest_search_imtdgc(env,tim)
+    else
+      call crest_search_entropy(env,tim)
+    end if
+  end if
 end subroutine confscript2i
 
 !=================================================================================!
 subroutine xtbsp(env,xtblevel)
   use iso_fortran_env,only:wp => real64
   use crest_data
-  use strucrd, only: coord
+  use strucrd,only:coord
   implicit none
   type(systemdata) :: env
   integer,intent(in),optional :: xtblevel
   interface
-   subroutine crest_xtbsp(env,xtblevel,molin)
-   import :: systemdata,coord
-   type(systemdata) :: env
-   integer,intent(in),optional :: xtblevel
-   type(coord),intent(in),optional :: molin
-   end subroutine crest_xtbsp
+    subroutine crest_xtbsp(env,xtblevel,molin)
+      import :: systemdata,coord
+      type(systemdata) :: env
+      integer,intent(in),optional :: xtblevel
+      type(coord),intent(in),optional :: molin
+    end subroutine crest_xtbsp
   end interface
-  if(env%legacy)then
-      call xtbsp_legacy(env,xtblevel)
+  if (env%legacy) then
+    call xtbsp_legacy(env,xtblevel)
   else
-      call crest_xtbsp(env,xtblevel)
-  endif
+    call crest_xtbsp(env,xtblevel)
+  end if
 end subroutine xtbsp
 subroutine xtbsp2(fname,env)
   use iso_fortran_env,only:wp => real64
@@ -153,21 +153,21 @@ subroutine xtbsp2(fname,env)
   implicit none
   type(systemdata) :: env
   character(len=*),intent(in) :: fname
-  type(coord) :: mol 
+  type(coord) :: mol
   interface
-   subroutine crest_xtbsp(env,xtblevel,molin)
-   import :: systemdata,coord
-   type(systemdata) :: env
-   integer,intent(in),optional :: xtblevel
-   type(coord),intent(in),optional :: molin
-   end subroutine crest_xtbsp
+    subroutine crest_xtbsp(env,xtblevel,molin)
+      import :: systemdata,coord
+      type(systemdata) :: env
+      integer,intent(in),optional :: xtblevel
+      type(coord),intent(in),optional :: molin
+    end subroutine crest_xtbsp
   end interface
-  if(env%legacy)then
-      call xtbsp2_legacy(fname,env)
+  if (env%legacy) then
+    call xtbsp2_legacy(fname,env)
   else
-      call mol%open(trim(fname))
-      call crest_xtbsp(env,xtblevel=-1,molin=mol)
-  endif
+    call mol%open(trim(fname))
+    call crest_xtbsp(env,xtblevel=-1,molin=mol)
+  end if
 end subroutine xtbsp2
 
 !=================================================================================!
@@ -178,9 +178,9 @@ subroutine confscript1(env,tim)
   implicit none
   type(systemdata) :: env
   type(timer)   :: tim
-  write(stdout,*)
-  write(stdout,*) 'This runtype has been entirely deprecated.'
-  write(stdout,*) 'You may try an older version of the program if you want to use it.'
+  write (stdout,*)
+  write (stdout,*) 'This runtype has been entirely deprecated.'
+  write (stdout,*) 'You may try an older version of the program if you want to use it.'
   stop
 end subroutine confscript1
 
@@ -194,12 +194,12 @@ subroutine nciflexi(env,flexval)
   type(systemdata) :: env
   type(coord) ::mol
   real(wp) :: flexval
-  if(env%legacy)then
+  if (env%legacy) then
     call nciflexi_legacy(env,flexval)
   else
     call env%ref%to(mol)
     call nciflexi_gfnff(mol,flexval)
-  endif  
+  end if
 end subroutine nciflexi
 
 !================================================================================!
@@ -210,7 +210,7 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
 !* Wrapper for a Hessian calculation
 !* to get thermodynamics of the molecule
 !*****************************************
-  use crest_parameters, only: wp
+  use crest_parameters,only:wp
   use crest_data
   implicit none
   !> INPUT
@@ -229,12 +229,13 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
   real(wp),intent(out) :: gt(nt)    !> free energy in Eh
   real(wp),intent(out) :: stot(nt)  !> entropy in cal/molK
 
-  if(env%legacy)then
+  if (env%legacy) then
     call thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
     &                    nt,temps,et,ht,gt,stot,bhess)
   else
-    error stop 'thermo_wrap not yet implemented for API version'
-  endif
+    call thermo_wrap_new(env,pr,nat,at,xyz,dirname, &
+    &                    nt,temps,et,ht,gt,stot,bhess)
+  end if
 end subroutine thermo_wrap
 
 !================================================================================!

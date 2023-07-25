@@ -102,22 +102,22 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: at(nat)               !atomic number of all atoms
 
     real(wp),intent(inout) :: hess(nat3,nat3)   !Hessian matrix
-    real(wp) :: amv(118),mass_in_au             !Masses of all atoms of the periodic table
+    real(wp) :: mass_in_au             !Masses of all atoms of the periodic table
     integer :: i,j,nat3,i3,i33,j3,j33
 
     mass_in_au = (1.66054e-27_wp/9.1094e-31_wp)**2
 
-    amv = ams(1:118)
+    !amv = ams(1:118)
 
     do i = 1,nat
-      do j = 1,nat
+      do j = i,nat
 
         i3 = 3*(i-1)+1
         i33 = 3*(i-1)+3
         j3 = 3*(j-1)+1
         j33 = 3*(j-1)+3
 
-        hess(i3:i33,j3:j33) = 1/sqrt(amv(at(i))*amv(at(j))*mass_in_au)*hess(i3:i33,j3:j33)
+        hess(i3:i33,j3:j33) = 1/sqrt(ams(at(i))*ams(at(j))*mass_in_au)*hess(i3:i33,j3:j33)
         !Hessian is symmetric hence upper triangular can be copied
         hess(j3:j33,i3:i33) = hess(i3:i33,j3:j33)
 

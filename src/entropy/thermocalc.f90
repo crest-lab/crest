@@ -25,7 +25,7 @@ subroutine prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,symnum,symchar)
 !***********************************************************************
 !* Prepare the calculation of thermodynamic properties of a structure
 !* In particular, determine rotational constants and check the symmetry
-!*********************************************************************** 
+!***********************************************************************
   use crest_parameters,only:wp,bohr,stdout
   use atmasses,only:molweight
   use iomod,only:to_lower
@@ -289,7 +289,7 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
 !* Legacy version that uses xtb and reads
 !* the frequencies from a vibspectrum file
 !*********************************************
-  use crest_parameters, only: wp,stdout
+  use crest_parameters,only:wp,stdout
   use crest_data
   use iomod
   use strucrd
@@ -340,13 +340,7 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
   i = len_trim(dirname)
   if (i > 0) subdir = .true.
 
-  !write(jobcall,'(a,1x,a,1x,a,'' --ohess '',a,1x,a,1x,a,'' > xtb.out'')') &
-  !&  trim(env%ProgName),trim(xname),trim(env%gfnver),trim(env%solv), &
-  !&  '--ceasefiles',trim(pipe)
-
-  !write(jobcall,'(a,1x,a,1x,a,'' --bhess loose '',a,1x,a,1x,a,'' > xtb.out'')') &
-  !&  trim(env%ProgName),trim(xname),trim(env%gfnver),trim(env%solv), &
-  !&  '--ceasefiles',trim(pipe)
+  !>-- build the jobcall
   jobcall = ""
   jobcall = trim(jobcall)//trim(env%ProgName)
   if (bhess) then
@@ -376,7 +370,9 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
     call getcwd(thispath)
     io = sylnk(trim(thispath)//'/'//'gfnff_topo',trim(optpath)//'gfnff_topo')
   end if
-  io = sylnk(trim(thispath)//'/'//env%fixfile,trim(optpath)//env%fixfile)
+  if (index(env%fixfile,'none selected') .eq. 0) then
+    io = sylnk(trim(thispath)//'/'//env%fixfile,trim(optpath)//env%fixfile)
+  end if
 
 !$omp critical
   open (unit=ich,file=trim(optpath)//xname)
@@ -428,8 +424,8 @@ subroutine rdfreq(fname,nmodes,freq)
 !**************************************
 !* read vibspectrum file in TM format
 !**************************************
-  use crest_parameters, only: wp 
-  use crest_data 
+  use crest_parameters,only:wp
+  use crest_data
   use iomod
   implicit none
   character(len=*),intent(in) :: fname
@@ -472,6 +468,126 @@ subroutine rdfreq(fname,nmodes,freq)
 end subroutine rdfreq
 
 !=========================================================================================!
+
+subroutine thermo_wrap_new(env,pr,nat,at,xyz,dirname, &
+        &  nt,temps,et,ht,gt,stot,bhess)
+!**********************************************
+!* Wrapper for a Hessian calculation to get
+!* the thermodynamics of the molecule.
+!* Updated version without xtb subprocess
+!* WARNING: xyz is expected in ANGSTROEM
+!*********************************************
+  use crest_parameters,only:wp,stdout,aatoau
+  use crest_data
+  use iomod
+  use strucrd
+  use calc_type
+  use calc_module
+  use hessian_tools
+  implicit none
+  !> INPUT
+  type(systemdata) :: env
+  logical,intent(in) :: pr
+  integer,intent(in) :: nat
+  integer,intent(inout) :: at(nat)
+  real(wp),intent(inout) :: xyz(3,nat)  !> in Angstroem!
+  character(len=*) :: dirname
+  integer,intent(in)  :: nt
+  real(wp),intent(in)  :: temps(nt)
+  logical,intent(in) :: bhess       !> calculate bhess instead?
+  !> OUTPUT
+  real(wp),intent(out) :: et(nt)    !> enthalpy in Eh
+  real(wp),intent(out) :: ht(nt)    !> enthalpy in Eh
+  real(wp),intent(out) :: gt(nt)    !> free energy in Eh
+  real(wp),intent(out) :: stot(nt)  !> entropy in cal/molK
+  !> LOCAL
+  type(coord) :: mol
+  type(calcdata) :: calctmp
+  character(len=10) :: atmp
+  logical :: subdir,ex
+  integer :: i,io,r,ich
+  real(wp) :: etot
+  integer :: nfreq
+  real(wp),allocatable :: hess(:,:)
+  real(wp),allocatable :: freq(:)
+  real(wp) :: ithr,fscal,sthr
+
+  integer :: TID,OMP_GET_THREAD_NUM
+
+!!$OMP PARALLEL PRIVATE(TID)
+  TID = OMP_GET_THREAD_NUM()
+  !awrite(*,*) '---->',TID
+!!$OMP END PARALLEL
+  ich = (TID+1)*1000   ! generate CPU dependent file channel number
+
+  call initsignal()
+
+  subdir = .false.
+  if (len_trim(dirname) > 0) subdir = .true.
+
+!>-- create a calculation object locally, modify calc dir
+!$omp critical
+  calctmp = env%calc
+  calctmp%pr_energies = .false. !> never do that!
+  mol%nat = nat
+  mol%at = at
+  mol%xyz = xyz*aatoau
+
+  do i = 1,calctmp%ncalculations
+    write (atmp,'(".",i0)') i
+    if (subdir) then
+      calctmp%calcs(i)%calcspace = trim(dirname)
+    else if (allocated(calctmp%calcs(i)%calcspace)) then
+      deallocate (calctmp%calcs(i)%calcspace)
+    end if
+  end do
+!>-- also, allocate frequncy and hessian space
+  nfreq = 3*nat
+  allocate (freq(nfreq),source=0.0_wp)
+  allocate (hess(nfreq,nfreq),source=0.0_wp)
+!$omp end critical
+
+!>-- numerical Hessian
+
+  !TODO bhess currently not coded with new calculator
+  if (bhess) then
+    write (stdout,'("> ",a)') 'bhess not implemented for calculator routines'
+  end if
+  !else
+  call numhess1(mol%nat,mol%at,mol%xyz,calctmp,hess,io)
+  !end if
+
+  if (io /= 0) then  !if the calc failed
+    return
+  end if
+
+!>-- project and get frequencies
+!$omp critical
+  !>-- Projects and mass-weights the Hessian
+  call prj_mw_hess(mol%nat,mol%at,nfreq,mol%xyz,hess)
+  !>-- Computes the Frequencies
+  call frequencies(mol%nat,mol%at,mol%xyz,nfreq,calctmp,hess,freq,io)
+!$omp end critical
+
+!>--- get thermodynamics
+!$omp critical
+  et = 0.0_wp
+  ht = 0.0_wp
+  gt = 0.0_wp
+  stot = 0.0_wp
+
+  ithr = env%thermo%ithr
+  fscal = env%thermo%fscal
+  sthr = env%thermo%sthr
+  call calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr, &
+  &    nt,temps,et,ht,gt,stot)
+  deallocate (hess,freq)
+!$omp end critical
+  call initsignal()
+  return
+end subroutine thermo_wrap_new
+
+!=========================================================================================!
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
 !=========================================================================================!
 subroutine calcSrrhoav(env,ensname)
@@ -497,6 +613,7 @@ subroutine calcSrrhoav(env,ensname)
   real(wp),allocatable :: efree(:,:)
   real(wp),allocatable :: g(:) !> degeneracies, either read from cre_degen2 (if present), or set to unity
   real(wp),allocatable :: p(:,:) !> populations at different T
+  integer,allocatable :: pindex(:)
   real(wp),allocatable :: gatt(:,:)
   real(wp),allocatable :: satt(:,:)
   real(wp),allocatable :: srrho(:),sav(:)
@@ -505,7 +622,7 @@ subroutine calcSrrhoav(env,ensname)
   real(wp),allocatable :: pdum(:)
   real(wp) :: psum,emin,sdum
   real(wp) :: quick_rmsd,rmsdval
-  integer :: eloc
+  integer :: eloc,ploc
   logical :: avbhess
 
   integer :: nt
@@ -515,8 +632,9 @@ subroutine calcSrrhoav(env,ensname)
   real(wp),allocatable :: gt(:)
   real(wp),allocatable :: stot(:)
   real(wp),allocatable :: c0(:,:)
+  real(wp),allocatable :: sref(:)
   character(len=64) :: atmp
-  integer :: i,j,k,ich,io,popf
+  integer :: i,j,k,ich,io,popf,ii
   logical :: ex
   logical :: niceprint
   real(wp) :: percent
@@ -551,6 +669,7 @@ subroutine calcSrrhoav(env,ensname)
 !>--- space for populations and degeneracies
   allocate (g(nall),source=1.0_wp)
   allocate (p(nall,nt))
+
 !>--- read degeneracies?
   inquire (file='cre_degen2',exist=ex)
   if (ex) then
@@ -565,14 +684,29 @@ subroutine calcSrrhoav(env,ensname)
     g = 1
   end if
 
+!========================================================================================!
+!> FREQUENCY CALCULATION AND THERMODYNAMICS
+!========================================================================================!
 !>--- determine how many hessians must be calculated
-  allocate (erel(nall),pdum(nall))
-  erel = (er-er(1))*kcal
+!>--- NOTE: this assumes the ensemble is ordered by energy, lowest first.
+  allocate (erel(nall),pdum(nall),pindex(nall))
+  emin = minval(er(:),1)
+  erel = (er-emin)*kcal
   call entropy_boltz(nall,Tref,erel,g,pdum)
 
-  ncalc = 1  !always the lowest
-  psum = pdum(1)
-  nlimit = env%thermo%pcap !limit strucs (for VERY large SE)
+!>--- set up index for ensemble that are NOT energy-sorted
+  do i = 1,nall
+    pindex(i) = i
+  end do
+  pdum(:) = -pdum(:)             !> Hack because qsort does low-to-high
+  call qsort(pdum,1,nall,pindex) !> pindex is what we are after
+  pdum(:) = -pdum(:)             !> and switch sign back
+
+!>--- and with the sorted pdum, just count how many calculations we need
+  ncalc = 1  !> always take the lowest
+  ploc = maxloc(pdum(:),1)
+  psum = pdum(ploc)
+  nlimit = env%thermo%pcap !> limit strucs (for VERY large SE)
   do i = 2,nall
     psum = psum+pdum(i)
     ncalc = ncalc+1
@@ -585,7 +719,7 @@ subroutine calcSrrhoav(env,ensname)
   end do
   deallocate (pdum)
 
-!--- print something
+!>--- print something
   write (stdout,'(1x,a,i0)') 'Nconf on file      : ',nall
   write (atmp,'(1x,a,f6.2,a)') '(=',psum*100.0d0,'% total population)'
   write (stdout,'(1x,a,i0,a)') 'Taken for Hessians : ',ncalc,trim(atmp)
@@ -606,44 +740,49 @@ subroutine calcSrrhoav(env,ensname)
   inquire (file='gfnff_topo',exist=ex)
 
   call chdir('HESSIANS')
-  if (env%gfnver == '--gff'.and.ex) then
-    call getcwd(tmppath)
-    io = sylnk(trim(thispath)//'/'//'gfnff_topo',trim(tmppath)//'/'//'gfnff_topo')
+  if (env%legacy) then
+    if (env%gfnver == '--gff'.and.ex) then
+      call getcwd(tmppath)
+      io = sylnk(trim(thispath)//'/'//'gfnff_topo',trim(tmppath)//'/'//'gfnff_topo')
+    end if
+    if (index(env%fixfile,'none selected') .eq. 0) then
+      io = sylnk(trim(thispath)//'/'//env%fixfile,trim(tmppath)//'/'//env%fixfile)
+    end if
   end if
-  io = sylnk(trim(thispath)//'/'//env%fixfile,trim(tmppath)//'/'//env%fixfile)
 
   k = 0
   niceprint = env%niceprint
 
-  !> OMP stuff
+!>--- OMP stuff
   if (env%autothreads) then
     call ompautoset(env%threads,7,env%omp,env%MAXRUN,ncalc) !set global OMP/MKL variable for xtb jobs
   end if
 
+!>--- the parallel loop
   avbhess = env%thermo%avbhess
   write (stdout,'(1x,a,i0,a)') 'Running ',ncalc,' calculations ...'
 !$omp parallel &
 !$omp shared( vz,tmppath,ncalc,percent,k,bar,niceprint) &
-!$omp shared( nat,at,xyz,c0,et,ht,gt,stot,temps,nt,gatt,satt,avbhess )
+!$omp shared( env,nat,at,xyz,c0,et,ht,gt,stot,temps,nt,gatt,satt,avbhess,pindex )
 !$omp single
   allocate (et(nt),ht(nt),gt(nt),stot(nt))
   allocate (c0(3,nat))
   do i = 1,ncalc
     call initsignal()
-    vz = i
+    vz = pindex(i) !> restore index
     !$omp task firstprivate( vz ) private( tmppath,et,ht,gt,stot,c0 )
     call initsignal()
     !$omp critical
     write (tmppath,'(''hess'',i0)') vz
     c0(1:3,1:nat) = xyz(1:3,1:nat,vz)
-
     !$omp end critical
+
     call thermo_wrap(env,.false.,nat,at,c0,tmppath, &
     &    nt,temps,et,ht,gt,stot,avbhess)
+
     !$omp critical
     gatt(vz,1:nt) = gt(1:nt)
     satt(vz,1:nt) = stot(1:nt)
-
     !$omp end critical
     if (.not.env%keepModef) call rmrf(trim(tmppath))
 
@@ -677,6 +816,7 @@ subroutine calcSrrhoav(env,ensname)
   call chdir(thispath)
   if (.not.env%keepModef) call rmrf('HESSIANS')
 
+!========================================================================================!
 !>--- process the calculated free energies and entropies into accurate populations
   allocate (srrho(nt),sav(nt),gav(nt),efree(nall,nt))
   srrho = 0.0_wp
@@ -686,27 +826,29 @@ subroutine calcSrrhoav(env,ensname)
   write (stdout,'(1x,a)',advance='no') 'calculating averages for G and S ... '
   flush (stdout)
   do j = 1,nt
-    do i = 1,ncalc
-      if (abs(gatt(i,j)) .lt. 1.d-10) then  !failed calcs?
+    do ii = 1,ncalc
+      i = pindex(ii) !> restore index
+      if (abs(gatt(i,j)) .lt. 1.d-10) then  !> failed calcs?
         if (j == 1) nav = nav-1
       end if
       gav(j) = gav(j)+gatt(i,j)
       sav(j) = sav(j)+satt(i,j)
     end do
   end do
-  gav = gav/float(nav)   !get the average G(T)
-  sav = sav/float(nav)   !get the avverage S(T)
+  gav = gav/float(nav)   !> get the average G(T)
+  sav = sav/float(nav)   !> get the avverage S(T)
   write (stdout,'(a8)') 'done.'
 
 !>--- get the free energies
   do j = 1,nt
-    efree(:,j) = er(:) !all based on etot
-    do i = 1,nall
-      if (i <= ncalc) then
+    efree(:,j) = er(:) !> all based on etot
+    do ii = 1,nall
+      i = pindex(ii) !> restore index
+      if (ii <= ncalc) then
         if (abs(gatt(i,j)) < 1.d-10) then
-          efree(i,j) = efree(i,j)+gav(j) !add |G(T)| (for failed calcs)
+          efree(i,j) = efree(i,j)+gav(j) !> add |G(T)| (for failed calcs)
         else
-          efree(i,j) = efree(i,j)+gatt(i,j) !add G(T)
+          efree(i,j) = efree(i,j)+gatt(i,j) !> add G(T)
         end if
       else
 !>-- for all energies that were not included in the free energy calculation add the average
@@ -720,8 +862,8 @@ subroutine calcSrrhoav(env,ensname)
   flush (stdout)
   allocate (pdum(nall))
   do j = 1,nt
-    emin = minval(efree(:,j),1) !lowest as reference
-    erel = (efree(:,j)-emin)*kcal     !to relative energies in kcal/mol
+    emin = minval(efree(:,j),1)    !> lowest as reference
+    erel = (efree(:,j)-emin)*kcal  !> to relative energies in kcal/mol
     pdum = 0.0d0
     call entropy_boltz(nall,temps(j),erel,g,pdum)
     !call entropy_boltz(ncalc,temps(j),erel,g(1:ncalc),pdum(1:ncalc))
@@ -740,12 +882,13 @@ subroutine calcSrrhoav(env,ensname)
       close (popf)
     end do
   end if
+
 !=========================================================================================!
 !==== after this point p now contains the correct populations based on free energies =====!
 !=========================================================================================!
 !>--- S_avRRHO must be calculated relative to the actual DFT reference structure
 !>--- the corresponding frequencies can be calculated with bhess
-  if (env%emtd%bhess) then
+  if (env%emtd%bhess.and.allocated(env%emtd%xyz)) then
     allocate (bsatt(nt))
     allocate (et(nt),ht(nt),gt(nt))
     write (stdout,'(1x,a)',advance='no') 'calculating reference S (bhess) ... '
@@ -757,32 +900,34 @@ subroutine calcSrrhoav(env,ensname)
     write (stdout,'(a9)') 'done.'
   end if
 !>--- average S_rrho with CORRECT populations
+  allocate (sref(nt),source=0.0_wp)
   write (stdout,'(1x,a)',advance='no') 'calculating δSrrho ... '
   flush (stdout)
   srrho = 0.0d0
   do j = 1,nt
-    do i = 1,nall
-      !do i=1,ncalc
-      if (i <= ncalc) then
+    do ii = 1,nall
+      i = pindex(ii) !> restore index
+      if (ii <= ncalc) then
         if (abs(satt(i,j)) < 1.d-10) then
-          srrho(j) = srrho(j)+p(i,j)*sav(j)! -satt(1,j))    ! (for failed hess calcs)
+          srrho(j) = srrho(j)+p(i,j)*sav(j)    !> (for failed hess calcs)
         else
-          srrho(j) = srrho(j)+p(i,j)*satt(i,j)! -satt(1,j)) ! corrected for different S_rrho
+          srrho(j) = srrho(j)+p(i,j)*satt(i,j) !> corrected for different S_rrho
         end if
       else
-        srrho(j) = srrho(j)+p(i,j)*sav(j)! -satt(1,j))
+        srrho(j) = srrho(j)+p(i,j)*sav(j)
       end if
     end do
-    ! substract the reference value to shift the average
-    if (env%emtd%bhess) then
-      srrho(j) = srrho(j)-bsatt(j)
+!>--- substract the reference value to shift the average
+    if (env%emtd%bhess.and.allocated(env%emtd%xyz)) then
+      sref(j) = bsatt(j) !> if a bhess value is available
     else
-      srrho(j) = srrho(j)-satt(1,j)
+      sref(j) = satt(pindex(1),j) !> lowest in ensemble otherwise
     end if
+    srrho(j) = srrho(j)-sref(j)
   end do
   write (stdout,'(a22)') 'done.'
 
-  if (env%emtd%bhess) then
+  if (env%emtd%bhess.and.allocated(env%emtd%xyz)) then
     write (stdout,*)
     call underline('Coordinates for the bhess reference structure (Ångström):')
     call wrxyz(stdout,env%emtd%nat,env%emtd%at,env%emtd%xyz)
@@ -805,23 +950,23 @@ subroutine calcSrrhoav(env,ensname)
   if ((nt > 1)) then
     write (stdout,'(a)')
     write (stdout,'(a10)',advance='no') "T/K"
-    write (stdout,'(a16)',advance='no') "δS/cal/molK"
+    write (stdout,'(a17)',advance='no') "|S(T)|/cal/molK"
     write (stdout,'(a16)',advance='no') "|G(T)|/Eh"
     write (stdout,'(a16)',advance='no') "G_lowest/Eh"
-    write (stdout,'(a8)',advance='no') "(conf)"
+    write (stdout,'(a10)',advance='no') "(conf)"
     write (stdout,'(a)')
-    write (stdout,'(3x,63("-"))')
+    write (stdout,'(3x,65("-"))')
     do i = 1,nt
       write (stdout,'(3f10.2)',advance='no') temps(i)
-      write (stdout,'(3e16.6)',advance='no') srrho(i)
+      write (stdout,'(3e16.6)',advance='no') srrho(i)+sref(i)
       write (stdout,'(3e16.6)',advance='no') gav(i)
       emin = minval(efree(:,i),1)
       write (stdout,'(f16.6)',advance='no') emin
       eloc = minloc(efree(:,i),1)
-      write (stdout,'(i8)',advance='no') eloc
+      write (stdout,'(i10)',advance='no') eloc
       write (stdout,'(a)')
     end do
-    write (stdout,'(3x,63("-"))')
+    write (stdout,'(3x,65("-"))')
     write (stdout,'(3x,a,a)') 'NOTE: if |G(T)| is the averaged ', &
     & 'contributrion to the free energy.'
     write (stdout,'(3x,a,a,i0,a)') '|G(T)| used only for the higher-energetic ', &
@@ -833,17 +978,17 @@ subroutine calcSrrhoav(env,ensname)
 !>--- properties based on free energies
   allocate (cp(nt),hconf(nt))
   do j = 1,nt
-    emin = minval(efree(:,j),1) !lowest as reference
-    erel = (efree(:,j)-emin)*kcal     !to relative energies in kcal/mol
+    emin = minval(efree(:,j),1)       !> lowest as reference
+    erel = (efree(:,j)-emin)*kcal     !> to relative energies in kcal/mol
     call entropy_S(nall,temps(j),1.0d0,erel, &
-    &    g,sdum,cp(j),hconf(j))  ! g read from file or set to 1
+    &    g,sdum,cp(j),hconf(j))  !> g read from file or set to 1
   end do
 
   if ((nt > 1)) then
     write (stdout,*)
     write (stdout,'(1x,a)') 'Quantities calculated on free energies:'
     write (stdout,'(a10)',advance='no') "T/K"
-    write (stdout,'(a16)',advance='no') "δSrrho"
+    write (stdout,'(a17)',advance='no') "δSrrho"
     write (stdout,'(a16)',advance='no') "Cp(T)"
     write (stdout,'(a16)',advance='no') "[H(T)-H(0)]"
     write (stdout,'(a)')
@@ -856,19 +1001,22 @@ subroutine calcSrrhoav(env,ensname)
       write (stdout,'(a)')
     end do
     write (stdout,'(3x,55("-"))')
+    write (stdout,'(3x,a,a)') 'NOTE: δSrrho(T) = |S(T)| - Sref(T)'
   end if
 
   if (allocated(env%emtd%soft)) then
-    env%emtd%soft(:) = srrho(:)   !this is \overline{S}_{msRRHO}
+    env%emtd%soft(:) = srrho(:)  !> this is \overline{S}_{msRRHO}
   end if
   if (allocated(env%emtd%cpoft)) then
-    env%emtd%cpoft(:) = cp(:)    !this is Cp_conf
+    env%emtd%cpoft(:) = cp(:)    !> this is Cp_conf
   end if
   if (allocated(env%emtd%hoft)) then
-    env%emtd%hoft(:) = hconf(:)  !this is H_conf
+    env%emtd%hoft(:) = hconf(:)  !> this is H_conf
   end if
 
+  if (allocated(sref)) deallocate (sref)
   if (allocated(bsatt)) deallocate (bsatt)
+  if (allocated(pindex)) deallocate (pindex)
   deallocate (satt,gatt)
   deallocate (efree,gav,sav,srrho)
   deallocate (erel,p,g,temps)

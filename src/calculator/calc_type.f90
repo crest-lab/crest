@@ -521,10 +521,8 @@ contains  !>--- Module routines start here
     integer :: i,j
     character(len=50) :: nmbr
 
-    !if(.not.allocated(self%description))then
     !> add a short description
-      self%description = trim(jobdescription(self%id+1))
-    !endif
+    self%description = trim(jobdescription(self%id+1))
 
     if(.not.allocated(self%calcspace))then   
     !> I've decided to perform all calculations in a separate directory to

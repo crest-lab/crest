@@ -473,6 +473,11 @@ subroutine testtopo(fname,env,tmode)
           nt=env%thermo%ntemps
           allocate(temps(nt),et(nt),ht(nt),gt(nt),stot(nt))
           temps = env%thermo%temps
+
+          if(.not.env%legacy .and. env%calc%ncalculations == 0 )then
+           call env2calc_setup(env)
+          endif
+
           call thermo_wrap(env,.true.,zmol%nat,zmol%at,xyz,'', &
           &    nt,temps,et,ht,gt,stot,.false.) 
           deallocate(stot,gt,ht,et,temps)
