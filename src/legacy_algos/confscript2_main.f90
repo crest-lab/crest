@@ -184,7 +184,7 @@ subroutine confscript2i_legacy(env,tim)
       write (*,'(''           MTD Simulations done         '')')
     end if
     write (*,'(''========================================'')')
-    write (*,'(1x,''Collecting ensmbles.'')')
+    write (*,'(1x,''Collecting ensembles.'')')
     call collectcre(env)                      !--- collecting all ensembles saved as ".cre_*.xyz"
       if (.not. env%entropic .and. env%crestver .ne. 22) then
         call newcregen(env,0)
