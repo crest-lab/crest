@@ -132,7 +132,7 @@ contains   !> MODULE PROCEDURES START HERE
       case default
         env%crestver = crest_imtd
       end select
-    case ('ensemble_input')
+    case ('ensemble_input','ensemble')
       env%ensemblename = val
       env%inputcoords = val
     case ('input')
