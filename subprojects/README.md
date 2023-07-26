@@ -4,10 +4,10 @@ Newer versions of CREST use external projects:
 
 | Library | Description | Build Option | git submodule |
 | ------- | ----------- | ------------ | :-----------: |
-| [`toml-f`](https://github.com/toml-f/toml-f) | A TOML parser for Fortran | `-DWITH_TOMLF=true` (default) | &#9745; |
-| [`gfn0`](https://github.com/pprcht/gfn0) | A GFN0-xTB standalone library | `-DWITH_GFN0=true` (default) | &#9745; |
-| [`gfnff`](https://github.com/pprcht/gfnff) | A GFN-FF standalone library | `-DWITH_GFNFF=true` | &#9745; |
-| [`tblite`](https://github.com/tblite/tblite) | A lightweight implementation of the GFN1 and GFN2-xTB Hamiltonians | `-DWITH_TBLITE=true` | &#9746; |
+| [`toml-f`](https://github.com/toml-f/toml-f) | A TOML parser for Fortran | `-DWITH_TOMLF=true` (default) | :white_check_mark: |
+| [`gfn0`](https://github.com/pprcht/gfn0) | A GFN0-xTB standalone library | `-DWITH_GFN0=true` (default) |  :white_check_mark:|
+| [`gfnff`](https://github.com/pprcht/gfnff) | A GFN-FF standalone library | `-DWITH_GFNFF=true` (default) | :white_check_mark: |
+| [`tblite`](https://github.com/tblite/tblite) | A lightweight implementation of the GFN1 and GFN2-xTB Hamiltonians | `-DWITH_TBLITE=true` | :x: |
 
 Both `cmake` and `meson` should be **able to handle the download automatically** (with meson being a little bit better at this). The build option can be specified in the respective setup step.
 
