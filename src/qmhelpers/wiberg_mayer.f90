@@ -24,8 +24,15 @@ module wiberg_mayer
   use iso_fortran_env,only:wp => real64
   implicit none
 
-  public :: get_wbo,get_wbo_rhf,density_matrix
+  public :: get_wbo_uhf,get_wbo_rhf,density_matrix
   public :: write_wbo
+
+  public :: get_wbo
+  interface get_wbo
+    module procedure get_wbo_rhf
+    module procedure get_wbo_uhf
+  end interface get_wbo
+
 !========================================================================================!
 !========================================================================================!
 contains  !> Module procedures start here
@@ -91,7 +98,7 @@ contains  !> Module procedures start here
 !> this version is valid for closed shell and open cases 
 
  
-  subroutine get_wbo(nat,nao,Pa,Pb,S,ao2at,wbo)
+  subroutine get_wbo_uhf(nat,nao,Pa,Pb,S,ao2at,wbo)
     implicit none
     !> Input
     integer,intent(in)  :: nat         !> number of atoms
@@ -146,7 +153,7 @@ contains  !> Module procedures start here
     wbo=wbo*2.0_wp
 
     deallocate(PS)
-  end subroutine get_wbo
+  end subroutine get_wbo_uhf
 
 
 
@@ -200,6 +207,7 @@ subroutine density_matrix(nao,focc,C,P)
    real(wp),intent(out) :: P(:,:)
    integer :: i,m
    real(wp),allocatable :: Ptmp(:,:)
+   !> LAPACK
    external :: dgemm,daxpy 
 
    allocate(Ptmp(nao,nao))
