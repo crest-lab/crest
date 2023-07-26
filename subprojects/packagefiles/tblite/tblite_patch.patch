@@ -1,0 +1,37 @@
+diff --git a/meson.build b/meson.build
+index 9384afd..e4b73bb 100644
+--- a/meson.build
++++ b/meson.build
+@@ -57,7 +57,7 @@ tblite_dep = declare_dependency(
+ )
+ 
+ # Add executable targets
+-subdir('app')
++#subdir('app')
+ 
+ # Package the license files
+ tblite_lic = files(
+@@ -121,7 +121,7 @@ if install
+ endif
+ 
+ # add the testsuite
+-subdir('test')
++#subdir('test')
+ 
+ if get_option('python')
+   subdir('python/tblite')
+diff --git a/src/tblite/param/serde.f90 b/src/tblite/param/serde.f90
+index 9855640..4dbe3ff 100644
+--- a/src/tblite/param/serde.f90
++++ b/src/tblite/param/serde.f90
+@@ -156,7 +156,7 @@ subroutine dump_to_unit(self, unit, error)
+    type(toml_serializer) :: ser
+ 
+    table = toml_table()
+-   ser = toml_serializer(unit)
++   ser = toml_serializer()
+ 
+    call self%dump(table, error)
+
+-
++

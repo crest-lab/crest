@@ -23,6 +23,8 @@ subdir('parsing')
 subdir('qmhelpers')
 subdir('graphs') 
 subdir('rigidconf')
+subdir('discretize')
+subdir('entropy')
 subdir('legacy_algos')
 
 
@@ -32,6 +34,7 @@ srcs += files(
   'biasmerge.f90',
   'bondconstraint.f90',
   'ccegen.f90',
+  'choose_settings.f90',
   'classes.f90',
   'cleanup.f90',
   'compress.f90',
@@ -41,11 +44,9 @@ srcs += files(
   'crest_pars.f90',
   'data.f90',
   'ensemblecomp.f90',
-  'entropic.f90',
-  'entropy.f90',
   'eval_timer.f90',
   'filemod.f90',
-  'flexi.f90',
+  'flexi.F90',
   'freqmasses.f90',
   'geo.f90',
   'identifiers.f90',
@@ -61,7 +62,6 @@ srcs += files(
   'msreact.f90',
   'ncigeo.f90',
   'neighbor.f',
-  'newcregen.f90',
   'ompmklset.F90',
   'printouts.f90',
   'prmat.f90',
@@ -82,8 +82,6 @@ srcs += files(
   'symmetry_i.c',
   'syscheck.f90',
   'testmol.f90',
-  'thermocalc.f90',
-  'thermo.f90',
   'trackorigin.f90',
   'trialmd.f90',
   'utilities.f',

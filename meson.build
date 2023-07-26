@@ -17,7 +17,7 @@
 project(
   'crest',
   'fortran', 'c',
-  version: '3.0',
+  version: '3.0dev',
   license: 'LGPL-3.0-or-later',
   meson_version: '>=0.63',
   default_options: [
@@ -29,9 +29,20 @@ project(
 )
 install = not (meson.is_subproject() and get_option('default_library') == 'static')
 
-# General configuration information
+
+# =================================== #
+## General configuration information ##
+# =================================== #
 exe_deps = []
 subdir('config')
+
+# create the metadata file with the configured data
+configure_file(
+  input: files('assets/template/metadata.f90'),
+  output: 'crest_metadata.fh',
+  configuration : config,
+)
+
 
 # Documentation
 #subdir('docs')

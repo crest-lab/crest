@@ -102,11 +102,9 @@ subroutine compare_ensembles(env)
 !----- first file
       call smallhead('Sorting file <'//trim(ensemblename)//'>')
       ensname1backup=trim(ensemblename)
-      if(.not.env%newcregen)then
-          call cregen2(env)
-      else
+
           call newcregen(env,0)
-      endif
+
       call rename(trim(ensemblename)//'.sorted',trim(ensname1))
       call rename('.cretrack',track1)
       call rdensembleparam(trim(ensname1),nat1,nall1)
@@ -141,11 +139,9 @@ subroutine compare_ensembles(env)
 !----- second file
       ensemblename=ensemblename2 !done so that CREGEn sorts the correct file
       call smallhead('Sorting file <'//trim(ensemblename2)//'>')
-      if(.not.env%newcregen)then
-          call cregen2(env)
-      else
+
           call newcregen(env,0)
-      endif
+
       ensemblename=trim(ensname1backup)
       call rename(trim(ensemblename2)//'.sorted',trim(ensname2))
       call rename('.cretrack',track2)

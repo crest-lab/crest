@@ -38,7 +38,7 @@ option(
 option(
   'WITH_TBLITE',
   type: 'boolean',
-  value: true,
+  value: false,
   description: 'build with tblite integration',
 )
 option(
@@ -46,5 +46,17 @@ option(
   type: 'boolean',
   value: true,
   description: 'build with GFN0-xTB integration',
+)
+option(
+  'WITH_GFNFF',
+  type: 'boolean',
+  value: true,
+  description: 'build with GFN-FF integration',
+)
+option(
+  'WITH_TOMLF',
+  type: 'boolean',
+  value: true,
+  description: 'build with toml-f integration',
 )
 

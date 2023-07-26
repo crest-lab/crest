@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 - 2022 Philipp Pracht
+! Copyright (C) 2021 - 2023 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -18,30 +18,28 @@
 !================================================================================!
 
 module calc_module
-  !>--- types and readers
+!>--- types and readers
   use iso_fortran_env,only:wp => real64
   use strucrd
   use calc_type
-  !>--- potentials
+!>--- potentials and API's
   use xtb_sc
   use generic_sc
   use lj
   use api_engrad
-  !>--- other
+!>--- other
   use constraints
   use nonadiabatic_module
   implicit none
-
-  !=========================================================================================!
-  !--- private module variables and parameters
+!=========================================================================================!
+!>--- private module variables and parameters
   private
-  !integer :: i,j,k,l,ich,och,io
-  !logical :: ex
 
-  !--- some constants and name mappings
+!>--- some constants and name mappings
   real(wp),parameter :: bohr = 0.52917726_wp
   real(wp),parameter :: autokcal = 627.509541_wp
 
+!>--- public module routines
   public :: engrad
   interface engrad
     module procedure :: engrad_mol
@@ -54,12 +52,12 @@ module calc_module
     module procedure :: calc_print_energies2
   end interface calc_eprint
 
-  public :: numhess
+  public :: numhess1,numhess2
   public :: constrhess
 
 !========================================================================================!
 !========================================================================================!
-contains  !>--- Module routines start here
+contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
@@ -125,18 +123,24 @@ contains  !>--- Module routines start here
           call tblite_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
 
         case (jobtype%gfn0) !>-- GFN0-xTB api
-          call gfn0_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-          !call gfn0_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+          call gfn0_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i), &
+          &                calc%grdtmp(:,:,i),iostatus)
 
-        case (jobtype%gfn0occ) !>--- Special GFN0-xTB api given orbital population
-          call gfn0occ_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-!           call gfn0occ_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i),calc%grdtmp(:,:,i),        iostatus)
+        case (jobtype%gfn0occ) !>-- Special GFN0-xTB api given orbital population
+          !> note the use of calc%g0calc instead of calc%calcs(i)%g0calc !
+          call gfn0occ_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i), &
+          &                   calc%grdtmp(:,:,i),iostatus)
  
+        case (jobtype%gfnff) !>-- GFN-FF api
+          call gfnff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+
+
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
             read (calc%calcs(i)%other,*) dum1,dum2
           end if
           call lj_engrad(mol%nat,mol%xyz,dum1,dum2,calc%etmp(i),calc%grdtmp(:,:,i))
+
         case default
           !write (*,*) 'Nothing selected for energy and gradient calculation.'
           calc%etmp(i) = 0.0_wp
@@ -168,8 +172,6 @@ contains  !>--- Module routines start here
       end select
       !>--- printout (to file or stdout)
       call calc_eprint(calc,energy,calc%etmp)
-      !>--- deallocate
-
     end if
 
 !==========================================================!
@@ -230,9 +232,12 @@ contains  !>--- Module routines start here
 !========================================================================================!
 !========================================================================================!
 !========================================================================================!
-!> subroutine numgrad
-!> routine to perform a numerical gradient calculation
+
   subroutine numgrad(mol,calc,angrad)
+!*******************************************************
+!* subroutine numgrad
+!* routine to perform a numerical gradient calculation
+!*******************************************************
     implicit none
 
     type(coord) :: mol
@@ -278,67 +283,169 @@ contains  !>--- Module routines start here
   end subroutine numgrad
 
 !========================================================================================!
-!> subroutine numhess
-!> routine to perform a numerical hessian calculation
-  subroutine numhess(nat,at,xyz,calc,hess,io)
+  subroutine numhess1(nat,at,xyz,calc,hess,io)
+!***************************************************
+!* Calculate and return the Hessian for the
+!* COMBINED energy and gradient from engrad,
+!* including constraints
+!***************************************************
     implicit none
 
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
     real(wp),intent(in) :: xyz(3,nat)
     type(calcdata) :: calc
-    real(wp),intent(out) :: hess(nat * 3,nat * 3)
+    real(wp),intent(out) :: hess(nat * 3, nat*3)
     integer,intent(out)  :: io
 
     type(coord) :: mol !> coord type, so that the input remains unchanged
-    real(wp) :: energy,el,er
+    real(wp) :: energy,el,er,hij
     real(wp),allocatable :: gradr(:,:),gradl(:,:)
-    real(wp),parameter :: step = 0.00001_wp,step2 = 0.5_wp / step
-    integer :: i,j,k,l,ii,jj
+    real(wp),allocatable :: gradr_tmp(:,:,:), gradl_tmp(:,:,:)
+    real(wp),parameter :: step = 0.005_wp,step2 = 0.5_wp / step !0.00001_wp
+    integer :: i,j,k,l,m,ii,jj
 
     hess = 0.0_wp
     io = 0
     mol%nat = nat
     mol%at = at
     mol%xyz = xyz
-    allocate (gradr(3,mol%nat),source=0.0_wp)
-    allocate (gradl(3,mol%nat),source=0.0_wp)
+    
+    allocate (gradr(3,mol%nat),source=0.0_wp) !dummy
+    allocate (gradl(3,mol%nat),source=0.0_wp) !dummy
 
     do i = 1,mol%nat
       do j = 1,3
         ii = (i - 1) * 3 + j
         gradr = 0.0_wp
         mol%xyz(j,i) = mol%xyz(j,i) + step
-        call engrad(mol%nat,mol%xyz,mol%at,calc,er,gradr,io)
+        call engrad(mol, calc,er,gradr,io)
 
         gradl = 0.0_wp
         mol%xyz(j,i) = mol%xyz(j,i) - 2.0_wp * step
-        call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io)
+        call engrad(mol, calc,el,gradl,io)
 
         mol%xyz(j,i) = mol%xyz(j,i) + step
-        do k = 1,mol%nat
-          do l = 1,3
-            jj = (k - 1) * 3 + l
-            hess(jj,ii) = (gradr(l,k) - gradl(l,k)) * step2
+
+          do k = 1,mol%nat
+            do l = 1,3
+              jj = (k - 1) * 3 + l
+              hess(jj,ii) = (gradr(l,k) - gradl(l,k)) * step2
+            end do
+          end do
+
+      end do
+    end do
+
+    !Symmetrize Hessian
+      do i = 1,nat*3
+        do j = i,nat*3
+          hij = (hess(i,j) + hess(j,i))*0.5_wp 
+          hess(i,j) = hij
+          hess(j,i) = hij
+        end do
+      end do
+
+    call engrad(mol,calc,el,gradl,io) !>- to get the gradient of the non-displaced structure
+
+    deallocate (gradl,gradr)
+    call mol%deallocate()
+    return
+  end subroutine numhess1
+
+!========================================================================================!
+  subroutine numhess2(nat,at,xyz,calc,hess,io)
+!***************************************************
+!* Calculate and return the Hessian for EACH of the
+!* calculation levels, but contributions from
+!* constraints are ignored.
+!***************************************************
+    implicit none
+
+    integer,intent(in) :: nat
+    integer,intent(in) :: at(nat)
+    real(wp),intent(in) :: xyz(3,nat)
+    type(calcdata) :: calc
+    real(wp),intent(out) :: hess(nat * 3,nat * 3,calc%ncalculations)
+    integer,intent(out)  :: io
+
+    type(coord) :: mol !> coord type, so that the input remains unchanged
+    real(wp) :: energy,el,er,hij
+    real(wp),allocatable :: gradr(:,:),gradl(:,:)
+    real(wp),allocatable :: gradr_tmp(:,:,:), gradl_tmp(:,:,:)
+    real(wp),parameter :: step = 0.005_wp,step2 = 0.5_wp / step !0.00001_wp
+    integer :: i,j,k,l,m,ii,jj
+
+    hess = 0.0_wp
+    io = 0
+    mol%nat = nat
+    mol%at = at
+    mol%xyz = xyz
+    
+    allocate (gradr(3,mol%nat),source=0.0_wp) !dummy
+    allocate (gradl(3,mol%nat),source=0.0_wp) !dummy
+
+    allocate (gradr_tmp(3,mol%nat,calc%ncalculations),source=0.0_wp)
+    allocate (gradl_tmp(3,mol%nat,calc%ncalculations),source=0.0_wp)
+
+    do i = 1,mol%nat
+      do j = 1,3
+        ii = (i - 1) * 3 + j
+        !gradr = 0.0_wp
+        mol%xyz(j,i) = mol%xyz(j,i) + step
+        call engrad(mol%nat,mol%xyz,mol%at,calc,er,gradr,io)
+
+        gradr_tmp = calc%grdtmp
+
+        !gradl = 0.0_wp
+        mol%xyz(j,i) = mol%xyz(j,i) - 2.0_wp * step
+        call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io)
+
+        gradl_tmp = calc%grdtmp
+
+        mol%xyz(j,i) = mol%xyz(j,i) + step
+
+        do m = 1,calc%ncalculations
+          do k = 1,mol%nat
+            do l = 1,3
+              jj = (k - 1) * 3 + l
+              hess(jj,ii,m) = (gradr_tmp(l,k,m) - gradl_tmp(l,k,m)) * step2
+            end do
           end do
         end do
       end do
     end do
 
+    !Symmetrize Hessian
+    do m = 1,calc%ncalculations
+      do i = 1,nat*3
+        do j = i,nat*3
+          hij = (hess(i,j,m) + hess(j,i,m))*0.5_wp 
+          hess(i,j,m) = hij
+          hess(j,i,m) = hij
+        end do
+      end do
+    end do
+
+    call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io) !>- to get the gradient of the non-displaced s
+
+    deallocate (gradl_tmp,gradr_tmp)
     deallocate (gradl,gradr)
     call mol%deallocate()
     return
-  end subroutine numhess
+  end subroutine numhess2
+
 
 !========================================================================================!
-!> subroutine constrhess
-!> routine to perform a numerical Hessian calculation
-!> but ONLY include contributions of the constraints.
-!>
-!> phess is the packed Hessian on which the constraint
-!> contributions are added.
-!>--------------------------------------------------------
   subroutine constrhess(nat,at,xyz,calc,phess)
+!*********************************************************
+!* subroutine constrhess
+!* routine to perform a numerical Hessian calculation
+!* but ONLY include contributions of the constraints.
+!*
+!* phess is the packed Hessian on which the constraint
+!* contributions are added.
+!*********************************************************
     implicit none
 
     integer,intent(in) :: nat
@@ -364,7 +471,7 @@ contains  !>--- Module routines start here
     n3 = nat * 3
     allocate (hess(n3,n3),source=0.0_wp)
 
-    call numhess(nat,at,xyz,dummycalc,hess,io)
+    call numhess1(nat,at,xyz,dummycalc,hess,io)
 
     k = 0
     do i = 1,n3
@@ -377,8 +484,8 @@ contains  !>--- Module routines start here
     deallocate (hess)
     return
   end subroutine constrhess
-!==========================================================================================!
 
+!==========================================================================================!
   subroutine calc_print_energies(calc,energy,energies)
     implicit none
     type(calcdata) :: calc
@@ -403,7 +510,6 @@ contains  !>--- Module routines start here
   end subroutine calc_print_energies
 
 !==========================================================================================!
-
   subroutine calc_print_energies2(calc,energy,energies,chnl)
     implicit none
     type(calcdata) :: calc
@@ -426,5 +532,6 @@ contains  !>--- Module routines start here
     return
   end subroutine calc_print_energies2
 
+!==========================================================================================!
 !==========================================================================================!
 end module calc_module

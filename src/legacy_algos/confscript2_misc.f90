@@ -141,6 +141,7 @@ subroutine xtbopt(env)
   character(len=512) :: jobcall
   logical :: fin
   character(len=256) :: atmp
+  character(len=4) :: chrgstr
   integer :: ich,iost,io,i
   type(coord) :: mol
   integer :: ntopo
@@ -186,8 +187,20 @@ subroutine xtbopt(env)
   close (ich)
 
 !---- jobcall
-  write (jobcall,'(a,1x,a,1x,a,'' --opt '',a,1x,a,a)') &
-  &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
+!  write (jobcall,'(a,1x,a,1x,a,'' --opt '',a,1x,a,a)') &
+!  &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
+  jobcall = ""
+  jobcall = trim(jobcall)//trim(env%ProgName)
+  jobcall = trim(jobcall)//" "//trim(fname)//' --opt'
+  jobcall = trim(jobcall)//" "//trim(env%gfnver)
+  jobcall = trim(jobcall)//" "//trim(env%solv)
+  if (env%chrg /= 0) then
+    jobcall = trim(jobcall)//" --chrg "//to_str(env%chrg)
+  end if
+  if (env%uhf /= 0) then
+    jobcall = trim(jobcall)//" --uhf "//to_str(env%uhf)
+  end if
+  jobcall = trim(jobcall)//pipe
   call execute_command_line(trim(jobcall),exitstat=io)
 
   call minigrep('xtb.out','optimized geometry written to:',fin)
@@ -920,9 +933,6 @@ subroutine confg_chk3(env)
   type(systemdata) :: env    !> MAIN SYSTEM DATA
 
   call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) !mode=4 --> Program intern Threads max
-  if (.not.env%newcregen) then
-    call cregen2(env)
-  else
     !>-- Special handling qcg, no RMSD, 
     !    because a CMA transformed structure would cause wrong wall pot.
     if (env%crestver .eq. crest_solv) then
@@ -930,7 +940,6 @@ subroutine confg_chk3(env)
     else
       call newcregen(env,0)
     end if
-  end if
   call ompautoset(env%threads,5,env%omp,env%MAXRUN,0) !mode=5 --> Program intern Threads min
 end subroutine confg_chk3
 

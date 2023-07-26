@@ -17,7 +17,7 @@ structure ensembles.
 
 ## Documentation
 
-The CREST documentation with installation instructions and application examples is hosted at         <https://crest-lab.github.io/crest-docs/>.
+The CREST documentation with installation instructions and application examples is hosted at <https://crest-lab.github.io/crest-docs/>.
 
 
 ## Installation quick guide
@@ -25,7 +25,11 @@ The CREST documentation with installation instructions and application examples 
 For any installation make sure that you have correctly installed and sourced the [`xtb`](https://github.com/grimme-lab/xtb) program before attempting any calculations with CREST.
 
 There are multiple possible ways of installing CREST. 
-For building the program from source we recommend the Intel `ifort` and `icc` compilers.
+For building the program from source we recommend the Intel `ifort` and `icc` compilers (tested with the 2021 version).
+
+Detailed build instructions can be found at <https://crest-lab.github.io/crest-docs/page/installation>.
+
+For builds with subprojects see [here](./subprojects/README.md).
 
 
 ### Precompiled binaries
@@ -33,14 +37,19 @@ For building the program from source we recommend the Intel `ifort` and `icc` co
 To use the statically linked binaries (Intel compilers)
 that can be found at the [release page](https://github.com/crest-lab/crest/releases),
 of this repository.
+The most recent program version is automatically build from the main branch and can be found at the [continous release page](https://github.com/crest-lab/crest/releases/tag/latest).
 Simply unpack the binary and add it to your *PATH* variable.
 ```bash
 unzip crest.zip
 ```
-The program should be directly executable in most cases.
+or
+```bash
+tar -xf crest-latest.tar.xz
+```
+The program should be directly executable.
 
 
-### Meson
+### meson
 
 For the setup an configuration of meson see also the [meson setup](https://github.com/grimme-lab/xtb/blob/master/meson/README.adoc) page hosted at the `xtb` repository.
 The chain of commands to build CREST with meson is:
@@ -51,33 +60,25 @@ meson setup _build --prefix=$PWD/_dist
 meson install -C _build
 ```
 
-When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup        command. Tested with version 10.2 of the GNU compilers.
+When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Tested with version 10.2 of the GNU compilers.
 
+By default the `meson` build will create a statically linked binary.
 
-### Cmake
+### CMake
 
-For the setup of Cmake see also the [Cmake setup](https://github.com/grimme-lab/xtb/blob/master/cmake/README.adoc) page hosted at the `xtb` repository.
+For the setup of CMake see also the [CMake setup](https://github.com/grimme-lab/xtb/blob/master/cmake/README.adoc) page hosted at the `xtb` repository.
 Building CREST with CMake works with the following chain of commands:
-
 ```bash
 export FC=ifort CC=icc
 cmake -B _build -DCMAKE_BUILD_TYPE=Release
-make -C _build
 ```
-
-and to build the CREST binary
-
+and then to build the CREST binary
 ```bash
 make -C _build
 ```
+These two steps assume usage of the `ifort` and `icc` compilers, to use `gfortran`/`gcc`, change the `FC` and `CC` export accordingly.
 
-### Building via `make`
-
-In the `src` directory a `Makefile` can be found to build a statically linked binary. Modify the Makefile to your requirements and build the program via
-```bash
-make
-```
-
+By default the `cmake` build will create a dynamically linked binary.
 
 ### Conda
 
@@ -115,7 +116,7 @@ conda install crest
   DOI: [10.1002/jcc.24922](https://dx.doi.org/10.1002/jcc.24922)
 
 5. S. Spicher, C. Plett, P. Pracht, A. Hansen, S. Grimme,  *J. Chem. Theory Comput.*, **2022**,
-  *18*, 3174-3189. DOI: [10.1021/acs.jctc.2c00239](https://dx.doi.org/10.1002/jcc.24922)
+  *18*, 3174-3189. DOI: [10.1021/acs.jctc.2c00239](https://dx.doi.org/10.1021/acs.jctc.2c00239)
 
 6. P. Pracht, C. Bannwarth, *J. Chem. Theory Comput.*, **2022**, *18 (10)*, 6370-6385. DOI: [10.1021/acs.jctc.2c00578](https://dx.doi.org/10.1021/acs.jctc.2c00578)
 

@@ -53,8 +53,11 @@ option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP
 
 option(WITH_TBLITE "Enable build with the lightweight tight-binding library" FALSE)
 
+option(WITH_TOMLF "Enable build with toml-f support" TRUE)
+
 option(WITH_GFN0 "Enable build with GFN0-xTB support" TRUE)
 
+option(WITH_GFNFF "Enable build with GFN-FF support" TRUE)
 
 if(NOT DEFINED "${PROJECT_NAME}-dependency-method")
   set(
@@ -81,3 +84,36 @@ if(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
 endif()
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SCOPE)
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}" PARENT_SCOPE)
+
+
+#
+# Populate crest_metadata.fh
+#
+set(version ${PROJECT_VERSION}${SOVERSION})
+execute_process(COMMAND git show -s --format=%h
+  RESULT_VARIABLE git_return
+  OUTPUT_VARIABLE commit
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(git_return)
+  set(commit "unknown-commit")
+endif()
+string(TIMESTAMP date "%a, %d %B %H:%M:%S, %m/%d/%Y")
+set(author $ENV{USERNAME})
+execute_process(COMMAND hostname OUTPUT_VARIABLE HOSTNAME OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(origin ${HOSTNAME})
+set(fcid ${CMAKE_Fortran_COMPILER_ID})
+set(fcver ${CMAKE_Fortran_COMPILER_VERSION})
+set(ccid ${CMAKE_C_COMPILER_ID})
+set(ccver ${CMAKE_C_COMPILER_VERSION})
+set(bsystem "cmake ${CMAKE_VERSION}")
+set(tomlfvar "${WITH_TOMLF}")#string(TOLOWER "${MY_BOOL}" ${WITH_TOMLF}))
+set(gfn0var "${WITH_GFN0}")
+set(gfnffvar "${WITH_GFNFF}")
+set(tblitevar "${WITH_TBLITE}")
+configure_file(
+  "${PROJECT_SOURCE_DIR}/assets/template/metadata.f90"
+  "${PROJECT_BINARY_DIR}/crest_metadata.fh"
+  @ONLY
+)
+

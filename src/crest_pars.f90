@@ -23,11 +23,13 @@ module crest_parameters
   real(wp),parameter,public :: autokcal = 627.50947428_wp
   real(wp),parameter,public :: autoeV = 27.211324570273_wp
   real(wp),parameter,public :: kcaltoau = 1.0_wp/autokcal
+  real(wp),parameter,public :: kcaltokj = autokj/autokcal
   real(wp),parameter,public :: autorcm = 219474.63067_wp
   real(wp),parameter,public :: rcmtoau = 1.0_wp/autorcm
   real(wp),parameter,public :: metokg  = 9.10938356e-31_wp
   real(wp),parameter,public :: kgtome  = 1.0_wp/metokg
- 
+
+  real(wp),parameter,public :: Rcal = 8.31446261815324_wp/kcaltokj
   real(wp),parameter,public :: kB = 3.166808578545117e-06_wp
   real(wp),parameter,public :: avogadro = 6.0221413e23_wp ! 1/mol
   real(wp),parameter,public :: planck = 6.62606957e-34_wp ! J*s

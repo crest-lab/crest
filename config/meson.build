@@ -173,6 +173,8 @@ endif
 ## ========================================= ##
 ## External subprojects
 ## ========================================= ##  
+
+# GFN1-xTB and GFN2-xTB via TBLITE
 if get_option('WITH_TBLITE')
  add_project_arguments('-DWITH_TBLITE', language: 'fortran')
  tblite_dep = dependency(
@@ -184,13 +186,19 @@ if get_option('WITH_TBLITE')
  exe_deps += tblite_dep
 endif
 
-#mctc_dep = dependency(
-#  'mctc-lib',
-#  fallback: ['mctc-lib', 'mctc_dep'],
-#  default_options: ['default_library=static'],
-#)
-#exe_deps += mctc_dep
+# TOML-F
+if get_option('WITH_TOMLF')
+ add_project_arguments('-DWITH_TOMLF', language: 'fortran')
+ tomlf_dep = dependency(
+   'toml-f',
+   version: '>=0.2.0',
+   fallback: ['toml-f', 'tomlf_dep'],
+   default_options: ['default_library=static'],
+ )
+ exe_deps += tomlf_dep
+endif
 
+# GFN0-xTB
 if get_option('WITH_GFN0')
  add_project_arguments('-DWITH_GFN0', language: 'fortran')
  gfn0_dep = dependency(
@@ -201,4 +209,49 @@ if get_option('WITH_GFN0')
  )
  exe_deps += gfn0_dep
 endif
+
+# GFN-FF
+if get_option('WITH_GFNFF')
+ add_project_arguments('-DWITH_GFNFF', language: 'fortran')
+ gfnff_dep = dependency(
+   'gfnff',
+   fallback: ['gfnff', 'gfnff_dep'],
+   default_options: ['default_library=static','with_gbsa=true'],
+ )
+ exe_deps += gfnff_dep
+endif
+
+
+## ========================================= ##
+## populate the data for crest_metadata.fh
+## ========================================= ##  
+commit = 'unknown commit'
+git = find_program('git', required: false)
+if git.found()
+  git_commit = run_command(git, 'show', '-s', '--format=%h',check:true)
+  if git_commit.returncode() == 0
+    commit = git_commit.stdout().strip()
+  endif
+endif
+# create configuration data
+config = configuration_data({
+  'name': meson.project_name(),
+  'version': meson.project_version(),
+  'description': 'Conformer Rotamer Ensemble Sampling Tool',
+  'commit': commit,
+  'date': run_command('date',check:true).stdout().     strip(),
+  'author': run_command('id','-u','-n', check:true).stdout().strip(),
+  'origin': run_command('hostname', check:true).stdout().strip(),
+  'fcid': fc.get_id(),
+  'fcver': fc.version(),
+  'ccid': cc.get_id(),
+  'ccver': cc.version(),
+  'bsystem': 'meson '+meson.version(),
+  'tomlfvar': get_option('WITH_TOMLF'),
+  'gfn0var': get_option('WITH_GFN0'),
+  'gfnffvar': get_option('WITH_GFNFF'), 
+  'tblitevar': get_option('WITH_TBLITE'),
+})
+message(get_option('WITH_TOMLF'))
+
 

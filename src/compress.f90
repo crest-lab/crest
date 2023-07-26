@@ -36,9 +36,9 @@ subroutine compress(env, tim)
 
   !--- 1. set up reactor metadynamics
   !    wall-potential, mass density, simulation length
-  call V2mdlength(env)  !set the MD length according to a flexibility measure
-  env%preactormtd=.false. !MTD settings already obtained
-  env%preactorpot=.true.  !Generate logfermi potential 
+  call md_length_setup(env)  !set the MD length according to a flexibility measure
+  env%preactormtd=.false.    !MTD settings already obtained
+  env%preactorpot=.true.     !Generate logfermi potential 
   call reactor_setup(env)
   call tim%stop(1)
 

@@ -48,23 +48,23 @@ subroutine crest_search_mecp(env,tim)
 
 !>--- check calculation setup
   ex = env%calc%ncalculations > 1
-  if(.not.ex)then
-    write(stdout,*) 'not enough calculation levels specified for MECP search.'
+  if (.not.ex) then
+    write (stdout,*) 'not enough calculation levels specified for MECP search.'
     error stop
-  endif
+  end if
   call print_gapcons(env%calc)
 
 !===========================================================!
 !>--- Dynamics
 
-  write(stdout,*)
-  write(stdout,'(1x,a)') '------------------------------'
-  write(stdout,'(1x,a)') 'Molecular Dynamics Simulations'
-  write(stdout,'(1x,a)') '------------------------------'
+  write (stdout,*)
+  write (stdout,'(1x,a)') '------------------------------'
+  write (stdout,'(1x,a)') 'Molecular Dynamics Simulations'
+  write (stdout,'(1x,a)') '------------------------------'
 
   nsim = -1 !>--- enambles automatic MTD setup in init routines
   call crest_search_multimd_init(env,mol,mddat,nsim)
-  allocate (mddats(nsim), source=mddat)
+  allocate (mddats(nsim),source=mddat)
   call crest_search_multimd_init2(env,mddats,nsim)
 
   call tim%start(2,'MD simulations')
@@ -76,25 +76,25 @@ subroutine crest_search_mecp(env,tim)
 !==========================================================!
 !>--- Reoptimization of trajectories
 
-  write(stdout,*)
-  write(stdout,'(1x,a)') '---------------------'
-  write(stdout,'(1x,a)') 'Ensemble Optimization'
-  write(stdout,'(1x,a)') '---------------------'
+  write (stdout,*)
+  write (stdout,'(1x,a)') '---------------------'
+  write (stdout,'(1x,a)') 'Ensemble Optimization'
+  write (stdout,'(1x,a)') '---------------------'
 
   !>--- read ensemble
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) then
-    write(stdout,*) 'empty ensemble file'
+    write (stdout,*) 'empty ensemble file'
     return
-  endif
+  end if
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
   call rdensemble(ensnam,nat,nall,at,xyz,eread)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>--- Important: crest_oloop requires coordinates in Bohrs
-  xyz = xyz / bohr
+  xyz = xyz/bohr
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
- 
-  write(stdout,'(1x,a,i0,a,a,a)')'Optimizing all ',nall, &
+
+  write (stdout,'(1x,a,i0,a,a,a)') 'Optimizing all ',nall, &
   & ' structures from file "',trim(ensnam),'" ...'
   !>--- set threads
   if (env%autothreads) then
@@ -106,58 +106,61 @@ subroutine crest_search_mecp(env,tim)
   call crest_oloop(env,nat,nall,at,xyz,eread,dump)
   call tim%stop(3)
 
-
 !==========================================================!
 !>--- rename ensemble and sort
   call rename(ensemblefile,mecpensemble)
   call newcregen(env,12)
- 
 
 !==========================================================!
   return
-contains
+end subroutine crest_search_mecp
+
+!========================================================================================!
+!========================================================================================!
+
 subroutine print_gapcons(calc)
+  use crest_parameters
   use calc_type
   use constraints
   implicit none
 
   type(calcdata) :: calc
   integer :: i,t
-  logical :: ex 
+  logical :: ex
 
-  if(calc%nconstraints < 1)then
-     write(stdout,*) 'no gap constraint provided'
-  endif
+  if (calc%nconstraints < 1) then
+    write (stdout,*) 'no gap constraint provided'
+  end if
 
   ex = .false.
-  do i=1,calc%nconstraints
-     t = calc%cons(i)%type
-     select case( t )
-     case( -1 )
+  do i = 1,calc%nconstraints
+    t = calc%cons(i)%type
+    select case (t)
+    case (-1)
       ex = .true.
       write (stdout,'(1x,a1x,"[",a,"]")') 'nonadiabatic gap constraint','σ*ΔE²/(ΔE+α)'
       write (stdout,'(" σ=",f8.5," α=",f8.5)') calc%cons(i)%fc(1:2)
-     case( -2 )
+    case (-2)
       ex = .true.
       write (stdout,'(1x,a)') 'nonadiabatic gap constraint'
       write (stdout,'(1x,"Vgap = [",a,"] with")') &
       &     'σ*(exp(-β|ΔE|)+C) * ΔE²/(|ΔE|+α)'
       write (stdout,'(" σ = ",f8.5,/," α = ",f8.5,/," C = ",f8.5,/," β = ",f8.5)') &
       & calc%cons(i)%fc(1:3),27.2114_wp
-     case default
-       continue
-     end select
-  enddo
+    case default
+      continue
+    end select
+  end do
 
-  if(.not.ex)then
-    write(stdout,*) 'no gap constraint provided'
+  if (.not.ex) then
+    write (stdout,*) 'no gap constraint provided'
     error stop
   else
-    write(stdout,*) 
-  endif
+    write (stdout,*)
+  end if
 
 end subroutine print_gapcons
 
-end subroutine crest_search_mecp
-
+!========================================================================================!
+!========================================================================================!
 

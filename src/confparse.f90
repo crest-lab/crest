@@ -96,11 +96,14 @@ subroutine parseflags(env,arg,nra)
     if (any((/character(10)::'-cite','--cite','--citation'/) == trim(arg(i)))) then
       call crestcite()
     end if
-    if (index(arg(i),'-newversion') .ne. 0)then
+    if (index(arg(i),'-newversion') .ne. 0)then !> as in CREST version >= 3.0
       env%legacy = .false. 
     endif
-    if (index(arg(i),'-legacy') .ne. 0)then
+    if (index(arg(i),'-legacy') .ne. 0)then  !> as in CREST version <3.0
       env%legacy = .true.
+    endif
+    if (index(arg(i),'-dry').ne.0)then   !> "dry" run to print settings 
+        env%dryrun = .true.
     endif
   end do
 
@@ -109,9 +112,10 @@ subroutine parseflags(env,arg,nra)
 !>    D E F A U L T   S E T T I N G S
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
+!&<
 !>--- parallelization stuff
-  env%Threads = 4                !> total number of threads
-  env%MAXRUN = 4                 !> number of parallel xtb jobs
+  env%Threads = 1                !> total number of threads
+  env%MAXRUN = 1                 !> number of parallel xtb jobs
   env%omp = 1                    !> # of OMP_NUM_THREADS and MKL_NUMTHREADS to be used
   env%autothreads = .false.      !> automatically determine optimal parameters omp and MAXRUN
   env%threadssetmanual = .false. !> did the user set the #threads manually?
@@ -169,18 +173,18 @@ subroutine parseflags(env,arg,nra)
   env%cgf(6) = .false.         !> write confg output to file <tmp> instead of <confg.out>
 
 !>--- general runtype settings (shared for V1 & V2 and other functionallities)
-  env%autozsort = .false.        !> zsort at the beginning
-  env%onlyZsort = .false.        !> perform only the zsort routine
-  env%performCross = .true.      !> do the GC in V1 and V2
+  env%autozsort = .false.      !> zsort at the beginning
+  env%onlyZsort = .false.      !> perform only the zsort routine
+  env%performCross = .true.    !> do the GC in V1 and V2
   env%slow = .false.
   env%setgcmax = .false.       !> adjust max. number of structures for GC?
-  env%quick = .false.            !> use loose options for a quick conformation search
-  env%superquick = .false.       !> very crude variant of quick-mode
-  env%niceprint = .false.        !> progressbar printout for some of the steps
+  env%quick = .false.          !> use loose options for a quick conformation search
+  env%superquick = .false.     !> very crude variant of quick-mode
+  env%niceprint = .false.      !> progressbar printout for some of the steps
   env%multilevelopt = .true.   !> perform multilevel optimization
-  env%trackorigin = .true.       !> for v2 track generation step by default
-  env%compareens = .false.       !> compare two given ensembles
-  env%maxcompare = 10            !> maximum number of (lowest) conformers to compare when using "-compare"
+  env%trackorigin = .true.     !> for v2 track generation step by default
+  env%compareens = .false.     !> compare two given ensembles
+  env%maxcompare = 10          !> maximum number of (lowest) conformers to compare when using "-compare"
   env%QCG = .false.          !> special QCG usage
 
 !>--- The following settings are mainly for v.1 (MF-MD-GC)
@@ -223,9 +227,8 @@ subroutine parseflags(env,arg,nra)
   env%useqmdff = .false.    !> use qmdff for the MDs?
   env%iru = .false.         !> re-use previously found conformers as bias in iterative approach
   !>--- array to determine if RMSD are included
-  !allocate(env%includeRMSD(env%nat))
   env%keepModef = .false.   !> delete intermediate Directories
-  env%nmetadyn = 0        !> number of METADYNs (dummy argument at this point; set later)
+  env%nmetadyn = 0          !> number of METADYNs (dummy argument at this point; set later)
 
   env%forceconst = 0.02_wp !> force constant (mainly for GFN-FF iMTD-GC)
   bondconst = .false.      !> constrain all bonds
@@ -291,16 +294,20 @@ subroutine parseflags(env,arg,nra)
   env%max_solv = 150
   env%solv_file = ''
   env%solu_file = ''
-  
+ 
+!&>
+ 
 !=========================================================================================!
+!=========================================================================================!
+!> MAIN RUNTYPE SELECTION VIA CMD
 !=========================================================================================!
 !=========================================================================================!
 !>--- get the CREST version/runtype
-  env%crestver = crest_imtd  !> confscript version (v.1 = MF-MD-GC, v.2 = MTD)
-  env%runver = 1      !> default
-  env%properties = 0      !> additional calculations/options before or after confsearch
-  env%properties2 = 0      !> backup for env%properties
-  env%iterativeV2 = .true. !> iterative crest V2 version
+  env%crestver = crest_imtd !> confscript version (v.1 = MF-MD-GC, v.2 = MTD)
+  env%runver = 1            !> default
+  env%properties  = p_none  !> additional calculations/options before or after confsearch
+  env%properties2 = p_none  !> backup for env%properties
+  env%iterativeV2 = .true.  !> iterative crest V2 version
   env%preopt = .true.
 !>--- check for input file
   do i = 1,nra
@@ -309,6 +316,10 @@ subroutine parseflags(env,arg,nra)
       call parseinputfile(env,trim(arg(i + 1)))
       exit
     end if
+    if (i==1 .and. index(argument,'.toml').ne.0)then
+      call parseinputfile(env,trim(arg(1)))
+      exit
+    endif
   end do
 !>--- first arg loop
   do i = 1,nra
@@ -318,7 +329,8 @@ subroutine parseflags(env,arg,nra)
     end if
     if (argument .ne. '') then
       select case (argument) !> RUNTYPES
-      case ('-v1')                                              !confscript version 1 (MF-MD-GC)
+
+      case ('-v1') !> confscript version 1 (MF-MD-GC)
         env%crestver = crest_mfmdgc
         write (*,'(2x,a,'' : MF-MD-GC'')') trim(arg(i))
         env%mdtime = 40.0d0       !simulation length of the MD, 40ps total (2*20ps)(default for QMDFF would be 500)
@@ -327,18 +339,21 @@ subroutine parseflags(env,arg,nra)
         env%performModef = .true. !do the MF in V1
         env%trackorigin = .false.      !for v1 there is not much insight from this
         exit
-      case ('-v2')                                              !confscript version 2 (MTD-GC)
+
+      case ('-v2') !> confscript version 2 (MTD-GC)
         env%crestver = crest_imtd
         write (*,'(2x,a,'' : MTD-GC'')') trim(arg(i))
         env%iterativeV2 = .false.  !iterative crest V2 version
         env%Maxrestart = 1       !for non-iterative MTD-GC only
         exit
-      case ('-v3','-v2i')                                       !confscript version 2 but iterativ (iMTD-GC)
+
+      case ('-v3','-v2i') !> confscript version 2 but iterativ (iMTD-GC)
         env%crestver = crest_imtd
         env%iterativeV2 = .true.
         write (*,'(2x,a,'' : iMTD-GC'')') trim(arg(i))
         exit
-      case ('-v4')
+
+      case ('-v4') !> sMTD-iMTD (same as entropy mode)
         env%crestver = crest_imtd2
         env%iterativeV2 = .true.
         env%entropymd = .true.
@@ -347,7 +362,8 @@ subroutine parseflags(env,arg,nra)
         env%emtd%maxfallback = 1
         write (*,'(2x,a,'' : iMTD-sMTD'')') trim(arg(i))
         exit
-      case ('-mdopt','-purge')                                           ! MDOPT
+
+      case ('-mdopt','-purge') !> MDOPT
         env%crestver = crest_mdopt
         atmp = ''
         env%preopt = .false.
@@ -359,7 +375,8 @@ subroutine parseflags(env,arg,nra)
         call xyz2coord(env%ensemblename,'coord') !write coord from lowest structure
         env%inputcoords = env%ensemblename !just for a printout
         exit
-      case ('-screen')                                          ! SCREEN
+
+      case ('-screen')  !> SCREEN
         env%crestver = crest_screen
         atmp = ''
         env%ensemblename = 'none selected'
@@ -370,7 +387,8 @@ subroutine parseflags(env,arg,nra)
         call xyz2coord(env%ensemblename,'coord') !write coord from lowest structure
         env%inputcoords = env%ensemblename !just for a printout
         exit
-      case ('-pka','-pKa')  !pKa calculation script
+     
+      case ('-pka','-pKa')  !> pKa calculation script
         env%crestver = crest_pka
         env%runver = 33
         !env%relax=.true.
@@ -383,10 +401,11 @@ subroutine parseflags(env,arg,nra)
         env%ptb%h_acidic = 0
         call pka_argparse(arg(i + 1),env%ptb%h_acidic)
         if (env%ptb%h_acidic == -2) env%ptb%pka_baseinp = trim(arg(i + 1))
-      case ('-compare')                                         !flag for comparing two ensembles, analysis tool
+
+      case ('-compare')   !> flag for comparing two ensembles, analysis tool
         env%compareens = .true.
         env%crestver = 5
-        env%properties = -2
+        env%properties = p_compare
         env%ensemblename = 'none selected'
         env%ensemblename2 = 'none selected'
         if (nra .ge. (i + 2)) then
@@ -404,24 +423,29 @@ subroutine parseflags(env,arg,nra)
         end if
         write (*,'(1x,a,1x,a,1x,a)') trim(arg(i)),trim(env%ensemblename),trim(env%ensemblename2)
         exit
-      case ('-protonate')                         !protonation tool
+
+      case ('-protonate') !>protonation tool
         env%properties = p_protonate
         write (*,'(2x,a,'' : automated protonation script'')') trim(arg(i))
         exit
-      case ('-deprotonate')                     !deprotonation tool
+
+      case ('-deprotonate') !> deprotonation tool
         env%properties = p_deprotonate
         write (*,'(2x,a,'' : automated deprotonation script'')') trim(arg(i))
         exit
-      case ('-tautomerize')                     !tautomerization tool
+
+      case ('-tautomerize') !> tautomerization tool
         env%properties = p_tautomerize
         write (*,'(2x,a,'' : automated tautomerization script'')') trim(arg(i))
         exit
-      case ('-isomerize','-stereomers')          !isomerization tool
+
+      case ('-isomerize','-stereomers') !> isomerization tool
         env%properties = p_isomerize
         write (*,'(2x,a,'' : automated stereoisomerization script'')') trim(arg(i))
         write (*,'(2x,''Note: Use of GFN-FF required for stereoisomer generation.'')')
         exit
-      case ('-forall','-for')                               !ensemble as input
+
+      case ('-forall','-for') !> property mode with ensemble as input
         env%properties = p_propcalc
         atmp = ''
         env%ensemblename = 'none selected'
@@ -440,7 +464,8 @@ subroutine parseflags(env,arg,nra)
           env%ptb%alldivers = .true.
         end if
         exit
-      case ('-rrhoav')  ! calculate hessians along given ensemble and average
+
+      case ('-rrhoav')  !> Hessians along given ensemble and average
         env%properties = p_rrhoaverage
         atmp = ''
         env%ensemblename = 'none selected'
@@ -454,10 +479,12 @@ subroutine parseflags(env,arg,nra)
           error stop
         end if
         exit
-      case ('-reactor')
+
+      case ('-reactor')  !> xtb nanoreactor workarounds
         env%preopt = .false.
         env%crestver = crest_nano
         exit
+
       case ('-solvtool','-qcg')
 !               env%mddumpxyz = 1000
         env%preopt = .false.
@@ -474,6 +501,7 @@ subroutine parseflags(env,arg,nra)
            env%solv_file = trim(arg(i + 1))
         endif  
         exit
+
       case ('-compress')
         env%crestver = crest_compr
         env%runver = 77
@@ -481,10 +509,12 @@ subroutine parseflags(env,arg,nra)
         env%mddump = 2000
         env%autozsort = .false.
         exit
+
       case ('-msreact')
         env%crestver = crest_msreac
         env%preopt = .false.
         env%presp = .true.
+
       case ('-splitfile')
         ctmp = trim(arg(i + 1))
         k = huge(j)
@@ -503,6 +533,7 @@ subroutine parseflags(env,arg,nra)
         end if
         call splitfile(ctmp,k,l)
         stop
+
       case ('-printaniso')
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
@@ -510,6 +541,7 @@ subroutine parseflags(env,arg,nra)
           call printaniso(ctmp,0.01_wp,0.025_wp,0.5_wp)
         end if
         stop
+
       case ('-printboltz')
         if (nra >= i + 2) then
           ctmp = trim(arg(i + 1))
@@ -519,7 +551,8 @@ subroutine parseflags(env,arg,nra)
           ctmp = trim(arg(i + 1))
           call prbweight(ctmp,'')
         end if
-      case ('-wbotopo','-usewbo')  !try to use a WBO file in topology analysis
+
+      case ('-wbotopo','-usewbo')  !> try to use a WBO file in topology analysis
         ctmp = trim(arg(i + 1))
         if (ctmp(1:1) .ne. '-' .and. (nra >= i + 1)) then
           env%wbofile = trim(ctmp)
@@ -527,6 +560,7 @@ subroutine parseflags(env,arg,nra)
           env%wbofile = 'wbo'
         end if
         env%wbotopo = .true.
+
       case ('-testtopo')
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
@@ -539,6 +573,7 @@ subroutine parseflags(env,arg,nra)
         if (ex) then
           call testtopo(ctmp,env,dtmp)
         end if
+
       case ('-resortensemble')
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
@@ -546,6 +581,7 @@ subroutine parseflags(env,arg,nra)
           call resort_ensemble(ctmp)
         end if
         stop
+
       case ('-thermo','-thermotool')
         env%properties = p_thermo
         ctmp = trim(arg(1))  !either first argument
@@ -556,6 +592,7 @@ subroutine parseflags(env,arg,nra)
         if (ctmp(1:1) .ne. '-') then
           env%inputcoords = trim(ctmp)
         end if
+
       case ('-rmsd','-rmsdheavy')
         ctmp = trim(arg(i + 1))
         dtmp = trim(arg(i + 2))
@@ -565,6 +602,7 @@ subroutine parseflags(env,arg,nra)
           call quick_rmsd_tool(ctmp,dtmp,.false.)
         end if
         stop
+
       case ('-symmetries')
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
@@ -572,8 +610,9 @@ subroutine parseflags(env,arg,nra)
           call ensemble_analsym(trim(ctmp),.true.)
         end if
         stop
+
       case ('-exlig','-exligand','-exchligand')
-        env%properties = -355
+        env%properties = p_ligand
         env%ptb%infile = trim(arg(1))
         ctmp = trim(arg(i + 1))
         env%ptb%newligand = trim(ctmp)
@@ -586,6 +625,7 @@ subroutine parseflags(env,arg,nra)
           env%ptb%ligand = j
         end if
         exit
+
       case ("-acidbase","-ab",'-abprep','-pkaprep','-gdissprep')  !-- acid base correction
         !> crest --ab <acid.xyz> <base.xyz> --chrg <acidchrg>
         env%properties = p_acidbase
@@ -607,6 +647,7 @@ subroutine parseflags(env,arg,nra)
         end if
         env%solv = '--alpb h2o'
         env%gfnver = '--gfn2'
+
       case ('-redoextrapol')
         ctmp = trim(arg(i + 1))
         read (arg(i + 2),*,iostat=io) j
@@ -616,9 +657,29 @@ subroutine parseflags(env,arg,nra)
           call redo_extrapol(ctmp,0)
         end if
         stop
-      case ('-optimize','-ancopt')
+
+
+
+      case( '-sp' ) !> singlepoint calculation (uses new calculator routines)
+        env%crestver = crest_sp
+        env%preopt = .false.
+        env%legacy = .false.
+        exit
+
+      case ('-optimize','-ancopt') !> ANCOPT structure optimization (uses new calculator routines)
         env%preopt = .false.
         env%crestver = crest_optimize
+        env%legacy = .false.
+        exit
+
+      case ('-dynamics','-dyn') !> molecular dynamics (uses new calculator routines)
+        env%preopt = .false.
+        env%crestver = crest_moldyn
+        env%legacy = .false.
+        exit
+
+
+
       case ('-SANDBOX')
         !>--- IMPLEMENT HERE WHATEVER YOU LIKE, FOR TESTING
         !>-----
@@ -633,6 +694,8 @@ subroutine parseflags(env,arg,nra)
     end if
   end do
 
+!=========================================================================================!
+!=========================================================================================!
 !=========================================================================================!
 !>--- options for the xtb Nano-reactor
   if (any((/crest_nano,crest_compr/) == env%crestver)) then
@@ -816,6 +879,17 @@ subroutine parseflags(env,arg,nra)
         case ('-wscal')                           !scale size of wall potential
           call readl(arg(i + 1),xx,j)
           env%potscal = xx(1)
+        case ('-wall')
+          env%wallsetup = .true.
+          write (*,'(2x,a,1x,a)')'--wall:','requesting setup of wall potential'
+        case ( '-wallxl','-wall-xl')
+          env%wallsetup = .true.
+          env%potscal = 1.5_wp
+          write (*,'(2x,a,1x,a)')'--wall-xl:','requesting setup of wall potential (x1.5 size)'
+        case ( '-wallxxl','-wall-xxl') 
+          env%wallsetup = .true.
+          env%potscal = 2.0_wp
+          write (*,'(2x,a,1x,a)')'--wall-xxl:','requesting setup of wall potential (x2.0 size)'
         case ('-squick','-superquick')            !extremely crude quick mode
           write (*,'(2x,a,1x,a)') trim(arg(i)),' : very crude quick-mode (no NORMMD, no GC, crude opt.)'
           env%rotamermds = .false.      !no NORMMD
@@ -902,10 +976,10 @@ subroutine parseflags(env,arg,nra)
               env%rdens = xx(1)
             end if
           end if
-          env%properties = -312
+          env%properties = p_reactorset
           env%preactorpot = .true.
         case ('-genmtd')
-          env%properties = -312
+          env%properties = p_reactorset
           env%mdtime = 20.0d0
           if (i + 1 .le. nra) then
             atmp = trim(arg(i + 1))
@@ -1008,7 +1082,7 @@ subroutine parseflags(env,arg,nra)
           dtmp = trim(arg(i + 1))
           ctmp = ctmp//dtmp
         end if
-        if (env%properties == -92) then
+        if (env%properties == p_isomerize) then
           ctmp = 'stereoisomers'
         end if
         select case (ctmp) !> GFN
@@ -1037,6 +1111,10 @@ subroutine parseflags(env,arg,nra)
           env%gfnver = '--gfn2'
         end select !> GFN
       case ('-gfn2@gfn0','-gfn2@gfn1','-gfn2@gff','-gfn2@ff','-gfn2@gfnff')
+        if(.not.env%legacy)then !TODO
+         write(*,'("> ",a,1x,a)')argument,'option not yet available with new calculator'
+         error stop
+        endif
         select case (argument) !> GFN2ON
         case ('-gfn2@gfn0')
           env%gfnver = '--gfn0'
@@ -1053,6 +1131,10 @@ subroutine parseflags(env,arg,nra)
         call env%checkhy()
         env%reweight = .false.
       case ('-gfn2//gfnff')
+        if(.not.env%legacy)then !TODO
+         write(*,'("> ",a,1x,a)')argument,'option not yet available with new calculator'
+         error stop
+        endif
         env%gfnver = '--gff'
         env%mdstep = 2.0d0
         env%gfnver2 = '--gfn2'
@@ -1083,6 +1165,7 @@ subroutine parseflags(env,arg,nra)
           if (idum .ne. env%chrg) then
             write (*,'(12x,a,i0)') 'with total summed up molecular charge: ',idum
             env%chrg = idum
+            env%ref%ichrg = idum
           end if
         end if
       case ('-dscal','-dispscal','-dscal_global','-dispscal_global')
@@ -1100,7 +1183,7 @@ subroutine parseflags(env,arg,nra)
       case ('-readbias')
         env%readbias = .true.
       case ('-useonly')
-        env%properties = -227
+        env%properties = p_useonly
         env%autozsort = .false.
         env%dummypercent = 1.0_wp
         if (nra .ge. i + 1) then
@@ -1109,6 +1192,7 @@ subroutine parseflags(env,arg,nra)
             read (atmp,*) env%dummypercent
           end if
         end if
+
       case ('-gbsa','-g','-alpb')                                     !use GBSA implicit solvation
         env%gbsa = .true.
         atmp = adjustl(arg(i + 1))
@@ -1120,22 +1204,26 @@ subroutine parseflags(env,arg,nra)
             env%solv = '--gbsa '//trim(env%solvent)
           end if
         end if
-        !write(*,'(2x,a,1x,a)')trim(arg(i)),trim(arg(i+1))
         write (*,'(2x,a,a)') trim(env%solv),' : implicit solvation'
+
       case ('-chrg')                                          !create a .CHRG file
         call readl(arg(i + 1),xx,j)
         open (newunit=ich,file='.CHRG')
         env%chrg = nint(xx(1))
+        env%ref%ichrg = env%chrg
         write (ich,'(i0)') nint(xx(1))
         close (ich)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i + 1))
+
       case ('-uhf')                                           !create a .UHF file
         call readl(arg(i + 1),xx,j)
         open (newunit=ich,file='.UHF')
         env%uhf = nint(xx(1))
+        env%ref%uhf = env%uhf
         write (ich,'(i0)') nint(xx(1))
         close (ich)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i + 1))
+
       case ('-len','-mdlen','-mdtime')                        !set md length in ps
         atmp = arg(i + 1)
         call to_lower(atmp)
@@ -1275,7 +1363,7 @@ subroutine parseflags(env,arg,nra)
         end if
       case ('-mergebias','-mergebias+','-gesc+')
         env%properties = -9224
-        if (index(argument,'+') > 0) env%properties = -9225
+        if (index(argument,'+') > 0) env%properties = p_gesc2
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
         if (ex) then
@@ -1324,7 +1412,7 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
       case ('-cregen','-oldcregen')                                        !cregen standalone
         env%confgo = .true.
-        env%properties = -1
+        env%properties = p_cregen
         env%autozsort = .false.
         atmp = ''
         env%ensemblename = 'none selected'
@@ -1355,9 +1443,8 @@ subroutine parseflags(env,arg,nra)
         env%maxcompare = nint(xx(1))
       case ('-ewin')                                           !set energy threshold in kcal/mol
         call readl(arg(i + 1),xx,j)
-        !env%thresholds(1)=abs(xx(1))
         env%ewin = abs(xx(1))
-        if (env%properties .le. -3 .and. env%properties .ge. -5) then
+        if (any((/ p_protonate, p_deprotonate, p_tautomerize /) == env%properties))then
           env%ptb%ewin = abs(xx(1))
         end if
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i + 1))
@@ -1450,7 +1537,7 @@ subroutine parseflags(env,arg,nra)
 !-------- PROPERTY CALCULATION related flags
 !========================================================================================!
       case ('-protonate')             !protonation tool
-        env%properties = -3
+        env%properties = p_protonate
         env%autozsort = .false.
         env%ptb%threshsort = .true.
       case ('-swel')                  !switch out H+ to something else in protonation script
@@ -1458,18 +1545,18 @@ subroutine parseflags(env,arg,nra)
           call swparse(arg(i + 1),env%ptb)
         end if
       case ('-deprotonate')           !deprotonation tool
-        env%properties = -4
+        env%properties = p_deprotonate
         env%autozsort = .false.
         env%ptb%threshsort = .true.
       case ('-tautomerize')           !tautomerization tool
-        env%properties = -5
+        env%properties = p_tautomerize
         env%autozsort = .false.
         env%ptb%threshsort = .true.
       case ('-tautomerize2','-exttautomerize')
-        if (env%properties == -666) then
-          env%properties = -555
+        if (env%properties == p_propcalc) then
+          env%properties = p_tautomerize2
         else
-          call env%addjob(555)
+          call env%addjob(abs(p_tautomerize2))
         end if
         env%autozsort = .false.
         env%ptb%threshsort = .true.
@@ -1516,33 +1603,41 @@ subroutine parseflags(env,arg,nra)
           end if
         end if
 !========================================================================================!
-      case ('-entropy','-entropic')    !new, specialized calculation of molecular entropies
+!--------- ENTROPY related settings
+!========================================================================================!
+      case ('-entropy','-entropic')  !> new, specialized calculation of molecular entropies
         write (*,'(2x,a,'' : enhanced ensemble entropy calculation'')') trim(arg(i))
-        if (env%properties == -666) then !for standalone use
-          env%properties = -45
-        elseif (env%confgo .and. env%properties == -1) then !as extension for CREGEN
+        if (env%properties == p_propcalc) then 
+        !>--- for standalone use
+          env%properties = p_CREentropy
+
+        elseif (env%confgo .and. env%properties == -1) then 
+        !>--- as extension for CREGEN
           env%entropic = .true.
           env%fullcre = .true.
-        else if (env%crestver == crest_imtd) then  !works as an extensiton to the conformational search
-          env%properties = 45
-          env%autozsort = .false.    !turn off zsort (since we are not going to GC anyways)
-          env%performCross = .false.   !turn off GC
-          env%entropic = .true.      !indicator for this runtype
-          env%Maxrestart = 1           !turn off MTD iterations (just do one)
-          env%rotamermds = .false.     !turn off normMDs
-          env%entropymd = .true.       !special static MTDs
+
+        else if (env%crestver == crest_imtd) then  
+        !>--- works as an extensiton to the conformational search
+          env%properties = abs(p_CREentropy)
+          env%autozsort = .false.     !> turn off zsort (since we are not going to GC anyways)
+          env%performCross = .false.  !> turn off GC
+          env%entropic = .true.       !> indicator for this runtype
+          env%Maxrestart = 1          !> turn off MTD iterations (just do one)
+          env%rotamermds = .false.    !> turn off normMDs
+          env%entropymd = .true.      !> special static MTDs
           call read_bhess_ref(env,'coord')
         end if
-        env%runver = 111             !version  for selection of MTD bias settings
-        env%doNMR = .true.           !we need equivalencies
+        env%runver = 111             !> version  for selection of MTD bias settings
+        env%doNMR = .true.           !> we need equivalencies
         if (i + 1 .le. nra) then
-          ctmp = trim(arg(i + 1))            !second argument can be the temperature
+          ctmp = trim(arg(i + 1))    !> second argument can be the temperature
           if (index(ctmp,'-') .eq. 0) then
             call readl(arg(i + 1),xx,j)
             env%tboltz = xx(1)
           end if
         end if
         call env%addjob(env%properties)
+
       case ('-scthr','-entropy_cthr')
         read (arg(i + 1),*,iostat=io) rdum
         if (io == 0) env%emtd%confthr = rdum
@@ -1597,17 +1692,17 @@ subroutine parseflags(env,arg,nra)
       case ('-trange')    !provide a range of temperatures (min max step) for entropy evaluation
         read (arg(i + 1),*,iostat=io) rdum
         if (io == 0 .and. (index(arg(i + 1),'-') .eq. 0)) then
-          env%thermo%trange(1) = rdum  !T start
+          env%thermo%trange(1) = rdum  !> T start
         end if
         read (arg(i + 2),*,iostat=io) rdum
         if (io == 0 .and. (index(arg(i + 2),'-') .eq. 0)) then
-          env%thermo%trange(2) = rdum  !T stop (approx.)
+          env%thermo%trange(2) = rdum  !> T stop (approx.)
         end if
         read (arg(i + 3),*,iostat=io) rdum
         if (io == 0 .and. (index(arg(i + 3),'-') .eq. 0)) then
-          env%thermo%trange(3) = rdum    !T step
+          env%thermo%trange(3) = rdum  !> T step
         end if
-      case ('-tread')   !read a file with temperatures (one per line) for entropy evaluation
+      case ('-tread')   !> read a file with temperatures (one per line) for entropy evaluation
         ctmp = trim(arg(i + 1))
         inquire (file=ctmp,exist=ex)
         if (ex) then
@@ -1641,6 +1736,8 @@ subroutine parseflags(env,arg,nra)
         env%qcg_flag = .true.
         call readl(arg(i + 1),xx,j)
         env%max_solv = NINT(xx(1))
+      case ('-normdock')
+        env%docking_qcg_flag = ''
       case ('-nclus')
         env%qcg_flag = .true.
         call readl(arg(i + 1),xx,j)
@@ -1650,6 +1747,9 @@ subroutine parseflags(env,arg,nra)
         env%qcg_flag = .true.
         call readl(arg(i + 1),xx,j)
         env%freq_scal = (xx(1))
+      case ('-qcgmtd')
+        env%ensemble_method = -1
+        env%qcg_flag = .true.
       case ('-ncimtd')
         env%ensemble_method = 0
         env%qcg_flag = .true.
@@ -1720,14 +1820,19 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
       case ('-cluster')
         write (*,'(2x,a,'' : ensemble clustering'')') trim(arg(i))
-        if (env%properties == -666) then !for standalone use
+        if (env%properties == p_propcalc) then 
+        !>--- for standalone use
           env%properties = p_cluster
-        elseif (env%confgo .and. env%properties == -1) then !as extension for CREGEN
+        elseif (env%confgo .and. env%properties == p_cregen) then 
+        !>--- as extension for CREGEN
           env%cluster = .true.
-        else if (any((/crest_imtd,crest_imtd2/) == env%crestver)) then  !works as an extensiton to the conformational search
-          env%properties = 70
+        else if (any((/crest_imtd,crest_imtd2/) == env%crestver)) then
+        !>--- works as an extensiton to the conformational search
+          env%properties = abs(p_cluster)
+        elseif (env%QCG) then 
+          env%properties = abs(p_cluster)
         end if
-        env%doNMR = .true.           !we need equivalencies
+        env%doNMR = .true.     !> we need equivalencies
         call env%addjob(env%properties)
         if (i + 1 .le. nra) then !second argument a distinct number of clusters
           read (arg(i + 1),*,iostat=io) j
@@ -1793,8 +1898,8 @@ subroutine parseflags(env,arg,nra)
 !---------- PROPERTY MODE
 !========================================================================================!
       case ('-prop')
-        if ((env%properties == 0 .or.     &
-        &  env%properties == -666)) then         !property selection
+        if ((env%properties == p_none .or.    &
+        &  env%properties == p_propcalc )) then         !property selection
           ctmp = trim(arg(i + 1))
           PROPARG:select case(ctmp)
           case ('hess')                  !hessian calculation to free energies for all conformers
@@ -1824,6 +1929,9 @@ subroutine parseflags(env,arg,nra)
           env%properties2 = -9999
           case ('singlepoint','sp')      !singlepoint calculation and ensemble sorting
           env%properties2 = 999
+          env%pclean = .true.
+          case ('dipole')      !singlepoint calculation and dipole grepping
+          env%properties2 = 998
           env%pclean = .true.
           case default
           env%properties2 = 0
@@ -1876,9 +1984,13 @@ subroutine parseflags(env,arg,nra)
     error stop 'Z sorting of the input is unavailable for -qcg runtyp.'
   end if
 
-  if (env%NCI) then
+  if (env%NCI .or. env%wallsetup) then
     call wallpot(env)
+    if(env%wallsetup)then
+    write(*,'(2x,a)') 'Automatically generated ellipsoide potential:'
+    else
     write (*,'(2x,a)') 'Automatically generated ellipsoide potential for NCI mode:'
+    endif
     call write_cts_NCI_pr(6,env%cts)
     write (*,*)
   end if
@@ -1966,20 +2078,8 @@ subroutine parseflags(env,arg,nra)
     if (allocated(env%ref%topo)) deallocate (env%ref%topo)
   end if
 
-!> I have no idea why this was in the code,
-!> thats such a specific condition...
-!  do i = 1,env%cts%ndim
-!    if (trim(adjustl(env%cts%sett(i))).eq.'reference=coord.ref' &
-!    &   .and. .not.(env%QCG)) then
-!      do j = i,env%cts%ndim
-!        env%cts%sett(j) = env%cts%sett(j + 1)
-!      end do
-!      env%cts%sett(env%cts%ndim) = ''
-!      env%cts%ndim = env%cts%ndim - 1
-!    end if
-!  end do
 
-  !> driver for optimization along trajectory, additional settings
+!>-- driver for optimization along trajectory, additional settings
   if (.not. any((/crest_mfmdgc,crest_imtd,crest_imtd2,crest_compr/) == env%crestver) &
       & .OR. (env%qcg_runtype .GT. 0 .and. env%ensemble_method .EQ. 0)) then
     env%autozsort = .false.
@@ -1987,15 +2087,15 @@ subroutine parseflags(env,arg,nra)
     env%confgo = .false.
   end if
 
-  !> final settings for property mode (-prop)
-  if (env%properties .eq. 0) then
+!>-- final settings for property mode (-prop)
+  if (env%properties .eq. p_none) then
     env%properties = env%properties2
   end if
-  if (env%properties .eq. -666) then
+  if (env%properties .eq. p_propcalc) then
     env%autozsort = .false.
   end if
 
-  !> some more zsort checks
+!>-- some more zsort checks
   if (.not. env%onlyZsort .and. env%autozsort) then
     call zsortwarning2(env) !turn autozsort off when a .constrains file is present.
   end if
@@ -2005,6 +2105,15 @@ subroutine parseflags(env,arg,nra)
   if (env%sdfformat) then
     env%autozsort = .false.
   end if
+
+!========================================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
+!> FALLBACK setup of new calculator
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
+!========================================================================================!
+  if(.not.env%legacy .and. env%calc%ncalculations == 0 )then
+    call env2calc_setup(env)
+  endif
 
   return
 end subroutine parseflags
@@ -2035,8 +2144,6 @@ subroutine parseRC2(env,bondconst)
   logical :: create,atomlistused
   logical :: bondconst
 
-  associate (cts => env%cts)
-
 !>--- check for any of the possible constrainement files
     ex1 = .false.
 
@@ -2058,42 +2165,33 @@ subroutine parseRC2(env,bondconst)
 
 !>--- do we have a user-set constraint to all bonds?
     if (bondconst) then
-      !if(ex1)then
-      !  atmp = trim(env%constraints)//'.new'
-      !  call copy(env%constraints,trim(atmp))
-      !  env%constraints = trim(atmp)
-      !  call appendto('bondlengths',env%constraints)
-      !else
-      !  env%constraints='bondlengths'
-      !  ex1=.true.
-      !endif
       inquire (file='bondlengths',exist=ex2)
       if (ex2) then
         call rd_cbonds('bondlengths',env)
-        if (.not. cts%cbonds_md) then
-          cts%cbonds_global = .true.
+        if (.not. env%cts%cbonds_md) then
+          env%cts%cbonds_global = .true.
         end if
       end if
     end if
 
     if (ex1) then
       write (*,'(/,1x,a,a,a)') '<',trim(env%constraints),'> file present.'
-      cts%used = .true.
+      env%cts%used = .true.
     else
-      cts%used = .false.
+      env%cts%used = .false.
       return
     end if
 
 !>--- read the data
-    call read_constrainbuffer(env%constraints,cts)
-    call sort_constraints(cts)
+    call read_constrainbuffer(env%constraints,env%cts)
+    call sort_constraints(env%cts)
     write (*,*) 'content of the constraining file (sorted):'
-    if (cts%ndim .gt. 20) then
+    if (env%cts%ndim .gt. 20) then
       write (*,'(1x,a)') '<skipped due to length of constraining file>'
     else
-      do i = 1,cts%ndim
-        if (trim(cts%sett(i)) .ne. '') then
-          write (*,'(''>'',1x,a)') trim(cts%sett(i))
+      do i = 1,env%cts%ndim
+        if (trim(env%cts%sett(i)) .ne. '') then
+          write (*,'(''>'',1x,a)') trim(env%cts%sett(i))
         end if
       end do
     end if
@@ -2104,8 +2202,8 @@ subroutine parseRC2(env,bondconst)
     allocate (atlist(env%nat))
 
 !>--- parse for special arguments that are used by CREST also
-    do i = 1,cts%ndim
-      btmp = cts%sett(i)
+    do i = 1,env%cts%ndim
+      btmp = env%cts%sett(i)
       if (trim(btmp) .eq. '') cycle
       atmp = btmp
       call to_lower(atmp)  !convert to lower-case for case-insensitivity
@@ -2138,8 +2236,8 @@ subroutine parseRC2(env,bondconst)
         end do
       end if
       if ((index(atmp,'$metadyn') .ne. 0)) then
-        do j = i + 1,cts%ndim
-          btmp = cts%sett(j)
+        do j = i + 1,env%cts%ndim
+          btmp = env%cts%sett(j)
           if (index(btmp,'$') .ne. 0) exit    !--- exit $metadyn-block
           if (index(btmp,'atoms:') .ne. 0) then
             create = .true.
@@ -2159,15 +2257,15 @@ subroutine parseRC2(env,bondconst)
       end if
       if ((index(atmp,'$wall') .ne. 0)) then
         if (env%NCI) then
-          cts%sett(i) = ''
-          cts%pots = ''
-          write (cts%pots(1),'(a)') '$wall'
+          env%cts%sett(i) = ''
+          env%cts%pots = ''
+          write (env%cts%pots(1),'(a)') '$wall'
           k = 2
-          do j = i + 1,cts%ndim
-            btmp = cts%sett(j)
+          do j = i + 1,env%cts%ndim
+            btmp = env%cts%sett(j)
             if (index(btmp,'$') .ne. 0) exit    !--- exit $wall-block
-            cts%sett(j) = ''
-            write (cts%pots(k),'(a)') trim(btmp)
+            env%cts%sett(j) = ''
+            write (env%cts%pots(k),'(a)') trim(btmp)
             k = k + 1
           end do
 
@@ -2186,7 +2284,6 @@ subroutine parseRC2(env,bondconst)
 
     deallocate (atlist)
 
-  end associate
   return
 end subroutine parseRC2
 
@@ -2196,7 +2293,7 @@ end subroutine parseRC2
 !> final ensemble back into this format
 !========================================================================================!
 subroutine inputcoords(env,arg)
-  use iso_fortran_env,only:wp => real64
+  use crest_parameters
   use crest_data
   use strucrd
   use axis_module
@@ -2206,7 +2303,6 @@ subroutine inputcoords(env,arg)
   !> Input
   type(systemdata) :: env
   character(len=*) :: arg
-
   !> Local variables
   logical :: ex,ex2
   character(len=:),allocatable :: inputfile
@@ -2226,9 +2322,15 @@ subroutine inputcoords(env,arg)
   inquire (file=arg,exist=ex)
   inquire (file='coord',exist=ex2)
   if (.not. ex .and. .not. ex2) then
-    error stop 'No (valid) input file! exit.'
+    if(env%dryrun)then
+      write(stdout,*) 'No (valid) input file, but ignoring for dry run.'
+      return
+    else
+      error stop 'No (valid) input file! exit.'
+    endif
   end if
-  if (ex2) then !-- save coord as reference
+  if (ex2) then 
+!>-- save coord as reference
     call copy('coord','coord.original')
   end if
   if (ex .and. arg(1:1) .ne. '-') then
@@ -2241,30 +2343,33 @@ subroutine inputcoords(env,arg)
     inputfile = 'coord'
   end if
 
-  !>--- if the input was a SDF file, special handling
+!>-- if the input was a SDF file, special handling
   env%sdfformat = .false.
   call checkcoordtype(inputfile,i)
   if (any((/31,32/) == i)) then
-    !call inpsdf(env,inputfile)
      env%sdfformat = .true.
      env%outputsdf = .true.
   end if
 
-  !>--- after this point there should always be an coord file present
+!>-- after this point there should always be an coord file present
   if (.not. allocated(env%inputcoords)) env%inputcoords = 'coord'
-  !call rdnat('coord',env%nat)
   call mol%open('coord')
-  !> shift to CMA and align according to rot.const.
+!>-- shift to CMA and align according to rot.const.
   if(env%crestver /= crest_solv) call axis(mol%nat,mol%at,mol%xyz)
-  !> overwrite coord
+!>-- overwrite coord
   call mol%write('coord')
 
+!>-- get the number of atoms and the reduced number of atoms if some of
+!>-- them are excluded from the RMSD calc in V2. Initially they are the same
   env%nat = mol%nat
-  env%rednat = env%nat        !get the number of atoms and the reduced number of atoms if some of them are     excluded from the RMSD calc in V2
-  !>--- reference geo
+  env%rednat = env%nat
+!>-- reference geo save
   env%ref%nat = mol%nat
   env%ref%at = mol%at
   env%ref%xyz = mol%xyz
+  env%ref%ichrg = env%chrg
+  env%ref%uhf = env%uhf 
+!>-- topology save
   if (any((/crest_mfmdgc,crest_imtd,crest_imtd2/) == env%crestver)) then
     if (.not. env%autozsort) then
       env%ref%ntopo = mol%nat * (mol%nat + 1) / 2
@@ -2274,8 +2379,8 @@ subroutine inputcoords(env,arg)
   end if
   call mol%deallocate()
 
-  !>--- for protonation/deprotonation applications get ref. number of fragments
-  !>--- also get some other structure based info
+!>-- for protonation/deprotonation applications get ref. number of fragments
+!>-- also get some other structure based info
   call simpletopo_file('coord',zmol,.false.,.false.,'')
   env%ptb%nfrag = zmol%nfrag
   call zmol%deallocate()

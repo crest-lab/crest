@@ -43,7 +43,7 @@ subroutine crest_crossing(env,maxgen,fname,maxpairs)
   real(wp) :: rthr,ewin,cthr
 
   character(len=:),allocatable :: ensnam
-  integer :: nat,nall,nalltmp
+  integer :: nat,nall,nalltmp,maxgen2
   real(wp),allocatable :: eread(:),erel(:)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
@@ -119,7 +119,8 @@ subroutine crest_crossing(env,maxgen,fname,maxpairs)
   write (stdout,'(a,2f8.4)') 'RMSD threshold (Ang, Bohr)     :',rthr,rthr/bohr
   write (stdout,'(a,1x,i8)') 'max. # of generated structures :',maxgen
 
-  call crossing(nat,nall,at,xyz,eread,ewin,rthr,cthr,maxgen)
+  maxgen2 = maxgen
+  call crossing(nat,nall,at,xyz,eread,ewin,rthr,cthr,maxgen2)
 
 
   deallocate (eread,at,xyz)
@@ -160,7 +161,8 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
   integer :: i,j,m,k,nwin,minpos
   character(len=80) :: atmp
   integer :: dumpio
-  logical :: fail,rmsdcheck
+  logical :: fail,rmsdcheck,stop_crossing,huge_number
+  integer :: sdselect !> this is a function
 
   pr = .true.
   rmsdcheck = .true.
@@ -200,7 +202,7 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
   !$OMP END DO
   !$OMP END PARALLEL
 
-  !>--- generation loop
+  !>--- generation loop setup
   ierr = 0          !> discarded
   rmsdavg = 0.0_wp     !> avg. rmsd of generated structures
   rcount = 0          !> counting for avg
@@ -210,18 +212,26 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
   ncount = 0.0_wp      !> continous counter
   ncheck = 0.1_wp     !> checkpoint for printout
   ncheckstep = 0.25_wp !> steps for checkpoint printout
+  stop_crossing = .false. !> parameter for early termination
+  huge_number = .false.
+  if(nmaxref > 10*maxgen2)then
+    huge_number = .true.
+    maxgen2 = maxgen*5
+  endif
   allocate (xyzgen(3,nat,maxgen2),rms(maxgen2),source=0.0_wp)
+  
 
 !$OMP PARALLEL PRIVATE(i,j,k,m, zdum,cdum, rval,rval2, fail) &
 !$OMP PRIVATE(Udum,xdum,ydum,gdum) &
 !$OMP SHARED(erel,ewin,nat,at,zref,zmat,na,nb,nc,rcov,cnref ) &
 !$OMP SHARED(cthr,rthrbohr,rthrbohr100,rms,xyzgen,maxgen,maxgen2) &
 !$OMP SHARED(ncount,nmaxref,ncheck,ncheckstep) &
-!$OMP SHARED(ierr,rcount,ident,rmsdavg,ntaken,rmsdcheck )
+!$OMP SHARED(ierr,rcount,ident,rmsdavg,ntaken,rmsdcheck,stop_crossing,huge_number )
 !$OMP DO
   do i = 1,nall
     if (erel(i) > ewin) cycle
     do j = 1,i-1
+      if(stop_crossing) cycle !> since we must not jump out of an OMP loop, use this workaround
       if (erel(j) > ewin) cycle
       ncount = ncount+1.0_wp
       !>-- new structure generation
@@ -248,6 +258,7 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
         cycle
       end if
       call rmsd(nat,cdum,xyzref,0,Udum,xdum,ydum,rval,.false.,gdum)
+      !call poor_mans_rmsd(nat,xyzref,cdum,rval)
       if (rval <= rthrbohr) then
         !$omp atomic
         ierr = ierr+1
@@ -290,6 +301,8 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
             ntaken = ntaken+1
             xyzgen(:,:,ntaken) = cdum
             rms(ntaken) = rval
+          elseif(huge_number) then
+            stop_crossing = .true.
           else
             k = sdselect(ntaken,rms,rval)
             if (k > 0) then
@@ -303,11 +316,19 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
     end do
     !>-- checkpoint printout
     !$omp critical
+    if(huge_number)then
+    if (pr .and.((float(ntaken)/float(maxgen2)) >= ncheck).and. .not.stop_crossing) then
+      ncheck = ncheck+ncheckstep
+      if (ncheck > 1.0_wp) ncheck = 1.0_wp
+      write (stdout,'(f6.1," % done")') (float(ntaken)/float(maxgen2))*100.0_wp
+    end if
+    else
     if (pr .and.((ncount/nmaxref) >= ncheck)) then
       ncheck = ncheck+ncheckstep
       if (ncheck > 1.0_wp) ncheck = 1.0_wp
       write (stdout,'(f6.1," % done")') (ncount/nmaxref)*100.0_wp
     end if
+    endif
     !$omp end critical
   end do
 !$OMP END DO
@@ -369,9 +390,11 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
   if (allocated(cdum)) deallocate (cdum)
   if (allocated(xyzgen)) deallocate (xyzgen)
 
-contains
+end subroutine crossing
 
+!========================================================================================!
   function sdselect(n,rms,rval) result(pos)
+    use crest_parameters
 !> calculates SD of rms()
 !> and checks which entry to replace by rval in order to
 !> maximise the SD. returns this entry's number (or zero)
@@ -402,5 +425,23 @@ contains
       end if
     end do
   end function sdselect
-end subroutine crossing
+!========================================================================================!
 
+subroutine poor_mans_rmsd(nat,xyz_A,xyz_B,rmsd)
+  use crest_parameters
+  implicit none
+  integer,intent(in) :: nat
+  real(wp),intent(in) :: xyz_A(3,nat)
+  real(wp),intent(in) :: xyz_B(3,nat)
+  real(wp),intent(out) :: rmsd
+  integer :: i,j,k,l
+  real(wp) :: dum
+  rmsd = 0.0_wp
+  do i=1,nat
+     dum = sum((xyz_A(1:3,i)-xyz_B(1:3,i))**2.0_wp)
+     dum = dum/float(nat)  
+     rmsd = rmsd + dum
+  enddo
+  rmsd = sqrt(rmsd) 
+
+end subroutine poor_mans_rmsd

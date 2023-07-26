@@ -26,7 +26,9 @@ list(APPEND srcs
   "${dir}/scan.f90" 
   "${dir}/search_1.f90"
   "${dir}/search_mecp.f90"
+  "${dir}/hessian_tools.f90"
   "${dir}/search_imtdgc.f90"
+  "${dir}/search_entropy.f90"
   "${dir}/parallel.f90"
 )
 

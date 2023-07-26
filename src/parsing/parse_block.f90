@@ -12,10 +12,11 @@ module parse_block
     !> number & list of key value pairs
     integer :: nkv = 0
     type(keyvalue),allocatable :: kv_list(:)
-    contains
-     procedure :: addkv => blk_addkv
-     procedure :: print => blk_print
-     procedure :: deallocate => blk_deallocate
+  contains
+    procedure :: addkv => blk_addkv
+    procedure :: print => blk_print
+    procedure :: fmt_header => blk_fmt_header
+    procedure :: deallocate => blk_deallocate
   end type datablock
 
   public :: parseblock
@@ -31,7 +32,74 @@ module parse_block
   public :: parse_infile_block
   public :: isheader
 
-contains
+!========================================================================================!
+!========================================================================================!
+contains  !> MODULE PROCEDURES START HERE
+!========================================================================================!
+!========================================================================================!
+
+!> the following routines are type-bound procedures
+
+!========================================================================================!
+  subroutine blk_addkv(self,kv)
+    implicit none
+    class(datablock) :: self
+    type(keyvalue) :: kv
+    type(keyvalue),allocatable :: newlist(:)
+    integer :: i,j
+    i = self%nkv
+    j = i+1
+    allocate (newlist(j))
+    newlist(1:i) = self%kv_list(1:i)
+    newlist(j) = kv
+    call move_alloc(newlist,self%kv_list)
+    self%nkv = j
+  end subroutine blk_addkv
+
+!========================================================================================!
+  subroutine blk_deallocate(self)
+    implicit none
+    class(datablock) :: self
+    self%header = ''
+    self%nkv = 0
+    if (allocated(self%kv_list)) deallocate (self%kv_list)
+  end subroutine blk_deallocate
+
+!========================================================================================!
+  subroutine blk_fmt_header(self)
+    implicit none
+    class(datablock) :: self
+    character(len=:),allocatable :: atmp
+    integer :: l
+    if (.not.allocated(self%header)) return
+
+    self%header = adjustl(self%header)
+    l = len_trim(self%header)
+    if (self%header(1:1) .eq. '['.and. &
+    &  self%header(l:l) .eq. ']') then
+      atmp = self%header(2:l-1)
+      call move_alloc(atmp,self%header)
+    end if
+  end subroutine blk_fmt_header
+
+!========================================================================================!
+  subroutine blk_print(self)
+    class(datablock) :: self
+    integer :: i
+    write (stdout,'(1x,"object:",1x,a)') self%header
+    do i = 1,self%nkv
+      if (i < self%nkv) then
+        write (stdout,'(1x,a,a)') '├──',trim(self%kv_list(i)%print())
+      else
+        write (stdout,'(1x,a,a)') '└──',trim(self%kv_list(i)%print())
+      end if
+    end do
+  end subroutine blk_print
+!========================================================================================!
+
+!> the following routines are only used in the fallback parsing routines
+!> the standard implementation uses the toml-f library instead (see parse_toml.F90)
+
 !========================================================================================!
   subroutine read_datablock(file,i,blk)
     implicit none
@@ -46,17 +114,15 @@ contains
     call blk%deallocate()
 
     call parse_infile_block(file,i,rawblk)
- !   call rawblk%print()
-
     blk%header = rawblk%header
     call clearheader(blk%header)
 
-    do j=1,rawblk%len
-       call get_keyvalue(kvdum,rawblk%content(j),io)
-       if(io == 0)then
-         call blk%addkv(kvdum)
-       endif
-    enddo
+    do j = 1,rawblk%len
+      call get_keyvalue(kvdum,rawblk%content(j),io)
+      if (io == 0) then
+        call blk%addkv(kvdum)
+      end if
+    end do
 
   end subroutine read_datablock
 !========================================================================================!
@@ -78,41 +144,41 @@ contains
     !iloop: do i = 1,file%nlines
     !  if (i < file%current_line) cycle
     !  if (.not. saveblock) then
-        if (isheader(file%line(i))) then
-          saveblock = .true.
-          rawblk%header = file%line(i)
-    !      cycle
-        end if
+    if (isheader(file%line(i))) then
+      saveblock = .true.
+      rawblk%header = file%line(i)
+      !      cycle
+    end if
     !  end if
-      !> get blocklength
-      k = i+1
-      l = 0
-      jloop: do j = k,file%nlines
-        if (isheader(file%line(j))) then
-          file%current_line = j
-          exit jloop
-        end if
-        if (len_trim(file%line(j)) > 0) then
-          l = l + 1
-        end if
-        if(j==file%nlines) file%current_line = j
-      end do jloop
-      !if (l < 1) exit iloop
-      if(l < 1) return 
-      !> get block
-      rawblk%len = l
-      allocate (rawblk%content(l),source=src)
-      l = 0
-      jloop2: do j = k,file%nlines
-        if (isheader(file%line(j))) then
-          saveblock = .false.
-          return
-        end if
-        if (len_trim(file%line(j)) > 0) then
-          l = l + 1
-          rawblk%content(l) = file%line(j)
-        end if
-      end do jloop2
+    !> get blocklength
+    k = i+1
+    l = 0
+    jloop: do j = k,file%nlines
+      if (isheader(file%line(j))) then
+        file%current_line = j
+        exit jloop
+      end if
+      if (len_trim(file%line(j)) > 0) then
+        l = l+1
+      end if
+      if (j == file%nlines) file%current_line = j
+    end do jloop
+    !if (l < 1) exit iloop
+    if (l < 1) return
+    !> get block
+    rawblk%len = l
+    allocate (rawblk%content(l),source=src)
+    l = 0
+    jloop2: do j = k,file%nlines
+      if (isheader(file%line(j))) then
+        saveblock = .false.
+        return
+      end if
+      if (len_trim(file%line(j)) > 0) then
+        l = l+1
+        rawblk%content(l) = file%line(j)
+      end if
+    end do jloop2
     !end do iloop
 
     return
@@ -160,8 +226,8 @@ contains
     isheader = .false.
     atmp = adjustl(trim(str))
     l = len_trim(atmp)
-    if(l < 1) return
-    if ((atmp(1:1) == '[') .and. (atmp(l:l) == ']')) then
+    if (l < 1) return
+    if ((atmp(1:1) == '[').and.(atmp(l:l) == ']')) then
       isheader = .true.
     end if
     return
@@ -185,49 +251,11 @@ contains
     end do
     atmp = btmp
     !> cut off "[" and "]"
-    k = len_trim(atmp) - 1
+    k = len_trim(atmp)-1
     atmp = atmp(2:k)
-     hdr = trim(atmp)
+    hdr = trim(atmp)
     return
   end subroutine clearheader
 
-!========================================================================================!
-  subroutine blk_addkv(self,kv)
-    implicit none
-    class(datablock) :: self
-    type(keyvalue) :: kv
-    type(keyvalue),allocatable :: newlist(:)
-    integer :: i,j
-    i = self%nkv
-    j = i + 1
-    allocate (newlist(j))
-    newlist(1:i) = self%kv_list(1:i)
-    newlist(j) = kv
-    call move_alloc(newlist,self%kv_list)
-    self%nkv = j
-  end subroutine blk_addkv
-
-!========================================================================================!
-  subroutine blk_deallocate(self)
-    implicit none
-    class(datablock) :: self
-    self%header = ''
-    self%nkv = 0
-    if(allocated(self%kv_list)) deallocate(self%kv_list)
-  end subroutine blk_deallocate
-
-!========================================================================================!
-subroutine blk_print(self)
-   class(datablock) :: self
-   integer :: i
-   write(*,'(1x,"object:",1x,a)')self%header
-   do i=1,self%nkv
-     if(i < self%nkv)then
-       write(*,'(1x,a,a)') '├──',trim(self%kv_list(i)%print() )
-     else
-       write(*,'(1x,a,a)') '└──',trim(self%kv_list(i)%print())
-     endif
-   enddo
-end subroutine blk_print
 !========================================================================================!
 end module parse_block

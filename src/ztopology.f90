@@ -968,7 +968,7 @@ subroutine newgetrings(zmol,verbose)
         else
           duplicate = .false.
           do k = 1,nrings
-            if (all(ringtracker(:,k) .eq. tmpmem(:))) then
+            if (all(ringtracker(:,k) .eqv. tmpmem(:))) then
               duplicate = .true.
               exit
             end if

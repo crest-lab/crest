@@ -24,7 +24,10 @@ add_subdirectory("qcg")
 add_subdirectory("qmhelpers")
 add_subdirectory("graphs")
 add_subdirectory("rigidconf")
+add_subdirectory("discretize")
+add_subdirectory("entropy")
 add_subdirectory("legacy_algos")
+
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -34,6 +37,7 @@ list(APPEND srcs
   "${dir}/biasmerge.f90"
   "${dir}/bondconstraint.f90"
   "${dir}/ccegen.f90"
+  "${dir}/choose_settings.f90"
   "${dir}/classes.f90"
   "${dir}/cleanup.f90"
   "${dir}/compress.f90"
@@ -43,11 +47,9 @@ list(APPEND srcs
   "${dir}/crest_pars.f90"
   "${dir}/data.f90"
   "${dir}/ensemblecomp.f90"
-  "${dir}/entropic.f90"
-  "${dir}/entropy.f90"
   "${dir}/eval_timer.f90"
   "${dir}/filemod.f90"
-  "${dir}/flexi.f90"
+  "${dir}/flexi.F90"
   "${dir}/freqmasses.f90"
   "${dir}/geo.f90"
   "${dir}/identifiers.f90"
@@ -63,7 +65,6 @@ list(APPEND srcs
   "${dir}/msreact.f90"
   "${dir}/ncigeo.f90"
   "${dir}/neighbor.f"
-  "${dir}/newcregen.f90"
   "${dir}/ompmklset.F90"
   "${dir}/printouts.f90"
   "${dir}/prmat.f90"
@@ -84,8 +85,6 @@ list(APPEND srcs
   "${dir}/symmetry_i.c"
   "${dir}/syscheck.f90"
   "${dir}/testmol.f90"
-  "${dir}/thermocalc.f90"
-  "${dir}/thermo.f90"
   "${dir}/trackorigin.f90"
   "${dir}/trialmd.f90"
   "${dir}/utilities.f"

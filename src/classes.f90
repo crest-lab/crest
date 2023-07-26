@@ -57,6 +57,7 @@ module crest_data
 !============================================================================!
 ! runtype variables
 !============================================================================!
+!>---- runtypes (variables for crest%crestver)
    integer,parameter,public :: crest_none     = 0
    integer,parameter,public :: crest_mfmdgc   = 1    
    integer,parameter,public :: crest_imtd     = 2
@@ -69,7 +70,7 @@ module crest_data
    integer,parameter,public :: crest_msreac   = 9
    integer,parameter,public :: crest_pka      = 14
    integer,parameter,public :: crest_solv     = 15
-   !>> runtypes with IDs between use non-legacy routines  <<!
+!>> runtypes with IDs between use non-legacy routines  <<!
    integer,parameter,public :: crest_sp         = 264
    integer,parameter,public :: crest_optimize   = 265
    integer,parameter,public :: crest_moldyn     = 266
@@ -78,27 +79,30 @@ module crest_data
    integer,parameter,public :: crest_numhessian = 269
    integer,parameter,public :: crest_scanning   = 270
    integer,parameter,public :: crest_rigcon     = 271
-   !>> <<! 
+!>> <<! 
    integer,parameter,public :: crest_test       = 456
-!---- tools
-   integer,parameter,public :: p_cregen      = -1
-   integer,parameter,public :: p_compare     = -2
-   integer,parameter,public :: p_protonate   = -3
-   integer,parameter,public :: p_deprotonate = -4
-   integer,parameter,public :: p_tautomerize = -5
+
+!>---- tools (variables for env%properties)
+   integer,parameter,public :: p_none         =  0
+   integer,parameter,public :: p_cregen       = -1
+   integer,parameter,public :: p_compare      = -2
+   integer,parameter,public :: p_protonate    = -3
+   integer,parameter,public :: p_deprotonate  = -4
+   integer,parameter,public :: p_tautomerize  = -5
    integer,parameter,public :: p_tautomerize2 = -555
-   integer,parameter,public :: p_isomerize   = -92
-   integer,parameter,public :: p_reactorset  = -312
-   integer,parameter,public :: p_CREentropy  = -45   
-   integer,parameter,public :: p_rrhoaverage = -4450
-   integer,parameter,public :: p_cluster     = -70
-   integer,parameter,public :: p_propcalc    = -666
-   integer,parameter,public :: p_acidbase    = -788
-   integer,parameter,public :: p_ligand      = -355
-   integer,parameter,public :: p_gesc1       = -9224
-   integer,parameter,public :: p_gesc2       = -9225
-   integer,parameter,public :: p_thermo      = -3654
-   integer,parameter,public :: p_qcg         = 37
+   integer,parameter,public :: p_isomerize    = -92
+   integer,parameter,public :: p_reactorset   = -312
+   integer,parameter,public :: p_CREentropy   = -45   
+   integer,parameter,public :: p_rrhoaverage  = -4450
+   integer,parameter,public :: p_cluster      = -70
+   integer,parameter,public :: p_propcalc     = -666
+   integer,parameter,public :: p_acidbase     = -788
+   integer,parameter,public :: p_ligand       = -355
+   integer,parameter,public :: p_gesc1        = -9224
+   integer,parameter,public :: p_gesc2        = -9225
+   integer,parameter,public :: p_thermo       = -3654
+   integer,parameter,public :: p_useonly      = -227
+   integer,parameter,public :: p_qcg          = 37
 
 !===========================================================================!
 
@@ -244,6 +248,8 @@ module crest_data
        integer :: nat
        integer,allocatable :: at(:)
        real(wp),allocatable :: xyz(:,:)
+       integer :: ichrg = 0
+       integer :: uhf = 0
        integer :: ntopo
        integer,allocatable :: topo(:)
        real(wp),allocatable :: charges(:)
@@ -379,11 +385,12 @@ module crest_data
     !--- Entropy static MTDs object
       type(entropyMTD) :: eMTD  
       real(wp) :: XH3 = 0
+      real(wp) :: kappa = 1.5_wp   !> vM-kernel discretization
 
     !--- thermo data
       type(thermodata) :: thermo  
 
-    !--- thermo data
+    !--- reference structure data (the input structure)
       type(refdata) :: ref
       type(refdata) :: qcg_solvent
       type(refdata) :: qcg_solute
@@ -393,11 +400,12 @@ module crest_data
       integer           :: nsolv = 0            !Number of solventmolecules
       integer           :: nqcgclust = 0        !Number of cluster to be taken
       integer           :: max_solv = 0         !Maximal number of solvents added, if none is given
-      integer           :: ensemble_method = 0  !Default 0 for crest, 1= standard MD, 2= MTD
+      integer           :: ensemble_method = -1 !Default -1 for qcgmtd, 0= crest, 1= standard MD, 2= MTD
       character(len=20) :: ensemble_opt         !Method for ensemble optimization in qcg mode
       character(len=20) :: freqver              !Method for frequency computation in qcg mode
       real(wp)          :: freq_scal            !Frequency scaling factor
       character(len=:),allocatable :: solu_file, solv_file !solute  and solvent input file
+      character(len=5) :: docking_qcg_flag = '--qcg'
 
     !--- clustering data
       integer :: maxcluster = 0  ! maximum number of clusters to be generated
@@ -437,7 +445,7 @@ module crest_data
 
 
    !================================================!
-   !>--- Calculation settings for newer implementations 
+   !>--- Calculation settings for newer implementations (version >= 3.0)
       type(calcdata) :: calc
       type(mddata)   :: mddat
    !>--- rigidconf data   
@@ -534,6 +542,7 @@ module crest_data
       logical :: user_wscal =.false. !true if wscal is set by user
       logical :: useqmdff          ! use QMDFF in V2?
       logical :: water = .false.   ! true if water is used as solvent (only QCG)
+      logical :: wallsetup = .false. ! set up a wall potential?
       logical :: wbotopo =.false.  ! set up topo with WBOs   
 
     contains
@@ -804,6 +813,8 @@ subroutine ref_to_mol(self,mol)
     mol%nat = self%nat
     mol%at  = self%at
     mol%xyz = self%xyz
+    mol%chrg = self%ichrg
+    mol%uhf  = self%uhf
     return
 end subroutine ref_to_mol
 

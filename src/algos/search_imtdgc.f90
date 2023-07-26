@@ -17,11 +17,14 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!========================================================================================!
-!> This is the re-implementation of a 
-!> CREST's iMTD-GC default workflow
-!========================================================================================!
 subroutine crest_search_imtdgc(env,tim)
+!*******************************************************************
+!* This is the re-implementation of CREST's iMTD-GC default workflow
+!* 
+!* Compared to the legacy implementation, this version
+!* is separated from the entropy algo to keep things clean
+!* The entropy algo (sMTD-iMTD) can be found in search_entropy.f90
+!*******************************************************************
   use crest_parameters, only: wp,stdout
   use crest_data
   use strucrd
@@ -70,6 +73,10 @@ subroutine crest_search_imtdgc(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 
+!>--- sets the MD length according to a flexibility measure
+  call md_length_setup(env) 
+  call env_to_mddat(env)
+
 !===========================================================!
 !>--- Start mainloop 
   env%nreset = 0
@@ -77,10 +84,12 @@ subroutine crest_search_imtdgc(env,tim)
   MAINLOOP : do
     call printiter
     if (.not. start) then
-      call clean_V2i  !--- clean Dir for new iterations
+!>--- clean Dir for new iterations, but leave iteration backup files
+      call clean_V2i 
       env%nreset = env%nreset + 1
-    else !--at the beginning clean existing backup-ensembles
-      call rmrfw('.cre_')
+    else 
+!>--- at the beginning, wipe directory clean
+      call V2cleanup(.false.)
     end if
 !===========================================================!
 !>--- Meta-dynamics loop
@@ -231,13 +240,16 @@ subroutine crest_search_imtdgc(env,tim)
 !==========================================================!
   return
 end subroutine crest_search_imtdgc
+
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !========================================================================================!
 
 subroutine crest_multilevel_wrap(env,ensnam,level)
-!> wrapper for the multilevel_oloop to select
-!> only a single optimization level
+!*************************************************
+!* wrapper for the multilevel_oloop to select
+!* only a single optimization level
+!*************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
   use strucrd
@@ -261,10 +273,13 @@ subroutine crest_multilevel_wrap(env,ensnam,level)
   call crest_multilevel_oloop(env,ensnam,multilevel)
 end subroutine crest_multilevel_wrap
 
+!========================================================================================!
 subroutine crest_multilevel_oloop(env,ensnam,multilevel)
-!> multilevel optimization loop.
-!> construct consecutive optimizations starting with
-!> crude thresholds to very tight ones
+!*******************************************************
+!* multilevel optimization loop.
+!* construct consecutive optimizations starting with
+!* crude thresholds to very tight ones
+!*******************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
   use strucrd
@@ -306,7 +321,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
 !>--- read ensemble
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) then
-    write(stdout,*) 'empty ensemble file',trim(ensnam)
+    write(stdout,*) 'empty ensemble file ',trim(ensnam)
     return
   endif
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
@@ -407,8 +422,10 @@ end subroutine crest_multilevel_oloop
 
 !========================================================================================!
 subroutine crest_rotamermds(env,ensnam)
-!> set up and perform several MDs at different temperatures
-!> on the lowest few conformers
+!***********************************************************
+!* set up and perform several MDs at different temperatures
+!* on the lowest few conformers
+!***********************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
   use strucrd
@@ -495,9 +512,11 @@ end subroutine crest_rotamermds
 
 !========================================================================================!
 subroutine crest_newcross3(env)
-!> wrapper for the conformational crossing
-!> takes the latest crest_rotamers_*, crosses structures
-!> and writes the optimized ones back to the file
+!*********************************************************
+!* wrapper for the conformational crossing
+!* takes the latest crest_rotamers_*, crosses structures
+!* and writes the optimized ones back to the file
+!*********************************************************
   use crest_parameters
   use crest_data
   use iomod

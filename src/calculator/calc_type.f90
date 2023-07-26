@@ -20,9 +20,10 @@
 module calc_type
   use iso_fortran_env,only:wp => real64,stdout => output_unit
   use constraints
-  !>--- api types
+!>--- api types
   use tblite_api
   use gfn0_api
+  use gfnff_api, only: gfnff_data
   implicit none
 
   character(len=1),public,parameter :: sep = '/'
@@ -40,49 +41,66 @@ module calc_type
       integer :: tblite    = 6
       integer :: gfn0      = 7
       integer :: gfn0occ   = 8
+      integer :: gfnff     = 9
    end type enum_jobtype
-   type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
+   type(enum_jobtype), parameter,public :: jobtype = enum_jobtype() 
+
+   character(len=45),parameter,private :: jobdescription(10) = [ &
+      & 'Unknown calculation type                    ', &
+      & 'xTB calculation via external binary         ', &
+      & 'Generic script execution                    ', &
+      & 'Systemcall to the Turbomole program package ', &
+      & 'Systemcall to the ORCA program package      ', &
+      & 'Systemcall to the TeraChem program package  ', &
+      & 'xTB calculation via tblite lib              ', &
+      & 'GFN0-xTB calculation via GFN0 lib           ', &
+      & 'GFN0*-xTB calculation via GFN0 lib          ', &
+      & 'GFN-FF calculation via GFNFF lib            ' ]
+
 
 !=========================================================================================!
-  !> data object that contains the data for a *SINGLE* calculation
+!>--- data object that contains the data for a *SINGLE* calculation
   public :: calculation_settings
   type :: calculation_settings
 
-    integer :: id
+    integer :: id   !> calculation type (see "jobtype" parameter above)
     integer :: prch = stdout
 
     integer :: chrg = 0
     integer :: uhf = 0
     real(wp) :: weight = 1.0_wp
 
-    character(len=:),allocatable :: calcspace
+    character(len=:),allocatable :: calcspace  !> subdirectory to perform the calculation in
     character(len=:),allocatable :: calcfile
     character(len=:),allocatable :: gradfile
     character(len=:),allocatable :: path
     character(len=:),allocatable :: other
-    character(len=:),allocatable :: binary
-    character(len=:),allocatable :: systemcall
+    character(len=:),allocatable :: binary     !> binary or generic script
+    character(len=:),allocatable :: systemcall !> systemcall for running generic scripts 
+    character(len=:),allocatable :: description 
 
-    !>--- gradient format specifications
+!>--- gradient format specifications
     integer :: gradtype = 0
     integer :: gradfmt = 0
     character(len=:),allocatable :: gradkey
     character(len=:),allocatable :: efile
 
-    !>--- results/property requests
+!>--- results/property requests
     real(wp) :: epot = 0.0_wp
     real(wp) :: efix = 0.0_wp
     real(wp) :: etot = 0.0_wp
 
+    !> bond orders
     logical :: rdwbo = .false.
     real(wp),allocatable :: wbo(:,:)
 
+    !> dipole and dipole gradient 
     logical :: rddip = .false.
     real(wp) :: dip(3) = 0
     logical :: rddipgrad = .false.
     real(wp),allocatable :: dipgrad(:,:,:)
 
-    !>--- API constructs
+!>--- API constructs
     integer  :: tblitelvl = 2
     real(wp) :: etemp = 300.0_wp
     real(wp) :: accuracy = 1.0_wp 
@@ -91,29 +109,39 @@ module calc_type
     logical  :: saveint = .false.
     character(len=:),allocatable :: solvmodel
     character(len=:),allocatable :: solvent
+
+    !> tblite data
     type(wavefunction_type),allocatable  :: wfn
     type(tblite_calculator),allocatable  :: tbcalc
     type(tblite_ctx),allocatable         :: ctx 
     type(tblite_resultstype),allocatable :: tbres
     type(wavefunction_type),allocatable  :: wfn_backup
+
+    !> GFN0-xTB data
     type(gfn0_data),allocatable          :: g0calc
     integer :: nconfig = 0
     integer,allocatable :: config(:)
     real(wp),allocatable :: occ(:)
 
+    !> GFN-FF data
+    type(gfnff_data),allocatable :: ff_dat
+
+!>--- Type procedures
   contains
     procedure :: deallocate => calculation_settings_deallocate
     procedure :: addconfig => calculation_settings_addconfig
+    procedure :: autocomplete => calculation_settings_autocomplete
+    procedure :: info => calculation_settings_info
   end type calculation_settings
 !=========================================================================================!
 
 !=========================================================================================!
-  !> data object that contains settings for *ALL* calculations and constraints.
+!> data object that collects settings for *ALL* calculations and constraints.
   public :: calcdata
   type :: calcdata
     integer :: id = 0
 
-    !>--- calculations
+!>--- calculations
     integer :: ncalculations = 0
     type(calculation_settings),allocatable :: calcs(:)
     real(wp),allocatable :: etmp(:)
@@ -123,22 +151,22 @@ module calc_type
     real(wp),allocatable :: grdtmp2(:,:,:)
     real(wp),allocatable :: eweight2(:)
 
-    !>--- constraints
+!>--- constraints
     integer :: nconstraints = 0
     type(constraint),allocatable :: cons(:)
 
-    !>--- scans
+!>--- scans
     integer :: nscans = 0
     logical :: relaxscan = .true.
     real(wp) :: scansforce = 0.5_wp  
     type(scantype),allocatable :: scans(:) 
 
-    !>--- results/property requests
+!>--- results/property requests
     real(wp) :: epot
     real(wp) :: efix
     real(wp) :: etot
 
-    !>--- optimization settings
+!>--- optimization settings
     integer  :: optlev = 0
     integer  :: micro_opt = 20
     integer  :: maxcycle = 0
@@ -151,13 +179,15 @@ module calc_type
     logical  :: tsopt = .false.
     integer  :: iupdat = 0  !> 0=BFGS, 1=Powell, 2=SR1, 3=Bofill, 4=Schlegel
 
-    !>--- gfn0 data
+!>--- GFN0* data, needed for special MECP application
     type(gfn0_data),allocatable  :: g0calc
 
-    !>--- printouts and io
+!>--- printouts and io
     logical :: pr_energies = .false.
     integer :: eout_unit = stdout
     character(len=:),allocatable :: elog
+
+!>--- Type procedures
   contains
     procedure :: reset => calculation_reset
     procedure :: init => calculation_init
@@ -166,6 +196,7 @@ module calc_type
     procedure :: copy => calculation_copy
     procedure :: printconstraints => calculation_print_constraints
     procedure :: removeconstraint => calculation_remove_constraint
+    procedure :: info => calculation_info
   end type calcdata
 
 
@@ -224,6 +255,7 @@ contains  !>--- Module routines start here
     if (allocated(self%other)) deallocate (self%other)
     if (allocated(self%binary)) deallocate (self%binary)
     if (allocated(self%systemcall)) deallocate (self%systemcall)
+    if (allocated(self%description)) deallocate (self%description)
     if (allocated(self%wbo)) deallocate (self%wbo)
     if (allocated(self%dipgrad)) deallocate (self%dipgrad)
     if (allocated(self%gradkey)) deallocate (self%gradkey)
@@ -372,8 +404,6 @@ contains  !>--- Module routines start here
     return
   end subroutine calculation_remove_constraint
 
-
-
 !=========================================================================================!
   subroutine calculation_print_constraints(self,chnl)
     implicit none
@@ -453,39 +483,6 @@ contains  !>--- Module routines start here
     return
   end subroutine calculation_copy
 
-!=========================================================================================!
-
-!  subroutine calcdata_addconfig(self,config)
-!    implicit none
-!    class(calcdata) :: self
-!    integer,intent(in)  :: config(:)
-!    integer :: i,j
-!    integer :: l,lold,lnew,n,nnew
-!    integer,allocatable :: configtmp(:,:)
-!
-!    n = self%nconfig
-!    nnew = n + 1
-!    self%nconfig = nnew
-!    l = size(config,1)
-!    if(allocated(self%config))then
-!     lold = size(self%config, 1) 
-!    else
-!     lold = 0
-!    endif
-!    lnew = max(l, lold)
-!
-!    allocate( configtmp(lnew, nnew), source = 0 ) 
-!    do i=1,n
-!      do j=1,lold
-!        configtmp(j,i) = self%config(j,i)
-!      enddo
-!    enddo
-!    do j=1,l
-!      configtmp(j,nnew) = config(j)
-!    enddo  
-!    if(allocated(self%config))deallocate(self%config)
-!    call move_alloc(configtmp, self%config)
-!  end subroutine calcdata_addconfig
 
 !=========================================================================================!
 
@@ -502,6 +499,121 @@ contains  !>--- Module routines start here
     allocate( self%config(l) )
     self%config = config
   end subroutine calculation_settings_addconfig
+
+
+!=========================================================================================!
+
+!>-- check for missing settings in a calculation_settings object
+  subroutine calculation_settings_autocomplete(self,id)
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in)  :: id
+    integer :: i,j
+    character(len=50) :: nmbr
+
+    !> add a short description
+    self%description = trim(jobdescription(self%id+1))
+
+    if(.not.allocated(self%calcspace))then   
+    !> I've decided to perform all calculations in a separate directory to
+    !> avoid accumulation of files in the main workspace
+       write(nmbr,'(i0)') id
+       self%calcspace='calculation.level.'//trim(nmbr)
+    endif
+  end subroutine calculation_settings_autocomplete
+
+!=========================================================================================!
+  subroutine calculation_settings_info(self,iunit)
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in) :: iunit
+    integer :: i,j
+    character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
+    character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
+    character(len=*),parameter :: fmt3 = '(1x,a20," : ",a)'
+
+    if(allocated(self%description))then
+     write(iunit,'(2x,a)') trim(self%description)
+    else
+     write(iunit,fmt1) 'Job type',self%id
+    endif
+
+    write(iunit,fmt1) 'Molecular charge',self%chrg
+    if(self%uhf /= 0)then
+    write(iunit,fmt1) 'UHF parameter',self%uhf
+    endif
+   
+    if(allocated(self%solvmodel))then
+     write(iunit,fmt3) 'Solvation model',trim(self%solvmodel)
+    endif
+    if(allocated(self%solvent))then
+     write(iunit,fmt3) 'Solvent',trim(self%solvent)
+    endif
+
+    !> xTB specific parameters
+    if( any((/jobtype%tblite, jobtype%xtbsys, jobtype%gfn0, jobtype%gfn0occ/)==self%id))then
+      write(iunit,fmt2) 'Fermi temperature',self%etemp
+      write(iunit,fmt2) 'Accuracy',self%accuracy 
+      write(iunit,fmt1) 'max SCC cycles',self%maxscc
+    endif
+    
+    if(self%apiclean) write(iunit,fmt3) 'Reset data?','  yes'
+    if(self%rdwbo) write(iunit,fmt3) 'Read WBOs?','  yes'
+    if(self%rddip) write(iunit,fmt3) 'Read dipoles?','  yes'
+
+  end subroutine calculation_settings_info
+!========================================================================================!
+  subroutine calculation_info(self,iunit)
+    implicit none
+    class(calcdata) :: self
+    integer,intent(in) :: iunit
+    integer :: i
+    character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
+    character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
+
+    write(iunit,'(1x,a)') '----------------'
+    write(iunit,'(1x,a)') 'Calculation info'
+    write(iunit,'(1x,a)') '----------------'
+    if(self%ncalculations <= 0)then
+      write(iunit,'("> ",a)') 'No calculation levels set up!'
+    else if(self%ncalculations > 1)then
+      do i=1,self%ncalculations
+       write(iunit,'("> ",a,i0)') 'Calculation level ',i
+       call self%calcs(i)%info(iunit)
+       write(iunit,fmt1) 'weight',self%calcs(i)%weight
+      enddo
+    else
+      write(iunit,'("> ",a)') 'Calculation level'
+      call self%calcs(1)%info(iunit)
+    endif
+    write(iunit,*)
+
+    if(self%nconstraints > 0)then
+    write(iunit,'("> ",a)') 'User-defined constraints:'
+    do i=1,self%nconstraints
+      call self%cons(i)%print(iunit)
+    enddo 
+    write(iunit,*)
+    endif
+
+    if(self%ncalculations > 1)then
+    write(iunit,'("> ",a)') 'Energy and gradient processing:'
+    select case( self%id )
+    case ( 1: )
+      write(iunit,'(1x,a,i0)') 'Energies and gradients of calculation level ',self%id, &
+      &  ' will be used'
+    case ( -1 )
+      write(iunit,'(1x,a)') 'Special MECP energy and gradients will be constructed'
+      write(iunit,'(1x,a)') 'See https://doi.org/10.1021/acs.jpclett.3c00494'
+    case default
+       write(iunit,'(1x,a)') 'Energies and gradients of all calculation levels will be'// &
+       & ' added according to their weights'
+    end select
+    endif 
+
+    return
+  end subroutine calculation_info
+
 
 
 !=========================================================================================!

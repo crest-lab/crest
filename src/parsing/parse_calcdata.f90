@@ -1,12 +1,36 @@
+!================================================================================!
+! This file is part of crest.
+!
+! Copyright (C) 2022-2023 Philipp Pracht
+!
+! crest is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! crest is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with crest.  If not, see <https://www.gnu.org/licenses/>.
+!================================================================================!
+
+!> NOTE: This is work in progress, not all input conventions have been set yet
+!========================================================================================!
+!> Routines contained here are for parsing calculation and simulation settings that will 
+!> enter separate setup objects.
+!> This concerns mainly [calculation]/[calculation. ...] and [dynamics] blocks
 
 module parse_calcdata
-  use crest_parameters 
+  use crest_parameters
   use calc_type,only:calcdata,calculation_settings,jobtype
   use constraints
   use dynamics_module
   use metadynamics_module
   use gradreader_module,only:gradtype,conv2gradfmt
-  use tblite_api, only: xtblvl
+  use tblite_api,only:xtblvl
 
   use parse_block,only:datablock
   use parse_keyvalue,only:keyvalue
@@ -15,7 +39,8 @@ module parse_calcdata
   implicit none
   private
 
-  interface parse_setting
+!>-- routines for parsing a calculation_settings object
+  interface parse_setting  
     module procedure :: parse_setting_auto
     module procedure :: parse_setting_float
     module procedure :: parse_setting_int
@@ -23,6 +48,7 @@ module parse_calcdata
     module procedure :: parse_setting_bool
   end interface parse_setting
 
+!>-- routines for parsing a calcdata object
   interface parse_calc
     module procedure :: parse_calc_auto
     module procedure :: parse_calc_float
@@ -31,6 +57,8 @@ module parse_calcdata
     module procedure :: parse_calc_bool
   end interface parse_calc
 
+
+!>-- routines for parsing a mddata object
   interface parse_md
     module procedure :: parse_md_auto
     module procedure :: parse_md_float
@@ -39,6 +67,7 @@ module parse_calcdata
     module procedure :: parse_md_bool
   end interface parse_md
 
+!>-- routines for parsing a mtdpot object
   interface parse_mtd
     module procedure :: parse_metadyn_auto
     module procedure :: parse_mtd_float
@@ -49,8 +78,13 @@ module parse_calcdata
 
   public :: parse_calculation_data
   public :: parse_dynamics_data
-contains
+
 !========================================================================================!
+!========================================================================================!
+contains !> MODULE PROCEDURES START HERE
+!========================================================================================!
+!========================================================================================!
+
   subroutine parse_calculation_data(calc,dict,included)
     implicit none
     type(calcdata) :: calc
@@ -70,17 +104,18 @@ contains
       if (blk%header == 'calculation') then
         included = .true.
         call parse_calcdat(blk,calc)
-        !write(*,*) 'read [calculation]'
-      else if (blk%header == '[calculation.level]') then
+
+      else if (blk%header == 'calculation.level') then
         call parse_leveldata(blk,newjob)
+        call newjob%autocomplete(calc%ncalculations+1)
         call calc%add(newjob)
         included = .true.
-        !write(*,*) 'read [calculation.level]'
-      else if (blk%header == '[calculation.mecp]') then
+
+      else if (blk%header == 'calculation.mecp') then
         !>-- setup
-        if(allocated(calc%calcs))deallocate(calc%calcs)
+        if (allocated(calc%calcs)) deallocate (calc%calcs)
         calc%ncalculations = 0
-        calc%id = -1 
+        calc%id = -1
         call parse_leveldata(blk,newjob)
         !>-- S0 setup
         call parse_leveldata(blk,newjob)
@@ -92,12 +127,15 @@ contains
         newjob%calcspace = 's1'
         call calc%add(newjob)
         included = .true.
-      else if (blk%header == '[calculation.constraints]') then
+
+      else if (blk%header == 'calculation.constraints') then
         call parse_constraintdat(blk,calc)
         included = .true.
-      else if (blk%header == '[calculation.scans]')then
+
+      else if (blk%header == 'calculation.scans') then
         call parse_scandat(blk,calc)
         included = .true.
+
       end if
     end do
     if (included) then
@@ -116,10 +154,10 @@ contains
     type(calculation_settings),intent(out) :: job
     integer :: i
     call job%deallocate()
-    if ((blk%header .ne. '[calculation.level]') .and. &
-    & (blk%header .ne. '[calculation.mecp]')) then
-       return
-    endif
+    if ((blk%header .ne. 'calculation.level').and. &
+    & (blk%header .ne. 'calculation.mecp')) then
+      return
+    end if
     do i = 1,blk%nkv
       call parse_setting(job,blk%kv_list(i))
     end do
@@ -138,7 +176,7 @@ contains
       call parse_setting(job,kv%key,kv%value_b)
     case (4) !> string
       call parse_setting(job,kv%key,kv%value_c)
-    case ( 6,7 ) !> int/float array
+    case (6,7) !> int/float array
       call parse_setting_array(job,kv,kv%key)
     end select
   end subroutine parse_setting_auto
@@ -152,11 +190,11 @@ contains
       job%uhf = nint(val)
     case ('chrg','charge')
       job%chrg = nint(val)
-    case ( 'etemp' )
+    case ('etemp')
       job%etemp = val
-    case ( 'accuracy' ) 
+    case ('accuracy')
       job%accuracy = val
-    case( 'weight' )
+    case ('weight')
       job%weight = val
     end select
     return
@@ -205,6 +243,8 @@ contains
         job%id = jobtype%gfn0
       case ('gfn0*','gfn0*-xtb')
         job%id = jobtype%gfn0occ
+      case ('gfnff','gff','gfn-ff')
+        job%id = jobtype%gfnff
       case ('none')
         job%id = jobtype%unknown
       case default
@@ -217,57 +257,52 @@ contains
     case ('flags')
       job%other = val
 
-   !> don't.
-   !case ('sys','syscall','systemcall')
-   !  job%systemcall = val
+      !> don't.
+      !case ('sys','syscall','systemcall')
+      !  job%systemcall = val
 
     case ('calcspace','dir')
       job%calcspace = val
 
     case ('gradfile')
-       job%gradfile = val
+      job%gradfile = val
 
     case ('gradtype')
       select case (val)
       case ('engrad','xtb','orca')
-       job%gradtype = gradtype%engrad
+        job%gradtype = gradtype%engrad
       case ('turbomole','tm')
-       job%gradtype = gradtype%turbomole
+        job%gradtype = gradtype%turbomole
       case ('generic')
-       job%gradtype = gradtype%unknown
+        job%gradtype = gradtype%unknown
       case default
-       job%gradtype = gradtype%unknown
+        job%gradtype = gradtype%unknown
       end select
 
     case ('gradkey')
       job%gradkey = val
 
-    case ('gradmt' )
+    case ('gradmt')
       job%gradfmt = conv2gradfmt(val)
 
     case ('efile')
-      job%efile = val 
+      job%efile = val
 
     case ('tblite_level','tblite_hamiltonian')
-       select case(val) 
-       case('gfn2','gfn2-xtb')
-         job%tblitelvl = xtblvl%gfn2
-       case('gfn1','gfn1-xtb')
-         job%tblitelvl = xtblvl%gfn1
-       case('ipea1')
-         job%tblitelvl = xtblvl%ipea1  
-       case default
-         job%tblitelvl = xtblvl%unknown
-       end select
+      select case (val)
+      case ('gfn2','gfn2-xtb')
+        job%tblitelvl = xtblvl%gfn2
+      case ('gfn1','gfn1-xtb')
+        job%tblitelvl = xtblvl%gfn1
+      case ('ipea1')
+        job%tblitelvl = xtblvl%ipea1
+      case default
+        job%tblitelvl = xtblvl%unknown
+      end select
 
-    case ('gbsa')
-       job%solvmodel = 'gbsa'
-       job%solvent   = val
-
-    case ('alpb')
-       job%solvmodel = 'alpb'
-       job%solvent   = val
-
+    case ('gbsa','alpb','cpcm')
+      job%solvmodel = key
+      job%solvent = val
 
     end select
     return
@@ -286,8 +321,8 @@ contains
       job%rddipgrad = val
     case ('refresh')
       job%apiclean = val
-    case ( 'print' )
-      if( val) job%prch = 999
+    case ('print')
+      if (val) job%prch = 999
     end select
     return
   end subroutine parse_setting_bool
@@ -364,10 +399,10 @@ contains
     character(len=*) :: key
     character(len=*) :: val
     select case (key)
-    case( 'type' )
-      select case( val )
-      case( 'mecp' )
-        calc%id = -1  
+    case ('type')
+      select case (val)
+      case ('mecp')
+        calc%id = -1
       case default
         calc%id = 1
       end select
@@ -375,19 +410,19 @@ contains
       calc%elog = val
       calc%pr_energies = .true.
     case ('hess_update','hupdate')
-      select case(val)
-        case( 'bfgs' )
-          calc%iupdat = 0
-        case( 'powell' )
-          calc%iupdat = 1
-        case( 'sr1' )
-          calc%iupdat = 2
-        case( 'bofill' )
-          calc%iupdat = 3
-        case( 'schlegel' )
-          calc%iupdat = 4
-        case default
-          calc%iupdat = 0
+      select case (val)
+      case ('bfgs')
+        calc%iupdat = 0
+      case ('powell')
+        calc%iupdat = 1
+      case ('sr1')
+        calc%iupdat = 2
+      case ('bofill')
+        calc%iupdat = 3
+      case ('schlegel')
+        calc%iupdat = 4
+      case default
+        calc%iupdat = 0
       end select
     case default
       return
@@ -420,7 +455,7 @@ contains
     logical :: success
     type(constraint) :: constr
     integer :: i
-    if (blk%header .ne. '[calculation.constraints]') return
+    if (blk%header .ne. 'calculation.constraints') return
     do i = 1,blk%nkv
       call parse_constraint_auto(constr,blk%kv_list(i),success)
       if (success) then
@@ -446,24 +481,27 @@ contains
           call constr%dummyconstraint(11)
           success = .true.
         end select
-      case (5,9) !> unspecified array
+      case(5)  !> regular array
+        call constr%rdbondconstraint(kv%na,kv%value_fa)
+        success = .true.
+      case (9) !> unspecified array
         call constr%analyzedummy(11,kv%na,kv%value_rawa)
         success = .true.
       case default
         success = .false.
       end select
-    case ( 'dihedral' ) 
-      read(kv%value_rawa(1),*) atm1
-      read(kv%value_rawa(2),*) atm2
-      read(kv%value_rawa(3),*) atm3
-      read(kv%value_rawa(4),*) atm4
-      read(kv%value_rawa(5),*) dum1
-      if(kv%na > 5)then
-      read(kv%value_rawa(6),*) dum2
-      call constr%dihedralconstraint(atm1,atm2,atm3,atm4,dum1,dum2)
+    case ('dihedral')
+      read (kv%value_rawa(1),*) atm1
+      read (kv%value_rawa(2),*) atm2
+      read (kv%value_rawa(3),*) atm3
+      read (kv%value_rawa(4),*) atm4
+      read (kv%value_rawa(5),*) dum1
+      if (kv%na > 5) then
+        read (kv%value_rawa(6),*) dum2
+        call constr%dihedralconstraint(atm1,atm2,atm3,atm4,dum1,dum2)
       else
-      call constr%dihedralconstraint(atm1,atm2,atm3,atm4,dum1)
-      endif
+        call constr%dihedralconstraint(atm1,atm2,atm3,atm4,dum1)
+      end if
       success = .true.
     case ('sphere')
       dum1 = kv%value_fa(3)  !> sphere radius
@@ -482,21 +520,21 @@ contains
       dum2 = kv%value_fa(2)
       call constr%gapdiffconstraint(dum1,dum2)
       success = .true.
-    case ('gapdiff2', 'mecp')
+    case ('gapdiff2','mecp')
       success = .true.
-      if(kv%id==3)then
-        if(kv%value_b)then
+      if (kv%id == 3) then
+        if (kv%value_b) then
           dum1 = 10.0_wp
           dum2 = 0.005_wp
           dum3 = 0.20_wp
         else
-          success = .false. 
-        endif 
+          success = .false.
+        end if
       else
-      dum1 = kv%value_fa(1)
-      dum2 = kv%value_fa(2)
-      dum3 = kv%value_fa(3)
-      endif
+        dum1 = kv%value_fa(1)
+        dum2 = kv%value_fa(2)
+        dum3 = kv%value_fa(3)
+      end if
       call constr%gapdiffconstraint2(dum1,dum2,dum3)
     case default
       return
@@ -504,7 +542,6 @@ contains
 
     return
   end subroutine parse_constraint_auto
-
 
 !========================================================================================!
 !> The following routines are used to
@@ -518,7 +555,7 @@ contains
     logical :: success
     type(scantype) :: scn
     integer :: i
-    if (blk%header .ne. '[calculation.scans]') return
+    if (blk%header .ne. 'calculation.scans') return
     do i = 1,blk%nkv
       call parse_scan_auto(scn,blk%kv_list(i),success)
       if (success) then
@@ -536,47 +573,47 @@ contains
     integer :: atm1,atm2,atm3,atm4
     integer :: nsteps
     success = .false.
-    call scn%deallocate()  
+    call scn%deallocate()
     select case (kv%key)
     case ('bond','distance')
       scn%type = 1
       scn%n = 2
-      allocate(scn%atms(2))
-      read(kv%value_rawa(1),*) atm1
+      allocate (scn%atms(2))
+      read (kv%value_rawa(1),*) atm1
       scn%atms(1) = atm1
-      read(kv%value_rawa(2),*) atm2
+      read (kv%value_rawa(2),*) atm2
       scn%atms(2) = atm2
-      read(kv%value_rawa(3),*) dum1
+      read (kv%value_rawa(3),*) dum1
       scn%minval = dum1
-      read(kv%value_rawa(4),*) dum2 
+      read (kv%value_rawa(4),*) dum2
       scn%maxval = dum2
-      if(kv%na > 4)then
-       read(kv%value_rawa(5),*) nsteps 
-       scn%steps = nsteps
-      endif
+      if (kv%na > 4) then
+        read (kv%value_rawa(5),*) nsteps
+        scn%steps = nsteps
+      end if
       success = .true.
     case ('dihedral')
       scn%type = 3
       scn%n = 2
-      allocate(scn%atms(4))
-      read(kv%value_rawa(1),*) atm1
+      allocate (scn%atms(4))
+      read (kv%value_rawa(1),*) atm1
       scn%atms(1) = atm1
-      read(kv%value_rawa(2),*) atm2
+      read (kv%value_rawa(2),*) atm2
       scn%atms(2) = atm2
-      read(kv%value_rawa(3),*) atm3
+      read (kv%value_rawa(3),*) atm3
       scn%atms(3) = atm3
-      read(kv%value_rawa(4),*) atm4
+      read (kv%value_rawa(4),*) atm4
       scn%atms(4) = atm4
-      if(kv%na > 4)then
-       read(kv%value_rawa(5),*) nsteps
-       scn%steps = nsteps
-      endif
-      if(kv%na > 6)then
-        read(kv%value_rawa(6),*) dum1
+      if (kv%na > 4) then
+        read (kv%value_rawa(5),*) nsteps
+        scn%steps = nsteps
+      end if
+      if (kv%na > 6) then
+        read (kv%value_rawa(6),*) dum1
         scn%minval = dum1
-        read(kv%value_rawa(7),*) dum2
+        read (kv%value_rawa(7),*) dum2
         scn%maxval = dum2
-      endif
+      end if
       success = .true.
     case default
       return
@@ -608,7 +645,7 @@ contains
       if (blk%header == 'dynamics') then
         included = .true.
         call parse_mddat(blk,mddat)
-      else if (blk%header == '[dynamics.meta]') then
+      else if (blk%header == 'dynamics.meta') then
         call parse_metadyn(blk,mddat)
         !call calc%add(newjob)
         included = .true.
@@ -651,7 +688,7 @@ contains
     character(len=*) :: key
     real(wp) :: val
     select case (key)
-    case ('length')
+    case ('length','length_ps')
       mddat%length_ps = val
     case ('dump')
       mddat%dumpstep = val
@@ -659,6 +696,9 @@ contains
       mddat%md_hmass = val
     case ('tstep')
       mddat%tstep = val
+    case ('t','temp','temperature' )
+      mddat%tsoll = val
+      mddat%thermostat =.true.
     case default
       return
     end select
@@ -671,9 +711,21 @@ contains
     integer :: val
     real(wp) :: fval
     select case (key)
-    case ('length','dump','hmass','tstep')
+    case ('length','length_ps','dump','hmass','tstep')
       fval = float(val)
       call parse_md(mddat,key,fval)
+    case ('shake')
+      if( val <= 0 )then
+         mddat%shake = .false.
+      else
+         mddat%shake = .true.
+         mddat%shk%shake_mode = min(val,2)
+      endif
+    case ('printstep')
+       mddat%printstep = val
+    case ('t','temp','temperature' )
+      mddat%tsoll = float(val)
+      mddat%thermostat =.true.
     case default
       return
     end select
@@ -696,11 +748,15 @@ contains
     character(len=*) :: key
     logical :: val
     select case (key)
+    case ('shake')
+       mddat%shake = val
+       if(val) mddat%shk%shake_mode=1
     case default
       return
     end select
     return
   end subroutine parse_md_bool
+
 !========================================================================================!
 !> The following routines are used to
 !> read information into the "metadynamics" object
@@ -714,7 +770,7 @@ contains
     type(mtdpot) :: mtd
     integer :: i,k
     call mtd%deallocate()
-    if (blk%header .ne. '[dynamics.meta]') return
+    if (blk%header .ne. 'dynamics.meta') return
     do i = 1,blk%nkv
       call parse_metadyn_auto(mtd,blk%kv_list(i),success)
     end do
@@ -755,7 +811,7 @@ contains
     case ('dump','dump_fs')
       mtd%cvdump_fs = val
     case ('dump_ps')
-      mtd%cvdump_fs = val * 1000.0_wp
+      mtd%cvdump_fs = val*1000.0_wp
     case default
       return
     end select
@@ -786,7 +842,7 @@ contains
     select case (key)
     case ('type')
       select case (val)
-      case ('rmsd','RMSD')
+      case ('rmsd')
         mtd%mtdtype = cv_rmsd
       case default
         mtd%mtdtype = 0

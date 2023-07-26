@@ -321,7 +321,7 @@ subroutine MTDsample(env,tim)
        error stop 'Ensemble file does not exist!'
     endif
 
-    call V2mdlength(env)  !set the MD length according to a flexibility measure
+    call md_length_setup(env)  !set the MD length according to a flexibility measure
     mdtime=env%mdtime
 
     ens%xyz = ens%xyz / bohr  !to bohr so we can write coords
