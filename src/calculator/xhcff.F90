@@ -28,12 +28,12 @@ module xhcff_api
 
 #ifndef WITH_XHCFF
   !> this is a placeholder if no xhcff module is used!
-  type :: xhcff_data
+  type :: xhcff_calculator
     integer :: id = 0
-  end type xhcff_data
+  end type xhcff_calculator
 #endif
 
-  public :: xhcff_data  !> if compiled without(!!!) -DWITH_XHCFF=true this will export
+  public :: xhcff_calculator  !> if compiled without(!!!) -DWITH_XHCFF=true this will export
                         !> the placeholder from above. Otherwise it will re-export
                         !> the type from xhcff_interface
 
@@ -48,11 +48,11 @@ contains  !>--- Module routines start here
   subroutine xhcff_setup(mol,xhcff)
     implicit none
     type(coord),intent(in)  :: mol
-    type(xhcff_data),intent(inout) :: xhcff
+    type(xhcff_calculator),intent(inout) :: xhcff
 #ifdef WITH_XHCFF
 !TODO pressure and grid size must probably be passed here
     !> initialize XHCFF
-    call xhcff_initialize(mol%nat,mol%at,mol%xyz,xhcff)
+!    call xhcff%init(mol%nat,mol%at,mol%xyz, ... )
 
 #else /* WITH_XHCFF */
     write (stdout,*) 'Error: Compiled without XHCFF-lib support!'
@@ -66,14 +66,14 @@ contains  !>--- Module routines start here
   subroutine xhcff_sp(mol,xhcff,energy,gradient,iostatus)
 !********************************************************
 !* The actual energy+gradient call to xhcff-lib.
-!* Requires the xhcff_data object to be set up already.
+!* Requires the xhcff_calculator object to be set up already.
 !* Note that the original xhcff has no contribution to
 !* the energy, only to the gradient
 !********************************************************
     implicit none
     !> INPUT
     type(coord),intent(in)  :: mol
-    type(xhcff_data),intent(inout) :: xhcff
+    type(xhcff_calculator),intent(inout) :: xhcff
     !> OUTPUT
     real(wp),intent(out) :: energy
     real(wp),intent(out) :: gradient(3,mol%nat)
@@ -101,9 +101,9 @@ contains  !>--- Module routines start here
   subroutine xhcff_print(iunit,xhcff)
     implicit none
     integer,intent(in) :: iunit
-    type(xhcff_data),intent(in) :: xhcff
+    type(xhcff_calculator),intent(in) :: xhcff
 #ifdef WITH_XHCFF
-    call print_xhcff_results(xhcff,iunit)
+    call xhcff%info(iunit)
 #endif
     return
   end subroutine xhcff_print

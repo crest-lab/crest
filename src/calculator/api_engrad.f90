@@ -354,19 +354,19 @@ contains    !> MODULE PROCEDURES START HERE
 !>--- populate parameters
     if (loadnew) then
 !TODO pressure and grid settings must be passed here    
-      call xhcff_setup(mol,calc%xhcff_dat)
+      call xhcff_setup(mol,calc%xhcff)
     end if
     !$omp end critical
     if (iostatus /= 0) return
 
 !>--- do the engrad call
     call initsignal()
-    call xhcff_sp(mol,calc%xhcff_dat,energy,grad,iostatus)
+    call xhcff_sp(mol,calc%xhcff,energy,grad,iostatus)
     if (iostatus /= 0) return
 
 !>--- printout
     if (pr) then
-      call xhcff_print(calc%prch,calc%xhcff_dat)
+      call xhcff_print(calc%prch,calc%xhcff)
       call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 

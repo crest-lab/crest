@@ -24,7 +24,7 @@ module calc_type
   use tblite_api
   use gfn0_api
   use gfnff_api,only:gfnff_data
-  use xhcff_api,only:xhcff_data
+  use xhcff_api,only:xhcff_calculator
   implicit none
 
   character(len=1),public,parameter :: sep = '/'
@@ -132,7 +132,7 @@ module calc_type
     integer :: ngrid = 230 !lebedev grid points per atom
     real(wp) :: extpressure = 1.0_wp
     real(wp) :: probrad = 1.5_wp
-    type(xhcff_data),allocatable :: xhcff_dat
+    type(xhcff_calculator),allocatable :: xhcff
 
 !>--- Type procedures
   contains
@@ -276,7 +276,7 @@ contains  !>--- Module routines start here
     if (allocated(self%wfn_backup)) deallocate (self%wfn_backup)
     if (allocated(self%g0calc)) deallocate (self%g0calc)
     if (allocated(self%ff_dat)) deallocate (self%ff_dat)
-    if (allocated(self%xhcff_dat)) deallocate(self%xhcff_dat)
+    if (allocated(self%xhcff)) deallocate(self%xhcff)
 
     self%id = 0
     self%prch = stdout

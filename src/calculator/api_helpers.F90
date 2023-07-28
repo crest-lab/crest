@@ -287,8 +287,8 @@ contains    !> MODULE PROCEDURES START HERE
     logical,intent(out) :: loadnew
     loadnew = .false.
 #ifdef WITH_XHCFF
-    if (.not.allocated(calc%xhcff_dat)) then
-      allocate (calc%xhcff_dat)
+    if (.not.allocated(calc%xhcff)) then
+      allocate (calc%xhcff)
       loadnew = .true.
     end if
     if (calc%apiclean) loadnew = .true.
