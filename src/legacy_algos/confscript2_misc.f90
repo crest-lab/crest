@@ -891,7 +891,7 @@ subroutine cross3(env)
       return
       exit
     end if
-    
+
     !>-- optimize ensemble
     if (env%gcmultiopt) then !> for printout
       call smallhead('GC: loose pre-optimization')
@@ -933,13 +933,13 @@ subroutine confg_chk3(env)
   type(systemdata) :: env    !> MAIN SYSTEM DATA
 
   call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) !mode=4 --> Program intern Threads max
-    !>-- Special handling qcg, no RMSD, 
-    !    because a CMA transformed structure would cause wrong wall pot.
-    if (env%crestver .eq. crest_solv) then
-      call newcregen(env,6)
-    else
-      call newcregen(env,0)
-    end if
+  !>-- Special handling qcg, no RMSD,
+  !    because a CMA transformed structure would cause wrong wall pot.
+  if (env%crestver .eq. crest_solv) then
+    call newcregen(env,6)
+  else
+    call newcregen(env,0)
+  end if
   call ompautoset(env%threads,5,env%omp,env%MAXRUN,0) !mode=5 --> Program intern Threads min
 end subroutine confg_chk3
 
@@ -1254,6 +1254,7 @@ subroutine emtdcopy(env,iter,stopiter,broken)
     filname = trim(sfile)
   end if
 
+!>--- Setup in the very first call
   if (iter == 0) then
     call checkname_xyz(crefile,atmp,crename)
     write (btmp,'(a,i0,a)') filname,iter,'.xyz'
@@ -1268,6 +1269,7 @@ subroutine emtdcopy(env,iter,stopiter,broken)
     return
   end if
 
+!>--- Setup in the iterations
   if (iter >= 1) then
     call checkname_xyz(crefile,atmp,crename)
     iter2 = iter-1
@@ -1288,6 +1290,7 @@ subroutine emtdcopy(env,iter,stopiter,broken)
     end if
   end if
 
+!>--- run checks
   if (.not.broken) then
     call checkname_xyz(crefile,crename,btmp)
     write (btmp,'(a,i0,a)') filname,iter,'.xyz'

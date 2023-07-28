@@ -58,6 +58,10 @@ subroutine crest_search_entropy(env,tim)
   logical :: multilevel(6)
   logical :: start,lower
 !===========================================================!
+!> Entropy algo variables
+  logical :: stopiter,fail
+  integer :: bref,dum,eit,eit2
+!===========================================================!
 !>--- printout header
   write (stdout,*)
   write (stdout,'(10x,"┍",49("━"),"┑")')
@@ -194,35 +198,35 @@ subroutine crest_search_entropy(env,tim)
   end if
 
 !=========================================================!
-!!>---- Entropy mode iterative statically biased MDs
-!    if (env%entropymd) then
-!      call mtdatoms(env)
-!      call tim%start(6,'static MTD')
-!      call emtdcopy(env,0,stopiter,fail)
-!      bref = env%emtd%nbias
-!
-!!>--- sMTD iterations, done until max iterations or convergence
-!      ENTROPYITER: do eit = 1,env%emtd%iter
-         !> Modify bias
-!        dum = nint(float(env%emtd%nbias) * env%emtd%nbiasgrow)
-!        env%emtd%nbias = max(env%emtd%nbias + 1,dum)
-!        fail = .false.
+!>---- Entropy mode iterative statically biased MDs
+    if (env%entropymd) then
+      call mtdatoms(env)
+      call tim%start(6,'static MTD')
+      call emtdcopy(env,0,stopiter,fail)
+      bref = env%emtd%nbias
 
-!!>--- Loop handling fallbacks
-!        EFALLBACK: do k = 1,env%emtd%maxfallback
-!          call printiter2(eit)
-!          call tim%start(6,'static MTD')
+!>--- sMTD iterations, done until max iterations or convergence
+      ENTROPYITER: do eit = 1,env%emtd%iter
+        !> Modify bias
+        dum = nint(float(env%emtd%nbias) * env%emtd%nbiasgrow)
+        env%emtd%nbias = max(env%emtd%nbias + 1,dum)
+        fail = .false.
+
+!>--- Loop handling fallbacks
+        EFALLBACK: do k = 1,env%emtd%maxfallback
+          call printiter2(eit)
+          call tim%start(6,'static MTD')
 !          call entropyMD_para_OMP(env)
-!          call tim%stop(6)
-!          call emtdcheckempty(env,fail,env%emtd%nbias)
+          call tim%stop(6)
+          call emtdcheckempty(env,fail,env%emtd%nbias)
 
-!          if (fail) then
-!            if (k == env%emtd%maxfallback) then
-!              stopiter = .true.
-!            else
-!              cycle EFALLBACK
-!            end if
-!          else
+          if (fail) then
+            if (k == env%emtd%maxfallback) then
+              stopiter = .true.
+            else
+              cycle EFALLBACK
+            end if
+          else
 
 !!>--- Reoptimization of trajectories
 !    call tim%start(3,'geom. optimization')
@@ -230,32 +234,32 @@ subroutine crest_search_entropy(env,tim)
 !    call crest_multilevel_oloop(env,ensnam,multilevel)
 !    call tim%stop(3)
 
-!!>--- if in the entropy mode a lower structure was found -> cycle (required for extrapolation)
-!            call elowcheck(lower,env)
-!            if (lower .and. env%entropic) then
-!              env%emtd%nbias = bref  !> IMPORTANT, reset for restart
-!              cycle MAINLOOP
-!            end if
+!>--- if in the entropy mode a lower structure was found -> cycle (required for extrapolation)
+            call elowcheck(lower,env)
+            if (lower .and. env%entropic) then
+              env%emtd%nbias = bref  !> IMPORTANT, reset for restart
+              cycle MAINLOOP
+            end if
 
-!!>--- otherwise, handle files andfile handling
-!            eit2 = eit
-!            call emtdcopy(env,eit2,stopiter,fail)
-!            env%emtd%iterlast = eit2
-!          end if
+!>--- otherwise, handle files andfile handling
+            eit2 = eit
+            call emtdcopy(env,eit2,stopiter,fail)
+            env%emtd%iterlast = eit2
+          end if
 
-!          if (.not. lower .and. fail .and. .not. stopiter) then
-!            cycle EFALLBACK
-!          end if
+          if (.not. lower .and. fail .and. .not. stopiter) then
+            cycle EFALLBACK
+          end if
 
-!          exit EFALLBACK  !> fallback loop is exited on first opportuinity
-!        end do EFALLBACK
+          exit EFALLBACK  !> fallback loop is exited on first opportuinity
+        end do EFALLBACK
 
-!        if (stopiter) then
-!          exit ENTROPYITER
-!        end if
+        if (stopiter) then
+          exit ENTROPYITER
+        end if
 
-!      end do ENTROPYITER
-!    end if
+      end do ENTROPYITER
+    end if
 
 !==========================================================!
 !>--- exit mainloop
@@ -291,7 +295,9 @@ end subroutine crest_search_entropy
 subroutine crest_smtd_mds(env,ensnam)
 !***********************************************************
 !* set up and perform several sMTD's on a number of 
-!* conformers obtained from clustering
+!* conformers obtained from clustering.
+!* The input ensemble (read from ensma) is typically the
+!* conformer file.
 !* This is a TODO
 !***********************************************************
   use crest_parameters, only: wp,stdout,bohr
@@ -326,6 +332,42 @@ subroutine crest_smtd_mds(env,ensnam)
     return
   endif
 
+!============================================================!
+!>--- PCA Cluster setup
+!============================================================!
+!         nclustbackup = env%maxcluster
+!
+!     !>--- first, generate the structures will be used as bias
+!         env%nclust = env%emtd%nbias
+!         call create_anmr_dummy(nat)
+!         call smallhead('determining bias structures')
+!         call CCEGEN(env,.false.,ensnam)
+!         call rdensembleparam(clusterfile,iz2,TOTAL)
+!         if(TOTAL<1)then
+!             call copy('crest_best.xyz',clusterfile)
+!             TOTAL=1
+!         endif
+!         write(*,'(1x,i0,a)')TOTAL,' structures were selected'
+!         write(*,'(1x,a,/)') 'done.'
+!         env%mtdstaticfile="crest_bias.xyz"
+!         env%nstatic=TOTAL
+!         call rename(clusterfile,env%mtdstaticfile)
+!
+!     !>--- then, get the input structures
+!         env%nclust = env%emtd%nMDs
+!         call smallhead('determining MTD seed structures')
+!         call CCEGEN(env,.false.,ensnam)
+!         call rdensembleparam(clusterfile,iz2,TOTAL)
+!         write(stdout,'(1x,i0,a)')TOTAL,' structures were selected'
+!         write(stdout,'(1x,a,/)')'done.'
+!
+!     !>--- and cleanup
+!         call remove('anmr_nucinfo')
+!         env%nclust = nclustbackup
+!============================================================!
+!============================================================!
+
+!TODO change the following section to initialize a sMTD
 !>--- determine how many MDs need to be run and setup
   call adjustnormmd(env)
   nstrucs = min(nall, env%nrotammds)
@@ -347,9 +389,9 @@ subroutine crest_smtd_mds(env,ensnam)
     enddo
   enddo 
 
-!>--- read ensemble and prepare mols
+!>--- read cluster ensemble and prepare mols
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
-  call rdensemble(ensnam,nat,nall,at,xyz,eread)
+  call rdensemble(clusterfile,nat,nall,at,xyz,eread)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>--- Important: mols must be in Bohrs
   xyz = xyz / bohr
@@ -367,11 +409,13 @@ subroutine crest_smtd_mds(env,ensnam)
   
 !>--- print what we are doing
   write(stdout,*)
-  write(atmp,'(''Additional regular MDs on lowest '',i0,'' conformer(s)'')')nstrucs
+  write(atmp,'(''Static MTDs (umbrella sampling) on '',i0,'' selected conformer(s)'')')nstrucs
   call smallheadline(trim(atmp)) 
 
-!>--- and finally, run the MDs
+!===================================================================!
+!>--- and finally, run the sMTDs on the different starting structures
   call crest_search_multimd2(env,mols,mddats,nsim)
+!===================================================================!
 
   if(allocated(mols))deallocate(mols)
   if(allocated(mddats))deallocate(mddats) 
