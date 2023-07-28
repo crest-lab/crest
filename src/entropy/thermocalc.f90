@@ -385,10 +385,9 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
 
   if (subdir) then
     jobcall2 = 'cd '//trim(dirname)//' && '//trim(jobcall)
-    !call execute_command_line('cd '//trim(dirname)//' && '//trim(jobcall), exitstat=io)
-    call execute_command_line(trim(jobcall2),exitstat=io)
+    call command( jobcall2, io )
   else
-    call execute_command_line(trim(jobcall),exitstat=io)
+    call command( jobcall, io )
   end if
 
   et = 0.0_wp

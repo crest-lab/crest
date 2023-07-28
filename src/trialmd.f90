@@ -104,11 +104,8 @@ subroutine trialMD(env)
       io = makedir(trim(dirnam))
 
       call copysub('coord',trim(dirnam))
-      !call copysub('.CHRG',trim(dirnam))
-      !call copysub('.UHF',trim(dirnam))
       call env%wrtCHRG(trim(dirnam))   
       call copysub(env%fixfile,trim(dirnam))
-      !call copysub(constraints,trim(dirnam))
       if(useqmdff)then
         call copysub('solvent',trim(dirnam))
       endif
@@ -120,8 +117,7 @@ subroutine trialMD(env)
       &             mdskip,Vdumpfreq,-1,env%cts)
       call setMetadyn2(fname,prefac,alpha,100)  ! Metadynamic settings
  
-      !call system(trim(jobcall))
-      call execute_command_line(trim(jobcall), exitstat=sysio)
+      call command(trim(jobcall), sysio)
 
       inquire(file='xtbmdok',exist=ex) !this file should only exist if the MTD finished flawlessly
       call minigrep('xtb.out','SHAKE did not converge',shakefail)

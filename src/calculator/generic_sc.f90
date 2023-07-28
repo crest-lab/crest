@@ -28,7 +28,7 @@ module generic_sc
   use iso_fortran_env,only:wp => real64
   use strucrd
   use calc_type
-  use iomod,only:makedir,directory_exist,remove
+  use iomod,only:makedir,directory_exist,remove,command
   implicit none
 
 !=========================================================================================!
@@ -77,7 +77,7 @@ contains  !>--- Module routines start here
 
     !>--- do the systemcall
     call initsignal()
-    call execute_command_line(calc%systemcall,exitstat=iostatus)
+    call command(calc%systemcall, iostatus)
     if (iostatus /= 0) return
 
     !>--- read energy and gradient

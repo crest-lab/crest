@@ -364,9 +364,7 @@ subroutine pka_miniopt(env,fname)
   jobcall = trim(jobcall)//' '//trim(env%gfnver)
   jobcall = trim(jobcall)//' '//trim(env%solv)
   jobcall = trim(jobcall)//' > xtb.out 2>/dev/null'
-  !write(jobcall,'(a,1x,a,1x,a,'' --ceasefiles --opt vitght '',a,1x,a,'' >xtb.out'')') &
-  !&    trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),' 2>/dev/null'
-  call execute_command_line(trim(jobcall),exitstat=io)
+  call command(trim(jobcall), io)
   inquire (file='xtbopt.xyz',exist=ex)
   if (ex) then
     call rename('xtbopt.xyz',fname)

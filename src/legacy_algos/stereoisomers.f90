@@ -1039,8 +1039,7 @@ subroutine optstruc(nat,at,xyz)
       character(len=512) :: thispath
       character(len=:),allocatable :: jobcall
 
-      !call system('rm -r DUMMY 2>/dev/null')
-      call execute_command_line('rm -r DUMMY 2>/dev/null', exitstat=io)
+      call command('rm -r DUMMY 2>/dev/null', io)
 
       call getcwd(thispath)
       r = makedir('DUMMY')
@@ -1050,14 +1049,11 @@ subroutine optstruc(nat,at,xyz)
       call wrc0('coord',nat,at,xyz)
 
       jobcall = 'xtb coord --gff --opt loose --input constraints > xtb.out 2>> xtb.out'
-      !call system('xtb coord --gff --opt loose --input constraints > xtb.out 2>> xtb.out')
-      call execute_command_line(trim(jobcall), exitstat=io)
+      call command(trim(jobcall), io)
 
       call rename('xtbopt.coord','coord')
       jobcall='xtb coord --gff --opt loose >> xtb.out 2>> xtb.out'
-      !call system('xtb coord --gff --opt loose >> xtb.out 2>> xtb.out')
-      call execute_command_line(trim(jobcall), exitstat=io)
-
+      call command(trim(jobcall), io)
 
 
       call rdcoord('xtbopt.coord',nat,at,xyz)

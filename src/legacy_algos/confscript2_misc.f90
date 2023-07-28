@@ -69,7 +69,7 @@ subroutine xtbsp_legacy(env,xtblevel)
   jobcall = trim(jobcall)//" "//trim(xtbflag)
   jobcall = trim(jobcall)//" "//trim(env%solv)
   jobcall = trim(jobcall)//pipe
-  call execute_command_line(trim(jobcall),exitstat=io)
+  call command(trim(jobcall), io)
 !---- cleanup
   call remove(fname)
   call remove('xtb.out')
@@ -117,7 +117,7 @@ subroutine xtbsp2_legacy(fname,env)
     jobcall = trim(jobcall)//" --uhf "//trim(chrgstr)
   end if
   jobcall = trim(jobcall)//pipe
-  call execute_command_line(trim(jobcall),exitstat=io)
+  call command(trim(jobcall), io)
 !---- cleanup
   call remove('xtbcalc.out')
   call remove('energy')
@@ -186,9 +186,7 @@ subroutine xtbopt(env)
   write (ich,'(a)') '$end'
   close (ich)
 
-!---- jobcall
-!  write (jobcall,'(a,1x,a,1x,a,'' --opt '',a,1x,a,a)') &
-!  &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
+!>---- jobcall
   jobcall = ""
   jobcall = trim(jobcall)//trim(env%ProgName)
   jobcall = trim(jobcall)//" "//trim(fname)//' --opt'
@@ -201,7 +199,7 @@ subroutine xtbopt(env)
     jobcall = trim(jobcall)//" --uhf "//to_str(env%uhf)
   end if
   jobcall = trim(jobcall)//pipe
-  call execute_command_line(trim(jobcall),exitstat=io)
+  call command(trim(jobcall), io)
 
   call minigrep('xtb.out','optimized geometry written to:',fin)
   if (.not.fin) then
@@ -399,7 +397,7 @@ subroutine MetaMD_para_OMP(env)
     write (*,'(''     Vbias exp α /bohr⁻²:'',f8.2)') env%metadexp(vz)
     !$omp end critical
     write (tmppath,'(a,i0)') 'METADYN',vz
-    call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall),exitstat=io)
+    call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
     inquire (file=trim(tmppath)//'/'//'xtb.trj',exist=ex)
     if (.not.ex.or.io .ne. 0) then
       write (*,'(a,i0,a)') '*Warning: Meta-MTD ',vz,' seemingly failed (no xtb.trj)*'
@@ -1195,7 +1193,7 @@ subroutine catchdiatomic(env)
   !create the system call (it is the same for every optimization)
   write (jobcall,'(a,1x,a,1x,a,'' --opt '',a,1x,a,'' --ceasefiles  >xtb.out'')') &
  &    trim(env%ProgName),conformerfile,trim(env%gfnver),trim(env%solv),' 2>/dev/null'
-  call execute_command_line(trim(jobcall),exitstat=ich)
+  call command(trim(jobcall), ich)
   call copy('xtbopt.xyz',conformerfile)
   call copy(conformerfile,'crest_rotamers.xyz')
   call copy(conformerfile,'crest_best.xyz')

@@ -488,8 +488,7 @@ subroutine protens(ens,env,prot,tim)
       !$omp task firstprivate( vz ) private( filename,io )
          call initsignal()
          write(filename,'(a,i0)')trim(dirn),vz
-         !call system('cd '//trim(filename)//' && '//trim(jobcall))
-         call execute_command_line('cd '//trim(filename)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(filename)//' && '//trim(jobcall), io)
       !$omp critical
         k=k+1
         if(niceprint)then

@@ -83,7 +83,6 @@ list(APPEND srcs
   "${dir}/strucreader.f90"
   "${dir}/symmetry2.f90"
   "${dir}/symmetry_i.c"
-  "${dir}/syscheck.f90"
   "${dir}/testmol.f90"
   "${dir}/trackorigin.f90"
   "${dir}/trialmd.f90"

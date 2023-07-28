@@ -1088,7 +1088,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
          call copy('coord', 'ref.coord')
          call chdir(tmppath2)
 
-         call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
 
          inquire (file=trim(tmppath)//'/'//'xtb.trj', exist=ex)
          if (.not. ex .or. io .ne. 0) then
@@ -1124,7 +1124,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
 
          call chdir(tmppath2)
 
-         call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
 
          inquire (file=trim(tmppath)//'/'//'xtb.trj', exist=ex)
          if (.not. ex .or. io .ne. 0) then
@@ -3229,6 +3229,7 @@ end subroutine qcg_cleanup
 
 subroutine check_prog_path_iff(env)
    use crest_data
+   use iomod, only: command,checkprog_silent
    implicit none
    type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
    character(len=512)           :: prog
@@ -3237,12 +3238,13 @@ subroutine check_prog_path_iff(env)
    integer                      :: ios, io
 
    prog = env%ProgIFF
-   write (str, '("which ",a," > ",a,"_path 2>/dev/null")') trim(prog), trim(prog)
-   call execute_command_line(trim(str), exitstat=io)
-   write (str, '(a,"_path")') trim(prog)
-   str = trim(str)
-   open (unit=27, file=str, iostat=ios)
-   read (27, '(a)', iostat=ios) path
+   !write (str, '("which ",a," > ",a,"_path 2>/dev/null")') trim(prog), trim(prog)
+   !call command(trim(str), io)
+   !write (str, '(a,"_path")') trim(prog)
+   !str = trim(str)
+   !open (unit=27, file=str, iostat=ios)
+   !read (27, '(a)', iostat=ios) path
+   call checkprog_silent( prog, iostat=ios)
    if (ios .ne. 0) then
       write (0, *) 'No xtb-IFF found. This is currently required for ', &
       & 'QCG and available at https:/github.com/grimme-lab/xtbiff/'

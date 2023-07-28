@@ -60,7 +60,7 @@ subroutine nciflexi_legacy(env,flexval)
   jobcall = trim(jobcall)//" "//trim(chrgflag)
   jobcall = trim(jobcall)//" "//trim(env%solv)
   jobcall = trim(jobcall)//pipe
-  call execute_command_line(trim(jobcall),exitstat=io)
+  call command(trim(jobcall), io)
 
 !>--- read E(disp) and E(HB) from output
   call grepval('xtb.out','HB energy',ex,ehb)

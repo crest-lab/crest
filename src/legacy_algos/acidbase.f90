@@ -198,6 +198,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
 end subroutine acidbase
 subroutine ab_singlepoint(fname,env,bhess)
      use crest_data
+     use iomod, only: command
      implicit none
      type(systemdata) :: env
      logical :: bhess
@@ -212,7 +213,7 @@ subroutine ab_singlepoint(fname,env,bhess)
      write(jobcall,'(a,1x,a,1x,a,'' --wbo --bhess '',a,1x,a,a)')  &
      &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
      endif
-     call execute_command_line(trim(jobcall), exitstat=io)
+     call command(trim(jobcall), io)
      return
 end subroutine ab_singlepoint
 subroutine ab_reactivecenter(zmola,zmolb,X)

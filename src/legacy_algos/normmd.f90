@@ -239,7 +239,7 @@ subroutine normalMD_para_OMP(env,lconf,ntemps)
              write(*,'(''     dumpstep(trj) /fs  :'',i8)')env%mddumpxyz
        !$omp end critical
          write(tmppath,'(a,i0)')'NORMMD',vz
-         call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
          write(*,'(a,i0,a)')'*MD ',vz,' finished*'
          call rmrf(trim(tmppath)//'/scoord.*')
        !$omp end task
@@ -464,11 +464,11 @@ subroutine entropyMD_para_OMP(env)
              write(*,'(''     Vbias exp α /bohr⁻²:'',f8.2)')alpha
        !$omp end critical
          write(tmppath,'(a,i0)')'STATICMTD',vz
-         call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
          inquire(file=trim(tmppath)//'/'//'xtb.trj',exist=ex)
          if(.not.ex .or. io.ne.0)then
          write(*,'(a,i0,a)')'*Warning: static MTD ',vz,' seemingly failed (no xtb.trj)*'
-         call system('cp -r '//trim(tmppath)//' FAILEDMTD')
+         call command('cp -r '//trim(tmppath)//' FAILEDMTD')
          else
          write(*,'(a,i0,a)')'*static MTD ',vz,' finished*'
          endif
