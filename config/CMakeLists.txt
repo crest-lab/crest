@@ -116,4 +116,12 @@ configure_file(
   "${PROJECT_BINARY_DIR}/crest_metadata.fh"
   @ONLY
 )
+# gfortran needs the file at another place...
+configure_file(
+  "${PROJECT_SOURCE_DIR}/assets/template/metadata.f90"
+  "${PROJECT_BINARY_DIR}/include/crest_metadata.fh"
+  @ONLY
+)
+
+
 

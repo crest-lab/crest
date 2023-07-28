@@ -81,7 +81,8 @@ subroutine checkprog(fname,r)
     pipe=' >/dev/null 2>/dev/null'
 
     checkcall='command -v '//trim(fname)//pipe
-    call execute_command_line(checkcall,.true.,rcode)     
+    !call execute_command_line(checkcall,.true.,rcode)     
+    call system(trim(checkcall), rcode)
 
     write(*,'(4x,a,a,a)')'binary: "',trim(fname),'"'
     if(rcode.ne.0)then
@@ -107,7 +108,8 @@ subroutine checkprog_secret(fname)
     pipe=' >/dev/null 2>/dev/null'
 
     checkcall='command -v '//trim(fname)//pipe
-    call execute_command_line(checkcall,.true.,rcode)
+    !call execute_command_line(checkcall,.true.,rcode)
+    call system(trim(checkcall), rcode)
 
     if(rcode.ne.0)then
       write(*,'(4x,a,a,a)')'binary: "',trim(fname),'"'
