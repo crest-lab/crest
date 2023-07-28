@@ -23,7 +23,7 @@ module discretize_module
   implicit none
 
   private
-  real(wp),parameter :: pi = acos(0.0_wp)*2.0_wp
+!  real(wp),parameter :: pi = acos(0.0_wp)*2.0_wp
 
 !******************************************************************************!
   public :: struc_info

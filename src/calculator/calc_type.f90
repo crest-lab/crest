@@ -97,7 +97,7 @@ module calc_type
     logical :: rdwbo = .false.
     real(wp),allocatable :: wbo(:,:)
 
-    !> dipole and dipole gradient 
+    !> dipole and dipole gradient
     logical :: rddip = .false.
     real(wp) :: dip(3) = 0
     logical :: rddipgrad = .false.
@@ -524,12 +524,12 @@ contains  !>--- Module routines start here
     !> add a short description
     self%description = trim(jobdescription(self%id+1))
 
-    if(.not.allocated(self%calcspace))then   
-    !> I've decided to perform all calculations in a separate directory to
-    !> avoid accumulation of files in the main workspace
-       write(nmbr,'(i0)') id
-       self%calcspace='calculation.level.'//trim(nmbr)
-    endif
+    if (.not.allocated(self%calcspace)) then
+      !> I've decided to perform all calculations in a separate directory to
+      !> avoid accumulation of files in the main workspace
+      write (nmbr,'(i0)') id
+      self%calcspace = 'calculation.level.'//trim(nmbr)
+    end if
   end subroutine calculation_settings_autocomplete
 
 !=========================================================================================!
@@ -542,34 +542,34 @@ contains  !>--- Module routines start here
     character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
     character(len=*),parameter :: fmt3 = '(1x,a20," : ",a)'
 
-    if(allocated(self%description))then
-     write(iunit,'(2x,a)') trim(self%description)
+    if (allocated(self%description)) then
+      write (iunit,'(2x,a)') trim(self%description)
     else
-     write(iunit,fmt1) 'Job type',self%id
-    endif
+      write (iunit,fmt1) 'Job type',self%id
+    end if
 
-    write(iunit,fmt1) 'Molecular charge',self%chrg
-    if(self%uhf /= 0)then
-    write(iunit,fmt1) 'UHF parameter',self%uhf
-    endif
-   
-    if(allocated(self%solvmodel))then
-     write(iunit,fmt3) 'Solvation model',trim(self%solvmodel)
-    endif
-    if(allocated(self%solvent))then
-     write(iunit,fmt3) 'Solvent',trim(self%solvent)
-    endif
+    write (iunit,fmt1) 'Molecular charge',self%chrg
+    if (self%uhf /= 0) then
+      write (iunit,fmt1) 'UHF parameter',self%uhf
+    end if
+
+    if (allocated(self%solvmodel)) then
+      write (iunit,fmt3) 'Solvation model',trim(self%solvmodel)
+    end if
+    if (allocated(self%solvent)) then
+      write (iunit,fmt3) 'Solvent',trim(self%solvent)
+    end if
 
     !> xTB specific parameters
-    if( any((/jobtype%tblite, jobtype%xtbsys, jobtype%gfn0, jobtype%gfn0occ/)==self%id))then
-      write(iunit,fmt2) 'Fermi temperature',self%etemp
-      write(iunit,fmt2) 'Accuracy',self%accuracy 
-      write(iunit,fmt1) 'max SCC cycles',self%maxscc
-    endif
-    
-    if(self%apiclean) write(iunit,fmt3) 'Reset data?','  yes'
-    if(self%rdwbo) write(iunit,fmt3) 'Read WBOs?','  yes'
-    if(self%rddip) write(iunit,fmt3) 'Read dipoles?','  yes'
+    if (any((/jobtype%tblite,jobtype%xtbsys,jobtype%gfn0,jobtype%gfn0occ/) == self%id)) then
+      write (iunit,fmt2) 'Fermi temperature',self%etemp
+      write (iunit,fmt2) 'Accuracy',self%accuracy
+      write (iunit,fmt1) 'max SCC cycles',self%maxscc
+    end if
+
+    if (self%apiclean) write (iunit,fmt3) 'Reset data?','  yes'
+    if (self%rdwbo) write (iunit,fmt3) 'Read WBOs?','  yes'
+    if (self%rddip) write (iunit,fmt3) 'Read dipoles?','  yes'
 
   end subroutine calculation_settings_info
 !========================================================================================!
@@ -581,50 +581,49 @@ contains  !>--- Module routines start here
     character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
     character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
 
-    write(iunit,'(1x,a)') '----------------'
-    write(iunit,'(1x,a)') 'Calculation info'
-    write(iunit,'(1x,a)') '----------------'
-    if(self%ncalculations <= 0)then
-      write(iunit,'("> ",a)') 'No calculation levels set up!'
-    else if(self%ncalculations > 1)then
-      do i=1,self%ncalculations
-       write(iunit,'("> ",a,i0)') 'Calculation level ',i
-       call self%calcs(i)%info(iunit)
-       write(iunit,fmt1) 'weight',self%calcs(i)%weight
-      enddo
+    write (iunit,'(1x,a)') '----------------'
+    write (iunit,'(1x,a)') 'Calculation info'
+    write (iunit,'(1x,a)') '----------------'
+    if (self%ncalculations <= 0) then
+      write (iunit,'("> ",a)') 'No calculation levels set up!'
+    else if (self%ncalculations > 1) then
+      do i = 1,self%ncalculations
+        write (iunit,'("> ",a,i0)') 'Calculation level ',i
+        call self%calcs(i)%info(iunit)
+        write (iunit,fmt2) 'weight',self%calcs(i)%weight
+      end do
     else
-      write(iunit,'("> ",a)') 'Calculation level'
+      write (iunit,'("> ",a)') 'Calculation level'
       call self%calcs(1)%info(iunit)
-    endif
-    write(iunit,*)
+    end if
+    write (iunit,*)
 
-    if(self%nconstraints > 0)then
-    write(iunit,'("> ",a)') 'User-defined constraints:'
-    do i=1,self%nconstraints
-      call self%cons(i)%print(iunit)
-    enddo 
-    write(iunit,*)
-    endif
+    if (self%nconstraints > 0) then
+      write (iunit,'("> ",a)') 'User-defined constraints:'
+      do i = 1,self%nconstraints
+        call self%cons(i)%print(iunit)
+      end do
+      write (iunit,*)
+    end if
 
-    if(self%ncalculations > 1)then
-    write(iunit,'("> ",a)') 'Energy and gradient processing:'
-    select case( self%id )
-    case ( 1: )
-      write(iunit,'(1x,a,i0)') 'Energies and gradients of calculation level ',self%id, &
-      &  ' will be used'
-    case ( -1 )
-      write(iunit,'(1x,a)') 'Special MECP energy and gradients will be constructed'
-      write(iunit,'(1x,a)') 'See https://doi.org/10.1021/acs.jpclett.3c00494'
-    case default
-       write(iunit,'(1x,a)') 'Energies and gradients of all calculation levels will be'// &
-       & ' added according to their weights'
-    end select
-    endif 
+    if (self%ncalculations > 1) then
+      write (iunit,'("> ",a)') 'Energy and gradient processing:'
+      select case (self%id)
+      case (1:)
+        write (iunit,'(1x,a,i0)') 'Energies and gradients of calculation level ',self%id, &
+        &  ' will be used'
+      case (-1)
+        write (iunit,'(1x,a)') 'Special MECP energy and gradients will be constructed'
+        write (iunit,'(1x,a)') 'See https://doi.org/10.1021/acs.jpclett.3c00494'
+      case default
+        write (iunit,'(1x,a)') 'Energies and gradients of all calculation levels will be'// &
+        & ' added according to their weights'
+      end select
+      write (iunit,*)
+    end if
 
     return
   end subroutine calculation_info
-
-
 
 !=========================================================================================!
 end module calc_type

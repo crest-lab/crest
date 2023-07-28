@@ -100,6 +100,19 @@ subroutine env2calc_setup(env)
   !> LOCAL
   type(calcdata) :: calc
   type(coord) :: mol
+  interface
+    subroutine env2calc(env,calc,molin)
+      use crest_parameters
+      use crest_data
+      use calc_type
+      use strucrd
+      implicit none
+      type(systemdata),intent(in) :: env
+      type(coord),intent(in),optional :: molin
+      type(calcdata) :: calc
+    end subroutine env2calc
+
+  end interface
 
   call env2calc(env,calc,mol)
 
