@@ -637,7 +637,6 @@ contains !> MODULE PROCEDURES START HERE
     logical,intent(out) :: included
 
     included = .false.
-    !call mddat%deallocate()
 
     do i = 1,dict%nblk
       call blk%deallocate()
@@ -647,7 +646,6 @@ contains !> MODULE PROCEDURES START HERE
         call parse_mddat(blk,mddat)
       else if (blk%header == 'dynamics.meta') then
         call parse_metadyn(blk,mddat)
-        !call calc%add(newjob)
         included = .true.
       end if
     end do
@@ -812,6 +810,8 @@ contains !> MODULE PROCEDURES START HERE
       mtd%cvdump_fs = val
     case ('dump_ps')
       mtd%cvdump_fs = val*1000.0_wp
+    case ('ramp')
+      mtd%ramp = val
     case default
       return
     end select
@@ -847,6 +847,9 @@ contains !> MODULE PROCEDURES START HERE
       case default
         mtd%mtdtype = 0
       end select
+    case ('biasfile')
+       mtd%mtdtype = cv_rmsd_static
+       mtd%biasfile = val
     case default
       return
     end select

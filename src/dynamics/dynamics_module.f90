@@ -38,14 +38,15 @@ module dynamics_module
   integer :: i,j,k,l,ich,och,io
   logical :: ex
 
-!  !--- some constants and name mappings
+  !>--- some constants and name mappings
   real(wp),parameter :: amutoau = amutokg * kgtome
   real(wp),parameter :: fstoau = 41.3413733365614_wp
 
-  !-- filetypes as integers
+  !>-- filetypes as integers
   integer,parameter,public :: type_md = 1
   integer,parameter,public :: type_mtd = 2
-  integer,parameter,public :: cv_rmsd = 2
+  !>-- reexports from metadynamics_module
+  public :: cv_std_mtd, cv_rmsd, cv_rmsd_static
 
   public :: mddata
   !======================================================================================!
@@ -251,16 +252,17 @@ contains  !> MODULE PROCEDURES START HERE
     if (pr) then
       write (*,'(/,"> ",a)') 'Starting simulation' 
       if (.not. dat%thermostat) then
-        write (*,'(/,9x,''time (ps)'',4x,''<Epot>'',5x,''Ekin   <T>    T'',5x, &
-           &         ''Etot'',7x,''error'','' '')')
+        write (*,'(/,11x,"time (ps)",7x,"<Epot>",8x,"Ekin",5x,"<T>",7x,"T",12x, &
+           &         "Etot",7x,"error")')
       else
-        write (*,'(/,9x,''time (ps)'',4x,''<Epot>'',5x,''Ekin   <T>    T'',5x, &
-           &              ''Etot'')')
+        write (*,'(/,11x,"time (ps)",7x,"<Epot>",8x,"Ekin",5x,"<T>",7x,"T",12x, &
+           &         "Etot")')
       end if
     end if
 
     dcount = 0
     printcount = 1
+!===============================================================!
 !===============================================================!
 !>--- begin MD loop
     MD: do t = 1,dat%length_steps
@@ -311,12 +313,12 @@ contains  !> MODULE PROCEDURES START HERE
         if (t > 1) printcount = 0
         if (pr) then
           if (.not. dat%thermostat) then
-            write (*,'(i7,f8.2,F13.5,F9.4,2F6.0,F12.5,4F10.4)') &
+            write (*,'(i7,f10.2,F16.5,F12.4,2F8.1,F16.5,4F10.4)') &
                &   t,0.001_wp * float(t) * dat%tstep, (Epav + Epot) / float(t), &
                &   Ekin,Tav / float(t),temp,Epot + Ekin, &
                &   Edum / float(t) - Epot - Ekin
           else
-            write (*,'(i7,f8.2,F13.5,F9.4,2F6.0,F12.5,E14.6)') &
+            write (*,'(i7,f10.2,F16.5,F12.4,2F8.1,F16.5)') &
                &   t,0.001_wp * float(t) * dat%tstep, (Epav + epot) / float(t), &
                &   Ekin,Tav / float(t),temp,Epot + Ekin
           end if
@@ -346,7 +348,7 @@ contains  !> MODULE PROCEDURES START HERE
       !>--- THERMOSTATING (determine factor thermoscal)
       call thermostating(mol,dat,temp,thermoscal)
 
-      !>>-- STEAP 3: velocity and position update
+      !>>-- STEP 3: velocity and position update
       !>--- update velocities to t
       ! I think the factor of 1/2 for the acc is missing in the xtb version
       vel = thermoscal * (velo + 0.5_wp * acc * tstep_au)
@@ -383,6 +385,7 @@ contains  !> MODULE PROCEDURES START HERE
       !if (t == dat%length_steps) exit MD
     end do MD
 !>--- finish MD loop
+!===============================================================!
 !===============================================================!
 !>--- close trajectory file
     !$omp critical
@@ -502,8 +505,8 @@ contains  !> MODULE PROCEDURES START HERE
         slope = 99.0_wp
       end if
       if (pr) then
-        write (*,'(''block <Epot> / <T> :'',f14.5,f6.0,5x, &
-           &             ''drift:'',d10.2,3x,''Tbath :'',f5.0)')  &
+        write (*,'(''block <Epot> / <T> :'',f14.5,f7.1,4x, &
+           &             ''drift:'',d10.2,3x,''Tbath :'',f6.1)')  &
            &             bave,bavt,slope,dat%tsoll
       end if
     else
@@ -980,6 +983,8 @@ contains  !> MODULE PROCEDURES START HERE
     call move_alloc(cvtmp,self%cvtype)
     self%npot = k
    
+    !> if a metadynamics potential was added for the first time
+    !> change MD runtype to MTD accordingly
     if(self%simtype == type_md)then
      self%simtype = type_mtd
     endif
@@ -991,6 +996,10 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
   subroutine md_update_mtd(mol,dat,calc,pr)
+!*********************************************
+!* Update the collective variables for each
+!* metadynamics potential saved in mddata
+!*********************************************
     implicit none
     type(coord) :: mol
     type(mddata) :: dat
@@ -1003,7 +1012,7 @@ contains  !> MODULE PROCEDURES START HERE
 
     do i = 1,dat%npot
       select case(dat%cvtype(i)) 
-      case( cv_rmsd )
+      case( cv_rmsd, cv_rmsd_static )
        call cv_dump(mol,dat%mtd(i),0.0_wp,pr)  
       case default
        cycle
@@ -1015,6 +1024,11 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
   subroutine md_calc_mtd(mol,dat,epot,grd,pr)
+!***********************************************
+!* Calculate energy and gradient contributions
+!* from metadynamics potentials and add them to
+!* the current total energy and gradient
+!***********************************************
 !$ use omp_lib
     implicit none
     type(coord) :: mol
@@ -1030,13 +1044,17 @@ contains  !> MODULE PROCEDURES START HERE
     if (dat%simtype .ne. type_mtd) return
     if (dat%npot < 1) return
 
+    !$omp critical
     allocate(grdmtd(3,mol%nat),source=0.0_wp)
+    !$omp end critical
     do i = 1,dat%npot
          call calc_mtd(mol,dat%mtd(i),emtd,grdmtd)
          epot = epot + emtd
          grd = grd + grdmtd
     end do
+    !$omp critical
     deallocate(grdmtd)
+    !$omp end critical
 
     return
   end subroutine md_calc_mtd
