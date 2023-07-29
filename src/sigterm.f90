@@ -1,58 +1,62 @@
-subroutine wsigint
-  use iso_fortran_env,only:error_unit
-  write (error_unit,'(" recieved SIGINT, terminating...")')
+!================================================================================!
+! This file is part of crest.
+!
+! Copyright (C) 2023 Philipp Pracht
+!
+! crest is free software: you can redistribute it and/or modify it under
+! the terms of the GNU Lesser General Public License as published by
+! the Free Software Foundation, either version 3 of the License, or
+! (at your option) any later version.
+!
+! crest is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU Lesser General Public License for more details.
+!
+! You should have received a copy of the GNU Lesser General Public License
+! along with crest.  If not, see <https://www.gnu.org/licenses/>.
+!================================================================================!
+subroutine wsigint !> Ctrl+C
+  use crest_parameters, only:stderr,stdout
+  integer :: myunit
+  write(*,*)
+  write (stderr,'(" recieved SIGINT, trying to terminate CREST...")')
   call exit(1)
   error stop
 end subroutine wsigint
 
-subroutine wsigterm
-  use iso_fortran_env,only:error_unit
-  write (error_unit,'(" recieved SIGTERM, terminating...")')
+subroutine wsigquit !> Ctrl+D or Ctrl+\
+  use crest_parameters, only:stderr,stdout
+  integer :: myunit
+  write(*,*)
+  write (stderr,'(" recieved SIGQUIT, trying to terminate CREST...")')
+  call exit(1)
+  error stop
+end subroutine wsigquit
+
+subroutine wsigterm !> Recieved by the "kill" pid command
+  use crest_parameters, only:stderr,stdout
+  write(stdout,*)
+  write (stderr,'(" recieved SIGTERM, trying to terminate CREST...")')
   call exit(1)
   error stop
 end subroutine wsigterm
 
+subroutine wsigkill
+  use crest_parameters, only:stderr,stdout
+  error stop 'CREST recieved SIGKILL.'
+end subroutine wsigkill
+
 subroutine initsignal()
   external :: wSIGINT
   external :: wSIGTERM
-!  external :: exit
+  external :: wSIGKILL
+  external :: wSIGQUIT
 
-!  call signal(2,exit)
   call signal(2,wSIGINT)
+  call signal(3,wSIGQUIT)
+  call signal(9,wSIGKILL)
   call signal(15,wSIGTERM)
   call signal(69,wSIGINT)
 end subroutine initsignal
 
-integer(4) function h_abort_sigint(signum)
-  integer(4) :: signum
-  !DIRS$ ATTRIBUTES DEFAULT :: h_abort_sigint
-  write (*,*) 'SIGINT recieved, terminating program ...'
-  h_abort_sigint = 1
-  error stop
-end function h_abort_sigint
-
-integer(4) function h_abort_sigterm(signum)
-  integer(4) :: signum
-  !DIRS$ ATTRIBUTES DEFAULT :: h_abort_sigterm
-  write (*,*) 'SIGTERM recieved, terminating program ...'
-  h_abort_sigterm = 1
-  error stop
-end function h_abort_sigterm
-
-!subroutine initsignal2(io)
-!        use ifport, only : ifsignal=>signal,SIGINT,SIGTERM
-!  external :: h_abort_sigint
-!  external :: h_abort_sigterm
-!  integer(4) :: h_abort_sigint
-!  integer(4) :: h_abort_sigterm
-!  integer,intent(out) :: io
-!  integer(4) :: io4
-!  io = 0
-!
-!  io4 = ifsignal(SIGINT,h_abort_sigint,-1)
-!  if (io4 == 1) io = 1
-!  io4 = ifsingal(SIGTERM,h_abort_sigterm,-1)
-!  if (io4 == 1) io = 1
-!
-!  return
-!end subroutine initsignal2

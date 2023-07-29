@@ -80,7 +80,6 @@ srcs += files(
   'strucreader.f90',
   'symmetry2.f90',
   'symmetry_i.c',
-  'syscheck.f90',
   'testmol.f90',
   'trackorigin.f90',
   'trialmd.f90',

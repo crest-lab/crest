@@ -31,10 +31,11 @@ module metadynamics_module
   !======================================================================================!
   !--- private module variables and parameters
   private
-  integer,parameter :: std_mtd = 1
-  integer,parameter :: rmsd_mtd = 2
+  integer,parameter,public :: cv_std_mtd = 1
+  integer,parameter,public :: cv_rmsd = 2
   integer,parameter :: damp_heaviside = 3
   integer,parameter :: damp_heaviside_cv = 4
+  integer,parameter,public :: cv_rmsd_static = 5
 
   !======================================================================================!
   !data object that contains settings and trackers for a single MTD potential
@@ -56,12 +57,13 @@ module metadynamics_module
     real(wp) :: cvdump_fs = 0.0_wp !xyz dump frequency (in fs)
     integer :: cvdumpstep = 0 !xyz dump frequency (in MD steps)
     integer :: maxsave = 0
+    character(len=:),allocatable :: biasfile !> specify a file from which the bias is obtained
     logical,allocatable :: atinclude(:) !specify atoms to include in RMSD potentail
     real(wp),allocatable :: cvxyz(:,:,:) !ensemble of CV structures to calculate RMSD from
 
     !>--- damping of the MTD potential
     integer :: damptype = 0
-    real(wp) :: ramp = 0.03_wp
+    real(wp) :: ramp = -1.0_wp
     real(wp) :: damp = 1.0_wp
     real(wp),allocatable :: damping(:)  !input for snapshot-specific damping
 
@@ -93,24 +95,36 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),intent(in) :: mdlength !> MD length in ps
     logical,intent(in) :: pr
     real(wp) :: dum1,dum2
-    integer :: idum1,idum2
+    integer :: i,j
+    integer :: idum1,idum2,nall,nat
+    logical :: ex
+    integer,allocatable :: at(:)
 
     if (pr) then
       write (*,'(" --- metadynamics parameter ---")')
-      write (*,'(" kpush   :",f9.3)') pot%kpush
-      write (*,'(" alpha   :",f9.3)') pot%alpha
+      select case (pot%mtdtype)
+      case (cv_std_mtd)
+        write (*,'(" MTD/CV type   :",1x,a)') 'standard'
+      case (cv_rmsd)
+        write (*,'(" MTD/CV type   :",1x,a)') 'RMSD'
+      case (cv_rmsd_static)
+        write (*,'(" MTD/CV type   :",1x,a)') 'RMSD (static)'
+      end select
+      write (*,'(" kpush /Eh     :",f10.4)') pot%kpush
+      write (*,'(" alpha /bohr⁻² :",f10.4)') pot%alpha
     end if
 
     dum1 = anint((mdlength*1000.0_wp)/tstep)
     idum1 = nint(dum1)
 
     select case (pot%mtdtype)
-    case (std_mtd) !>--- "standard" MTD
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+    case (cv_std_mtd) !>--- "standard" MTD
       pot%nmax = idum1
       allocate (pot%cv(idum1),source=0.0_wp)
       allocate (pot%cvgrd(3,mol%nat),source=0.0_wp)
-
-    case (rmsd_mtd) !>--- RMSD MTD
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+    case (cv_rmsd) !>--- RMSD MTD
       if (pot%cvdump_fs <= 0.0_wp) return !> structure dumpstep in fs must be given
       dum2 = max(1.0_wp, (pot%cvdump_fs/tstep))
       dum2 = anint(dum2)
@@ -121,16 +135,63 @@ contains  !> MODULE PROCEDURES START HERE
       if (pot%maxsave == 0) pot%maxsave = nint(dum1)
       if (allocated(pot%cvxyz)) deallocate (pot%cvxyz)
       allocate (pot%cvxyz(3,mol%nat,pot%maxsave),source=0.0_wp)
-      !>--- automatic ramp parameter (acounted for different MD time steps)
+      !>--- automatic ramp parameter (acounted for both different MD time steps and CV dump steps)
       !> (should yield damp≈0.5 for cvdumpstep/2, but is at least 0.03 as in xtb)
-      pot%ramp = log(3.0_wp)/(0.5_wp*dum2)
-      pot%ramp = max(pot%ramp,0.03_wp)
-      if (pr) then
-        write (*,'(" ramp    :",f9.3)') pot%ramp
-        write (*,'(" dump/fs :",f9.3,i9 )') pot%cvdump_fs,pot%cvdumpstep
-        write (*,'(" # CVs   :",i9 )') pot%maxsave
+      if (pot%ramp <= 0.0_wp) then !> only if not set by the user
+        pot%ramp = log(3.0_wp)/(0.5_wp*dum2)
+        pot%ramp = max(pot%ramp,0.03_wp)
       end if
-
+      if (pr) then
+        write (*,'(" ramp         :",f10.4)') pot%ramp
+        write (*,'(" dump/fs      :",f10.4,i9 )') pot%cvdump_fs,pot%cvdumpstep
+        write (*,'(" # CVs (max)  :",i10 )') pot%maxsave
+      end if
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
+    case (cv_rmsd_static) !> static RMSD MTD / umbrella sampling with RMSD pot
+      pot%cvdumpstep = huge(idum1) !> we won't modify the potential, so set the dumstep to "infinity"
+      if (allocated(pot%cvxyz)) then !> if structures were already loaded, just determine the rest
+        nat = size(pot%cvxyz,2)
+        nall = size(pot%cvxyz,3)
+      else if (allocated(pot%biasfile)) then !> else try to read from file
+        inquire (file=pot%biasfile,exist=ex)
+        if (.not.ex) return !> if the file is absent, we return
+        if (pr) write (*,'(" reading from  :",1x,a)') pot%biasfile
+        call rdensembleparam(pot%biasfile,nat,nall)
+        if (nat .ne. 0.and.nall .ne. 0) then
+          allocate (pot%cvxyz(3,nat,nall),source=0.0_wp)
+          allocate (at(nat),source=0)
+          call rdensemble(pot%biasfile,nat,nall,at,pot%cvxyz)
+          deallocate (at)
+          !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+          !>--- Important: if we read here we must convert to Bohrs
+          pot%cvxyz = pot%cvxyz*aatoau
+          !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+        end if
+      else  !> if both failed we must return (the potential is not set up)
+        return
+      end if
+      if (nat .ne. mol%nat) then !> can't do that! something is wrong
+        if (allocated(pot%cvxyz)) deallocate (pot%cvxyz)
+        pot%mtdtype = 0
+        write (*,'(1x,a)') '*WARNING* static metadynamics setup failed! Mismatch of #atoms'
+        !return
+        error stop
+      end if
+      !> for safety, perturb all bias slightly (so the potential won't explode)
+      do i = 1,nall
+        call rmsdcv_perturb(nat,pot%cvxyz(:,:,i))
+      end do
+      pot%ncur = nall    !> will not change
+      pot%maxsave = nall !> won't change either
+      if (pot%ramp <= 0.0_wp) then            !> only if not set by the user
+        pot%ramp = (tstep/5.0_wp)*0.015_wp  !> a default derived from the entropy mode at GFN2-xTB 
+      end if
+      if (pr) then
+        write (*,'(" ramp (adjust.):",f10.4,1x,i0)') pot%ramp,check_dump_steps_rmsd(pot)
+        write (*,'(" # CVs (loaded):",i10 )') pot%maxsave
+        write (*,'(1x,a)') '*NOTE* bias structures will not change during MD'
+      end if
+!+++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
     case default
       return
 
@@ -161,7 +222,7 @@ contains  !> MODULE PROCEDURES START HERE
     self%cvdumpstep = 0 !xyz dump frequency (in MD steps)
     self%maxsave = 0
     self%damptype = 0
-    self%ramp = 0.03_wp
+    self%ramp = -1.0_wp
     self%damp = 1.0_wp
 
     return
@@ -173,6 +234,7 @@ contains  !> MODULE PROCEDURES START HERE
 !* subroutine cv_dump
 !* update the list of CVs at the current MD timestep
 !*****************************************************
+!$  use omp_lib
     implicit none
     type(coord) :: mol
     type(mtdpot) :: pot
@@ -180,24 +242,28 @@ contains  !> MODULE PROCEDURES START HERE
     logical :: pr
 
     select case (pot%mtdtype)
-    case (std_mtd) !>--- CV update for "standard" MTD
+    case (cv_std_mtd) !>--- CV update for "standard" MTD
       pot%ncur = pot%ncur+1
       pot%cv(pot%ncur) = cv
 
-    case (rmsd_mtd) !>--- structure mapping for RMSD MTD
-      pot%cvdump = pot%cvdump+1
-      if (pot%cvdump == pot%cvdumpstep) then
-        pot%cvdump = 0
+    case (cv_rmsd) !>--- structure mapping for RMSD MTD
+      pot%cvdump = pot%cvdump+1  !> cvdump counts the MD step since the last CV was added
+      if (pot%cvdump == pot%cvdumpstep) then !> the MTD tracks when it needs to be updated
+        pot%cvdump = 0  !> reset if new CV is added
         pot%ncur = pot%ncur+1
         pot%cvxyz(:,:,pot%ncur) = mol%xyz(:,:)
-        if( pot%ncur == 1)then
+        if (pot%ncur == 1) then
           !>--- The first one should be sligthly distorted
           call rmsdcv_perturb(mol%nat,pot%cvxyz(:,:,pot%ncur))
-        endif
+        end if
         if (pr) then
           write (*,'(2x,"adding snapshot to metadynamics bias, now at ",i0," CVs")') pot%ncur
         end if
       end if
+
+    case (cv_rmsd_static)
+      pot%cvdump = pot%cvdump+1 !> the cvdump is equal to the MD step
+      !> no further update necessary
 
     case default
       return
@@ -250,16 +316,22 @@ contains  !> MODULE PROCEDURES START HERE
     type(mtdpot) :: pot
     real(wp),intent(out) :: emtd
     real(wp),intent(out) :: grdmtd(3,mol%nat)
-
+    real(wp) :: dum
     emtd = 0.0_wp
     grdmtd = 0.0_wp
 
     select case (pot%mtdtype)
-    case (std_mtd)
+    case (cv_std_mtd)
       call calc_damp(pot,pot%damptype,0.0_wp)
 
-    case (rmsd_mtd)
-      call calc_damp(pot,rmsd_mtd,0.0_wp)
+    case (cv_rmsd)
+      dum = float(pot%cvdump)
+      call calc_damp(pot, cv_rmsd, dum)
+      call calc_rmsd_mtd(mol,pot,emtd,grdmtd)
+
+    case (cv_rmsd_static)
+      dum = float(pot%cvdump)
+      call calc_damp(pot, cv_rmsd_static, dum)
       call calc_rmsd_mtd(mol,pot,emtd,grdmtd)
 
     case default
@@ -282,12 +354,12 @@ contains  !> MODULE PROCEDURES START HERE
     implicit none
     type(mtdpot) :: pot
     integer :: dt
-    real(wp) :: x
-
+    real(wp),intent(in) :: x
+    real(wp),parameter :: tol = 0.9999_wp
     select case (dt) !>-- select damping parameter calculation
-    case (rmsd_mtd)
+    case (cv_rmsd,cv_rmsd_static)
       pot%damp = (2.0_wp/(1.0_wp+ &
-      &       exp(-pot%ramp*float(pot%cvdump)))-1.0_wp)
+      &       exp(-pot%ramp*x))-1.0_wp)  !> x is pot%cvdump as float
 
     case (damp_heaviside) !> simple heaviside switch
       pot%damp = sign(0.5_wp,x)+0.5_wp
@@ -299,6 +371,28 @@ contains  !> MODULE PROCEDURES START HERE
 
     return
   end subroutine calc_damp
+
+  function check_dump_steps_rmsd(pot) result(steps)
+!**************************************************
+!* Check the number of MD steps that are affected
+!* by the damping
+!**************************************************
+    implicit none
+    type(mtdpot) :: pot
+    integer :: steps
+    real(wp) :: dum
+    real(wp),parameter :: tol = 0.9999_wp
+    steps = 0
+    do 
+     steps = steps + 1
+     dum = float(steps)
+     call calc_damp(pot,cv_rmsd, dum)
+     if( pot%damp > tol)then
+       pot%damp = 0.0_wp
+       exit
+     endif
+    enddo 
+  end function check_dump_steps_rmsd
 
 !========================================================================================!
   subroutine calc_damp2(pot,t,damp)
@@ -366,7 +460,7 @@ contains  !> MODULE PROCEDURES START HERE
         call rmsd(mol%nat,mol%xyz,xyzref,1,U,x_center,y_center,rmsdval, &
         &          .true.,grad)
         E = pot%kpush*exp(-pot%alpha*rmsdval**2)
-        if (i == pot%ncur) then
+        if (i == pot%ncur .or. pot%mtdtype == cv_rmsd_static) then
           E = E*pot%damp
         end if
         ebias = ebias+E
@@ -400,7 +494,7 @@ contains  !> MODULE PROCEDURES START HERE
         call rmsd(k,xyzcp,xyzref,1,U,x_center,y_center,rmsdval, &
         &          .true.,grad)
         E = pot%kpush*exp(-pot%alpha*rmsdval**2)
-        if (i == pot%ncur) then
+        if (i == pot%ncur .or. pot%mtdtype == cv_rmsd_static) then
           E = E*pot%damp
         end if
         ebias = ebias+E

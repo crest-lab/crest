@@ -861,7 +861,7 @@ end subroutine cat_mod
 
 subroutine checkbinary(env)
   use crest_data
-  use syscheck
+  use iomod, only: checkprog
   implicit none
   type(systemdata) :: env
   integer :: r

@@ -117,15 +117,15 @@ subroutine parseflags(env,arg,nra)
   env%Threads = 1                !> total number of threads
   env%MAXRUN = 1                 !> number of parallel xtb jobs
   env%omp = 1                    !> # of OMP_NUM_THREADS and MKL_NUMTHREADS to be used
-  env%autothreads = .false.      !> automatically determine optimal parameters omp and MAXRUN
+  env%autothreads = .true.       !> automatically determine optimal parameters omp and MAXRUN
   env%threadssetmanual = .false. !> did the user set the #threads manually?
 
-  env%scratch = .false.        !> use scratch directory?
+  env%scratch = .false.          !> use scratch directory?
   env%scratchdir = ''            !> directory that shall be used for scratch
 
 !>--- xtb settings
   env%ProgName = 'xtb'           !> the name of the xtb executable used per default
-  env%ProgIFF = 'xtbiff'        !> name of the IFF that is per default xtbiff, only for  QCG
+  env%ProgIFF = 'xtbiff'         !> name of the IFF that is per default xtbiff, only for  QCG
   env%optlev = 2.0d0             !> optimization level for the GFN-xTB optimizations in ALL steps
   env%gbsa = .false.             !> use GBSA (or ALPB)
   env%solv = ''                  !> if gbsa is used, the entrie flag will be written into here
@@ -133,7 +133,7 @@ subroutine parseflags(env,arg,nra)
   env%uhf = 0                    !> nα-nβ electrons
   env%gfnver = '--gfn2'          !> selct the GFN verison as complete flag(!)
   env%gfnver2 = ''               !> a second level, used for multilevel post-optimization
-  env%ensemble_opt = '--gff'    !> qcg specific method for ensemble search and optimization
+  env%ensemble_opt = '--gff'     !> qcg specific method for ensemble search and optimization
 
 !--- cregen settings
   env%confgo = .false.           !> perform confg (cregen) subroutine only

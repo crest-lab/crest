@@ -34,6 +34,7 @@ if fc_id == 'gcc'
     '-Wno-uninitialized',
     '-Wno-unused-variable',
     '-Wno-unused-dummy-argument',
+    '-Wno-unused-function',
     language: 'fortran',
   )
 elif fc_id == 'intel'
@@ -66,6 +67,17 @@ endif
 
 add_project_arguments('-D_Float128=__float128', language: 'c')
 
+
+## ========================================= ##
+## build type option arguments
+## ========================================= ## 
+if ( get_option('default_library') == 'static')
+  message('Static linking selected')
+  add_project_link_arguments('-static', language: 'fortran')
+  add_project_link_arguments('-static', language: 'c') # icc will do linking
+endif
+
+
 ## ========================================= ##
 ## OpenMP
 ## ========================================= ##
@@ -84,6 +96,7 @@ endif
 ## Linear Algebra Libraries
 ## ======================================== ##
 la_backend = get_option('la_backend')
+message('Linear algebra backend: '+get_option('la_backend'))
 if la_backend == 'mkl' or la_backend == 'mkl-static'
   add_project_arguments('-DWITH_MKL', language: 'fortran')
   if la_backend == 'mkl-static'

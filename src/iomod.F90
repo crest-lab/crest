@@ -20,7 +20,7 @@
 !> This is a collection of various IO subroutines
 
 module iomod
-  use iso_fortran_env,wp => real64
+  use iso_fortran_env,wp => real64,stdout=>output_unit
   use iso_c_binding
   implicit none
   public
@@ -96,6 +96,10 @@ module iomod
     module procedure to_str_bool
   end interface to_str
 
+  public :: checkprog
+  public :: checkprog_silent
+  private :: getpath
+
 !========================================================================================!
 !========================================================================================!
 contains !> MODULE PROCEDURES START HERE
@@ -142,7 +146,7 @@ contains !> MODULE PROCEDURES START HERE
     do
       read (ich,'(a)',iostat=io) str
       if (io < 0) exit
-      write (*,'(a)') trim(str)
+      write (stdout,'(a)') trim(str)
     end do
     close (ich)
   end subroutine cat
@@ -161,7 +165,7 @@ contains !> MODULE PROCEDURES START HERE
     do
       read (ich,'(a)',iostat=io) str
       if (io < 0) exit
-      write (*,'(a)') trim(str)
+      write (stdout,'(a)') trim(str)
     end do
     close (unit=ich,status='delete')
   end subroutine catdel
@@ -236,7 +240,7 @@ contains !> MODULE PROCEDURES START HERE
       call remove(to)
       call rename(from,to)
     else
-      write (*,'(''file '',a,'' does not exist!'')') trim(from)
+      write (stdout,'(''file '',a,'' does not exist!'')') trim(from)
     end if
   end subroutine move
 
@@ -421,13 +425,12 @@ contains !> MODULE PROCEDURES START HERE
     return
   end subroutine grepval
 
-
 !---------------------------------------------------------------------------
 ! grepcntx: a grep subroutine that returns the entire line containing "str"
 ! or the specified line after the occurence of "str", given
 ! If str is not present, "bool" returns .false.
 !---------------------------------------------------------------------------
-  subroutine grepcntxt(fil,str,bool,line, context)
+  subroutine grepcntxt(fil,str,bool,line,context)
     implicit none
     integer :: ich,och
     logical :: ex
@@ -435,7 +438,7 @@ contains !> MODULE PROCEDURES START HERE
     logical :: track
     character(len=*),intent(in) :: fil
     character(len=*),intent(in) :: str
-    character(len=*),intent(out) :: line 
+    character(len=*),intent(out) :: line
     integer,intent(in),optional :: context
     integer :: cntxt
     character(len=512) :: tmp
@@ -446,11 +449,11 @@ contains !> MODULE PROCEDURES START HERE
     val = 0.0d0
     line = ''
     itrack = 0
-    if(present(context))then
+    if (present(context)) then
       reftrack = max(0,context)
     else
-      reftrack = 0 
-    endif
+      reftrack = 0
+    end if
     open (newunit=ich,file=fil)
     do
       read (ich,'(a)',iostat=io) tmp
@@ -460,20 +463,18 @@ contains !> MODULE PROCEDURES START HERE
         bool = .true.
         track = .true.
       end if
-      if(track)then
-        if(itrack == reftrack)then
+      if (track) then
+        if (itrack == reftrack) then
           line = trim(tmp)
-          exit 
+          exit
         else
-          itrack = itrack + 1
-        endif 
-      endif
+          itrack = itrack+1
+        end if
+      end if
     end do
     close (ich)
     return
   end subroutine grepcntxt
-
-
 
 !--------------------------------------------------------------------------------------
 ! Write a file with a single line (INT)
@@ -686,10 +687,10 @@ contains !> MODULE PROCEDURES START HERE
     character(len=*) :: pwdref    ! check for this password
     character(len=:),allocatable :: pwd
     pwd = pwdref !allocate max length of pwd
-    write (*,'(/,1x,a)',advance='no') 'Locked feature. Enter password: '
+    write (stdout,'(/,1x,a)',advance='no') 'Locked feature. Enter password: '
     read (*,*) pwd
     if (pwd == pwdref) then
-      write (*,'(1x,a,/)') 'Valid. Continue.'
+      write (stdout,'(1x,a,/)') 'Valid. Continue.'
     else
       error stop 'Invalid. Stop.'
     end if
@@ -741,23 +742,29 @@ contains !> MODULE PROCEDURES START HERE
     return
   end function filechecker
 
-! Checking directories with Fortran's inquire is not handled by the standard.
-! The interpretation whether or not to report a directory as file is compiler
-! specific and therefore always an extension to the Fortran standard.
+!=========================================================================================!
+!=========================================================================================!
+!=========================================================================================!
+
+!> Checking directories with Fortran's inquire is not handled by the standard.
+!> The interpretation whether or not to report a directory as file is compiler
+!> specific and therefore always an extension to the Fortran standard.
   function directory_exist(file) result(exist)
     character(len=*),intent(in) :: file
     logical :: exist
 #ifdef __INTEL_COMPILER
-    ! Intel provides the directory extension to inquire to handle this case
+    !> Intel provides the directory extension to inquire to handle this case
     inquire (directory=file,exist=exist)
 #else
-    ! GCC handles directories as files, to make sure we get a directory and
-    ! not a file append a path separator and the current dir
+    !> GCC handles directories as files, to make sure we get a directory and
+    !> not a file append a path separator and the current dir
     inquire (file=trim(file)//"/.",exist=exist)
 #endif
   end function directory_exist
 
-!========================================================================================!
+!=========================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 !> type conversion routines
 !> 8 bit integers
   subroutine i8_to_string(i_in,str_out)
@@ -902,4 +909,111 @@ contains !> MODULE PROCEDURES START HERE
   end function truncate_zeros
 
 !========================================================================================!
+!========================================================================================!
+!========================================================================================!
+
+  subroutine getpath(fname,path)
+    implicit none
+    character(len=*) :: fname
+    character(len=*) :: path
+    character(len=:),allocatable :: checkcall
+    character(len=:),allocatable :: pipe
+    integer :: rcode,ich,io
+
+    pipe = ' >/dev/null 2>/dev/null'
+
+    checkcall = 'command -v '//trim(fname)//pipe
+    call command(checkcall,rcode)
+
+    if (rcode .eq. 0) then
+      checkcall = 'command -v '//trim(fname)//' > pathout.tmp 2>/dev/null'
+      call command(checkcall,io)
+      open (newunit=ich,file='pathout.tmp')
+      read (ich,'(a)') path
+      close (ich,status='delete')
+    end if
+    return
+  end subroutine getpath
+!=========================================================================================!
+  subroutine checkprog(fname,r)
+    implicit none
+    character(len=*) :: fname
+    character(len=:),allocatable :: checkcall
+    character(len=:),allocatable :: pipe
+    integer :: rcode,r
+    character(len=512) :: path
+
+    pipe = ' >/dev/null 2>/dev/null'
+
+    checkcall = 'command -v '//trim(fname)//pipe
+    call command(checkcall,rcode)
+
+    write (stdout,'(4x,a,a,a)') 'binary: "',trim(fname),'"'
+    if (rcode .ne. 0) then
+      write (stdout,'(4x,a)') 'status: not found'
+      r = r+1
+    else
+      write (stdout,'(4x,a)') 'status: present'
+      call getpath(fname,path)
+      write (stdout,'(4x,a,a)') 'path  : ',trim(path)
+    end if
+
+    return
+  end subroutine checkprog
+!=========================================================================================!
+! the same as above but only provide a printout (at all) if the program is not present!
+  subroutine checkprog_silent(fname,verbose,iostat)
+    implicit none
+    character(len=*) :: fname
+    logical,intent(in),optional :: verbose
+    integer,intent(out),optional :: iostat
+    character(len=:),allocatable :: checkcall
+    character(len=:),allocatable :: pipe
+    integer :: io
+
+    pipe = ' >/dev/null 2>/dev/null'
+    checkcall = 'command -v '//trim(fname)//pipe
+    call command(trim(checkcall), exitstat=io)
+
+    if(present(verbose))then
+    if (io .ne. 0 .and. verbose) then
+      write (stdout,'(4x,a,a,a)') 'binary: "',trim(fname),'"'
+      write (stdout,'(4x,a)') 'status: not found'
+    end if
+    endif
+
+    if(present(iostat))then
+       iostat = io
+    endif
+
+    return
+  end subroutine checkprog_silent
+
+!========================================================================================!
+!========================================================================================!
+!========================================================================================!
+
+!> For some reason the behaviour of "call system"  and "call execute_command_line"
+!> differs slightly beteen Intel and GNU versions of the program that I have build.
+!> I don't understand why this is the case.
+!> To circumvent issues for now, I will simpy include two different wrappers with
+!> precompiler statements.
+!> It doesn't matter too much as these are mostly relevant for legacy routines.
+  subroutine command(cmd,exitstat)
+    implicit none
+    character(len=*),intent(in) :: cmd
+    integer,intent(out),optional :: exitstat
+    integer :: io
+#ifdef __INTEL_COMPILER
+    call execute_command_line(trim(cmd),exitstat=io)
+#else
+    call system(trim(cmd),io)
+#endif
+    if (present(exitstat)) exitstat = io
+  end subroutine command
+
+!========================================================================================!
+!========================================================================================!
+!========================================================================================!
 end module iomod
+

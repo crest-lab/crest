@@ -226,7 +226,7 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
       !$omp critical
          write(tmppath,'(a,i0)')trim(base),vz
       !$omp end critical
-         call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
       !$omp critical
         k=k+1
         if(niceprint)then
@@ -458,7 +458,7 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
          endif
 
        !-- run the optimization
-       call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)  
+       call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)  
 
        !$omp critical
         !-- write structure to ensemble

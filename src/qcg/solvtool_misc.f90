@@ -42,7 +42,7 @@ subroutine xtbsp3(env, fname)
    write (jobcall, '(a,1x,a,1x,a,'' --sp '',a,1x,a)') &
    &     trim(env%ProgName), trim(fname), trim(env%gfnver), trim(env%solv), trim(pipe)
 
-   call execute_command_line(trim(jobcall), exitstat=io)
+   call command(trim(jobcall), io)
 !---- cleanup
    call remove('energy')
    call remove('charges')
@@ -75,11 +75,9 @@ subroutine xtb_lmo(env, fname)!,chrg)
    end if
 
 !---- jobcall, special gbsa treatment not needed, as the entire flag is included in env%solv
-!        write(jobcall,'(a,1x,a,1x,a,'' --sp --lmo '',a,1x,a)') &
-!        &     trim(env%ProgName),trim(fname),trim(env%lmover),trim(env%solv),trim(pipe)
    write (jobcall, '(a,1x,a,1x,a,'' --sp --lmo '',a)') &
    &     trim(env%ProgName), trim(fname), trim(env%lmover), trim(pipe)
-   call system(trim(jobcall))
+   call command(trim(jobcall))
 
 !--- cleanup
    call remove('wbo')
@@ -126,7 +124,7 @@ subroutine xtb_iff(env, file_lmo1, file_lmo2, solu, clus)
       &     trim(env%ProgIFF), trim(file_lmo1), trim(file_lmo2), solu%nat, clus%ell_abc, trim(pipe)
 !            &     trim(env%ProgIFF),trim(solvent_file),trim(solute_file),solu%nat,clus%ell_abc,trim(pipe)
    end if
-   call system(trim(jobcall))
+   call command(trim(jobcall))
 
 !--- Cleanup
    call remove('xtbiff_bestsofar.xyz')
@@ -172,7 +170,7 @@ subroutine xtb_dock(env, fnameA, fnameB, solu, clus)
            & ''--input xcontrol > xtb_dock.out'',a)') &
            &     trim(env%ProgName), trim(fnameA), trim(fnameB), trim(env%gfnver),&
            &     env%optlev, solu%nat, trim(env%docking_qcg_flag), trim(pipe)
-   call system(trim(jobcall))
+   call command(trim(jobcall))
 
 ! cleanup
    call remove('wbo')
@@ -226,7 +224,7 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
       write (jobcall, '(a,1x,a,1x,a,'' --opt '',f4.2,1x,a,'' > xtb_opt.out'',a)') &
       &     trim(env%ProgName), trim(fname), trim(env%gfnver), env%optlev, trim(env%solv), trim(pipe)
    end if
-   call system(trim(jobcall))
+   call command(trim(jobcall))
 
 ! cleanup
    call remove('wbo')
@@ -238,7 +236,7 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
       write (jobcall, '(a,1x,a,1x,a,'' --sp '',a,'' > xtb_sp.out'',a)') &
       &    trim(env%ProgName), 'xtbopt.coord', trim(env%gfnver), trim(env%solv), trim(pipe)
    end if
-   call system(trim(jobcall))
+   call command(trim(jobcall))
 
 ! cleanup
    call remove('wbo')
@@ -295,7 +293,7 @@ subroutine ensemble_lmo(env, fname, self, NTMP, TMPdir, conv)
       vz = i
       !$omp task firstprivate( vz ) private( tmppath )
       write (tmppath, '(a,i0)') trim(TMPdir), conv(vz)
-      call system('cd '//trim(tmppath)//' && '//trim(jobcall))
+      call command('cd '//trim(tmppath)//' && '//trim(jobcall))
       !$omp critical
       k = k + 1
       percent = float(k)/float(NTMP)*100
@@ -374,7 +372,7 @@ subroutine ensemble_iff(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, NTMP
       write (jobcall, '(a,1x,a,1x,a,'' -nfrag1 '',i3,'' -ellips '',3f9.3,'' -qcg '',a,'' >iff.out'')') &
 &         trim(env%ProgIFF), trim(frag1_file), trim(frag2_file), nfrag1, outer_ell_abc(conv(vz), 1:3)*0.9, trim(pipe)
       write (tmppath, '(a,i0)') trim(TMPdir), conv(vz)
-      call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall))
+      call command('cd '//trim(tmppath)//' && '//trim(jobcall))
       !$omp critical
       k = k + 1
       percent = float(k)/float(NTMP)*100
@@ -468,7 +466,7 @@ subroutine ensemble_dock(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, n_s
       vz = i
       !$omp task firstprivate( vz ) private( tmppath )
       write (tmppath, '(a,i0)') trim(TMPdir), conv(vz)
-      call system('cd '//trim(tmppath)//' && '//trim(jobcall))
+      call command('cd '//trim(tmppath)//' && '//trim(jobcall))
       !$omp critical
       k = k + 1
       percent = float(k)/float(NTMP)*100
@@ -571,7 +569,7 @@ subroutine cff_opt(postopt, env, fname, n12, NTMP, TMPdir, conv, nothing_added)
       vz = i
       !$omp task firstprivate( vz ) private( tmppath )
       write (tmppath, '(a,i0)') trim(TMPdir), conv(vz)
-      call system('cd '//trim(tmppath)//' && '//trim(jobcall))
+      call command('cd '//trim(tmppath)//' && '//trim(jobcall))
       !$omp critical
       k = k + 1
       percent = float(k)/float(NTMP)*100
@@ -615,7 +613,7 @@ subroutine cff_opt(postopt, env, fname, n12, NTMP, TMPdir, conv, nothing_added)
       vz = i
       !$omp task firstprivate( vz ) private( tmppath )
       write (tmppath, '(a,i0)') trim(TMPdir), conv(vz)
-      call system('cd '//trim(tmppath)//' && '//trim(jobcall))
+      call command('cd '//trim(tmppath)//' && '//trim(jobcall))
       !$omp critical
       k = k + 1
       percent = float(k)/float(NTMP)*100
@@ -704,7 +702,7 @@ subroutine ens_sp(env, fname, NTMP, TMPdir)
       vz = i
       !$omp task firstprivate( vz ) private( tmppath )
       write (tmppath, '(a,i0)') trim(TMPdir), i
-      call system('cd '//trim(tmppath)//' && '//trim(jobcall))
+      call command('cd '//trim(tmppath)//' && '//trim(jobcall))
       !$omp critical
       k = k + 1
       percent = float(k)/float(NTMP)*100
@@ -794,7 +792,7 @@ subroutine ens_freq(env, fname, NTMP, TMPdir, opt)
       vz = i
       !$omp task firstprivate( vz ) private( tmppath )
       write (tmppath, '(a,i0)') trim(TMPdir), i
-      call system('cd '//trim(tmppath)//' && '//trim(jobcall))
+      call command('cd '//trim(tmppath)//' && '//trim(jobcall))
       !$omp critical
       k = k + 1
       percent = float(k)/float(NTMP)*100
