@@ -214,6 +214,8 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
  
   type(calcdata),allocatable :: calculations(:)
   integer :: vz,job,thread_id
+  real(wp) :: etmp
+  real(wp),allocatable :: grdtmp(:,:)
 !===========================================================!
 
 
@@ -237,7 +239,11 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   T = env%threads
   allocate (calculations( T ),source=env%calc)
   allocate (moltmps( T ), source=mol )
+  allocate (grdtmp(3,mol%nat), source =0.0_wp) 
   do i = 1,T
+    moltmps(i)%nat = mol%nat
+    moltmps(i)%at = mol%at
+    moltmps(i)%xyz = mol%xyz
     do j = 1,calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
       !>--- directories
@@ -249,6 +255,9 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
     end do
     calculations(i)%pr_energies = .false.
+    !>--- initialize the calculations
+    !call calculations(i)%info(stdout)
+    call engrad(moltmps(i),calculations(i),etmp,grdtmp,io)
   end do
 
   !>--- other settings
@@ -268,7 +277,6 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     thread_id = OMP_GET_THREAD_NUM()
     job = thread_id + 1
     !$omp critical
-    !allocate(moltmp%at(mol%nat),moltmp%xyz(3,mol%nat))
     moltmps(job)%nat = mol%nat
     moltmps(job)%at = mol%at
     moltmps(job)%xyz = mol%xyz

@@ -29,7 +29,7 @@ module dynamics_module
   use atmasses
   use shake_module
   use metadynamics_module
-
+!$ use omp_lib
   implicit none
 
   !======================================================================================!
@@ -102,13 +102,6 @@ module dynamics_module
 
   public :: dynamics
   public :: mdautoset
-  !public :: ekinet
-  !public :: u_block
-  !public :: wrmdrestart
-  !public :: mdinitu
-  !public :: rmrottr
-  !public :: h_abort_sigint
-  !public :: h_abort_sigterm
 
 !========================================================================================!
 !========================================================================================!
@@ -156,7 +149,9 @@ contains  !> MODULE PROCEDURES START HERE
     logical :: ex
 
     call initsignal()
+
 !>--- pre-settings and calculations
+    !$omp critical 
     call dat%defaults() !> check for unset parameters
     term = 0
     tstep_au = dat%tstep * fstoau
@@ -182,6 +177,7 @@ contains  !> MODULE PROCEDURES START HERE
     dat%maxblock = nint(dat%length_steps / float(dat%blockl))
     allocate (dat%blocke(dat%blockl),dat%blockt(dat%blockl))
     allocate (dat%blockrege(dat%maxblock))
+    !$omp end critical
 
 !>--- settings printout
     if (pr) then
@@ -208,6 +204,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
 !>--- set atom masses
+    !$omp critical
     molmass = 0.0_wp
     do i = 1,mol%nat
       molmass = molmass + ams(mol%at(i))
@@ -220,6 +217,7 @@ contains  !> MODULE PROCEDURES START HERE
       end if
     end do
     molmass = molmass * amutokg
+    !$omp end critical
 
 !>--- initialize velocities (or read from restart file)
     if (dat%thermostat) then
@@ -272,7 +270,8 @@ contains  !> MODULE PROCEDURES START HERE
       !>--- singlepoint calculation
       epot = 0.0_wp
       grd = 0.0_wp
-      call engrad(mol%nat,mol%xyz,mol%at,calc,epot,grd,io)
+      call engrad(mol,calc,epot,grd,io)
+
       if (io /= 0) then
         if (dat%dumped > 0) then
           term = 2
@@ -289,7 +288,9 @@ contains  !> MODULE PROCEDURES START HERE
       if (dat%simtype == type_mtd) then
         !> MTD energy and gradient are added to epot and grd, respectively.
         call md_calc_mtd(mol,dat,epot,grd,pr)
+        !$omp critical
         call md_update_mtd(mol,dat,calc,pr)
+        !$omp end critical
       end if
 
       !>--- block data printouts
@@ -328,9 +329,11 @@ contains  !> MODULE PROCEDURES START HERE
       end do
 
       !>--- store positions (at t); velocities are at t-1/2dt
+      !$omp critical
       molo%nat = mol%nat
       molo%at  = mol%at
       molo%xyz = mol%xyz
+      !$omp end critical
 
       !>>-- STEP 2: temperature and pressure/density control
       !>--- estimate(!) velocities at t
@@ -1012,6 +1015,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
   subroutine md_calc_mtd(mol,dat,epot,grd,pr)
+!$ use omp_lib
     implicit none
     type(coord) :: mol
     type(mddata) :: dat

@@ -173,6 +173,7 @@ contains  !> MODULE PROCEDURES START HERE
 !* subroutine cv_dump
 !* update the list of CVs at the current MD timestep
 !*****************************************************
+!$ use omp_lib
     implicit none
     type(coord) :: mol
     type(mtdpot) :: pot
@@ -186,7 +187,7 @@ contains  !> MODULE PROCEDURES START HERE
 
     case (rmsd_mtd) !>--- structure mapping for RMSD MTD
       pot%cvdump = pot%cvdump+1
-      if (pot%cvdump == pot%cvdumpstep) then
+      if (pot%cvdump == pot%cvdumpstep) then !> the MTD tracks when it needs to be updated
         pot%cvdump = 0
         pot%ncur = pot%ncur+1
         pot%cvxyz(:,:,pot%ncur) = mol%xyz(:,:)

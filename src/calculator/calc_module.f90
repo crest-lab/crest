@@ -30,6 +30,7 @@ module calc_module
 !>--- other
   use constraints
   use nonadiabatic_module
+!$ use omp_lib
   implicit none
 !=========================================================================================!
 !>--- private module variables and parameters
@@ -83,6 +84,14 @@ contains  !> MODULE PROCEDURES START HERE
 !==========================================================!
     call initsignal()
 
+!==========================================================!
+    !>--- check for sane input
+    dum1 = sum(mol%xyz) 
+    if(dum1.ne.dum1)then !> NaN catch, we don't want to calculate garbage.
+     iostatus = 1        !> For some builds I found this necessary because
+     return              !> OpenMP can get picky...
+    endif
+
     !>--- Calculation setup
     n = calc%ncalculations
 
@@ -97,13 +106,13 @@ contains  !> MODULE PROCEDURES START HERE
         end do
       end if
     end if
-    !$omp end critical
-
+    
     iostatus = 0
     dum1 = 1.0_wp
     dum2 = 1.0_wp
     calc%etmp = 0.0_wp
-    !calc%grdtmp = 0.0_wp
+    calc%grdtmp = 0.0_wp
+    !$omp end critical
 
 !==========================================================!
     !>--- Calculation
@@ -133,7 +142,6 @@ contains  !> MODULE PROCEDURES START HERE
  
         case (jobtype%gfnff) !>-- GFN-FF api
           call gfnff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-
 
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
