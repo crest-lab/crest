@@ -45,8 +45,13 @@ module dynamics_module
   !>-- filetypes as integers
   integer,parameter,public :: type_md = 1
   integer,parameter,public :: type_mtd = 2
-  !>-- reexports from metadynamics_module
+
+  !>-- REEXPORTS from metadynamics_module
+  public :: mtdpot, mtd_ini, cv_dump, calc_mtd
   public :: cv_std_mtd, cv_rmsd, cv_rmsd_static
+
+  !>-- REEXPORTS from shake_module
+  public :: shakedata, init_shake
 
   public :: mddata
   !======================================================================================!

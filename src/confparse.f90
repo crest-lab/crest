@@ -1397,7 +1397,7 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
 !------ flags for parallelization / disk space
 !========================================================================================!
-      case ('-T','-P','-parallel')                            !set total number of OMP threads, this replaces -P and -O entirely
+      case ('-T','-P','-parallel')  !set total number of OMP threads, this replaces -P and -O entirely
         call readl(arg(i + 1),xx,j)
         if (index(arg(i + 1),'-') .ne. 0) xx = 0d0
         env%Threads = nint(xx(1))
@@ -1405,7 +1405,7 @@ subroutine parseflags(env,arg,nra)
         env%threadssetmanual = .true.
         write (*,'(2x,a,1x,i0,1x,a)') trim(arg(i)),nint(xx(1)), &
         &     '(CPUs/Threads selected)'
-      case ('-inplace')               ! activate in-place mode for optimizations (ON by default)
+      case ('-inplace')     ! activate in-place mode for optimizations (ON by default)
         env%inplaceMode = .true.
 !========================================================================================!
 !------- CREGEN related flags

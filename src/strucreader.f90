@@ -37,14 +37,12 @@
 module strucrd
   use iso_fortran_env,only:wp => real64
   use iso_c_binding
-  use geo !> simple geomerty and vector operations       
+  use geo !> simple geomerty and vector operations
   implicit none
 
 !=========================================================================================!
 !>--- private module variables and parameters
   private
-  integer :: i,j,k,ich,io
-  logical :: ex
 
 !>--- some constants and name mappings
   real(wp),parameter :: bohr = 0.52917726_wp
@@ -64,28 +62,28 @@ module strucrd
 
 !>--- Element symbols
 !&<
-   character(len=2),private,parameter :: PSE(118) = [ &
-  & 'H ',                                                                                'He', &
-  & 'Li','Be',                                                  'B ','C ','N ','O ','F ','Ne', &
-  & 'Na','Mg',                                                  'Al','Si','P ','S ','Cl','Ar', &
-  & 'K ','Ca','Sc','Ti','V ','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr', &
-  & 'Rb','Sr','Y ','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I ','Xe', &
-  & 'Cs','Ba','La',                                                                            &
-  &                'Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb','Lu',      &
-  &                'Hf','Ta','W ','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn', &
-  & 'Fr','Ra','Ac',                                                                            &
-  &                'Th','Pa','U ','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No','Lr',      &
-  &                'Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn','Nh','Fl','Mc','Lv','Ts','Og' ]
+  character(len=2),private,parameter :: PSE(118) = [ &
+ & 'H ',                                                                                'He', &
+ & 'Li','Be',                                                  'B ','C ','N ','O ','F ','Ne', &
+ & 'Na','Mg',                                                  'Al','Si','P ','S ','Cl','Ar', &
+ & 'K ','Ca','Sc','Ti','V ','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr', &
+ & 'Rb','Sr','Y ','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I ','Xe', &
+ & 'Cs','Ba','La',                                                                            &
+ &                'Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb','Lu',      &
+ &                'Hf','Ta','W ','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn', &
+ & 'Fr','Ra','Ac',                                                                            &
+ &                'Th','Pa','U ','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No','Lr',      &
+ &                'Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn','Nh','Fl','Mc','Lv','Ts','Og' ]
 !&>
 
 !=========================================================================================!
 !>--- public subroutines
-  public :: i2e          !> function to convert atomic number to element symbol  
-  public :: asym         !> " 
-  interface asym         !> " 
-    module procedure i2e !> " 
-  end interface asym      
-  public :: e2i          !> function to convert element symbol into atomic number 
+  public :: i2e          !> function to convert atomic number to element symbol
+  public :: asym         !> "
+  interface asym         !> "
+    module procedure i2e !> "
+  end interface asym
+  public :: e2i          !> function to convert element symbol into atomic number
   public :: grepenergy
   public :: checkcoordtype
 
@@ -107,7 +105,7 @@ module strucrd
   end interface wrcoord
 
   !>--- write a XYZ coord file
-  public :: wrxyz 
+  public :: wrxyz
   interface wrxyz
     module procedure wrxyz_file
     module procedure wrxyz_file_mask
@@ -121,11 +119,9 @@ module strucrd
     module procedure wrsdf_channel
   end interface wrsdf
 
-
   public :: xyz2coord
   public :: coord2xyz
 
-  public :: openensembledummy
   public :: rdensembleparam   !-- read Nat and Nall for a XYZ trajectory
   public :: rdensemble        !-- read a XYZ trajectory
   interface rdensemble
@@ -134,6 +130,8 @@ module strucrd
     module procedure rdensemble_conf3
 
     module procedure rdensemble_mixed2
+    
+    module procedure rdensemble_coord_type
   end interface rdensemble
 
   public :: wrensemble
@@ -175,7 +173,9 @@ module strucrd
   !by convention coordinates are in atomic units (Bohr) for a single structure!
   type :: coord
 
-    !> data that's typically used in coord type
+    !********************************************!
+    !> data that's typically used in coord type <!
+    !********************************************!
     !>-- number of atoms
     integer :: nat = 0
     !>-- energy
@@ -184,10 +184,12 @@ module strucrd
     integer,allocatable  :: at(:)
     !>-- atomic coordinates, by convention in Bohrs
     real(wp),allocatable :: xyz(:,:)
-    !>-- a comment line 
-    character(len=:),allocatable :: comment 
 
-    !> (optional) data, often not present
+    !**************************************!
+    !> (optional) data, often not present <!
+    !**************************************!
+    !>-- a comment line
+    character(len=:),allocatable :: comment
     !>-- molecular charge
     integer :: chrg = 0
     !>-- multiplicity information
@@ -195,7 +197,7 @@ module strucrd
     !>-- number of bonds
     integer :: nbd = 0
     !>-- bond info
-    integer,allocatable :: bond(:,:) 
+    integer,allocatable :: bond(:,:)
     !>-- lattice vectors
     real(wp),allocatable :: lat(:,:)
 
@@ -250,35 +252,6 @@ contains  !> MODULE PROCEDURES START HERE
 !=========================================================================================!
 !=========================================================================================!
 
-  subroutine openensembledummy(fname) !DUMMY FUNCTION FOR IMPLEMENTATION TESTING
-    implicit none
-    character(len=*),intent(in) :: fname
-    integer :: nat
-    integer,allocatable :: at(:)
-    real(wp),allocatable :: xyz(:,:,:)
-    real(wp),allocatable :: eread(:)
-    integer :: nall
-
-    call rdensembleparam(fname,nat,nall)
-
-    write (*,*) trim(fname),nat,nall
-    write (*,*) fextension(fname)
-
-    if (nat > 0 .and. nall > 0) then
-      allocate (at(nat),xyz(3,nat,nall),eread(nall))
-      call rdensemble(fname,nat,nall,at,xyz,eread)
-
-      call wrensemble('new.dummy.xyz',nat,nall,at,xyz,eread)
-
-      call wrcoord('dum.coord',nat,at,xyz(:,:,1) / bohr)
-      deallocate (eread,xyz,at)
-    else
-      error stop 'format error while reading ensemble file.'
-    end if
-
-    return
-  end subroutine openensembledummy
-
 !==================================================================!
 ! subroutine rdensembleparam
 ! read a ensemble file and get some information from
@@ -303,13 +276,15 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: dum,iosum
     integer :: natref
     real(wp) :: x,y,z
+    integer :: i,j,k,ich,io
+    logical :: ex
     character(len=10) :: str
     conformdum = .true.
     nat = 0
     nall = 0
     natref = 0
     inquire (file=fname,exist=ex)
-    if (.not. ex) return
+    if (.not.ex) return
     open (newunit=ich,file=fname)
     do
       read (ich,*,iostat=io) dum
@@ -322,12 +297,12 @@ contains  !> MODULE PROCEDURES START HERE
       do i = 1,dum
         read (ich,*,iostat=io) str,x,y,z
         if (io < 0) exit
-        iosum = iosum + io
+        iosum = iosum+io
       end do
       if (iosum > 0) cycle
       nat = max(dum,nat)
       if (dum .ne. natref) conformdum = .false.
-      nall = nall + 1
+      nall = nall+1
     end do
     close (ich)
     if (present(conform)) conform = conformdum
@@ -348,8 +323,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: at(nat)
     real(wp) :: xyz(3,nat,nall)
     real(wp) :: eread(nall)
-    integer :: i,j
-    integer :: io,ich
+    integer :: i,j,k,ich,io
+    logical :: ex
     integer :: dum
     character(len=512) :: line
     character(len=6) :: sym
@@ -400,8 +375,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: nall
     integer :: at(nat)
     real(wp) :: xyz(3,nat,nall)
-    integer :: i,j
-    integer :: io,ich
+    integer :: i,j,k,ich,io
+    logical :: ex
     integer :: dum,nallnew
     character(len=512) :: line
     character(len=6) :: sym
@@ -453,8 +428,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer,allocatable :: atdum(:)
     real(wp) :: xyz(3,nat,nall)
     character(len=*) :: comments(nall)
-    integer :: i,j,k
-    integer :: io,ich
+    integer :: i,j,k,ich,io
+    logical :: ex
     integer :: dum,nallnew
     character(len=512) :: line
     character(len=6) :: sym
@@ -474,7 +449,7 @@ contains  !> MODULE PROCEDURES START HERE
       if (io < 0) exit
       comments(i) = trim(line)
       do j = 1,dum
-        k = k + 1
+        k = k+1
         read (ich,'(a)',iostat=io) line
         if (io < 0) exit
         call coordline(line,sym,xyz(1:3,j,i),io)
@@ -506,7 +481,7 @@ contains  !> MODULE PROCEDURES START HERE
     do while (dum .ne. nat)
       read (ich,*,iostat=io) dum
       if (io < 0) exit
-      k = k + 1
+      k = k+1
       if (io > 0) cycle
     end do
   end subroutine ensemble_strucskip
@@ -525,8 +500,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer  :: nats(nall)
     integer  :: ats(natmax,nall)
     real(wp) :: xyz(3,natmax,nall)
-    integer :: i,j
-    integer :: io,ich
+    integer :: i,j,k,ich,io
+    logical :: ex
     integer :: dum
     character(len=512) :: line
     character(len=6) :: sym
@@ -555,6 +530,46 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end subroutine rdensemble_mixed2
 
+!========================================================================================!
+  subroutine rdensemble_coord_type(fname,nall,ensemble)
+!*********************************************************
+!* subroutine rdensemble_coord_type
+!* A variant of the rdensemble routine that automatically
+!* produces an array of coord containers
+!*********************************************************
+    implicit none
+    character(len=*),intent(in) :: fname !> name of the ensemble file
+    integer,intent(out) :: nall  !> number of structures in ensemble
+    type(coord),intent(out),allocatable :: ensemble(:)
+
+    real(wp),allocatable :: xyz(:,:,:)
+    integer :: nat
+    integer,allocatable :: at(:)
+    real(wp),allocatable :: eread(:)
+    integer :: i,j,k,ich,io
+    logical :: ex
+
+    call rdensembleparam(fname,nat,nall)
+    allocate (xyz(3,nat,nall),at(nat),eread(nall))
+    call rdensemble(fname,nat,nall,at,xyz,eread)
+    !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
+    !>--- Important: coord types must be in Bohrs
+    xyz = xyz/bohr
+    !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
+ 
+    allocate (ensemble(nall)) 
+    do i=1,nall
+      ensemble(i)%nat = nat 
+      allocate(ensemble(i)%at(nat))
+      ensemble(i)%at(:) = at(:)
+      allocate(ensemble(i)%xyz(3,nat))
+      ensemble(i)%xyz(:,:) = xyz(:,:,i)
+      ensemble(i)%energy = eread(i)
+    enddo
+
+    deallocate(eread,at,xyz)
+  end subroutine rdensemble_coord_type
+
 !=================================================================!
 ! subroutine wrensemble_conf
 ! write a ensemble file/a trajectory from memory.
@@ -566,8 +581,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: nall
     integer :: at(nat)
     real(wp) :: xyz(3,nat,nall)
-    integer :: i
-    integer :: ich
+    integer :: i,j,k,ich,io
+    logical :: ex
 
     open (newunit=ich,file=fname,status='replace')
     do i = 1,nall
@@ -590,8 +605,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: at(nat)
     real(wp) :: xyz(3,nat,nall)
     real(wp) :: er(nall)
-    integer :: i
-    integer :: ich
+    integer :: i,j,k,ich,io
+    logical :: ex
 
     open (newunit=ich,file=fname,status='replace')
     do i = 1,nall
@@ -615,9 +630,9 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: xyz(3,nat,nall)
     real(wp) :: er(nall)
     character(len=*) :: comments(nall)
-    integer :: i
-    integer :: ich
     character(len=512) :: line
+    integer :: i,j,k,ich,io
+    logical :: ex
 
     open (newunit=ich,file=fname,status='replace')
     do i = 1,nall
@@ -677,15 +692,17 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),allocatable :: xyz(:,:,:)
     real(wp),allocatable :: eread(:)
     integer :: nall
+    integer :: i,j,k,ich,io
+    logical :: ex
 
     inquire (file=fname,exist=ex)
-    if (.not. ex) then
+    if (.not.ex) then
       error stop 'ensemble file does not exist.'
     end if
 
     call rdensembleparam(fname,nat,nall)
 
-    if (nat > 0 .and. nall > 0) then
+    if (nat > 0.and.nall > 0) then
       call self%deallocate()
       allocate (at(nat),xyz(3,nat,nall),eread(nall))
       call rdensemble(fname,nat,nall,at,xyz,eread)
@@ -763,12 +780,12 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(out) :: nat
     integer,optional :: ftype
     integer :: ftypedum
-    integer :: ich,i,j,io
+    integer :: ich,i,j,io,k
     logical :: ex
     character(len=256) :: atmp
     nat = 0
     inquire (file=fname,exist=ex)
-    if (.not. ex) then
+    if (.not.ex) then
       error stop 'file does not exist.'
     end if
     if (present(ftype)) then
@@ -794,7 +811,7 @@ contains  !> MODULE PROCEDURES START HERE
         if (io < 0) exit
         atmp = adjustl(atmp)
         if (atmp(1:1) == '$') exit
-        nat = nat + 1
+        nat = nat+1
       end do
       !--- sdf V2000 (or *.mol) file
     case (sdfV2000)
@@ -811,9 +828,9 @@ contains  !> MODULE PROCEDURES START HERE
       do
         read (ich,'(a)',iostat=io) atmp
         if (io < 0) exit
-        if ((index(atmp,'V30') .ne. 0) .and. &
+        if ((index(atmp,'V30') .ne. 0).and. &
         &  (index(atmp,'COUNTS') .ne. 0)) then
-          j = index(atmp,'COUNTS') + 6
+          j = index(atmp,'COUNTS')+6
           k = len_trim(atmp)
           atmp = atmp(j:k)
           atmp = adjustl(atmp)
@@ -827,9 +844,9 @@ contains  !> MODULE PROCEDURES START HERE
       do
         read (ich,'(a)',iostat=io) atmp
         if (io < 0) exit
-        if ((index(atmp,'ATOM') .eq. 1) .or. &
+        if ((index(atmp,'ATOM') .eq. 1).or. &
         &  (index(atmp,'HETATM') .eq. 1)) then
-          nat = nat + 1
+          nat = nat+1
         end if
       end do
     case default
@@ -875,17 +892,17 @@ contains  !> MODULE PROCEDURES START HERE
       else
         call rdxmol(fname,nat,at,xyz)
       end if
-      xyz = xyz / bohr
+      xyz = xyz/bohr
     case (sdfV2000)      !-- SDF/MOL V2000 file, also Angström
       call rdsdf(fname,nat,at,xyz)
-      xyz = xyz / bohr
+      xyz = xyz/bohr
     case (sdfV3000)     !-- SDF V3000 file, Angström
       call rdsdfV3000(fname,nat,at,xyz)
-      xyz = xyz / bohr
+      xyz = xyz/bohr
     case (pdbfile)  !-- PDB file, Angström
       !error stop 'PDB file format not supported yet.'
       call rdPDB(fname,nat,at,xyz,pdbdummy)
-      xyz = xyz / bohr
+      xyz = xyz/bohr
       call pdbdummy%deallocate()
     case default
       continue
@@ -1058,15 +1075,15 @@ contains  !> MODULE PROCEDURES START HERE
     do
       read (ich,'(a)',iostat=io) atmp
       if (io < 0) exit
-      if ((index(atmp,'V30') .ne. 0) .and. &
+      if ((index(atmp,'V30') .ne. 0).and. &
       &  (index(atmp,'COUNTS') .ne. 0)) then
-        j = index(atmp,'COUNTS') + 6
+        j = index(atmp,'COUNTS')+6
         k = len_trim(atmp)
         atmp = atmp(j:k)
         atmp = adjustl(atmp)
         read (atmp,*) dum
       end if
-      if ((index(atmp,'V30') .ne. 0) .and. &
+      if ((index(atmp,'V30') .ne. 0).and. &
       &  (index(atmp,'ATOM') .ne. 0)) then
         exit
       end if
@@ -1078,8 +1095,8 @@ contains  !> MODULE PROCEDURES START HERE
       read (ich,'(a)',iostat=io) atmp
       if (io < 0) exit
       write (btmp,'(i0)') i
-      l = len_trim(btmp) + 1
-      j = index(atmp,'V30') + 3
+      l = len_trim(btmp)+1
+      j = index(atmp,'V30')+3
       k = len_trim(atmp)
       atmp = atmp(j:k)
       atmp = adjustl(atmp)
@@ -1128,9 +1145,9 @@ contains  !> MODULE PROCEDURES START HERE
     do
       read (ich,'(a)',iostat=io) atmp
       if (io < 0) exit
-      if ((index(atmp,'ATOM') .eq. 1) .or. &
+      if ((index(atmp,'ATOM') .eq. 1).or. &
       &  (index(atmp,'HETATM') .eq. 1)) then
-        k = k + 1
+        k = k+1
         read (atmp,'(A6,I5,1X,A4,A1,A3,1X,A1,I4,A1,3X,3F8.3,2F6.2,10X,A2,A2)') &
         &  dum1,i,pdbat,dum2,pdbas,pdbgp,j,dum3,xyz(1:3,k),r1,r2,sym,dum4
         at(k) = e2i(sym)
@@ -1194,7 +1211,7 @@ contains  !> MODULE PROCEDURES START HERE
       end do
     end do
     close (ich)
-    xyz = xyz / bohr
+    xyz = xyz/bohr
     return
   end subroutine rdxmolselec
 
@@ -1263,9 +1280,11 @@ contains  !> MODULE PROCEDURES START HERE
     integer,allocatable :: at(:)
     real(wp),allocatable :: xyz(:,:)
     integer :: ftype
+    integer :: i,j,k,ich,io
+    logical :: ex
 
     inquire (file=fname,exist=ex)
-    if (.not. ex) then
+    if (.not.ex) then
       error stop 'coord file does not exist.'
     end if
 
@@ -1278,7 +1297,7 @@ contains  !> MODULE PROCEDURES START HERE
       allocate (at(nat),xyz(3,nat))
       if (ftype == pdbfile) then
         call rdPDB(fname,nat,at,xyz,self%pdb)
-        xyz = xyz / bohr
+        xyz = xyz/bohr
       else
         call rdcoord(fname,nat,at,xyz)
       end if
@@ -1308,7 +1327,7 @@ contains  !> MODULE PROCEDURES START HERE
     allocate (self%xyz(3,nat))
     self%nat = nat
     self%at = at
-    self%xyz = xyz / convfac
+    self%xyz = xyz/convfac
     return
   end subroutine getcoord
 
@@ -1322,12 +1341,12 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: a1,a2
     real(wp) :: d
     d = 0.0_wp
-    if(allocated(self%xyz))then
-     d = (self%xyz(1,a1)-self%xyz(1,a2))**2 + &
-     &   (self%xyz(2,a1)-self%xyz(2,a2))**2 + &
-     &   (self%xyz(3,a1)-self%xyz(3,a2))**2
-     d = sqrt(d)
-    endif
+    if (allocated(self%xyz)) then
+      d = (self%xyz(1,a1)-self%xyz(1,a2))**2+ &
+      &   (self%xyz(2,a1)-self%xyz(2,a2))**2+ &
+      &   (self%xyz(3,a1)-self%xyz(3,a2))**2
+      d = sqrt(d)
+    end if
     return
   end function coord_getdistance
 
@@ -1341,13 +1360,13 @@ contains  !> MODULE PROCEDURES START HERE
     class(coord) :: self
     integer,intent(in) :: a1,a2,a3
     real(wp) :: angle,u(3),v(3),o(3)
-    real(wp) :: d2ij, d2jk, d2ik, xy, temp
+    real(wp) :: d2ij,d2jk,d2ik,xy,temp
     angle = 0.0_wp
-    if(allocated(self%xyz))then
-     u(1:3) = self%xyz(1:3,a1) - self%xyz(1:3,a2)
-     v(1:3) = self%xyz(1:3,a3) - self%xyz(1:3,a2)
-     angle =tangle(u,v)
-    endif
+    if (allocated(self%xyz)) then
+      u(1:3) = self%xyz(1:3,a1)-self%xyz(1:3,a2)
+      v(1:3) = self%xyz(1:3,a3)-self%xyz(1:3,a2)
+      angle = tangle(u,v)
+    end if
     return
   end function coord_getangle
 
@@ -1364,19 +1383,17 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: u(3),v(3),w(3)
     real(wp) :: n1(3),n2(3)
     real(wp) :: u1(3),u2(3),u3(3)
-    
-    dihed = 0.0_wp
-    if(allocated(self%xyz))then
 
-     u(1:3) = self%xyz(1:3,a2) - self%xyz(1:3,a1)
-     v(1:3) = self%xyz(1:3,a3) - self%xyz(1:3,a2)
-     w(1:3) = self%xyz(1:3,a4) - self%xyz(1:3,a3)
-     dihed = dihedral(u,v,w)  
-    endif
+    dihed = 0.0_wp
+    if (allocated(self%xyz)) then
+
+      u(1:3) = self%xyz(1:3,a2)-self%xyz(1:3,a1)
+      v(1:3) = self%xyz(1:3,a3)-self%xyz(1:3,a2)
+      w(1:3) = self%xyz(1:3,a4)-self%xyz(1:3,a3)
+      dihed = dihedral(u,v,w)
+    end if
     return
   end function coord_getdihedral
-
-
 
 !=========================================================================================!
 !=========================================================================================!
@@ -1402,6 +1419,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: nat
     integer :: at(nat)
     real(wp) ::  xyz(3,nat)
+    integer :: i,j,k,ich,io
+    logical :: ex
     open (newunit=ich,file=fname,status='replace')
     write (ich,'(''$coord'')')
     do j = 1,nat
@@ -1430,6 +1449,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: nat
     integer :: at(nat)
     real(wp) ::  xyz(3,nat)
+    integer :: i,j,k,ich,io
+    logical :: ex
     write (ch,'(''$coord'')')
     do j = 1,nat
       write (ch,'(3F24.12,5x,a2)') xyz(1:3,j),i2e(at(j),'lc')
@@ -1458,6 +1479,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: at(nat)
     real(wp) ::  xyz(3,nat)
     character(len=*),optional :: comment
+    integer :: i,j,k,ich,io
+    logical :: ex
     open (newunit=ich,file=fname,status='replace')
     write (ich,'(2x,i0)') nat
     if (present(comment)) then
@@ -1495,6 +1518,8 @@ contains  !> MODULE PROCEDURES START HERE
     logical :: mask(nat)
     integer :: maskednat
     character(len=*),optional :: comment
+    integer :: i,j,k,ich,io
+    logical :: ex
     open (newunit=ich,file=fname,status='replace')
     maskednat = count(mask(:))
     write (ich,'(2x,i0)') maskednat
@@ -1532,6 +1557,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: at(nat)
     real(wp) ::  xyz(3,nat)
     character(len=*),optional :: comment
+    integer :: i,j,k,ich,io
+    logical :: ex
     write (ch,'(2x,i0)') nat
     if (present(comment)) then
       write (ch,'(a)') trim(comment)
@@ -1564,6 +1591,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: at(nat)
     real(wp) ::  xyz(3,nat)
     real(wp) :: er
+    integer :: i,j,k,ich,io
+    logical :: ex
     write (ch,'(2x,i0)') nat
     write (ch,'(2x,f18.8)') er
     do j = 1,nat
@@ -1600,52 +1629,53 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=8)  :: date
     character(len=10) :: time
     integer :: list12(12),nbd
-    integer, parameter :: list4(4) = 0
-    integer, parameter :: list8(8) = 0
-    character(len=*),parameter :: countsfmt ='(3i3, 8i3, 1x, a5)'
+    integer,parameter :: list4(4) = 0
+    integer,parameter :: list8(8) = 0
+    character(len=*),parameter :: countsfmt = '(3i3, 8i3, 1x, a5)'
     character(len=*),parameter :: atmfmt = '(3f10.4, 1x, a2, 12i3)'
     character(len=*),parameter :: bndfmt = '(7i3)'
+    integer :: i,j,k,ich,io
+    logical :: ex
 
     !>--- generate data
-    call date_and_time(date, time)
+    call date_and_time(date,time)
     nbd = countbonds(nat,wbo)
     list12 = 0
     !>--- comment lines
-    call date_and_time(date, time)
-    write(ch,'(a)') trim(comment)
+    call date_and_time(date,time)
+    write (ch,'(a)') trim(comment)
     write (ch,'(1x,a, 3a2, a4, "3D",1x,a,f18.8,5x)') &
-    & 'crest',date(5:6), date(7:8), date(3:4), time(:4),'Energy =',er
-    write(ch,'(a)')
+    & 'crest',date(5:6),date(7:8),date(3:4),time(:4),'Energy =',er
+    write (ch,'(a)')
     !>--- counts line
-    write(ch,countsfmt) nat,nbd, list8, 999, 'V2000'
+    write (ch,countsfmt) nat,nbd,list8,999,'V2000'
     !>--- atom block
     do j = 1,nat
       write (ch,atmfmt) xyz(1:3,j),i2e(at(j),'nc'),list12
     end do
     !>--- bonds block
-    do i=1,nat
-      do j=i+1,nat
+    do i = 1,nat
+      do j = i+1,nat
         k = nint(wbo(j,i))
-        if( k > 0 ) then
-          write(ch,bndfmt) i,j,k,list4
-        endif
-      enddo
-    enddo
+        if (k > 0) then
+          write (ch,bndfmt) i,j,k,list4
+        end if
+      end do
+    end do
     !>--- other
-    if(present(icharges))then
+    if (present(icharges)) then
       do i = 1,nat
-        if( abs(nint(icharges(i))) /= 0)then
-        write(ch, '(a, *(i3, 1x, i3, 1x, i3))') "M  CHG", 1, i, nint(icharges(i))
-        endif
-      enddo
-    else if(chrg .ne. 0)then
-      write(ch, '(a, *(i3, 1x, i3, 1x, i3))') "M  CHG", 1, 1, chrg
-    endif
-    write(ch,'(a)') 'M  END'
-    write(ch,'(a)') '$$$$'
+        if (abs(nint(icharges(i))) /= 0) then
+          write (ch,'(a, *(i3, 1x, i3, 1x, i3))') "M  CHG",1,i,nint(icharges(i))
+        end if
+      end do
+    else if (chrg .ne. 0) then
+      write (ch,'(a, *(i3, 1x, i3, 1x, i3))') "M  CHG",1,1,chrg
+    end if
+    write (ch,'(a)') 'M  END'
+    write (ch,'(a)') '$$$$'
     return
   end subroutine wrsdf_channel
-
 
 !============================================================!
 ! subroutine wrsdfV3000_channel
@@ -1674,56 +1704,58 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=8)  :: date
     character(len=10) :: time
     integer :: list12(12),nbd,b
-    integer, parameter :: list4(4) = 0
-    character(len=*),parameter :: countsfmt ='(3i3, 8i3, 1x, a5)'
-    character(len=*),parameter :: countsfmt2 ='(a,2i3, 3i3)'
+    integer,parameter :: list4(4) = 0
+    character(len=*),parameter :: countsfmt = '(3i3, 8i3, 1x, a5)'
+    character(len=*),parameter :: countsfmt2 = '(a,2i3, 3i3)'
     character(len=*),parameter :: atmfmt = '(a,1x,i0,1x, a,3f10.4, i2, 11i3)'
     character(len=*),parameter :: bndfmt = '(a,1x,i0,1x,7i3)'
+    integer :: i,j,k,ich,io
+    logical :: ex
 
     !>--- generate data
-    call date_and_time(date, time)
+    call date_and_time(date,time)
     nbd = countbonds(nat,wbo)
     !>--- comment lines
-    call date_and_time(date, time)
-    if (present(comment))then
-      write(ch,'(1x,a)')comment
+    call date_and_time(date,time)
+    if (present(comment)) then
+      write (ch,'(1x,a)') comment
     else
-     write (ch,'(1x,a)') 'structure written by crest'
-    endif
+      write (ch,'(1x,a)') 'structure written by crest'
+    end if
     write (ch,'(1x,a,f18.8,5x, 3a2, a4, "3D")') &
-    & 'Energy =',er,date(5:6), date(7:8), date(3:4), time(:4)
-    write(ch,'(a)')
+    & 'Energy =',er,date(5:6),date(7:8),date(3:4),time(:4)
+    write (ch,'(a)')
     !>--- counts line
-    write(ch,countsfmt) nat,nbd, 0, 0, 0, 999, 'V2000'
-    write(ch,'("M V30 BEGIN CTAB")')
-    write(ch,countsfmt2) "M V30 COUNTS",nat,nbd, 0, 0, 0
+    write (ch,countsfmt) nat,nbd,0,0,0,999,'V2000'
+    write (ch,'("M V30 BEGIN CTAB")')
+    write (ch,countsfmt2) "M V30 COUNTS",nat,nbd,0,0,0
     !>--- atom block
-    write(ch,'("M V30 BEGIN ATOM")')
-    do j=1,nat
-      write(ch,atmfmt) 'M V30',j, &
+    write (ch,'("M V30 BEGIN ATOM")')
+    do j = 1,nat
+      write (ch,atmfmt) 'M V30',j, &
       &     i2e(at(j),'nc'),xyz(1:3,j),list12
-    enddo
-    write(ch,'("M V30 END ATOM")')
+    end do
+    write (ch,'("M V30 END ATOM")')
     !>--- bonds block
-    write(ch,'("M V30 BEGIN BOND")')
+    write (ch,'("M V30 BEGIN BOND")')
     b = 0
-    do i=1,nat
-      do j=i+1,nat
+    do i = 1,nat
+      do j = i+1,nat
         k = nint(wbo(j,i))
-        if( k > 0 ) then
-          b = b + 1
-          write(ch,bndfmt) "M V30",b,i,j,k,list4
-        endif
-      enddo
-    enddo
-    write(ch,'("M V30 END BOND")')
+        if (k > 0) then
+          b = b+1
+          write (ch,bndfmt) "M V30",b,i,j,k,list4
+        end if
+      end do
+    end do
+    write (ch,'("M V30 END BOND")')
     !>--- other
-    if(chrg .ne. 0)then
-    write(ch, '(a, *(i3, 1x, i3, 1x, i3))') "M V30 CHG", 1, 1, chrg
-    endif
-    write(ch,'(a)') 'M V30 END CTAB'
-    write(ch,'(a)') 'M  END'
-    write(ch,'(a)') '$$$$'
+    if (chrg .ne. 0) then
+      write (ch,'(a, *(i3, 1x, i3, 1x, i3))') "M V30 CHG",1,1,chrg
+    end if
+    write (ch,'(a)') 'M V30 END CTAB'
+    write (ch,'(a)') 'M  END'
+    write (ch,'(a)') '$$$$'
     return
   end subroutine wrsdfV3000_channel
 
@@ -1762,7 +1794,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*) :: oname
     type(coord) :: struc
     call struc%open(trim(iname))
-    struc%xyz = struc%xyz * bohr !to Angström
+    struc%xyz = struc%xyz*bohr !to Angström
     call wrxyz(oname,struc%nat,struc%at,struc%xyz)
     call struc%deallocate()
     return
@@ -1776,13 +1808,13 @@ contains  !> MODULE PROCEDURES START HERE
     implicit none
     class(coord) :: self
     character(len=*),intent(in) :: fname
-    if (.not. allocated(self%xyz)) then
+    if (.not.allocated(self%xyz)) then
       write (*,*) 'Cannot write ',trim(fname),'. not allocated'
     end if
     if (index(fname,'.xyz') .ne. 0) then
-      self%xyz = self%xyz * bohr !to Angström
+      self%xyz = self%xyz*bohr !to Angström
       call wrxyz(fname,self%nat,self%at,self%xyz)
-      self%xyz = self%xyz / bohr !back
+      self%xyz = self%xyz/bohr !back
     else
       call wrc0(fname,self%nat,self%at,self%xyz)
     end if
@@ -1799,7 +1831,7 @@ contains  !> MODULE PROCEDURES START HERE
     class(coord) :: self
     integer :: io
     character(len=64) :: atmp
-    self%xyz = self%xyz * bohr !to Angström
+    self%xyz = self%xyz*bohr !to Angström
     if (allocated(self%comment)) then
       call wrxyz(io,self%nat,self%at,self%xyz,trim(self%comment))
     else if (self%energy .ne. 0.0_wp) then
@@ -1808,7 +1840,7 @@ contains  !> MODULE PROCEDURES START HERE
     else
       call wrxyz(io,self%nat,self%at,self%xyz)
     end if
-    self%xyz = self%xyz / bohr !back
+    self%xyz = self%xyz/bohr !back
     return
   end subroutine appendcoord
 
@@ -1819,16 +1851,16 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),optional :: energy
     real(wp),optional :: gnorm
     character(len=64) :: atmp
-    self%xyz = self%xyz * bohr !to Angström
+    self%xyz = self%xyz*bohr !to Angström
     if (present(gnorm).and.present(energy)) then
       write (atmp,'(a,f22.10,a,f16.8)') ' Etot= ',energy,' grad.norm.= ',gnorm
-    else if( present(energy) )then
+    else if (present(energy)) then
       write (atmp,'(a,f22.10)') ' Etot= ',energy
     else
       atmp = ''
     end if
     call wrxyz(io,self%nat,self%at,self%xyz,trim(atmp))
-    self%xyz = self%xyz / bohr !back
+    self%xyz = self%xyz/bohr !back
     return
   end subroutine appendlog
 
@@ -1921,10 +1953,10 @@ contains  !> MODULE PROCEDURES START HERE
     end do
     sout = trim(adjustl(sout))
     if (len_trim(sout) .gt. 1) then
-       sout(2:2) = lowerCase(sout(2:2))
+      sout(2:2) = lowerCase(sout(2:2))
     else
       sout = sout//' '
-    endif
+    end if
     call move_alloc(sout,convertlable)
   end function convertlable
 
@@ -1936,21 +1968,23 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*),intent(in) :: cin
     character(len=:),allocatable :: c
     integer :: iout
+    integer :: i,j,k,ich,io
+    logical :: ex
     c = trim(convertlable(cin))
-    if(any(PSE(:).eq.c))then
-      do i=1,118
-        if(trim(PSE(i)).eq.c)then
+    if (any(PSE(:) .eq. c)) then
+      do i = 1,118
+        if (trim(PSE(i)) .eq. c) then
           iout = i
           exit
-        endif
-      enddo
+        end if
+      end do
     else !> special cases
-     select case (trim(c))
+      select case (trim(c))
       case ('D'); iout = 1
       case ('T'); iout = 1
       case default; iout = 0
-     end select
-    endif
+      end select
+    end if
     e2i = iout
   end function e2i
 
@@ -1962,11 +1996,11 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: iin
     character(len=:),allocatable :: c
     character(len=*),optional :: oformat
-    if(iin <= 118 )then
+    if (iin <= 118) then
       c = uppercase(PSE(iin))
     else
       c = 'XX'
-    endif
+    end if
     i2e = trim(c)
     if (present(oformat)) then
       select case (oformat)
@@ -2039,7 +2073,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i,io
     atmp = trim(line)
     energy = 0.0_wp
-    !> assumes that the first float in the line is the energy 
+    !> assumes that the first float in the line is the energy
     do i = 1,len_trim(atmp)
       if (len_trim(atmp) .lt. 1) exit
       read (atmp,*,iostat=io) energy
@@ -2055,7 +2089,6 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end function grepenergy
 
-
 !============================================================!
 ! count number of bonds from an wbo matrix
 !============================================================!
@@ -2066,12 +2099,12 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: nbd
     integer :: i,j,k
     nbd = 0
-    do i=1,nat
-     do j=1,i-1
-       k = nint(wbo(i,j))
-       if(k > 0) nbd = nbd + 1 
-     enddo
-    enddo
+    do i = 1,nat
+      do j = 1,i-1
+        k = nint(wbo(i,j))
+        if (k > 0) nbd = nbd+1
+      end do
+    end do
     return
   end function countbonds
 

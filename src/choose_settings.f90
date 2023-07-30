@@ -52,7 +52,7 @@ subroutine md_length_setup(env)
   write(stdout,'(''------------------------------------------------'')')
 
   if ((env%crestver .ne. crest_solv).and..not.env%NCI) then
-    write(stdout,'(1x,a)',advance='no') 'Calculating GFN0-xTB WBOs ...'
+    write(stdout,'(1x,a)',advance='no') 'Calculating GFN0-xTB WBOs   ...'
 !>-- xtb singlepoint to get WBOs (always GFN0)
     call xtbsp(env,0)
     write (stdout,'(1x,a)') 'done.'
