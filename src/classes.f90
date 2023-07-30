@@ -202,7 +202,7 @@ module crest_data
       integer :: maxfallback = 10
       real(wp) :: alpha = 1.0d0     ! exponent
       real(wp) :: confthr =  -0.01d0  ! stop iterations if we get less than this fraction of new conformers
-      real(wp) :: sconvthr = - 0.01d0 ! stop iterations based on estimated entroy change
+      real(wp) :: sconvthr = -0.01d0 ! stop iterations based on estimated entroy change
       integer  :: rmax = 5          ! max ring size to exclude from bias
       integer :: katoms             ! number of atoms in bias
       
@@ -210,6 +210,7 @@ module crest_data
       real(wp) :: sapprox
       real(wp) :: sapproxlast
       character(len=:),allocatable :: atomlist   
+      logical,allocatable :: atomlist2(:)
       real(wp) :: trange(3)
       integer :: nt = 0
       real(wp),allocatable ::  cpoft(:)  !Cp(T)

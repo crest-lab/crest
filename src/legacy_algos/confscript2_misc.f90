@@ -1230,12 +1230,12 @@ subroutine emtdcopy(env,iter,stopiter,broken)
   stopiter = .false.
   broken = .false.
   T = 298.15d0
-  !--- determine temperature dependence
+!>--- determine temperature dependence
   if (.not.allocated(env%thermo%temps)) then
     call env%thermo%get_temps()
   end if
   nt = env%thermo%ntemps
-
+!>--- space to save S,Cp,H(T) at different temperatures
   if (.not.allocated(env%emtd%soft)) then
     allocate (env%emtd%soft(nt),source=0.0d0)
   end if
@@ -1246,7 +1246,8 @@ subroutine emtdcopy(env,iter,stopiter,broken)
     allocate (env%emtd%hoft(nt),source=0.0d0)
   end if
 
-  if (env%crestver == 22) then
+!>--- output file name
+  if (env%crestver == crest_imtd2) then
     filname = trim(bfile)
   else
     filname = trim(sfile)
@@ -1299,10 +1300,11 @@ subroutine emtdcopy(env,iter,stopiter,broken)
   if (nall > 50000) then !safety fallback for extremely large ensembles (e.g. C18)
     env%emtd%confthr = 0.1d0
   end if
+!>---get convergence criteria
   nallfrac = 1.0d0-(float(env%emtd%nconflast)/float(nall))
   conv1 = (sdiff < env%emtd%sconvthr) !.and.(sdiff > 0.0d0)
   conv2 = (nallfrac < env%emtd%confthr).and.(nallfrac >= 0.0d0)
-  if (nallfrac < 0.0d0) then !if we for some reason got less conformers in this iteration
+  if (nallfrac < 0.0d0) then !> if we for some reason got less conformers in this iteration
     broken = .true.
   end if
   write (*,*)
@@ -1322,10 +1324,11 @@ subroutine emtdcopy(env,iter,stopiter,broken)
         call copy(trim(btmp),trim(crename))
       end if
     end if
-    if (env%entropic.and.env%crestver .ne. 22) then
+    if (env%entropic.and.env%crestver .ne. crest_imtd2) then
       call entropic(env,.false.,.true.,.true.,trim(btmp),T,S,Cp)
       call writesdata(env,nall,iter)
     end if
+!>--- save data for next iteraton
     env%emtd%nconflast = nall
     env%emtd%sapproxlast = env%emtd%sapprox
   else                !-- ROLLBACK

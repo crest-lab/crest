@@ -491,7 +491,6 @@ subroutine entropyMD_para_OMP(env)
 
      if(.not.env%keepModef)then
         call cleanMTD
-        call rmrfw('STATICMTD')
      endif
  
      end associate

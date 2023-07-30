@@ -770,6 +770,11 @@ subroutine mtdatoms(env)
     env%emtd%atomlist = ''
     env%emtd%katoms = mol%nat
   end if
+  if(allocated(env%emtd%atomlist2)) deallocate(env%emtd%atomlist2)
+  allocate(env%emtd%atomlist2(mol%nat), source =.false.)
+  do i=1,mol%nat
+    env%emtd%atomlist2(i) = inc(i) > 0
+  enddo 
   deallocate (inc)
   call zmol%deallocate()
   call mol%deallocate()
