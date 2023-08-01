@@ -61,7 +61,7 @@ subroutine crest_playground(env,tim)
   real(wp),allocatable :: mu(:)
   real(wp) :: kappa,rrad
 !========================================================================================!
-  call tim%start(14,'test implementation') 
+  call tim%start(14,'Test implementation') 
 !========================================================================================!
   !call system('figlet welcome')
   write(*,*) "              _                          "

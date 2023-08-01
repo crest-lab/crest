@@ -51,7 +51,7 @@ subroutine crest_numhess(env,tim)
   real(wp) :: energy
   real(wp),allocatable :: hess(:,:,:),freq(:,:),grad(:),grad1(:,:),grad2(:,:),heff(:,:)
 !========================================================================================!
-  call tim%start(14,'numerical Hessian')
+  call tim%start(14,'Numerical Hessian')
 !========================================================================================!
   !call system('figlet numhess')
   write (stdout,*)

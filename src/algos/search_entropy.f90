@@ -111,7 +111,7 @@ subroutine crest_search_entropy(env,tim)
       allocate (mddats(nsim),source=mddat)
       call crest_search_multimd_init2(env,mddats,nsim)
 
-      call tim%start(2,'MTD simulations')
+      call tim%start(2,'Metadynamics (MTD)')
       call crest_search_multimd(env,mol,mddats,nsim)
       call tim%stop(2)
 !>--- a file called crest_dynamics.trj should have been written
@@ -121,7 +121,7 @@ subroutine crest_search_entropy(env,tim)
 
 !==========================================================!
 !>--- Reoptimization of trajectories
-      call tim%start(3,'geom. optimization')
+      call tim%start(3,'Geometry optimization')
       multilevel = (/.true.,.false.,.false.,.false.,.true.,.false./)
       call crest_multilevel_oloop(env,ensnam,multilevel)
       call tim%stop(3)
@@ -174,7 +174,7 @@ subroutine crest_search_entropy(env,tim)
 !=========================================================!
 !>--- (optional) Perform additional MDs on the lowest conformers
     if (env%rotamermds) then
-      call tim%start(4,'MD simulations')
+      call tim%start(4,'Molecular dynamics (MD)')
       call crest_rotamermds(env,conformerfile)
       call tim%stop(4)
 
@@ -183,7 +183,7 @@ subroutine crest_search_entropy(env,tim)
       write (stdout,'('' Appending file '',a,'' with new structures'')') trim(atmp)
       ensnam = 'crest_dynamics.trj'
       call appendto(ensnam,trim(atmp))
-      call tim%start(3,'geom. optimization')
+      call tim%start(3,'Geometry optimization')
       call crest_multilevel_wrap(env,trim(atmp),5)
       call tim%stop(3)
 
@@ -202,9 +202,7 @@ subroutine crest_search_entropy(env,tim)
 !>--- determine how many MDs need to be run and setup
 !>--- and other entropy mode parameters
       call adjustnormmd(env)
-
       call mtdatoms(env)
-      call tim%start(6,'static MTD')
       call emtdcopy(env,0,stopiter,fail)
       bref = env%emtd%nbias
 
@@ -218,7 +216,7 @@ subroutine crest_search_entropy(env,tim)
 !>--- Loop handling fallbacks
         EFALLBACK: do k = 1,env%emtd%maxfallback
           call printiter2(eit)
-          call tim%start(6,'static MTD')
+          call tim%start(6,'Static metadynamics (sMTD)')
           !>-- start from the current crest_conformers.xyz
           call crest_smtd_mds(env,conformerfile)
           call tim%stop(6)
@@ -233,11 +231,11 @@ subroutine crest_search_entropy(env,tim)
           else
 
 !!>--- Reoptimization of trajectories
-           call checkname_xyz(crefile,atmp,btmp)
-    call tim%start(3,'geom. optimization')
-    multilevel = (/.true.,.false.,.false.,.false.,.false.,.true./)
-    call crest_multilevel_oloop(env,trim(atmp),multilevel)
-    call tim%stop(3)
+            call checkname_xyz(crefile,atmp,btmp)
+            call tim%start(3,'Geometry optimization')
+            multilevel = (/.true.,.false.,.false.,.false.,.false.,.true./)
+            call crest_multilevel_oloop(env,trim(atmp),multilevel)
+            call tim%stop(3)
 
 !>--- if in the entropy mode a lower structure was found -> cycle (required for extrapolation)
             call elowcheck(lower,env)
@@ -334,7 +332,7 @@ subroutine crest_smtd_mds(env,ensnam)
   !>--- first, generate the structures will be used as bias
   env%nclust = env%emtd%nbias  !> this determines how many clusters will be build
   call create_anmr_dummy(nat)
-  call smallhead('determining bias structures')
+  call smallhead('determining bias structures via PCA/k-Means')
   call CCEGEN(env,.false.,ensnam)  !> this routine does PCA/k-Means
   call rdensembleparam(clusterfile,nat,TOTAL)
   if (TOTAL < 1) then
@@ -349,7 +347,7 @@ subroutine crest_smtd_mds(env,ensnam)
 
   !>--- then, get the input structures
   env%nclust = env%emtd%nMDs  !> this determines how many clusters will be build
-  call smallhead('determining MTD seed structures')
+  call smallhead('determining MTD seed structures via PCA/k-Means')
   call CCEGEN(env,.false.,ensnam)  !> this routine does PCA/k-Means
   call rdensembleparam(clusterfile,nat,TOTAL)
   write (stdout,'(1x,i0,a)') TOTAL,' structures were selected'
@@ -385,7 +383,7 @@ subroutine crest_smtd_mds(env,ensnam)
   call rename('crest_dynamics.trj',atmp)
 !===================================================================!
 !>--- by default, clean up the directory
-  if(.not.env%keepModef) call cleanMTD
+  if (.not.env%keepModef) call cleanMTD
 
 !>--- deallocate molecule and MD containers
   if (allocated(mols)) deallocate (mols)

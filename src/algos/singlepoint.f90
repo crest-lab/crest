@@ -50,7 +50,7 @@ subroutine crest_singlepoint(env,tim)
 
   character(len=*),parameter :: partial = '∂E/∂'
 !========================================================================================!
-  call tim%start(14,'singlepoint calc.')
+  call tim%start(14,'Singlepoint calculation')
 !========================================================================================!
   write (stdout,*)
   !call system('figlet singlepoint')
@@ -85,8 +85,8 @@ subroutine crest_singlepoint(env,tim)
   call engrad(mol,calc,energy,grad,io)
   call tim%stop(14)
   write (stdout,*) 'done.'
-  call eval_time(tim%t(14,3),atmp)
-  write (stdout,'(a)') '> Total wall time for calculations : '//trim(atmp)
+  write (atmp,'(a)') '> Total wall time for calculations'
+  call tim%write_timing(stdout,14,trim(atmp),.true.)
   write (stdout,'(a)') repeat('-',80)
   if (io /= 0) then
     write (stdout,*)

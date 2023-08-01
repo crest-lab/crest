@@ -84,6 +84,7 @@ list(APPEND srcs
   "${dir}/symmetry2.f90"
   "${dir}/symmetry_i.c"
   "${dir}/testmol.f90"
+  "${dir}/timer.f90"
   "${dir}/trackorigin.f90"
   "${dir}/trialmd.f90"
   "${dir}/utilities.f"

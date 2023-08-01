@@ -26,10 +26,11 @@ module crest_data
    use crest_calculator,only:calcdata
    use dynamics_module, only:mddata
    use strucrd, only:coord
+   use crest_type_timer, only:timer
    implicit none
 
    public :: systemdata
-   public :: timer
+   public :: timer   !> RE-EXPORT from crest_type_timer
    public :: protobj
    public :: constra
    public :: optlevflag,optlevnum,optlevmap_alt
@@ -557,23 +558,24 @@ module crest_data
 
 !========================================================================================!
 
-   type :: timer
-     integer :: times = 0
-     integer(dp):: rate
-     integer(dp),allocatable :: t(:,:)
-     character(len=32),allocatable :: names(:)
-    contains
-     procedure :: init  => init_timer
-     procedure :: clear => clear_timer
-     procedure :: start => start_timer
-     procedure :: stop  => stop_timer
-   end type timer
+!   type :: timer
+!     integer :: times = 0
+!     integer(dp):: rate
+!     integer(dp),allocatable :: t(:,:)
+!     character(len=32),allocatable :: names(:)
+!    contains
+!     procedure :: init  => init_timer
+!     procedure :: clear => clear_timer
+!     procedure :: start => start_timer
+!     procedure :: stop  => stop_timer
+!   end type timer
 
 !========================================================================================!
 !========================================================================================!
-
-contains
+contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
+!========================================================================================!
+
 subroutine allocate_metadyn(self,n)
    implicit none
    class(systemdata) :: self
@@ -617,43 +619,43 @@ subroutine deallocate_constraints(self)
    if (allocated( self%buff )) deallocate( self%buff )
 end subroutine deallocate_constraints
 !========================================================================================!
-subroutine init_timer(self,n)
-   implicit none
-   class(timer) :: self
-   integer,intent(in)  :: n
-   integer(dp) :: dummy
-   self%times      = n
-   call system_clock ( dummy, self%rate )
-   allocate( self%t(n,3),  source = 0_dp )
-   allocate( self%names(n))
-   self%names = ''
-end subroutine init_timer
-!========================================================================================!
-subroutine clear_timer(self)
-   implicit none
-   class(timer) :: self
-   deallocate( self%t )
-   deallocate( self%names )
-end subroutine clear_timer
-!========================================================================================!
-subroutine start_timer(self,n,inp)
-   implicit none
-   class(timer) :: self
-   integer,intent(in)  :: n
-   character(len=*) :: inp
-   integer(dp) :: dummy
-   self%names(n) = inp
-   call system_clock ( self%t(n,1) , dummy )
-end subroutine start_timer
-!========================================================================================!
-subroutine stop_timer(self,n)
-   implicit none
-   class(timer) :: self
-   integer,intent(in)  :: n
-   integer(dp) :: dummy
-   call system_clock ( self%t(n,2) , dummy )
-   self%t(n,3)=self%t(n,3) + (self%t(n,2)-self%t(n,1))
-end subroutine stop_timer
+!subroutine init_timer(self,n)
+!   implicit none
+!   class(timer) :: self
+!   integer,intent(in)  :: n
+!   integer(dp) :: dummy
+!   self%times      = n
+!   call system_clock ( dummy, self%rate )
+!   allocate( self%t(n,3),  source = 0_dp )
+!   allocate( self%names(n))
+!   self%names = ''
+!end subroutine init_timer
+!!========================================================================================!
+!subroutine clear_timer(self)
+!   implicit none
+!   class(timer) :: self
+!   deallocate( self%t )
+!   deallocate( self%names )
+!end subroutine clear_timer
+!!========================================================================================!
+!subroutine start_timer(self,n,inp)
+!   implicit none
+!   class(timer) :: self
+!   integer,intent(in)  :: n
+!   character(len=*) :: inp
+!   integer(dp) :: dummy
+!   self%names(n) = inp
+!   call system_clock ( self%t(n,1) , dummy )
+!end subroutine start_timer
+!!========================================================================================!
+!subroutine stop_timer(self,n)
+!   implicit none
+!   class(timer) :: self
+!   integer,intent(in)  :: n
+!   integer(dp) :: dummy
+!   call system_clock ( self%t(n,2) , dummy )
+!   self%t(n,3)=self%t(n,3) + (self%t(n,2)-self%t(n,1))
+!end subroutine stop_timer
 !----------------------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------------------
 subroutine add_to_pqueue(self,pjob)

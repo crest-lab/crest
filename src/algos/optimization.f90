@@ -18,6 +18,12 @@
 !================================================================================!
 
 subroutine crest_optimization(env,tim)
+!***********************************************
+!* subroutine crest_optimization
+!* This routine implements a standalone runtype
+!* to perform geometry optimization for the 
+!* specified input file (read from env%ref)
+!***********************************************
   use crest_parameters,only:wp,stdout,bohr
   use crest_data
   use crest_calculator
@@ -38,7 +44,7 @@ subroutine crest_optimization(env,tim)
   character(len=80) :: atmp
   character(len=*),parameter :: partial = '∂E/∂'
 !========================================================================================!
-  call tim%start(14,'geometry optimization')
+  call tim%start(14,'Geometry optimization')
   call env%ref%to(mol)
   write (stdout,*)
   call smallhead('Input structure:')
@@ -142,11 +148,15 @@ subroutine crest_optimization(env,tim)
 end subroutine crest_optimization
 
 !========================================================================================!
-!> subroutine crest_ensemble_optimization
-!> Read in an ensemble file and optimize all structures
-!>
-!>------------------------------------------------------
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!========================================================================================!
 subroutine crest_ensemble_optimization(env,tim)
+!***********************************************
+!* subroutine crest_ensemble_optimization
+!* This routine implements a standalone runtype
+!* to perform geometry optimizations along an
+!* ensemble or trajectory file.
+!***********************************************
   use crest_parameters,only:wp,stdout,bohr
   use crest_data
   use crest_calculator

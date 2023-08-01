@@ -48,7 +48,7 @@ subroutine crest_scan(env,tim)
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
 !========================================================================================!
-  call tim%start(14,'coordinate scan')
+  call tim%start(14,'Coordinate scan')
 !========================================================================================!
   write (*,*)
   !call system('figlet scan')

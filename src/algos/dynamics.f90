@@ -51,7 +51,7 @@ subroutine crest_moleculardynamics(env,tim)
   write(stdout,*) "        |___/                                   "
   write(stdout,*)
 !========================================================================================!
-  call tim%start(14,'molecular dynamics')
+  call tim%start(14,'Molecular dynamics (MD)')
   call env%ref%to(mol)
   write (stdout,*)
   write (stdout,*) 'Input structure:'
