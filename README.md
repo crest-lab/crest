@@ -2,6 +2,9 @@
 
 [![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest)](https://github.com/crest-lab/crest/releases/latest)
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2Fc9cp06869d%20-blue)](http://dx.doi.org/10.1039/c9cp06869d)
+![example workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+
 
 This is the offical repository of the CREST program developed by the Grimme group in Bonn.
 
@@ -54,13 +57,19 @@ The program should be directly executable.
 Working and tested builds of CREST (mostly on Ubuntu 20.04 LTS):
 
 | Build System | Compiler | Linear Algebra Backend | Build type     | Status     |
-|--------------|----------|------------------------|----------------|------------|
+|--------------|----------|------------------------|:--------------:|:----------:|
 | CMake | GNU (gcc 10.3.0)  | [OpenBLAS](https://github.com/xianyi/OpenBLAS) (with OpenMP) | dynamic | :white_check_mark: |
-| CMake | GNU (gcc 10.3.0)  |  MKL shared (oneAPI 2023.1)| dynamic | :white_check_mark:
-| Meson | [Intel (ifort 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | MKL static (oneAPI 2023.1) | static  | :white_check_mark: |
+| CMake | GNU (gcc 10.3.0)  |  [MKL shared (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | :white_check_mark:
+| Meson | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | :white_check_mark: |
+| Meson | [Intel (`ifort` 2021.9.0/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | :white_check_mark: |
 
 
-### `meson`
+
+Some basic build instructions can be found in the following dropdown tabs:
+
+<details open>
+<summary><h4><code>meson</code> build</h4></summary>
+<!-- blank line to recover markdown format-->
 
 For the setup an configuration of meson see also the [meson setup](https://github.com/grimme-lab/xtb/blob/master/meson/README.adoc) page hosted at the `xtb` repository.
 The chain of commands to build CREST with meson is:
@@ -75,8 +84,11 @@ The `meson` build of CREST is mainly focused on and tested with the Intel `ifort
 When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Compatibility with the GNU compilers might be limited, however.
 
 By default the `meson` build will create a **statically** linked binary.
+</details>
 
-### `cmake`
+<details>
+<summary><h4><code>cmake</code> build</h4></summary>
+<!-- blank line to recover markdown format-->
 
 For the setup of CMake see also the [CMake setup](https://github.com/grimme-lab/xtb/blob/master/cmake/README.adoc) page hosted at the `xtb` repository.
 Building CREST with CMake works with the following chain of commands:
@@ -92,8 +104,11 @@ make -C _build
 The CMake build of CREST is focused on and tested with the GNU `gfortran`/`gcc` compilers. The Intel compilers could technically be used as well, but in our experience 
 
 By default the `cmake` build will create a **dynamically** linked binary.
+</details>
 
-### Conda
+<details>
+<summary><h4>Conda build</h4></summary>
+<!-- blank line to recover markdown format-->
 
 A [conda-forge](https://github.com/conda-forge) feedstock is maintained at <https://github.com/conda-forge/crest-feedstock>.
 
@@ -111,6 +126,8 @@ conda install crest
 ```
 
 The confa-forge distribution is based on a CMake/`gfortran` build. 
+</details>
+
 
 ---
 
