@@ -21,12 +21,10 @@
 !> consisting of one batch of metadynamics with snapshot optimization.
 
 subroutine crest_search_1(env,tim)
-  !use iso_fortran_env,only:wp => real64,stdout => output_unit
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   implicit none

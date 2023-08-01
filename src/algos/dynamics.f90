@@ -20,9 +20,8 @@
 subroutine crest_moleculardynamics(env,tim)
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   implicit none

@@ -25,7 +25,7 @@ subroutine env2calc(env,calc,molin)
 !******************************************
   use crest_parameters
   use crest_data
-  use calc_type
+  use crest_calculator
   use strucrd
   implicit none
   !> INPUT
@@ -92,7 +92,7 @@ subroutine env2calc_setup(env)
 !* Setup the calc object within env
 !***********************************
   use crest_data
-  use calc_type
+  use crest_calculator
   use strucrd
   implicit none
   !> INOUT
@@ -104,7 +104,7 @@ subroutine env2calc_setup(env)
     subroutine env2calc(env,calc,molin)
       use crest_parameters
       use crest_data
-      use calc_type
+      use crest_calculator
       use strucrd
       implicit none
       type(systemdata),intent(in) :: env

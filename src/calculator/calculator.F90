@@ -17,7 +17,7 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-module calc_module
+module crest_calculator
 !>--- types and readers
   use iso_fortran_env,only:wp => real64
   use strucrd
@@ -39,6 +39,17 @@ module calc_module
 !>--- some constants and name mappings
   real(wp),parameter :: bohr = 0.52917726_wp
   real(wp),parameter :: autokcal = 627.509541_wp
+
+!=========================================================================================!
+!>--- RE-EXPORTS of module calc_type
+  public :: calcdata              !> calculator main object
+  public :: calculation_settings  !> different calculation objects (levels) within calcdata
+  public :: jobtype               !> calculation type ID's
+!>--- RE-EXPORT of constraints
+  public :: constraint
+  public :: scantype
+  public :: calc_constraint
+!=========================================================================================!
 
 !>--- public module routines
   public :: engrad
@@ -542,4 +553,4 @@ contains  !> MODULE PROCEDURES START HERE
 
 !==========================================================================================!
 !==========================================================================================!
-end module calc_module
+end module crest_calculator

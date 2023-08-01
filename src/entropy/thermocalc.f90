@@ -470,18 +470,18 @@ end subroutine rdfreq
 
 subroutine thermo_wrap_new(env,pr,nat,at,xyz,dirname, &
         &  nt,temps,et,ht,gt,stot,bhess)
-!**********************************************
+!*********************************************
 !* Wrapper for a Hessian calculation to get
 !* the thermodynamics of the molecule.
 !* Updated version without xtb subprocess
-!* WARNING: xyz is expected in ANGSTROEM
+!*********************************************
+!*** WARNING: xyz is expected in ANGSTROEM ***
 !*********************************************
   use crest_parameters,only:wp,stdout,aatoau
   use crest_data
+  use crest_calculator
   use iomod
   use strucrd
-  use calc_type
-  use calc_module
   use hessian_tools
   implicit none
   !> INPUT

@@ -38,10 +38,9 @@
 subroutine parseflags(env,arg,nra)
   use iso_fortran_env,wp => real64
   use crest_data
+  use crest_calculator
   use iomod
   use strucrd
-
-  use calc_module
   use dynamics_module
   use optimize_module
   use parse_inputfile

@@ -27,12 +27,10 @@
 !>  tim  -  timer object
 !>-----------------------------------------------
 subroutine crest_playground(env,tim)
-  !use iso_fortran_env,only: wp =>real64,stdout=>output_unit
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd 
-  use calc_type
-  use calc_module
   use optimize_module
   use tblite_api
   use wiberg_mayer, only: write_wbo 

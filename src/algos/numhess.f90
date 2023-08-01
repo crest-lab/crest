@@ -29,9 +29,8 @@
 subroutine crest_numhess(env,tim)
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use optimize_module
   use hessian_tools
   use gradreader_module

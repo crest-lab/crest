@@ -23,7 +23,7 @@
 
 module crest_data
    use iso_fortran_env, wp => real64, dp => int64
-   use calc_type,only:calcdata
+   use crest_calculator,only:calcdata
    use dynamics_module, only:mddata
    use strucrd, only:coord
    implicit none

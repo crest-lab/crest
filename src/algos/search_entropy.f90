@@ -26,9 +26,8 @@ subroutine crest_search_entropy(env,tim)
 !*******************************************************************
   use crest_parameters,only:wp,stdout
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   use iomod
@@ -239,7 +238,6 @@ subroutine crest_search_entropy(env,tim)
     multilevel = (/.true.,.false.,.false.,.false.,.false.,.true./)
     call crest_multilevel_oloop(env,trim(atmp),multilevel)
     call tim%stop(3)
-!         stop
 
 !>--- if in the entropy mode a lower structure was found -> cycle (required for extrapolation)
             call elowcheck(lower,env)
@@ -296,9 +294,8 @@ subroutine crest_smtd_mds(env,ensnam)
 !***********************************************************
   use crest_parameters,only:wp,stdout,bohr
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use iomod
   use dynamics_module
   implicit none
@@ -408,11 +405,10 @@ subroutine crest_init_multimd_smtd(env,mddats,nsim,biasfile)
 !* called before calling this routine so all the required data
 !* is initialized!
 !**************************************************************
-  use crest_parameters,only:wp,stdout,bohr
+  use crest_parameters,only:wp,stdout,bohr,sep
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use iomod,only:makedir,directory_exist,remove
 !$ use omp_lib

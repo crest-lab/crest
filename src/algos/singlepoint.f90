@@ -32,11 +32,8 @@ subroutine crest_singlepoint(env,tim)
 !********************************************************************
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
-  use optimize_module
-  use tblite_api
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -46,9 +43,6 @@ subroutine crest_singlepoint(env,tim)
   character(len=80) :: atmp
 !========================================================================================!
   type(calcdata) :: calc
-  type(wavefunction_type) :: wfn
-  type(tblite_calculator) :: tbcalc
-  type(tblite_ctx)        :: ctx
   real(wp) :: accuracy,etemp
 
   real(wp) :: energy
@@ -165,10 +159,10 @@ subroutine crest_xtbsp(env,xtblevel,molin)
 !*  xtblevel - quick selection of calc. level
 !*  molin    - molecule data
 !********************************************************************
+  use crest_parameters 
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use wiberg_mayer,only:write_wbo
   implicit none
   !> INPUT

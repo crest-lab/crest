@@ -21,8 +21,7 @@
 !================================================================================!
 module modelhessian_module
   use iso_fortran_env,only:wp => real64
-  use calc_type
-  use calc_module,only:constrhess
+  use crest_calculator,only:calcdata,constrhess
   implicit none
 
 !> a modelhessian type to save settings

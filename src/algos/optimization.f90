@@ -20,9 +20,8 @@
 subroutine crest_optimization(env,tim)
   use crest_parameters,only:wp,stdout,bohr
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use optimize_module
   implicit none
   type(systemdata),intent(inout) :: env
@@ -150,9 +149,8 @@ end subroutine crest_optimization
 subroutine crest_ensemble_optimization(env,tim)
   use crest_parameters,only:wp,stdout,bohr
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use optimize_module
   implicit none
   type(systemdata),intent(inout) :: env

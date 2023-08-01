@@ -27,9 +27,8 @@ subroutine crest_search_imtdgc(env,tim)
 !*******************************************************************
   use crest_parameters, only: wp,stdout
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   use iomod
@@ -252,9 +251,8 @@ subroutine crest_multilevel_wrap(env,ensnam,level)
 !*************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   implicit none
   type(systemdata) :: env
   character(len=*),intent(in) :: ensnam
@@ -282,9 +280,8 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
 !*******************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   implicit none
   type(systemdata) :: env 
   character(len=*),intent(in) :: ensnam
@@ -428,9 +425,8 @@ subroutine crest_rotamermds(env,ensnam)
 !***********************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   implicit none

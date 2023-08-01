@@ -23,12 +23,11 @@
 !========================================================================================!
 
 subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
-  use crest_parameters,only:wp,stdout
+  use crest_parameters,only:wp,stdout,sep
+  use crest_calculator
   use omp_lib
   use crest_data
   use strucrd
-  use calc_type
-  use calc_module
   use optimize_module
   use iomod,only:makedir,directory_exist,remove
   implicit none
@@ -186,11 +185,10 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
 !*****************************************************
 !* this runs nsim MDs on the same structure (mol)
 !*****************************************************
-  use crest_parameters,only:wp,stdout
+  use crest_parameters,only:wp,stdout,sep
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
@@ -362,9 +360,8 @@ end subroutine crest_search_multimd
 subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   use crest_parameters,only:wp,stdout
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
@@ -432,11 +429,10 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   return
 end subroutine crest_search_multimd_init
 subroutine crest_search_multimd_init2(env,mddats,nsim)
-  use crest_parameters,only:wp,stdout
+  use crest_parameters,only:wp,stdout,sep
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
@@ -488,11 +484,10 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
 !*******************************************************************
 !* this runs nsim MDs on nsim selected different structures (mols)
 !*******************************************************************
-  use crest_parameters,only:wp,stdout
+  use crest_parameters,only:wp,stdout,sep
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   use iomod,only:makedir,directory_exist,remove

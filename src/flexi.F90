@@ -213,14 +213,16 @@ subroutine minringsizes(nat,at,xyz,sring)
 end subroutine minringsizes
 !========================================================================================!
 
-!> new version of the non-covalent flexibility measure.
-!> the nci-flexibility is estimated RELATIVE to a bioorganic
-!> molecule (crambin) and its hydrogen-bond and dispersion
-!> energy per atom.
 subroutine nciflexi_gfnff(mol,flexval)
+!*************************************************************
+!* new version of the non-covalent flexibility measure.
+!* the nci-flexibility is estimated RELATIVE to a bioorganic
+!* molecule (crambin) and its hydrogen-bond and dispersion
+!* energy per atom.
+!*************************************************************
   use crest_parameters
+  use crest_calculator
   use strucrd
-  use calc_type
   use gfnff_api
   implicit none
   !> INPUT

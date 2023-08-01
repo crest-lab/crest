@@ -21,10 +21,8 @@
 !================================================================================!
 
 module dynamics_module
-
   use crest_parameters
-  use calc_type
-  use calc_module
+  use crest_calculator
   use strucrd
   use atmasses
   use shake_module

@@ -27,12 +27,10 @@
 !>  tim  -  timer object
 !>-----------------------------------------------
 subroutine crest_scan(env,tim)
-  !use iso_fortran_env,only:wp => real64,stdout => output_unit
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use optimize_module
   use geo
   use iomod, only: makedir

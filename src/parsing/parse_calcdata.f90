@@ -25,10 +25,8 @@
 
 module parse_calcdata
   use crest_parameters
-  use calc_type,only:calcdata,calculation_settings,jobtype
-  use constraints
+  use crest_calculator,only:calcdata,calculation_settings,jobtype,constraint,scantype
   use dynamics_module
-  use metadynamics_module
   use gradreader_module,only:gradtype,conv2gradfmt
   use tblite_api,only:xtblvl
 

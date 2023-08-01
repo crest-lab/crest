@@ -478,8 +478,8 @@ end subroutine autoconstraint_internal
 subroutine autobond_internal(env,c)
   use crest_parameters, only: wp,bohr
   use crest_data
+  use crest_calculator, only: constraint
   use zdata
-  use constraints
   implicit none
   type(systemdata) :: env
   integer :: c

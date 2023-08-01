@@ -15,7 +15,7 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'calc_module.f90',
+  'calculator.F90',
   'calc_type.f90',
   'constraints.f90',
   'gfn0_api.F90',
