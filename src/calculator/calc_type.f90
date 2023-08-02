@@ -302,7 +302,7 @@ contains  !>--- Module routines start here
     self%saveint = .false.
 
     self%ngrid = 230 
-    self%extpressure = 1.0_wp
+    self%extpressure = 0.0_wp
     self%proberad = 1.5_wp
 
 
