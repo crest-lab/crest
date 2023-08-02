@@ -129,9 +129,10 @@ module calc_type
     !> GFN-FF data
     type(gfnff_data),allocatable :: ff_dat
     !> XHCFF data
-    integer :: ngrid = 230 !lebedev grid points per atom
-    real(wp) :: extpressure = 1.0_wp
-    real(wp) :: probrad = 1.5_wp
+    integer :: ngrid = 230             !>  lebedev grid points per atom
+    real(wp) :: extpressure = 0.0_wp   !>  hydorstatic pressure in Gpa
+    real(wp) :: proberad = 1.5_wp       !>  proberadius in a.u.
+    integer :: vdwset = 0              !>  Set of VDW radii to use in sas calculation -> default D3, 1 -> Bondi
     type(xhcff_calculator),allocatable :: xhcff
 
 !>--- Type procedures
@@ -302,7 +303,7 @@ contains  !>--- Module routines start here
 
     self%ngrid = 230 
     self%extpressure = 1.0_wp
-    self%probrad = 1.5_wp
+    self%proberad = 1.5_wp
 
 
     return

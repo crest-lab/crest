@@ -198,8 +198,8 @@ contains !> MODULE PROCEDURES START HERE
       job%weight = val
     case ('pressure')
       job%extpressure = val
-    case ('probrad')
-      job%probrad = val
+    case ('proberad')
+      job%proberad = val
     end select
     return
   end subroutine parse_setting_float
@@ -221,6 +221,8 @@ contains !> MODULE PROCEDURES START HERE
       job%tblitelvl = val
     case ('lebedev')
       job%ngrid = val
+    case('vdwSet')
+      job%vdwset = val
     end select
     return
   end subroutine parse_setting_int
@@ -329,6 +331,7 @@ contains !> MODULE PROCEDURES START HERE
       job%rddipgrad = val
     case ('refresh')
       job%apiclean = val
+      !TODO fix printout
     case ('print')
       if (val) job%prch = 999
     end select

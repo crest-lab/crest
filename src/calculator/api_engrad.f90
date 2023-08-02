@@ -353,8 +353,8 @@ contains    !> MODULE PROCEDURES START HERE
 
 !>--- populate parameters
     if (loadnew) then
-!TODO pressure and grid settings must be passed here    
-      call xhcff_setup(mol,calc%xhcff)
+      !> call xhcff with verbosity turned off
+      call xhcff_setup(mol,calc%xhcff, calc%extpressure, calc%ngrid, calc%proberad, calc%vdwset, iostatus)
     end if
     !$omp end critical
     if (iostatus /= 0) return

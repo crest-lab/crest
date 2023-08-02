@@ -37,6 +37,7 @@ module xhcff_api
                         !> the placeholder from above. Otherwise it will re-export
                         !> the type from xhcff_interface
 
+
   public :: xhcff_setup,xhcff_sp,xhcff_print
 
 !========================================================================================!
@@ -45,14 +46,19 @@ contains  !>--- Module routines start here
 !========================================================================================!
 !========================================================================================!
 
-  subroutine xhcff_setup(mol,xhcff)
+  subroutine xhcff_setup(mol, xhcff, pressure, gridpts, proberad, vdwset, iostatus)
     implicit none
     type(coord),intent(in)  :: mol
+    real(wp), intent(in) :: pressure !> pressure
+    integer, intent(in) :: gridpts
+    real(wp), intent(in) :: proberad
+    integer, intent(in) :: vdwset
     type(xhcff_calculator),intent(inout) :: xhcff
+    integer, intent(inout) :: iostatus
 #ifdef WITH_XHCFF
-!TODO pressure and grid size must probably be passed here
     !> initialize XHCFF
-!    call xhcff%init(mol%nat,mol%at,mol%xyz, ... )
+    call xhcff%init(mol%nat,mol%at,mol%xyz, &
+     & pressure, gridpts, proberad, verbose=.false.,vdwset=vdwset,iostat=iostatus)
 
 #else /* WITH_XHCFF */
     write (stdout,*) 'Error: Compiled without XHCFF-lib support!'
@@ -86,9 +92,7 @@ contains  !>--- Module routines start here
     fail = .false.
 #ifdef WITH_XHCFF
 !TODO update
-      write(*,*) 'TODO: implement XHCFF'
-!     call xhcff_singlepoint(mol%nat,mol%at,mol%xyz,xhcff, &
-!     &    proberad,pressure,energy,gradient,.false.,iostatus)
+     call xhcff%singlepoint(mol%nat,mol%at,mol%xyz,energy,gradient,iostatus)
 #else
     write (stdout,*) 'Error: Compiled without XHCFF-lib support!'
     write (stdout,*) 'Use -DWITH_XHCFF=true in the setup to enable this function'
