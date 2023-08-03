@@ -80,6 +80,9 @@ module shake_module
     integer :: maxcyc = 250
     real(wp) :: tolshake = 1.d-7
 
+    !>--- temporary coordinate space (to avoid reallocation every shake call)
+    real(wp),allocatable :: xyzt(:,:)
+
   end type shakedata
 
   public :: init_shake
@@ -207,6 +210,7 @@ contains !> MODULE PROCEDURES START HERE
       else
         write (*,*) 'No bonding information provided!'
         write (*,*) 'Automatic SHAKE setup failed.'
+        error stop
       end if
     end if
 
@@ -243,7 +247,7 @@ contains !> MODULE PROCEDURES START HERE
   end subroutine init_shake
 
 !========================================================================================!
-  subroutine do_shake(nat,xyzo,xyz,velo,acc,mass,tstep,shk,pr)
+  subroutine do_shake(nat,xyzo,xyz,velo,acc,mass,tstep,shk,pr,iostat)
 !**************************************************
 !* subroutine do_shake
 !* Calculation of the actual SHAKE constraint
@@ -252,11 +256,12 @@ contains !> MODULE PROCEDURES START HERE
     integer,intent(in) :: nat
     type(shakedata) :: shk
     logical,intent(in) :: pr
+    integer,intent(out),optional :: iostat
     real(wp) :: xyzo(3,nat),xyz(3,nat),velo(3,nat),acc(3,nat),mass(nat)
     real(wp) :: virsh(3),tstep
     real(wp),allocatable :: xyzt(:,:)
     real(wp) :: vel(3)
-    integer :: i,icyc
+    integer :: i,icyc,io
     integer :: iat,jat
     logical :: conv
     real(wp) :: maxdev
@@ -265,11 +270,13 @@ contains !> MODULE PROCEDURES START HERE
     real(wp) :: tau1,tau2
     integer :: jmaxdev
 
-    conv = .false.
+    conv = .false. !> assume not converged
+    io = 1         !> and therefore unsuccessfull
     icyc = 0
 
-    allocate (xyzt(3,nat))
-    xyzt = xyz
+    !allocate (xyzt(3,nat))
+    if(.not.allocated(shk%xyzt)) allocate(shk%xyzt(3,nat))
+    shk%xyzt = xyz
 
     tau1 = 1.0_wp / tstep
     tau2 = tau1 * tau1
@@ -287,7 +294,7 @@ contains !> MODULE PROCEDURES START HERE
       do i = 1,shk%ncons
         iat = shk%conslist(1,i)
         jat = shk%conslist(2,i)
-        shk%dr(1:3,i) = xyzt(1:3,iat) - xyzt(1:3,jat)
+        shk%dr(1:3,i) = shk%xyzt(1:3,iat) - shk%xyzt(1:3,jat)
         shk%dr(4,i) = shk%dr(1,i)**2 + shk%dr(2,i)**2 + shk%dr(3,i)**2
         dist = shk%distcons(i)
         dev = abs(shk%dr(4,i) - dist) / dist
@@ -310,8 +317,8 @@ contains !> MODULE PROCEDURES START HERE
              &     shk%dr(2,i) * shk%dro(2,i) + &
              &                            shk%dr(3,i) * shk%dro(3,i))
           gcons = (dist - shk%dr(4,i)) / denom
-          xyzt(1:3,iat) = xyzt(1:3,iat) + rmi * gcons * shk%dro(1:3,i)
-          xyzt(1:3,jat) = xyzt(1:3,jat) - rmj * gcons * shk%dro(1:3,i)
+          shk%xyzt(1:3,iat) = shk%xyzt(1:3,iat) + rmi * gcons * shk%dro(1:3,i)
+          shk%xyzt(1:3,jat) = shk%xyzt(1:3,jat) - rmj * gcons * shk%dro(1:3,i)
         end do
       end if
       icyc = icyc + 1
@@ -320,13 +327,19 @@ contains !> MODULE PROCEDURES START HERE
     end do
 
     if (conv) then
-      velo = velo + (xyzt - xyz) * tau1
-      acc = acc + (xyzt - xyz) * tau2
-      xyz = xyzt
+      velo = velo + (shk%xyzt - xyz) * tau1
+      acc = acc + (shk%xyzt - xyz) * tau2
+      xyz = shk%xyzt
+      io = 0 !> successful termination
     else if (pr) then
       write (*,*) 'SHAKE did not converge! maxdev=',maxdev
     end if
-    deallocate (xyzt)
+    !deallocate (xyzt)
+
+    if(present(iostat))then
+      iostat = io
+    endif 
+
     return
   end subroutine do_shake
 

@@ -68,6 +68,7 @@ subroutine V2cleanup(restartopt)
     call rmrfw('METADYN')
     call rmrfw('NORMMD')
     call rmrf('MRMSD')
+    call rmrf('TRIALMD')
     call rmrf('MDFILES')
     call rmrf('OPTIM')
     call rmrf('PROP')
@@ -94,6 +95,7 @@ subroutine cleanMTD
   call rmrfw('NORM')
   call rmrfw('STATICMTD')
   call rmrf('MRMSD')
+  call rmrf('TRIALMD')
   call rmrf('MDFILES')
   return
 end subroutine cleanMTD

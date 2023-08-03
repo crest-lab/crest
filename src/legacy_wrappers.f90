@@ -252,3 +252,29 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
 end subroutine thermo_wrap
 
 !================================================================================!
+
+subroutine trialMD(env)
+!***********************************************
+!* subroutine trialMD
+!* Takes the global metadynamics settings
+!* And performs a short 1 ps simulation to
+!* check if the molecular dynamis/metadynamics
+!* will run, or if the timestep is too large
+!***********************************************
+   use crest_parameters,only:wp
+   use crest_data
+   implicit none
+   !> INPUT
+   type(systemdata) :: env
+
+   if (env%legacy) then
+     !> old xtb subprocess version
+     call trialMD_legacy(env) 
+   else
+     !> new calculator implementation
+     call trialMD_calculator(env)
+   end if
+
+end subroutine trialMD
+
+!================================================================================!

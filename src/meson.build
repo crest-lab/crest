@@ -83,7 +83,6 @@ srcs += files(
   'testmol.f90',
   'timer.f90',
   'trackorigin.f90',
-  'trialmd.f90',
   'utilities.f',
   'zdata.f90',
   'zsort.f90',

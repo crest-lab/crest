@@ -74,7 +74,15 @@ subroutine crest_search_imtdgc(env,tim)
 
 !>--- sets the MD length according to a flexibility measure
   call md_length_setup(env) 
+!>--- create the MD calculator saved to env
   call env_to_mddat(env)
+
+  if (env%performMTD) then
+!>--- (optional) calculate a short 1ps test MTD to check settings
+   call tim%start(1,'trial metadynamics (MTD)')
+   call trialmd(env)  
+   call tim%stop(1)
+  end if
 
 !===========================================================!
 !>--- Start mainloop 

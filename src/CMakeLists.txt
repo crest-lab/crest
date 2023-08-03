@@ -86,7 +86,6 @@ list(APPEND srcs
   "${dir}/testmol.f90"
   "${dir}/timer.f90"
   "${dir}/trackorigin.f90"
-  "${dir}/trialmd.f90"
   "${dir}/utilities.f"
   "${dir}/zdata.f90"
   "${dir}/zsort.f90"

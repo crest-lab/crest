@@ -228,18 +228,18 @@ contains  !> MODULE PROCEDURES START HERE
     case (cv_std_mtd)
       write (iunit,'(" MTD/CV type   :",1x,a)') 'standard'
     case (cv_rmsd)
-      write (*,'(" MTD/CV type   :",1x,a)') 'RMSD'
+      write (*,'(" MTD/CV type   :",1x,a)') 'RMSD bias'
     case (cv_rmsd_static)
-      write (iunit,'(" MTD/CV type   :",1x,a)') 'RMSD (static)'
+      write (iunit,'(" MTD/CV type   :",1x,a)') 'RMSD bias (static)'
     end select
     write (iunit,'(" kpush /Eh     :",f10.4)') self%kpush
     write (iunit,'(" alpha /bohr⁻² :",f10.4)') self%alpha
 
     select case (self%mtdtype)
     case (cv_rmsd)
-      write (iunit,'(" ramp         :",f10.4)') self%ramp
-      write (iunit,'(" dump/fs      :",f10.4,i9 )') self%cvdump_fs,self%cvdumpstep
-      write (iunit,'(" # CVs (max)  :",i10 )') self%maxsave
+      write (iunit,'(" ramp          :",f10.4,1x,i0)') self%ramp,check_dump_steps_rmsd(self)
+      write (iunit,'(" dump/fs       :",f10.4,1x,i0 )') self%cvdump_fs,self%cvdumpstep
+      write (iunit,'(" # CVs (max)   :",i10 )') self%maxsave
     case (cv_rmsd_static)
       if (allocated(self%biasfile)) write (iunit,'(" reading from  :",1x,a)') self%biasfile
       write (iunit,'(" ramp (adjust.):",f10.4,1x,i0)') self%ramp,check_dump_steps_rmsd(self)
