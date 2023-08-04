@@ -55,7 +55,7 @@ subroutine crest_optimization(env,tim)
 
   allocate (grad(3,mol%nat),source=0.0_wp)
   calc = env%calc
-  !>--- check if we have any calculation settings allocated
+!>--- check if we have any calculation settings allocated
   if (calc%ncalculations < 1) then
     write (stdout,*) 'no calculations allocated'
     return
@@ -64,10 +64,7 @@ subroutine crest_optimization(env,tim)
   end if
   write(stdout,'(a)') repeat('-',80)
 
-  !>--- first energy&gradient calculation
-  call engrad(mol,calc,energy,grad,io)
-
-  !>-- geopetry optimization
+!>-- geometry optimization
   pr = .true. !> stdout printout
   wr = .true. !> write crestopt.log
   call optimize_geometry(mol,molnew,calc,energy,grad,pr,wr,io)

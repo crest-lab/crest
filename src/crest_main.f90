@@ -308,7 +308,7 @@ program CREST
       case (1:8,10,20,100,998)
         call propcalc(conformerfile,j,env,tim)
       case (45)
-        call tim%start(15,'entropy eval.')
+        call tim%start(15,'Conf. entropy evaluation')
         call newentropyextrapol(env)
         call tim%stop(15)
       case (50:59)  !hybrid reoptimization (e.g. gfn2@gff)

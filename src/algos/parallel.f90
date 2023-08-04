@@ -17,12 +17,19 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!> a collection of routines to set up parallel runs of
-!> MDs and optimizations.
+!> a collection of routines to set up parallel runs of MDs and optimizations.
 
 !========================================================================================!
-
+!========================================================================================!
+!> Routines for concurrent geometry optimization
+!========================================================================================!
+!========================================================================================!
 subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
+!***************************************************************
+!* subroutine crest_oloop
+!* This subroutine performs concurrent geometry optimizations
+!* for the given ensemble. Inputs xyz and eread are overwritten
+!***************************************************************
   use crest_parameters,only:wp,stdout,sep
   use crest_calculator
   use omp_lib
@@ -40,31 +47,30 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
 
   type(coord),allocatable :: mols(:)
   type(coord),allocatable :: molsnew(:)
-  integer :: i,j,k,l,io,ich,ich2,c,z,job_id
+  integer :: i,j,k,l,io,ich,ich2,c,z,job_id,zcopy
   logical :: pr,wr,ex
   type(calcdata),allocatable :: calculations(:)
-  type(calcdata) :: calc
   integer :: T  !> number of parallel running instances
   real(wp) :: energy,gnorm
   real(wp),allocatable :: grad(:,:)
   integer :: thread_id,vz,job
   character(len=80) :: atmp
-  real(wp) :: percent
-  character(len=52) :: bar
+  real(wp) :: percent,runtime
 
-  !>--- check if we have any calculation settings allocated
-  calc = env%calc
-  if (calc%ncalculations < 1) then
+  type(timer) :: profiler
+
+!>--- check if we have any calculation settings allocated
+  if (env%calc%ncalculations < 1) then
     write (stdout,*) 'no calculations allocated'
     return
   end if
 
-  !>--- prepare objects for parallelization
+!>--- prepare objects for parallelization
   T = env%threads
   allocate (calculations(T),source=env%calc)
   allocate (mols(T),molsnew(T))
   do i = 1,T
-    do j = 1,calc%ncalculations
+    do j = 1,env%calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
       !>--- directories
       ex = directory_exist(env%calc%calcs(j)%calcspace)
@@ -79,34 +85,36 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
     allocate (molsnew(i)%at(nat),molsnew(i)%xyz(3,nat))
   end do
 
-  !>--- printout directions
+!>--- printout directions and timer initialization
   pr = .false. !> stdout printout
   wr = .false. !> write crestopt.log
   if (dump) then
     open (newunit=ich,file=ensemblefile)
     open (newunit=ich2,file=ensembleelog)
   end if
-  if (env%niceprint) then
-    percent = 0.0_wp
-    call progbar(percent,bar)
-    call printprogbar(percent,bar)
-  end if
-  !>--- shared variables
-  allocate (grad(3,nat),source=0.0_wp)
+  call profiler%init(1)
+  call profiler%start(1)
 
-  c = 0
-  k = 0
-  z = 0
+!>--- first progress printout (initializes progress variables)
+  call crest_oloop_pr_progress(env,nall,0)
+
+!>--- shared variables
+  allocate (grad(3,nat),source=0.0_wp)
+  c = 0  !> counter of successfull optimizations
+  k = 0  !> counter of total optimization (fail+success)
+  z = 0  !> counter to perform optimization in right order (1...nall)
   eread(:) = 0.0_wp
-  !>--- loop over ensemble
+  grad(:,:) = 0.0_wp
+!>--- loop over ensemble
   !$omp parallel &
-  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,z,pr,wr,dump,percent,bar,ich,ich2,mols,molsnew)
+  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,z,pr,wr,dump) &
+  !$omp shared(ich,ich2,mols,molsnew)
   !$omp single
   do i = 1,nall
 
     call initsignal()
     vz = i
-    !$omp task firstprivate( vz ) private(j,job,calc,energy,grad,io,atmp,gnorm,thread_id)
+    !$omp task firstprivate( vz ) private(j,job,energy,grad,io,atmp,gnorm,thread_id,zcopy)
     call initsignal()
 
     thread_id = OMP_GET_THREAD_NUM()
@@ -114,6 +122,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
     !>--- modify calculation spaces
     !$omp critical
     z = z+1
+    zcopy = z
     mols(job)%nat = nat
     mols(job)%at(:) = at(:)
     mols(job)%xyz(:,:) = xyz(:,:,z)
@@ -123,10 +132,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
     molsnew(job)%xyz(:,:) = xyz(:,:,z)
     !$omp end critical
 
-    !>--- first energy&gradient calculation
-    call engrad(mols(job),calculations(job),energy,grad,io)
-
-    !>-- geopetry optimization
+    !>-- geometry optimization
     call optimize_geometry(mols(job),molsnew(job),calculations(job),energy,grad,pr,wr,io)
 
     !$omp critical
@@ -140,17 +146,12 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
         call molsnew(job)%append(ich)
         call calc_eprint(calculations(job),energy,calculations(job)%etmp,ich2)
       end if
+      eread(zcopy) = energy
+      xyz(:,:,zcopy) = molsnew(job)%xyz(:,:)
     end if
     k = k+1
-    if (env%niceprint) then
-      percent = float(k)/float(nall)*100.0_wp
-      call progbar(percent,bar)
-      call printprogbar(percent,bar)
-    else
-      write (stdout,'(1x,i0)',advance='no') k
-      flush (stdout)
-    end if
-
+    !>--- print progress
+    call crest_oloop_pr_progress(env,nall,k)
     !$omp end critical
     !$omp end task
   end do
@@ -158,20 +159,32 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   !$omp end single
   !$omp end parallel
 
-  if (.not.env%niceprint) then
-    write (stdout,'(/,1x,a)') 'done.'
-  else
-    write (stdout,*)
-  end if
+!>--- finalize progress printout
+  call crest_oloop_pr_progress(env,nall,-1)
 
-  write (stdout,'(1x,i0,a,i0,a)') c,' of ',nall,' structures successfully optimized.'
+!>--- stop timer
+  call profiler%stop(1)
 
+!>--- prepare some summary printout
+  percent = float(c)/float(nall)*100.0_wp
+  write(atmp,'(f5.1,a)') percent,'% success)'
+  write (stdout,'(">",1x,i0,a,i0,a,a)') c,' of ',nall,' structures successfully optimized (', &
+  &     trim(adjustl(atmp))
+  write (atmp,'(">",1x,a,i0,a)') 'Total runtime for ',nall,' optimizations:'
+  call profiler%write_timing(stdout,1,trim(atmp),.true.)
+  runtime = profiler%get(1)
+  write(atmp,'(f16.3,a)') runtime/real(nall,wp),' sec'
+  write(stdout,'(a,a,a)') '> Corresponding to approximately ',trim(adjustl(atmp)), &
+  &                       ' per processed structure' 
+
+!>--- close files (if they are open)
   if (dump) then
     close (ich)
     close (ich2)
   end if
 
   deallocate (grad)
+  call profiler%clear()
   deallocate (calculations)
   if (allocated(mols)) deallocate (mols)
   if (allocated(molsnew)) deallocate (molsnew)
@@ -179,11 +192,77 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
 end subroutine crest_oloop
 
 !========================================================================================!
+subroutine crest_oloop_pr_progress(env,total,current)
+!*********************************************
+!* subroutine crest_oloop_pr_progress
+!* A subroutine to print and track progress of
+!* concurrent geometry optimizations
+!*********************************************
+  use crest_parameters, only:wp,stdout
+  use crest_data
+  use iomod, only: to_str
+  implicit none
+  type(systemdata),intent(inout) :: env
+  integer,intent(in) :: total,current
+  real(wp) :: percent
+  character(len=52) :: bar
+  character(len=5) :: atmp
+  real(wp),save :: increment
+  real(wp),save :: progressbarrier
+
+  percent = float(current)/float(total)*100.0_wp
+  if (current == 0) then !> as a wrapper to start the printout
+    progressbarrier = 0.0_wp
+    if (env%niceprint) then
+      percent = 0.0_wp
+      call progbar(percent,bar)
+      call printprogbar(percent,bar)
+    end if
+    increment = 10.0_wp
+    if(total > 1000) increment = 7.5_wp
+    if(total > 5000) increment = 5.0_wp
+    if(total >10000) increment = 2.5_wp
+    if(total >20000) increment = 1.0_wp
+
+
+  else if (current <= total .and. current > 0) then !> the regular printout case
+    if (env%niceprint) then
+      call progbar(percent,bar)
+      call printprogbar(percent,bar)
+
+    else if (.not.env%legacy) then
+      if(percent >= progressbarrier)then
+       write(atmp,'(f5.1)') percent
+       write (stdout,'(1x,a)',advance='no') '|>'//trim(adjustl(atmp))//'%'
+       progressbarrier = progressbarrier + increment
+       progressbarrier = min(progressbarrier, 100.0_wp)
+       flush(stdout)
+      endif
+    else
+      write (stdout,'(1x,i0)',advance='no') current
+      flush (stdout)
+    end if
+
+  else !> as a wrapper to finalize the printout
+    if (.not.env%niceprint) then
+      write (stdout,'(/,1x,a)') 'done.'
+    else
+      write (stdout,*)
+    end if
+  end if
+
+end subroutine crest_oloop_pr_progress
+
+!========================================================================================!
+!========================================================================================!
+!> Routines for parallel MDs
+!========================================================================================!
 !========================================================================================!
 
 subroutine crest_search_multimd(env,mol,mddats,nsim)
 !*****************************************************
-!* this runs nsim MDs on the same structure (mol)
+!* subroutine crest_search_multimd
+!* this runs #nsim MDs on the same structure (mol)
 !*****************************************************
   use crest_parameters,only:wp,stdout,sep
   use crest_data
@@ -200,8 +279,6 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   type(coord),allocatable :: moltmps(:)
   integer :: i,j,io,ich
   logical :: pr,ex
-  type(calcdata) :: calc
-  type(mddata) :: mddat
   integer :: T
   real(wp) :: percent
   character(len=52) :: bar
@@ -212,6 +289,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   integer :: vz,job,thread_id
   real(wp) :: etmp
   real(wp),allocatable :: grdtmp(:,:)
+  type(timer) :: profiler
 !===========================================================!
 
 !>--- set threads
@@ -220,12 +298,10 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   end if
 
   !>--- check if we have any MD & calculation settings allocated
-  mddat = env%mddat
-  calc = env%calc
-  if (.not.mddat%requested) then
+  if (.not.env%mddat%requested) then
     write (stdout,*) 'MD requested, but no MD settings present.'
     return
-  else if (calc%ncalculations < 1) then
+  else if (env%calc%ncalculations < 1) then
     write (stdout,*) 'MD requested, but no calculation settings present.'
     return
   end if
@@ -239,7 +315,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     moltmps(i)%nat = mol%nat
     moltmps(i)%at = mol%at
     moltmps(i)%xyz = mol%xyz
-    do j = 1,calc%ncalculations
+    do j = 1,env%calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
       !>--- directories
       ex = directory_exist(env%calc%calcs(j)%calcspace)
@@ -256,6 +332,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
 
   !>--- other settings
   pr = .false.
+  call profiler%init(nsim)
 
   !>--- run the MDs
   !$omp parallel &
@@ -274,47 +351,17 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     moltmps(job)%nat = mol%nat
     moltmps(job)%at = mol%at
     moltmps(job)%xyz = mol%xyz
-
-    if (mddats(vz)%simtype == type_md) then
-      write (stdout,'(a,i4,a)') 'Starting MD',vz,' with the settings:'
-    else if (mddats(vz)%simtype == type_mtd) then
-      if (mddats(vz)%cvtype(1) == cv_rmsd_static)then
-       write (stdout,'(a)',advance='no') 'Starting static MTD'
-      else
-        write (stdout,'(a)',advance='no') 'Starting MTD'
-      endif
-      write (stdout,'(i4,a)') vz,' with the settings:'
-    end if
-    write (stdout,'(''     MD time /ps        :'',f8.1)') mddats(vz)%length_ps
-    write (stdout,'(''     dt /fs             :'',f8.1)') mddats(vz)%tstep
-    write (stdout,'(''     dumpstep(trj) /fs  :'',f8.1)') mddats(vz)%dumpstep
-    if (mddats(vz)%simtype == type_mtd) then
-      if (mddats(vz)%cvtype(1) == cv_rmsd) then
-        write (stdout,'(''     dumpstep(Vbias) /ps:'',f8.2)') &
-        & mddats(vz)%mtd(1)%cvdump_fs/1000.0_wp
-      endif
-      write (stdout,'(''     Vbias factor k /Eh :'',f8.4)') &
-      &  mddats(vz)%mtd(1)%kpush
-      write (stdout,'(''     Vbias exp α /bohr⁻²:'',f8.4)') &
-      &  mddats(vz)%mtd(1)%alpha
-    end if
     !$omp end critical
+    !>--- startup printout (thread safe)
+    call parallel_md_block_printout(mddats(vz),vz)
 
-    !>--- the acutal MD call
+    !>--- the acutal MD call with timing
+    call profiler%start(vz)
     call dynamics(moltmps(job),mddats(vz),calculations(job),pr,io)
+    call profiler%stop(vz)
 
-    !$omp critical
-    if (mddats(vz)%simtype == type_mtd) then
-      write (stdout,'(a)',advance='no') '*MTD '
-    else
-      write (stdout,'(a)',advance='no') '*MD '
-    endif
-    if (io == 0) then
-      write (stdout,'(i0,a)') vz,' completed successfully'
-    else
-      write (stdout,'(i0,a)') vz,' terminated with early'
-    end if
-    !$omp end critical
+    !>--- finish printout (thread safe)
+    call parallel_md_finish_printout(mddats(vz),vz,io,profiler)
     !$omp end task
   end do
   !$omp taskwait
@@ -324,6 +371,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   !>--- collect trajectories into one
   call collect(nsim,mddats)
 
+  call profiler%clear()
   deallocate (calculations)
   if (allocated(moltmps)) deallocate (moltmps)
   return
@@ -356,8 +404,16 @@ contains
     return
   end subroutine collect
 end subroutine crest_search_multimd
+
 !========================================================================================!
 subroutine crest_search_multimd_init(env,mol,mddat,nsim)
+!*******************************************************
+!* subroutine crest_search_multimd_init
+!* This routine will initialize a copy of env%mddat
+!* and save it to the local mddat. If we are about to
+!* run RMSD metadynamics, the required number of
+!* simulations (#nsim) is returned
+!*******************************************************
   use crest_parameters,only:wp,stdout
   use crest_data
   use crest_calculator
@@ -384,26 +440,31 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
 
   !>--- check if we have any MD & calculation settings allocated
   mddat = env%mddat
-  calc = env%calc
   if (.not.mddat%requested) then
     write (stdout,*) 'MD requested, but no MD settings present.'
     return
-  else if (calc%ncalculations < 1) then
+  else if (env%calc%ncalculations < 1) then
     write (stdout,*) 'MD requested, but no calculation settings present.'
     return
   end if
 
   !>--- init SHAKE?
   if (mddat%shake) then
-    calc%calcs(1)%rdwbo = .true.
-    allocate (grad(3,mol%nat),source=0.0_wp)
-    call engrad(mol,calc,energy,grad,io)
-    deallocate (grad)
-    calc%calcs(1)%rdwbo = .false.
+    if (allocated(env%ref%wbo)) then
+      shk%wbo = env%ref%wbo
+    else
+      calc = env%calc
+      calc%calcs(1)%rdwbo = .true.
+      allocate (grad(3,mol%nat),source=0.0_wp)
+      call engrad(mol,calc,energy,grad,io)
+      deallocate (grad)
+      calc%calcs(1)%rdwbo = .false.
 
-    shk%shake_mode = env%mddat%shk%shake_mode
-    call move_alloc(calc%calcs(1)%wbo,shk%wbo)
+      shk%shake_mode = env%mddat%shk%shake_mode
+      call move_alloc(calc%calcs(1)%wbo,shk%wbo)
+    end if
 
+    shk%shake_mode = env%shake
     mddat%shk = shk
     call init_shake(mol%nat,mol%at,mol%xyz,mddat%shk,pr)
     mddat%nshake = mddat%shk%ncons
@@ -428,6 +489,7 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
 
   return
 end subroutine crest_search_multimd_init
+
 subroutine crest_search_multimd_init2(env,mddats,nsim)
   use crest_parameters,only:wp,stdout,sep
   use crest_data
@@ -482,7 +544,8 @@ end subroutine crest_search_multimd_init2
 !========================================================================================!
 subroutine crest_search_multimd2(env,mols,mddats,nsim)
 !*******************************************************************
-!* this runs nsim MDs on nsim selected different structures (mols)
+!* subroutine crest_search_multimd2
+!* this runs #nsim MDs on #nsim selected different structures (mols)
 !*******************************************************************
   use crest_parameters,only:wp,stdout,sep
   use crest_data
@@ -493,6 +556,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
   implicit none
+  !> INPUT
   type(systemdata),intent(inout) :: env
   type(mddata) :: mddats(nsim)
   integer :: nsim
@@ -500,8 +564,6 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   type(coord),allocatable :: moltmps(:)
   integer :: i,j,io,ich
   logical :: pr,ex
-  type(calcdata) :: calc
-  type(mddata) :: mddat
   integer :: T
   real(wp) :: percent
   character(len=52) :: bar
@@ -510,6 +572,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
 
   type(calcdata),allocatable :: calculations(:)
   integer :: vz,job,thread_id
+  type(timer) :: profiler
 !===========================================================!
   !>--- set threads
   if (env%autothreads) then
@@ -517,12 +580,10 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   end if
 
   !>--- check if we have any MD & calculation settings allocated
-  mddat = env%mddat
-  calc = env%calc
-  if (.not.mddat%requested) then
+  if (.not.env%mddat%requested) then
     write (stdout,*) 'MD requested, but no MD settings present.'
     return
-  else if (calc%ncalculations < 1) then
+  else if (env%calc%ncalculations < 1) then
     write (stdout,*) 'MD requested, but no calculation settings present.'
     return
   end if
@@ -532,7 +593,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   allocate (calculations(T),source=env%calc)
   allocate (moltmps(T),source=mols(1))
   do i = 1,T
-    do j = 1,calc%ncalculations
+    do j = 1,env%calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
       !>--- directories
       ex = directory_exist(env%calc%calcs(j)%calcspace)
@@ -547,10 +608,11 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
 
   !>--- other settings
   pr = .false.
+  call profiler%init(nsim)
 
   !>--- run the MDs
   !$omp parallel &
-  !$omp shared(env,calculations,mddats,mols,pr,percent,bar,ich, moltmps)
+  !$omp shared(env,calculations,mddats,mols,pr,percent,bar,ich, moltmps,profiler)
   !$omp single
   do i = 1,nsim
 
@@ -565,49 +627,17 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
     moltmps(job)%nat = mols(vz)%nat
     moltmps(job)%at = mols(vz)%at
     moltmps(job)%xyz = mols(vz)%xyz
-
-    if (mddats(vz)%simtype == type_md) then
-      write (stdout,'(a,i4,a)') 'Starting MD',vz,' with the settings:'
-    else if (mddats(vz)%simtype == type_mtd) then
-      if (mddats(vz)%cvtype(1) == cv_rmsd_static)then
-       write (stdout,'(a)',advance='no') 'Starting static MTD'
-      else
-        write (stdout,'(a)',advance='no') 'Starting MTD'
-      endif
-      write (stdout,'(i4,a)') vz,' with the settings:'
-    end if
-    write (stdout,'(''     MD time /ps        :'',f8.1)') mddats(vz)%length_ps
-    write (stdout,'(''     target T /K        :'',f8.1)') mddats(vz)%tsoll
-    write (stdout,'(''     dt /fs             :'',f8.1)') mddats(vz)%tstep
-    write (stdout,'(''     dumpstep(trj) /fs  :'',f8.1)') mddats(vz)%dumpstep
-    if (mddats(vz)%simtype == type_mtd) then
-      if (mddats(vz)%cvtype(1) == cv_rmsd) then
-        write (stdout,'(''     dumpstep(Vbias) /ps:'',f8.2)') &
-        & mddats(vz)%mtd(1)%cvdump_fs/1000.0_wp
-      endif
-      write (stdout,'(''     Vbias factor k /Eh :'',f8.4)') &
-      &  mddats(vz)%mtd(1)%kpush
-      write (stdout,'(''     Vbias exp α /bohr⁻²:'',f8.4)') &
-      &  mddats(vz)%mtd(1)%alpha
-    end if
     !$omp end critical
+    !>--- startup printout (thread safe)
+    call parallel_md_block_printout(mddats(vz),vz)
 
-    !>--- the acutal MD call
+    !>--- the acutal MD call with timing
+    call profiler%start(vz)
     call dynamics(moltmps(job),mddats(vz),calculations(job),pr,io)
+    call profiler%stop(vz)
 
-    !$omp critical
-    if (mddats(vz)%simtype == type_mtd) then
-      write (stdout,'(a)',advance='no') '*MTD '
-    else
-      write (stdout,'(a)',advance='no') '*MD '
-    endif
-    if (io == 0) then
-      write (stdout,'(i0,a)') vz,' completed successfully'
-    else
-      write (stdout,'(i0,a)') vz,' terminated with early'
-    end if
-    !deallocate(moltmp%at,moltmp%xyz)
-    !$omp end critical
+    !>--- finish printout (thread safe)
+    call parallel_md_finish_printout(mddats(vz),vz,io,profiler)
     !$omp end task
   end do
   !$omp taskwait
@@ -617,6 +647,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   !>--- collect trajectories into one
   call collect(nsim,mddats)
 
+  call profiler%clear()
   deallocate (calculations)
   if (allocated(moltmps)) deallocate (moltmps)
   return
@@ -649,4 +680,111 @@ contains
     return
   end subroutine collect
 end subroutine crest_search_multimd2
+
+!========================================================================================!
+subroutine parallel_md_block_printout(MD,vz)
+!***********************************************
+!* subroutine parallel_md_block_printout
+!* This will print information about the MD/MTD
+!* simulation. The execution is omp threadsave
+!***********************************************
+  use crest_parameters,only:wp,stdout,sep
+  use crest_data
+  use crest_calculator
+  use strucrd
+  use dynamics_module
+  use shake_module
+  use iomod,only:to_str
+  implicit none
+  type(mddata),intent(in) :: MD
+  integer,intent(in) :: vz
+  character(len=40) :: atmp
+  integer :: il
+  !$omp critical
+
+  if (MD%simtype == type_md) then
+    write (atmp,'(a,1x,i3)') 'starting MD',vz
+  else if (MD%simtype == type_mtd) then
+    if (MD%cvtype(1) == cv_rmsd_static) then
+      write (atmp,'(a,1x,i3)') 'starting static MTD',vz
+    else
+      write (atmp,'(a,1x,i4)') 'starting MTD',vz
+    end if
+  end if
+  il = (44-len_trim(atmp))/2
+  write (stdout,'(a,1x,a,1x,a)') repeat('=',il),trim(atmp),repeat('=',il)
+
+  write (stdout,'("|   MD simulation time   :",f8.1," ps       |")') MD%length_ps
+  write (stdout,'("|   target T             :",f8.1," K        |")') MD%tsoll
+  write (stdout,'("|   timestep dt          :",f8.1," fs       |")') MD%tstep
+  write (stdout,'("|   dump interval(trj)   :",f8.1," fs       |")') MD%dumpstep
+  if (MD%shake.and.MD%shk%shake_mode > 0) then
+    if (MD%shk%shake_mode == 2) then
+      write (stdout,'("|   SHAKE algorithm      :",a5," (all bonds) |")') to_str(MD%shake)
+    else
+      write (stdout,'("|   SHAKE algorithm      :",a5," (H only) |")') to_str(MD%shake)
+    end if
+  end if
+  if (MD%simtype == type_mtd) then
+    if (MD%cvtype(1) == cv_rmsd) then
+      write (stdout,'("|   dump interval(Vbias) :",f8.2," ps       |")') &
+          & MD%mtd(1)%cvdump_fs/1000.0_wp
+    end if
+    write (stdout,'("|   Vbias prefactor (k)  :",f8.4," Eh       |")') &
+      &  MD%mtd(1)%kpush
+    if (MD%cvtype(1) == cv_rmsd.or.MD%cvtype(1) == cv_rmsd_static) then
+      write (stdout,'("|   Vbias exponent (α)   :",f8.4," bohr⁻²   |")') MD%mtd(1)%alpha
+    else
+      write (stdout,'("|   Vbias exponent (α)   :",f8.4,"          |")') MD%mtd(1)%alpha
+    end if
+  end if
+
+  !$omp end critical
+
+end subroutine parallel_md_block_printout
+
+subroutine parallel_md_finish_printout(MD,vz,io,profiler)
+!*******************************************
+!* subroutine parallel_md_finish_printout
+!* This will print information termination
+!* info about the MD/MTD simulation
+!*******************************************
+  use crest_parameters,only:wp,stdout,sep
+  use crest_data
+  use crest_calculator
+  use strucrd
+  use dynamics_module
+  use shake_module
+  implicit none
+  type(mddata),intent(in) :: MD
+  integer,intent(in) :: vz,io
+  type(timer),intent(inout) :: profiler
+  character(len=40) :: atmp
+  character(len=80) :: btmp
+
+  !$omp critical
+
+  !write(stdout,'(a)') repeat('-',45)
+  if (MD%simtype == type_mtd) then
+    if (MD%cvtype(1) == cv_rmsd_static) then
+      write (atmp,'(a)') '*sMTD'
+    else
+      write (atmp,'(a)') '*MTD'
+    end if
+  else
+    write (atmp,'(a)') '*MD'
+  end if
+  if (io == 0) then
+    write (btmp,'(a,1x,i0,a)') trim(atmp),vz,' completed successfully'
+  else
+    write (btmp,'(a,1x,i0,a)') trim(atmp),vz,' terminated with early'
+  end if
+  !write (stdout,'("* ",i0,a)') MD%dumped,' structures written to trajectory file'
+  !write(btmp,'(a,1x,i0,a)') trim(atmp),vz,' runtime'
+  call profiler%write_timing(stdout,vz,trim(btmp))
+
+  !$omp end critical
+
+end subroutine parallel_md_finish_printout
+!========================================================================================!
 !========================================================================================!
