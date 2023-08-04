@@ -59,4 +59,11 @@ option(
   value: true,
   description: 'build with toml-f integration',
 )
+option(
+  'WITH_XHCFF',
+  type: 'boolean',
+  value: false,
+  description: 'build with XHCFF integration',
+)
+
 

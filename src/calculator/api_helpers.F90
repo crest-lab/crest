@@ -276,5 +276,25 @@ contains    !> MODULE PROCEDURES START HERE
   end subroutine gfnff_wbos
 
 
+
+
+!========================================================================================!
+
+!>--- XHCFF setup/helper routines
+  subroutine xhcff_initcheck(calc,loadnew)
+    implicit none
+    type(calculation_settings),intent(inout) :: calc
+    logical,intent(out) :: loadnew
+    loadnew = .false.
+#ifdef WITH_XHCFF
+    if (.not.allocated(calc%xhcff)) then
+      allocate (calc%xhcff)
+      loadnew = .true.
+    end if
+    if (calc%apiclean) loadnew = .true.
+#endif
+  end subroutine xhcff_initcheck
+
+
 !========================================================================================!
 end module api_helpers
