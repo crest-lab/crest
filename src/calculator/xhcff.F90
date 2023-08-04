@@ -46,7 +46,7 @@ contains  !>--- Module routines start here
 !========================================================================================!
 !========================================================================================!
 
-  subroutine xhcff_setup(mol, xhcff, pressure, gridpts, proberad, vdwset, iostatus)
+  subroutine xhcff_setup(mol, xhcff, pressure, gridpts, proberad, vdwset, pr, iunit, iostatus)
     implicit none
     type(coord),intent(in)  :: mol
     real(wp), intent(in) :: pressure !> pressure
@@ -55,10 +55,12 @@ contains  !>--- Module routines start here
     integer, intent(in) :: vdwset
     type(xhcff_calculator),intent(inout) :: xhcff
     integer, intent(inout) :: iostatus
+    logical, intent(in) :: pr
+    integer,intent(in) :: iunit
 #ifdef WITH_XHCFF
     !> initialize XHCFF
     call xhcff%init(mol%nat,mol%at,mol%xyz, &
-     & pressure, gridpts, proberad, verbose=.false.,vdwset=vdwset,iostat=iostatus)
+     & pressure, gridpts, proberad, verbose=pr,iunit=iunit,vdwset=vdwset,iostat=iostatus)
 
 #else /* WITH_XHCFF */
     write (stdout,*) 'Error: Compiled without XHCFF-lib support!'

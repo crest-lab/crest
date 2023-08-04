@@ -354,7 +354,8 @@ contains    !> MODULE PROCEDURES START HERE
 !>--- populate parameters
     if (loadnew) then
       !> call xhcff with verbosity turned off
-      call xhcff_setup(mol,calc%xhcff, calc%extpressure, calc%ngrid, calc%proberad, calc%vdwset, iostatus)
+      call xhcff_setup(mol,calc%xhcff, calc%extpressure, calc%ngrid, calc%proberad, &
+      &                calc%vdwset, pr, calc%prch, iostatus)
     end if
     !$omp end critical
     if (iostatus /= 0) return
@@ -366,7 +367,8 @@ contains    !> MODULE PROCEDURES START HERE
 
 !>--- printout
     if (pr) then
-      call xhcff_print(calc%prch,calc%xhcff)
+      !call xhcff_print(calc%prch,calc%xhcff) 
+      !> the xhcff_sp call includes the printout within xhcff-lib
       call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 

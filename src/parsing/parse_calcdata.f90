@@ -329,9 +329,8 @@ contains !> MODULE PROCEDURES START HERE
       job%rddipgrad = val
     case ('refresh')
       job%apiclean = val
-      !TODO fix printout
     case ('print')
-      if (val) job%prch = 999
+      if (val) job%prch = 999  !> the actual ID will be overwritten automatically
     end select
     return
   end subroutine parse_setting_bool
