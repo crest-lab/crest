@@ -59,6 +59,9 @@ option(WITH_GFN0 "Enable build with GFN0-xTB support" TRUE)
 
 option(WITH_GFNFF "Enable build with GFN-FF support" TRUE)
 
+option(WITH_XHCFF "Enable build with XHCFF support" FALSE)
+
+
 if(NOT DEFINED "${PROJECT_NAME}-dependency-method")
   set(
     "${PROJECT_NAME}-dependency-method"
@@ -111,6 +114,8 @@ set(tomlfvar "${WITH_TOMLF}")#string(TOLOWER "${MY_BOOL}" ${WITH_TOMLF}))
 set(gfn0var "${WITH_GFN0}")
 set(gfnffvar "${WITH_GFNFF}")
 set(tblitevar "${WITH_TBLITE}")
+set(xhcffvar "${WITH_XHCFF}")
+
 configure_file(
   "${PROJECT_SOURCE_DIR}/assets/template/metadata.f90"
   "${PROJECT_BINARY_DIR}/crest_metadata.fh"
