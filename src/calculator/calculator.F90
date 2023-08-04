@@ -26,7 +26,7 @@ module crest_calculator
   use xtb_sc
   use generic_sc
   use lj
-  use api_engrad
+  use api_engrad  !> contains many potentials
 !>--- other
   use constraints
   use nonadiabatic_module
@@ -73,10 +73,11 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
-!========================================================================================!
-!> subroutine engrad
-!> main routine to perform some energy and gradient calculation
   subroutine engrad_mol(mol,calc,energy,gradient,iostatus)
+!***************************************************************
+!* subroutine engrad
+!* main routine to perform some energy and gradient calculation
+!***************************************************************
     implicit none
     type(coord) :: mol
     type(calcdata) :: calc
@@ -95,6 +96,9 @@ contains  !> MODULE PROCEDURES START HERE
 !==========================================================!
     call initsignal()
 
+    !>--- reset
+    energy = 0.0_wp
+    gradient(:,:) = 0.0_wp
 !==========================================================!
     !>--- check for sane input
     dum1 = sum(mol%xyz) 
@@ -154,6 +158,9 @@ contains  !> MODULE PROCEDURES START HERE
         case (jobtype%gfnff) !>-- GFN-FF api
           call gfnff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
 
+        case (jobtype%xhcff) !>--- XHCFF-lib 
+          call xhcff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
             read (calc%calcs(i)%other,*) dum1,dum2
@@ -173,22 +180,34 @@ contains  !> MODULE PROCEDURES START HERE
       !==================================================================================!
       !>--- switch case for what to to with the energies
       select case (calc%id)
-      case default
-        !> take e+grd only from first level
-        energy = calc%etmp(1)
-        gradient = calc%grdtmp(:,:,1)
-      case (2:)
-        !> take e+grd from one of the specified calculations
+      case( 0 ) !> the DEFAULT
+      !>--- an option to add multiple energies and gradients accodring to weights
+      !>--- which might be useful for additive contributions   
+        call calc_add_weighted_egrd(n,calc%eweight,calc%etmp,calc%grdtmp, &
+        &                energy,gradient)
+
+      case (1:)
+      !>--- if calc%id is a positive integer, take e+grd from 
+      !>--- the respective specified calculation
         j = calc%id
         if (j <= calc%ncalculations) then
           energy = calc%etmp(j)
           gradient = calc%grdtmp(:,:,j)
         end if
+
       case (-1)
-        !> take non-adiabatic arithmetic mean (of first two calculations)
+      !>--- if calc%id is equal to -1, we are using the MECP routines:
+      !>--- take non-adiabatic arithmetic mean (of first two calculations)
         call engrad_mean(mol%nat,calc%ncalculations,calc%etmp,calc%grdtmp, &
         &                energy,gradient)
+
+      case default 
+      !>--- any other case does not return any energy and gradient
+      !>--- from this part  of the calculator. 
+      !>--- constraints (see below) will be applied, however.
       end select
+
+      
       !>--- printout (to file or stdout)
       call calc_eprint(calc,energy,calc%etmp)
     end if
@@ -484,7 +503,7 @@ contains  !> MODULE PROCEDURES START HERE
     !>--- skip if only nonadiabatic constraints
 
     dummycalc = calc !> new dummy calculation
-    dummycalc%id = 0  !> set to zero so that only constraints are considered
+    dummycalc%id = -1000  !> set to something arbitrary so that only constraints are considered
     dummycalc%ncalculations = 0
     dummycalc%pr_energies = .false.
     n3 = nat * 3
@@ -550,6 +569,31 @@ contains  !> MODULE PROCEDURES START HERE
     deallocate (btmp)
     return
   end subroutine calc_print_energies2
+
+
+!==========================================================================================!
+  subroutine calc_add_weighted_egrd(ncalc,weights,energies,gradients,e,grd)
+!***************************************************************************
+!* A subroutine that adds (further) energies and gradients to
+!* e and grd, according to given weights.
+!* Might be useful for additive contributions or schemes like QMMM or ONIOM
+!***************************************************************************
+    implicit none
+    !> INPUT
+    integer,intent(in) :: ncalc
+    real(wp),intent(in) :: weights(ncalc)
+    real(wp),intent(in) :: energies(ncalc)
+    real(wp),intent(in) :: gradients(:,:,:)
+    !> OUTPUT
+    real(wp),intent(inout) :: e
+    real(wp),intent(inout) :: grd(:,:)
+    !> LOCAL
+    integer :: i
+    do i=1,ncalc
+       e = e + weights(i)*energies(i)
+       grd(:,:) = grd(:,:) + weights(i)*gradients(:,:,i)
+    enddo 
+  end subroutine calc_add_weighted_egrd
 
 !==========================================================================================!
 !==========================================================================================!
