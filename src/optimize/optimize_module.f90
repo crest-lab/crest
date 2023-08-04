@@ -22,77 +22,50 @@
 
 module optimize_module
   use iso_fortran_env,only:wp => real64
-  use calc_type
-  use calc_module
+  use crest_calculator
   use strucrd
-  
-  use ancopt_module, only: ancopt
+  use ancopt_module,only:ancopt
   implicit none
 
   real(wp),private,parameter :: autoaa = 0.52917726_wp
-  real(wp),private,parameter :: aatoau = 1.0_wp / autoaa
+  real(wp),private,parameter :: aatoau = 1.0_wp/autoaa
 
   public :: optimize_geometry
-  public :: test_optimize
 
-contains
 !========================================================================================!
-  subroutine test_optimize(fname)
+!========================================================================================!
+contains  !> MODULE PROCEDURES START HERE
+!========================================================================================!
+!========================================================================================!
+
+  subroutine optimize_geometry(mol,molnew,calc,etot,grd,pr,wr,iostatus)
     implicit none
-
-    character(len=*) :: fname
-
-    type(coord) :: mol
-    type(coord) :: molnew
+    !> Input
+    type(coord)    :: mol
     type(calcdata) :: calc
-    type(calculation_settings) :: job
-    type(constraint) :: constr
-    real(wp) :: energy
-    real(wp),allocatable :: grd(:,:)
-    logical :: pr,wr
-    integer :: iostatus
+    logical,intent(in)        :: pr
+    logical,intent(in)        :: wr
+    !> Output
+    type(coord)   :: molnew
+    integer,intent(out)       :: iostatus
+    real(wp),intent(inout)    :: etot
+    real(wp),intent(inout)    :: grd(3,mol%nat)
 
-    pr = .true.
-    wr = .true.
-    call mol%open(fname)
-    allocate(grd(3,mol%nat),source=0.0_wp)
+    iostatus = -1
+    !$omp critical
+    molnew%at = mol%at  !> do not overwrite original geometry
+    molnew%xyz = mol%xyz
+    molnew%nat = mol%nat
+    !$omp end critical
 
-    job%id = 10
-    job%calcspace = 'testdir' 
-    call calc%add(job)
+    !> initial singlepoint
+    call engrad(molnew,calc,etot,grd,iostatus)
 
-    call optimize_geometry(mol,molnew,calc,energy,grd,pr,wr,iostatus)
+    !> optimization
+    call ancopt(molnew,calc,etot,grd,pr,wr,iostatus)
 
     return
-  end subroutine test_optimize 
-
-!========================================================================================!
-subroutine optimize_geometry(mol,molnew,calc,etot,grd,pr,wr,iostatus)
-     implicit none
-     !> Input
-     type(coord)    :: mol
-     type(calcdata) :: calc
-     logical,intent(in)        :: pr
-     logical,intent(in)        :: wr
-     !> Output
-     type(coord)   :: molnew
-     integer,intent(out)       :: iostatus
-     real(wp),intent(inout)    :: etot
-     real(wp),intent(inout)    :: grd(3,mol%nat)      
-
-     iostatus = -1
-     molnew%at = mol%at  !> do not overwrite original geometry
-     molnew%xyz = mol%xyz
-     molnew%nat = mol%nat
-     
-     !> initial singlepoint
-     call engrad(molnew,calc,etot,grd,iostatus)    
- 
-     !> optimization
-     call ancopt(molnew,calc,etot,grd,pr,wr,iostatus)
-
-     return
-end subroutine optimize_geometry
+  end subroutine optimize_geometry
 
 !========================================================================================!
 end module optimize_module

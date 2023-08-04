@@ -17,7 +17,7 @@
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
-  "${dir}/calc_module.f90"
+  "${dir}/calculator.F90"
   "${dir}/calc_type.f90"
   "${dir}/constraints.f90"
   "${dir}/gfn0_api.F90"

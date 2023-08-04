@@ -27,12 +27,10 @@
 !>  tim  -  timer object
 !>-----------------------------------------------
 subroutine crest_scan(env,tim)
-  !use iso_fortran_env,only:wp => real64,stdout => output_unit
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use optimize_module
   use geo
   use iomod, only: makedir
@@ -50,7 +48,7 @@ subroutine crest_scan(env,tim)
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
 !========================================================================================!
-  call tim%start(14,'coordinate scan')
+  call tim%start(14,'Coordinate scan')
 !========================================================================================!
   write (*,*)
   !call system('figlet scan')

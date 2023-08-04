@@ -35,5 +35,7 @@ module crest_parameters
   real(wp),parameter,public :: planck = 6.62606957e-34_wp ! J*s
   real(wp),parameter,public :: hbar = planck/(2.0_wp*pi)
 
+  character(len=1),public,parameter :: sep = '/'
+  character(len=12),public,parameter :: dev0 = ' 2>/dev/null'
 
 end module crest_parameters

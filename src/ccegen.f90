@@ -684,8 +684,9 @@ subroutine CCEGEN(env,pr,fname)
 
       if(pr)then
       write(*,*)    
-      write(*,'(1x,a)') 'Timings:'    
-      call eval_sub_timer(ctimer)
+      !write(*,'(1x,a)') 'Timings:'    
+      !call eval_sub_timer(ctimer)
+      call ctimer%write(stdout, 'PCA/k-Means clustering')
       endif
       call ctimer%clear()
       return

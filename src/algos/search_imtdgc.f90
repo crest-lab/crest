@@ -27,9 +27,8 @@ subroutine crest_search_imtdgc(env,tim)
 !*******************************************************************
   use crest_parameters, only: wp,stdout
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   use iomod
@@ -75,7 +74,15 @@ subroutine crest_search_imtdgc(env,tim)
 
 !>--- sets the MD length according to a flexibility measure
   call md_length_setup(env) 
+!>--- create the MD calculator saved to env
   call env_to_mddat(env)
+
+  if (env%performMTD) then
+!>--- (optional) calculate a short 1ps test MTD to check settings
+   call tim%start(1,'trial metadynamics (MTD)')
+   call trialmd(env)  
+   call tim%stop(1)
+  end if
 
 !===========================================================!
 !>--- Start mainloop 
@@ -105,7 +112,7 @@ subroutine crest_search_imtdgc(env,tim)
     allocate (mddats(nsim), source=mddat)
     call crest_search_multimd_init2(env,mddats,nsim)
 
-    call tim%start(2,'MTD simulations')
+    call tim%start(2,'Metadynamics (MTD)')
     call crest_search_multimd(env,mol,mddats,nsim)
     call tim%stop(2)
 !>--- a file called crest_dynamics.trj should have been written
@@ -115,7 +122,7 @@ subroutine crest_search_imtdgc(env,tim)
 
 !==========================================================!
 !>--- Reoptimization of trajectories
-    call tim%start(3,'geom. optimization')
+    call tim%start(3,'Geometry optimization')
     multilevel = (/.true.,.false.,.false.,.false.,.true.,.false./)
     call crest_multilevel_oloop(env,ensnam,multilevel)
     call tim%stop(3)
@@ -168,7 +175,7 @@ subroutine crest_search_imtdgc(env,tim)
 !=========================================================!
 !>--- (optional) Perform additional MDs on the lowest conformers
   if (env%rotamermds) then
-    call tim%start(4,'MD simulations')
+    call tim%start(4,'Molecular dynamics (MD)')
     call crest_rotamermds(env,conformerfile)
     call tim%stop(4)
 
@@ -177,7 +184,7 @@ subroutine crest_search_imtdgc(env,tim)
     write(stdout,'('' Appending file '',a,'' with new structures'')')trim(atmp)
     ensnam = 'crest_dynamics.trj'
     call appendto(ensnam,trim(atmp))
-    call tim%start(3,'geom. optimization')
+    call tim%start(3,'Geometry optimization')
     !multilevel = .false.
     !multilevel(5) = .true.
     !call crest_multilevel_oloop(env,trim(atmp),multilevel)
@@ -196,7 +203,7 @@ subroutine crest_search_imtdgc(env,tim)
 !=========================================================!
 !>--- (optional) Perform GC step
     if (env%performCross) then
-      call tim%start(5,'GC')
+      call tim%start(5,'Genetic crossing (GC)')
       call crest_newcross3(env)
       call tim%stop(5)
       call confg_chk3(env)
@@ -220,7 +227,7 @@ subroutine crest_search_imtdgc(env,tim)
     write (stdout,'(3x,''================================================'')')
     write (stdout,'(3x,''|           Final Geometry Optimization        |'')')
     write (stdout,'(3x,''================================================'')')
-    call tim%start(3,'geom. optimization')
+    call tim%start(3,'Geometry optimization')
     call checkname_xyz(crefile,atmp,str)
     call crest_multilevel_wrap(env,trim(atmp),0) 
     call tim%stop(3)                 
@@ -252,9 +259,8 @@ subroutine crest_multilevel_wrap(env,ensnam,level)
 !*************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   implicit none
   type(systemdata) :: env
   character(len=*),intent(in) :: ensnam
@@ -282,9 +288,8 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
 !*******************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   implicit none
   type(systemdata) :: env 
   character(len=*),intent(in) :: ensnam
@@ -428,9 +433,8 @@ subroutine crest_rotamermds(env,ensnam)
 !***********************************************************
   use crest_parameters, only: wp,stdout,bohr
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   implicit none

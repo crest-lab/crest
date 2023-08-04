@@ -17,7 +17,7 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-module calc_module
+module crest_calculator
 !>--- types and readers
   use iso_fortran_env,only:wp => real64
   use strucrd
@@ -30,6 +30,7 @@ module calc_module
 !>--- other
   use constraints
   use nonadiabatic_module
+!$ use omp_lib
   implicit none
 !=========================================================================================!
 !>--- private module variables and parameters
@@ -38,6 +39,17 @@ module calc_module
 !>--- some constants and name mappings
   real(wp),parameter :: bohr = 0.52917726_wp
   real(wp),parameter :: autokcal = 627.509541_wp
+
+!=========================================================================================!
+!>--- RE-EXPORTS of module calc_type
+  public :: calcdata              !> calculator main object
+  public :: calculation_settings  !> different calculation objects (levels) within calcdata
+  public :: jobtype               !> calculation type ID's
+!>--- RE-EXPORT of constraints
+  public :: constraint
+  public :: scantype
+  public :: calc_constraint
+!=========================================================================================!
 
 !>--- public module routines
   public :: engrad
@@ -83,6 +95,14 @@ contains  !> MODULE PROCEDURES START HERE
 !==========================================================!
     call initsignal()
 
+!==========================================================!
+    !>--- check for sane input
+    dum1 = sum(mol%xyz) 
+    if(dum1.ne.dum1)then !> NaN catch, we don't want to calculate garbage.
+     iostatus = 1        !> For some builds I found this necessary because
+     return              !> OpenMP can get picky...
+    endif
+
     !>--- Calculation setup
     n = calc%ncalculations
 
@@ -97,13 +117,13 @@ contains  !> MODULE PROCEDURES START HERE
         end do
       end if
     end if
-    !$omp end critical
-
+    
     iostatus = 0
     dum1 = 1.0_wp
     dum2 = 1.0_wp
     calc%etmp = 0.0_wp
-    !calc%grdtmp = 0.0_wp
+    calc%grdtmp = 0.0_wp
+    !$omp end critical
 
 !==========================================================!
     !>--- Calculation
@@ -133,7 +153,6 @@ contains  !> MODULE PROCEDURES START HERE
  
         case (jobtype%gfnff) !>-- GFN-FF api
           call gfnff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-
 
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
@@ -534,4 +553,4 @@ contains  !> MODULE PROCEDURES START HERE
 
 !==========================================================================================!
 !==========================================================================================!
-end module calc_module
+end module crest_calculator

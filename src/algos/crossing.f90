@@ -26,9 +26,8 @@
 subroutine crest_crossing(env,maxgen,fname,maxpairs)
   use crest_parameters,only:wp,stdout,bohr,autokcal
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use optimize_module
   implicit none
   !> INPUT

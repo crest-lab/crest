@@ -22,8 +22,7 @@
 
 module ancopt_module
   use iso_fortran_env,only:wp => real64,sp => real32
-  use calc_type
-  use calc_module
+  use crest_calculator
   use axis_module
   use strucrd
   use ls_rmsd

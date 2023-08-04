@@ -31,5 +31,5 @@ srcs += files(
   'relaxensemble.f90',
   'stereoisomers.f90',
   'tautomerize.f90',
-
+  'trialmd_legacy.f90',
 )

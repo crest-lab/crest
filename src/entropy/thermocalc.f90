@@ -385,10 +385,9 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
 
   if (subdir) then
     jobcall2 = 'cd '//trim(dirname)//' && '//trim(jobcall)
-    !call execute_command_line('cd '//trim(dirname)//' && '//trim(jobcall), exitstat=io)
-    call execute_command_line(trim(jobcall2),exitstat=io)
+    call command( jobcall2, io )
   else
-    call execute_command_line(trim(jobcall),exitstat=io)
+    call command( jobcall, io )
   end if
 
   et = 0.0_wp
@@ -471,18 +470,18 @@ end subroutine rdfreq
 
 subroutine thermo_wrap_new(env,pr,nat,at,xyz,dirname, &
         &  nt,temps,et,ht,gt,stot,bhess)
-!**********************************************
+!*********************************************
 !* Wrapper for a Hessian calculation to get
 !* the thermodynamics of the molecule.
 !* Updated version without xtb subprocess
-!* WARNING: xyz is expected in ANGSTROEM
+!*********************************************
+!*** WARNING: xyz is expected in ANGSTROEM ***
 !*********************************************
   use crest_parameters,only:wp,stdout,aatoau
   use crest_data
+  use crest_calculator
   use iomod
   use strucrd
-  use calc_type
-  use calc_module
   use hessian_tools
   implicit none
   !> INPUT

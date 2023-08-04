@@ -29,9 +29,8 @@
 subroutine crest_numhess(env,tim)
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use optimize_module
   use hessian_tools
   use gradreader_module
@@ -52,7 +51,7 @@ subroutine crest_numhess(env,tim)
   real(wp) :: energy
   real(wp),allocatable :: hess(:,:,:),freq(:,:),grad(:),grad1(:,:),grad2(:,:),heff(:,:)
 !========================================================================================!
-  call tim%start(14,'numerical Hessian')
+  call tim%start(14,'Numerical Hessian')
 !========================================================================================!
   !call system('figlet numhess')
   write (stdout,*)

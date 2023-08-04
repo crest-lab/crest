@@ -25,7 +25,7 @@ subroutine env2calc(env,calc,molin)
 !******************************************
   use crest_parameters
   use crest_data
-  use calc_type
+  use crest_calculator
   use strucrd
   implicit none
   !> INPUT
@@ -92,7 +92,7 @@ subroutine env2calc_setup(env)
 !* Setup the calc object within env
 !***********************************
   use crest_data
-  use calc_type
+  use crest_calculator
   use strucrd
   implicit none
   !> INOUT
@@ -100,6 +100,19 @@ subroutine env2calc_setup(env)
   !> LOCAL
   type(calcdata) :: calc
   type(coord) :: mol
+  interface
+    subroutine env2calc(env,calc,molin)
+      use crest_parameters
+      use crest_data
+      use crest_calculator
+      use strucrd
+      implicit none
+      type(systemdata),intent(in) :: env
+      type(coord),intent(in),optional :: molin
+      type(calcdata) :: calc
+    end subroutine env2calc
+
+  end interface
 
   call env2calc(env,calc,mol)
 
@@ -237,5 +250,31 @@ subroutine thermo_wrap(env,pr,nat,at,xyz,dirname, &
     &                    nt,temps,et,ht,gt,stot,bhess)
   end if
 end subroutine thermo_wrap
+
+!================================================================================!
+
+subroutine trialMD(env)
+!***********************************************
+!* subroutine trialMD
+!* Takes the global metadynamics settings
+!* And performs a short 1 ps simulation to
+!* check if the molecular dynamis/metadynamics
+!* will run, or if the timestep is too large
+!***********************************************
+   use crest_parameters,only:wp
+   use crest_data
+   implicit none
+   !> INPUT
+   type(systemdata) :: env
+
+   if (env%legacy) then
+     !> old xtb subprocess version
+     call trialMD_legacy(env) 
+   else
+     !> new calculator implementation
+     call trialMD_calculator(env)
+   end if
+
+end subroutine trialMD
 
 !================================================================================!

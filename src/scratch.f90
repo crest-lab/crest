@@ -30,7 +30,7 @@ subroutine scrdir(env)
       integer :: ich,io
 
       if(len_trim(env%scratchdir).lt.1)then
-         call execute_command_line('mktemp -d > tmpconf 2>/dev/null', exitstat=io)
+         call command('mktemp -d > tmpconf 2>/dev/null', io)
          open(newunit=ich,file='tmpconf')
          read(ich,'(a)',iostat=io) env%scratchdir
          if(io < 0 ) then   ! if mktemp failed and tmpconf is empty
@@ -91,7 +91,7 @@ subroutine scrend(env)
         call copy(trim(env%scratchdir)//'/'//ensemblefile,ensemblefile)
       endif
 
-      call system('cp -r '//trim(env%scratchdir)//'/* ./')
+      call command('cp -r '//trim(env%scratchdir)//'/* ./')
 
       if(.not.env%keepScratch)then
       call rmrf(env%scratchdir)

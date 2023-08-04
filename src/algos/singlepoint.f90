@@ -32,11 +32,8 @@ subroutine crest_singlepoint(env,tim)
 !********************************************************************
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
-  use optimize_module
-  use tblite_api
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -46,9 +43,6 @@ subroutine crest_singlepoint(env,tim)
   character(len=80) :: atmp
 !========================================================================================!
   type(calcdata) :: calc
-  type(wavefunction_type) :: wfn
-  type(tblite_calculator) :: tbcalc
-  type(tblite_ctx)        :: ctx
   real(wp) :: accuracy,etemp
 
   real(wp) :: energy
@@ -56,7 +50,7 @@ subroutine crest_singlepoint(env,tim)
 
   character(len=*),parameter :: partial = '∂E/∂'
 !========================================================================================!
-  call tim%start(14,'singlepoint calc.')
+  call tim%start(14,'Singlepoint calculation')
 !========================================================================================!
   write (stdout,*)
   !call system('figlet singlepoint')
@@ -91,8 +85,8 @@ subroutine crest_singlepoint(env,tim)
   call engrad(mol,calc,energy,grad,io)
   call tim%stop(14)
   write (stdout,*) 'done.'
-  call eval_time(tim%t(14,3),atmp)
-  write (stdout,'(a)') '> Total wall time for calculations : '//trim(atmp)
+  write (atmp,'(a)') '> Total wall time for calculations'
+  call tim%write_timing(stdout,14,trim(atmp),.true.)
   write (stdout,'(a)') repeat('-',80)
   if (io /= 0) then
     write (stdout,*)
@@ -165,10 +159,10 @@ subroutine crest_xtbsp(env,xtblevel,molin)
 !*  xtblevel - quick selection of calc. level
 !*  molin    - molecule data
 !********************************************************************
+  use crest_parameters 
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use wiberg_mayer,only:write_wbo
   implicit none
   !> INPUT

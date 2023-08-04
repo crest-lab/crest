@@ -69,7 +69,7 @@ subroutine xtbsp_legacy(env,xtblevel)
   jobcall = trim(jobcall)//" "//trim(xtbflag)
   jobcall = trim(jobcall)//" "//trim(env%solv)
   jobcall = trim(jobcall)//pipe
-  call execute_command_line(trim(jobcall),exitstat=io)
+  call command(trim(jobcall), io)
 !---- cleanup
   call remove(fname)
   call remove('xtb.out')
@@ -117,7 +117,7 @@ subroutine xtbsp2_legacy(fname,env)
     jobcall = trim(jobcall)//" --uhf "//trim(chrgstr)
   end if
   jobcall = trim(jobcall)//pipe
-  call execute_command_line(trim(jobcall),exitstat=io)
+  call command(trim(jobcall), io)
 !---- cleanup
   call remove('xtbcalc.out')
   call remove('energy')
@@ -186,9 +186,7 @@ subroutine xtbopt(env)
   write (ich,'(a)') '$end'
   close (ich)
 
-!---- jobcall
-!  write (jobcall,'(a,1x,a,1x,a,'' --opt '',a,1x,a,a)') &
-!  &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv),trim(pipe)
+!>---- jobcall
   jobcall = ""
   jobcall = trim(jobcall)//trim(env%ProgName)
   jobcall = trim(jobcall)//" "//trim(fname)//' --opt'
@@ -201,7 +199,7 @@ subroutine xtbopt(env)
     jobcall = trim(jobcall)//" --uhf "//to_str(env%uhf)
   end if
   jobcall = trim(jobcall)//pipe
-  call execute_command_line(trim(jobcall),exitstat=io)
+  call command(trim(jobcall), io)
 
   call minigrep('xtb.out','optimized geometry written to:',fin)
   if (.not.fin) then
@@ -399,7 +397,7 @@ subroutine MetaMD_para_OMP(env)
     write (*,'(''     Vbias exp α /bohr⁻²:'',f8.2)') env%metadexp(vz)
     !$omp end critical
     write (tmppath,'(a,i0)') 'METADYN',vz
-    call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall),exitstat=io)
+    call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
     inquire (file=trim(tmppath)//'/'//'xtb.trj',exist=ex)
     if (.not.ex.or.io .ne. 0) then
       write (*,'(a,i0,a)') '*Warning: Meta-MTD ',vz,' seemingly failed (no xtb.trj)*'
@@ -891,7 +889,7 @@ subroutine cross3(env)
       return
       exit
     end if
-    
+
     !>-- optimize ensemble
     if (env%gcmultiopt) then !> for printout
       call smallhead('GC: loose pre-optimization')
@@ -933,13 +931,13 @@ subroutine confg_chk3(env)
   type(systemdata) :: env    !> MAIN SYSTEM DATA
 
   call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) !mode=4 --> Program intern Threads max
-    !>-- Special handling qcg, no RMSD, 
-    !    because a CMA transformed structure would cause wrong wall pot.
-    if (env%crestver .eq. crest_solv) then
-      call newcregen(env,6)
-    else
-      call newcregen(env,0)
-    end if
+  !>-- Special handling qcg, no RMSD,
+  !    because a CMA transformed structure would cause wrong wall pot.
+  if (env%crestver .eq. crest_solv) then
+    call newcregen(env,6)
+  else
+    call newcregen(env,0)
+  end if
   call ompautoset(env%threads,5,env%omp,env%MAXRUN,0) !mode=5 --> Program intern Threads min
 end subroutine confg_chk3
 
@@ -1195,7 +1193,7 @@ subroutine catchdiatomic(env)
   !create the system call (it is the same for every optimization)
   write (jobcall,'(a,1x,a,1x,a,'' --opt '',a,1x,a,'' --ceasefiles  >xtb.out'')') &
  &    trim(env%ProgName),conformerfile,trim(env%gfnver),trim(env%solv),' 2>/dev/null'
-  call execute_command_line(trim(jobcall),exitstat=ich)
+  call command(trim(jobcall), ich)
   call copy('xtbopt.xyz',conformerfile)
   call copy(conformerfile,'crest_rotamers.xyz')
   call copy(conformerfile,'crest_best.xyz')
@@ -1232,12 +1230,12 @@ subroutine emtdcopy(env,iter,stopiter,broken)
   stopiter = .false.
   broken = .false.
   T = 298.15d0
-  !--- determine temperature dependence
+!>--- determine temperature dependence
   if (.not.allocated(env%thermo%temps)) then
     call env%thermo%get_temps()
   end if
   nt = env%thermo%ntemps
-
+!>--- space to save S,Cp,H(T) at different temperatures
   if (.not.allocated(env%emtd%soft)) then
     allocate (env%emtd%soft(nt),source=0.0d0)
   end if
@@ -1248,12 +1246,14 @@ subroutine emtdcopy(env,iter,stopiter,broken)
     allocate (env%emtd%hoft(nt),source=0.0d0)
   end if
 
-  if (env%crestver == 22) then
+!>--- output file name
+  if (env%crestver == crest_imtd2) then
     filname = trim(bfile)
   else
     filname = trim(sfile)
   end if
 
+!>--- Setup in the very first call
   if (iter == 0) then
     call checkname_xyz(crefile,atmp,crename)
     write (btmp,'(a,i0,a)') filname,iter,'.xyz'
@@ -1268,6 +1268,7 @@ subroutine emtdcopy(env,iter,stopiter,broken)
     return
   end if
 
+!>--- Setup in the iterations
   if (iter >= 1) then
     call checkname_xyz(crefile,atmp,crename)
     iter2 = iter-1
@@ -1288,6 +1289,7 @@ subroutine emtdcopy(env,iter,stopiter,broken)
     end if
   end if
 
+!>--- run checks
   if (.not.broken) then
     call checkname_xyz(crefile,crename,btmp)
     write (btmp,'(a,i0,a)') filname,iter,'.xyz'
@@ -1298,10 +1300,11 @@ subroutine emtdcopy(env,iter,stopiter,broken)
   if (nall > 50000) then !safety fallback for extremely large ensembles (e.g. C18)
     env%emtd%confthr = 0.1d0
   end if
+!>---get convergence criteria
   nallfrac = 1.0d0-(float(env%emtd%nconflast)/float(nall))
   conv1 = (sdiff < env%emtd%sconvthr) !.and.(sdiff > 0.0d0)
   conv2 = (nallfrac < env%emtd%confthr).and.(nallfrac >= 0.0d0)
-  if (nallfrac < 0.0d0) then !if we for some reason got less conformers in this iteration
+  if (nallfrac < 0.0d0) then !> if we for some reason got less conformers in this iteration
     broken = .true.
   end if
   write (*,*)
@@ -1321,10 +1324,11 @@ subroutine emtdcopy(env,iter,stopiter,broken)
         call copy(trim(btmp),trim(crename))
       end if
     end if
-    if (env%entropic.and.env%crestver .ne. 22) then
+    if (env%entropic.and.env%crestver .ne. crest_imtd2) then
       call entropic(env,.false.,.true.,.true.,trim(btmp),T,S,Cp)
       call writesdata(env,nall,iter)
     end if
+!>--- save data for next iteraton
     env%emtd%nconflast = nall
     env%emtd%sapproxlast = env%emtd%sapprox
   else                !-- ROLLBACK

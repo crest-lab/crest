@@ -32,11 +32,11 @@
 ! Basic subroutine for removing files or directories
 !-------------------------------------------------------------------------
 subroutine rmrf(dataname)
+  use iomod, only: command
   implicit none
   character(len=*) :: dataname
   integer :: io
-  !call system('rm -rf '//trim(dataname)//' 2>/dev/null')
-  call execute_command_line('rm -rf '//trim(dataname)//' 2>/dev/null',exitstat=io)
+  call command('rm -rf '//trim(dataname)//' 2>/dev/null', io)
   return
 end subroutine rmrf
 !-------------------------------------------------------------------------
@@ -68,6 +68,7 @@ subroutine V2cleanup(restartopt)
     call rmrfw('METADYN')
     call rmrfw('NORMMD')
     call rmrf('MRMSD')
+    call rmrf('TRIALMD')
     call rmrf('MDFILES')
     call rmrf('OPTIM')
     call rmrf('PROP')
@@ -94,6 +95,7 @@ subroutine cleanMTD
   call rmrfw('NORM')
   call rmrfw('STATICMTD')
   call rmrf('MRMSD')
+  call rmrf('TRIALMD')
   call rmrf('MDFILES')
   return
 end subroutine cleanMTD
@@ -230,6 +232,7 @@ end subroutine clean
 ! change the dir and then remove mos and dh (dft_propcalc.f90)
 !-----------------------------------------------------------------------
 subroutine cleanDFT(TMPCONF)
+  use iomod, only: command
   implicit none
   integer :: TMPCONF
   character(len=:),allocatable :: str
@@ -240,10 +243,8 @@ subroutine cleanDFT(TMPCONF)
   do i = 1,TMPCONF
     write (nmmr,'(i0)') i
     str = 'cd TMPCONF'//trim(nmmr)//' && rm -rf '
-    !call system(str//'mos'//pipe)
-    call execute_command_line(str//'mos'//pipe,exitstat=io)
-    !call system(str//'dh'//pipe)
-    call execute_command_line(str//'dh'//pipe,exitstat=io)
+    call command(str//'mos'//pipe, io)
+    call command(str//'dh'//pipe, io)
   end do
   return
 end subroutine cleanDFT

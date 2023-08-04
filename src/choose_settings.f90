@@ -30,6 +30,7 @@ subroutine md_length_setup(env)
   use crest_parameters
   use crest_data
   use strucrd
+  use zdata, only:readwbo
   implicit none
   !> IN/OUTPUT
   type(systemdata) :: env    !> MAIN STORAGE OS SYSTEM DATA
@@ -37,7 +38,7 @@ subroutine md_length_setup(env)
   real(wp) :: total,minimum,lenthr
   real(wp) :: flex,av1,rfac,nciflex
   type(coord) :: mol 
-
+  logical :: ex
 !> get reference geometry  
   call env%ref%to( mol ) 
 
@@ -46,16 +47,19 @@ subroutine md_length_setup(env)
 !> Maximum of 200 ps, longer runs can only be conducted by user input
   lenthr = 200.0d0
 
-  write(stdout,*)
-  write(stdout,'(''------------------------------------------------'')')
-  write(stdout,'(''Generating MTD length from a flexibility measure'')')
-  write(stdout,'(''------------------------------------------------'')')
+  call smallhead('Generating MTD length from a flexibility measure')
 
   if ((env%crestver .ne. crest_solv).and..not.env%NCI) then
-    write(stdout,'(1x,a)',advance='no') 'Calculating GFN0-xTB WBOs ...'
+    write(stdout,'(1x,a)',advance='no') 'Calculating GFN0-xTB WBOs   ...'
 !>-- xtb singlepoint to get WBOs (always GFN0)
     call xtbsp(env,0)
     write (stdout,'(1x,a)') 'done.'
+!>-- save those WBOs to the reference
+    inquire(file='wbo',exist = ex)
+    if(ex)then
+    if(.not.allocated(env%ref%wbo)) allocate(env%ref%wbo( mol%nat, mol%nat), source=0.0_wp)   
+    call readwbo('wbo',mol%nat, env%ref%wbo)
+    endif
 
 !>-- covalent flexibility measure based on WBO and structure only
     call flexi( mol, env%rednat, env%includeRMSD, flex)
@@ -499,7 +503,7 @@ subroutine env_to_mddat(env)
    endif
 
    !> The SHAKE setup (special condition referring to the default)
-   env%mddat%shake          = env%mddat%shake .and.(env%shake > 0) !> SHAKE algorithm?
+   env%mddat%shake = env%mddat%shake .and.(env%shake > 0) !> SHAKE algorithm?
    if( env%mddat%shake .and. env%mddat%shk%shake_mode == 0)then
    env%mddat%shk%shake_mode = env%shake     !> H-only shake =1, all atom =2
    endif 

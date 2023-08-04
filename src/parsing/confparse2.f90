@@ -38,7 +38,7 @@ subroutine parseinputfile(env,fname)
   use crest_parameters
   !> modules for data storage in crest
   use crest_data
-  use calc_type,only:calcdata
+  use crest_calculator, only:calcdata
   use dynamics_module,only:mddata
 
   !> modules used for parsing the root_object
@@ -115,7 +115,6 @@ subroutine internal_constraint_repair(env)
 !*******************************************
   use crest_parameters
   use crest_data
-  use constraints
   implicit none
   type(systemdata) :: env
   integer :: i,j,k,l,n
@@ -160,7 +159,7 @@ subroutine env_calcdat_specialcases(env)
 !***************************************************
   use crest_parameters
   use crest_data
-  use calc_type
+  use crest_calculator
   implicit none
   type(systemdata) :: env
 

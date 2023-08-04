@@ -121,6 +121,19 @@ contains   !> MODULE PROCEDURES START HERE
         env%preopt = .false.
         env%crestver = crest_imtd
         env%runver = 1
+      case ('entropy','imtd-stmd')
+        env%crestver = crest_imtd  !> the entropy mode acts as subtype of the crest_imtd algo
+        env%properties = abs(p_CREentropy)
+        env%autozsort = .false.     !> turn off zsort (since we are not going to GC anyways)
+        env%performCross = .false.  !> turn off GC
+        env%entropic = .true.       !> indicator for this runtype
+        env%Maxrestart = 1          !> turn off MTD iterations (just do one)
+        env%rotamermds = .false.    !> turn off normMDs
+        env%entropymd = .true.      !> special static MTDs
+        env%runver = 111            !> version  for selection of MTD bias settings
+        env%doNMR = .true.          !> we need equivalencies
+        env%emtd%bhess = .false.    !> currently there is no BHESS version, TODO!
+        call env%addjob(env%properties)
       case ('numhess','numerical hessian')
         env%preopt = .false.
         env%crestver = crest_numhessian

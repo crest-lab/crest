@@ -529,8 +529,7 @@ subroutine prop_OMP_loop(env,TMPCONF,jobcall,pop)
     write (tmppath,'(a,i0)') 'TMPCONF',vz
     !$omp end critical
     if (pop(vz) .ge. pthr.or.vz .eq. maxpop) then
-      !call system('cd '//trim(tmppath)//' && '//trim(jobcall))
-      call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall),exitstat=io)
+      call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
     end if
     !$omp critical
     k = k+1

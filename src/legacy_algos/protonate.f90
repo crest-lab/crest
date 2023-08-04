@@ -226,8 +226,7 @@ subroutine xtblmo(env)
          write(jobcall,'(a,1x,a,1x,a,'' --sp --lmo'',1x,a)') &
          &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv)
          jobcall = trim(jobcall)//trim(pipe)
-         !call system(trim(jobcall))
-         call execute_command_line(trim(jobcall), exitstat=io)
+         call command(trim(jobcall), io)
          write(*,'(''done.'')')
 
 !---- cleanup

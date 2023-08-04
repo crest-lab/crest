@@ -137,6 +137,8 @@ target_link_libraries(
   "${libs}"
 )
 
+get_target_property(OUT ${PROJECT_NAME}-exe LINK_LIBRARIES)
+message(STATUS ${OUT})
 
 #
 # Binary installing option

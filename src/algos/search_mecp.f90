@@ -2,9 +2,8 @@
 subroutine crest_search_mecp(env,tim)
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   implicit none
@@ -67,7 +66,7 @@ subroutine crest_search_mecp(env,tim)
   allocate (mddats(nsim),source=mddat)
   call crest_search_multimd_init2(env,mddats,nsim)
 
-  call tim%start(2,'MD simulations')
+  call tim%start(2,'Molecular dynamics (MD)')
   call crest_search_multimd(env,mol,mddats,nsim)
   call tim%stop(2)
   !>--- a file called crest_dynamics.trj should have been written
@@ -101,7 +100,7 @@ subroutine crest_search_mecp(env,tim)
     call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
   end if
   !>--- optimize
-  call tim%start(3,'geom. optimization')
+  call tim%start(3,'Geometry optimization')
   dump = .true.
   call crest_oloop(env,nat,nall,at,xyz,eread,dump)
   call tim%stop(3)
@@ -120,8 +119,7 @@ end subroutine crest_search_mecp
 
 subroutine print_gapcons(calc)
   use crest_parameters
-  use calc_type
-  use constraints
+  use crest_calculator
   implicit none
 
   type(calcdata) :: calc

@@ -17,14 +17,11 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-
 subroutine crest_moleculardynamics(env,tim)
-  !use iso_fortran_env,only:wp => real64,stdout => output_unit
   use crest_parameters
   use crest_data
+  use crest_calculator
   use strucrd
-  use calc_type
-  use calc_module
   use dynamics_module
   use shake_module
   implicit none
@@ -54,7 +51,7 @@ subroutine crest_moleculardynamics(env,tim)
   write(stdout,*) "        |___/                                   "
   write(stdout,*)
 !========================================================================================!
-  call tim%start(14,'molecular dynamics')
+  call tim%start(14,'Molecular dynamics (MD)')
   call env%ref%to(mol)
   write (stdout,*)
   write (stdout,*) 'Input structure:'

@@ -38,10 +38,9 @@
 subroutine parseflags(env,arg,nra)
   use iso_fortran_env,wp => real64
   use crest_data
+  use crest_calculator
   use iomod
   use strucrd
-
-  use calc_module
   use dynamics_module
   use optimize_module
   use parse_inputfile
@@ -117,15 +116,15 @@ subroutine parseflags(env,arg,nra)
   env%Threads = 1                !> total number of threads
   env%MAXRUN = 1                 !> number of parallel xtb jobs
   env%omp = 1                    !> # of OMP_NUM_THREADS and MKL_NUMTHREADS to be used
-  env%autothreads = .false.      !> automatically determine optimal parameters omp and MAXRUN
+  env%autothreads = .true.       !> automatically determine optimal parameters omp and MAXRUN
   env%threadssetmanual = .false. !> did the user set the #threads manually?
 
-  env%scratch = .false.        !> use scratch directory?
+  env%scratch = .false.          !> use scratch directory?
   env%scratchdir = ''            !> directory that shall be used for scratch
 
 !>--- xtb settings
   env%ProgName = 'xtb'           !> the name of the xtb executable used per default
-  env%ProgIFF = 'xtbiff'        !> name of the IFF that is per default xtbiff, only for  QCG
+  env%ProgIFF = 'xtbiff'         !> name of the IFF that is per default xtbiff, only for  QCG
   env%optlev = 2.0d0             !> optimization level for the GFN-xTB optimizations in ALL steps
   env%gbsa = .false.             !> use GBSA (or ALPB)
   env%solv = ''                  !> if gbsa is used, the entrie flag will be written into here
@@ -133,7 +132,7 @@ subroutine parseflags(env,arg,nra)
   env%uhf = 0                    !> nα-nβ electrons
   env%gfnver = '--gfn2'          !> selct the GFN verison as complete flag(!)
   env%gfnver2 = ''               !> a second level, used for multilevel post-optimization
-  env%ensemble_opt = '--gff'    !> qcg specific method for ensemble search and optimization
+  env%ensemble_opt = '--gff'     !> qcg specific method for ensemble search and optimization
 
 !--- cregen settings
   env%confgo = .false.           !> perform confg (cregen) subroutine only
@@ -1397,7 +1396,7 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
 !------ flags for parallelization / disk space
 !========================================================================================!
-      case ('-T','-P','-parallel')                            !set total number of OMP threads, this replaces -P and -O entirely
+      case ('-T','-P','-parallel')  !set total number of OMP threads, this replaces -P and -O entirely
         call readl(arg(i + 1),xx,j)
         if (index(arg(i + 1),'-') .ne. 0) xx = 0d0
         env%Threads = nint(xx(1))
@@ -1405,7 +1404,7 @@ subroutine parseflags(env,arg,nra)
         env%threadssetmanual = .true.
         write (*,'(2x,a,1x,i0,1x,a)') trim(arg(i)),nint(xx(1)), &
         &     '(CPUs/Threads selected)'
-      case ('-inplace')               ! activate in-place mode for optimizations (ON by default)
+      case ('-inplace')     ! activate in-place mode for optimizations (ON by default)
         env%inplaceMode = .true.
 !========================================================================================!
 !------- CREGEN related flags
