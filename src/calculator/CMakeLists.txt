@@ -28,6 +28,7 @@ list(APPEND srcs
   "${dir}/api_helpers.F90"
   "${dir}/api_engrad.f90"
   "${dir}/gradreader.f90"
+  "${dir}/xhcff.F90"
   "${dir}/xtb_sc.f90"
   "${dir}/generic_sc.f90"
 )

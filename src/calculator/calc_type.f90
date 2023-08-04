@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 - 2022 Philipp Pracht
+! Copyright (C) 2021 - 2023 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -24,27 +24,30 @@ module calc_type
   use tblite_api
   use gfn0_api
   use gfnff_api,only:gfnff_data
+  use xhcff_api,only:xhcff_calculator
   implicit none
 
   character(len=1),public,parameter :: sep = '/'
   character(len=12),public,parameter :: dev0 = ' 2>/dev/null'
 
+!&<
   !> job type enumerator
-  type,private:: enum_jobtype
-    integer :: unknown = 0
-    integer :: xtbsys = 1
-    integer :: generic = 2
+  type ,private:: enum_jobtype
+    integer :: unknown   = 0
+    integer :: xtbsys    = 1
+    integer :: generic   = 2
     integer :: turbomole = 3
-    integer :: orca = 4
-    integer :: terachem = 5
-    integer :: tblite = 6
-    integer :: gfn0 = 7
-    integer :: gfn0occ = 8
-    integer :: gfnff = 9
+    integer :: orca      = 4
+    integer :: terachem  = 5
+    integer :: tblite    = 6
+    integer :: gfn0      = 7
+    integer :: gfn0occ   = 8
+    integer :: gfnff     = 9
+    integer :: xhcff     = 10
   end type enum_jobtype
-  type(enum_jobtype),parameter,public :: jobtype = enum_jobtype()
+  type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
 
-  character(len=45),parameter,private :: jobdescription(10) = [ &
+  character(len=45),parameter,private :: jobdescription(11) = [ &
      & 'Unknown calculation type                    ', &
      & 'xTB calculation via external binary         ', &
      & 'Generic script execution                    ', &
@@ -54,14 +57,16 @@ module calc_type
      & 'xTB calculation via tblite lib              ', &
      & 'GFN0-xTB calculation via GFN0 lib           ', &
      & 'GFN0*-xTB calculation via GFN0 lib          ', &
-     & 'GFN-FF calculation via GFNFF lib            ']
+     & 'GFN-FF calculation via GFNFF lib            ', &
+     & 'XHCFF calculation via XHCFF-lib             ' ]
+!&>
 
 !=========================================================================================!
 !>--- data object that contains the data for a *SINGLE* calculation
   public :: calculation_settings
   type :: calculation_settings
 
-    integer :: id   !> calculation type (see "jobtype" parameter above)
+    integer :: id  = 0  !> calculation type (see "jobtype" parameter above)
     integer :: prch = stdout
 
     integer :: chrg = 0
@@ -123,6 +128,12 @@ module calc_type
 
     !> GFN-FF data
     type(gfnff_data),allocatable :: ff_dat
+    !> XHCFF data
+    integer :: ngrid = 230             !>  lebedev grid points per atom
+    real(wp) :: extpressure = 0.0_wp   !>  hydorstatic pressure in Gpa
+    real(wp) :: proberad = 1.5_wp       !>  proberadius in a.u.
+    integer :: vdwset = 0              !>  Set of VDW radii to use in sas calculation -> default D3, 1 -> Bondi
+    type(xhcff_calculator),allocatable :: xhcff
 
 !>--- Type procedures
   contains
@@ -137,7 +148,7 @@ module calc_type
 !> data object that collects settings for *ALL* calculations and constraints.
   public :: calcdata
   type :: calcdata
-    integer :: id = 0
+    integer :: id = 0  !> this parameter will decide how to return or add up energies and gradients
 
 !>--- calculations
     integer :: ncalculations = 0
@@ -265,6 +276,8 @@ contains  !>--- Module routines start here
     if (allocated(self%tbres)) deallocate (self%tbres)
     if (allocated(self%wfn_backup)) deallocate (self%wfn_backup)
     if (allocated(self%g0calc)) deallocate (self%g0calc)
+    if (allocated(self%ff_dat)) deallocate (self%ff_dat)
+    if (allocated(self%xhcff)) deallocate(self%xhcff)
 
     self%id = 0
     self%prch = stdout
@@ -287,6 +300,11 @@ contains  !>--- Module routines start here
     self%apiclean = .false.
     self%maxscc = 500
     self%saveint = .false.
+
+    self%ngrid = 230 
+    self%extpressure = 0.0_wp
+    self%proberad = 1.5_wp
+
 
     return
   end subroutine calculation_settings_deallocate

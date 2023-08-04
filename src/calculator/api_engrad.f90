@@ -35,6 +35,7 @@ module api_engrad
   use tblite_api
   use gfn0_api
   use gfnff_api
+  use xhcff_api
 !=========================================================================================!
   implicit none
   !--- private module variables and parameters
@@ -45,6 +46,7 @@ module api_engrad
   public :: tblite_engrad
   public :: gfn0_engrad,gfn0occ_engrad
   public :: gfnff_engrad
+  public :: xhcff_engrad
 
 !=========================================================================================!
 !=========================================================================================!
@@ -310,6 +312,68 @@ contains    !> MODULE PROCEDURES START HERE
 
     return
   end subroutine gfnff_engrad
+
+!========================================================================================!
+  subroutine xhcff_engrad(mol,calc,energy,grad,iostatus)
+    implicit none
+    type(coord) :: mol
+    type(calculation_settings) :: calc
+
+    real(wp),intent(inout) :: energy
+    real(wp),intent(inout) :: grad(3,mol%nat)
+    integer,intent(out) :: iostatus
+
+    character(len=:),allocatable :: cpath
+    logical :: loadnew,pr
+    iostatus = 0
+    pr = .false.
+!>--- setup system call information
+    !$omp critical
+    call xhcff_initcheck(calc,loadnew)
+!>--- printout handling
+    inquire (unit=calc%prch,opened=ex)
+    if ((calc%prch .ne. stdout).and.ex) then
+      close (calc%prch)
+    end if
+    if (allocated(calc%calcspace)) then
+      ex = directory_exist(calc%calcspace)
+      if (.not.ex) then
+        io = makedir(trim(calc%calcspace))
+      end if
+      cpath = calc%calcspace//sep//'xhcff.out'
+    else
+      cpath = 'xhcff.out'
+    end if
+    if ((calc%prch .ne. stdout)) then
+      open (newunit=calc%prch,file=cpath)
+      pr = .true.
+    end if
+    deallocate (cpath)
+    call api_print_input_structure(pr, calc%prch, mol)
+
+!>--- populate parameters
+    if (loadnew) then
+      !> call xhcff with verbosity turned off
+      call xhcff_setup(mol,calc%xhcff, calc%extpressure, calc%ngrid, calc%proberad, calc%vdwset, iostatus)
+    end if
+    !$omp end critical
+    if (iostatus /= 0) return
+
+!>--- do the engrad call
+    call initsignal()
+    call xhcff_sp(mol,calc%xhcff,energy,grad,iostatus)
+    if (iostatus /= 0) return
+
+!>--- printout
+    if (pr) then
+      call xhcff_print(calc%prch,calc%xhcff)
+      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+    end if
+
+!>--- postprocessing, getting other data
+
+    return
+  end subroutine xhcff_engrad
 
 !========================================================================================!
 end module api_engrad

@@ -194,6 +194,10 @@ contains !> MODULE PROCEDURES START HERE
       job%accuracy = val
     case ('weight')
       job%weight = val
+    case ('pressure')
+      job%extpressure = val
+    case ('proberad')
+      job%proberad = val
     end select
     return
   end subroutine parse_setting_float
@@ -213,6 +217,10 @@ contains !> MODULE PROCEDURES START HERE
       job%maxscc = val
     case ('tblite_level','tblite_hamiltonian')
       job%tblitelvl = val
+    case ('lebedev')
+      job%ngrid = val
+    case('vdwSet')
+      job%vdwset = val
     end select
     return
   end subroutine parse_setting_int
@@ -243,6 +251,8 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%gfn0occ
       case ('gfnff','gff','gfn-ff')
         job%id = jobtype%gfnff
+      case ('xhcff')
+        job%id = jobtype%xhcff
       case ('none')
         job%id = jobtype%unknown
       case default
@@ -319,6 +329,7 @@ contains !> MODULE PROCEDURES START HERE
       job%rddipgrad = val
     case ('refresh')
       job%apiclean = val
+      !TODO fix printout
     case ('print')
       if (val) job%prch = 999
     end select
