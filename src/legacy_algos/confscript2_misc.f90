@@ -130,7 +130,7 @@ end subroutine xtbsp2_legacy
 !--------------------------------------------------------------------------------------------
 ! A quick xtb geometry optimization at the beginning of the program
 !--------------------------------------------------------------------------------------------
-subroutine xtbopt(env)
+subroutine xtbopt_legacy(env)
   use crest_parameters
   use iomod
   use crest_data
@@ -147,6 +147,7 @@ subroutine xtbopt(env)
   integer :: ntopo
   integer,allocatable :: topo(:)
   logical :: tchange = .false.
+  logical :: ex 
 
 !---- small header
   write (*,*)
@@ -202,52 +203,17 @@ subroutine xtbopt(env)
   call command(trim(jobcall), io)
 
   call minigrep('xtb.out','optimized geometry written to:',fin)
-  if (.not.fin) then
-    write (*,*)
-    write (*,*) ' Initial geometry optimization failed!'
-    write (*,*) ' Please check your input.'
-    error stop
-  end if
-  write (*,*) 'Geometry successfully optimized.'
-!---- if necessary, check if the topology has changed!
-  call mol%open('xtbopt.coord')
-  if (allocated(env%ref%topo)) then
-    ntopo = mol%nat*(mol%nat+1)/2
-    allocate (topo(ntopo))
-    call quicktopo(mol%nat,mol%at,mol%xyz,ntopo,topo)
-    do i = 1,ntopo
-      if (topo(i) .ne. env%ref%topo(i)) tchange = .true.
-    end do
-    if (tchange) then
-      write (*,'(1x,a)') 'WARNING! Change in topology detected!'
-      !--- either update the topology (see option B below)
-      if (.not.env%reftopo) then
-        env%ref%topo = topo
-        !--- or abort the run
-      else
-        write (*,'(1x,a)') 'The topology change was seen in the initial geometry optimization.'
-        write (*,'(1x,a,a,a)') 'This could be an artifact of the chosen theory level (',trim(env%gfnver),').'
-        write (*,'(1x,a)') 'You can check the optimization trajectory in the "xtbopt.log" file.'
-        write (*,'(1x,a)') 'Try either of these options:'
-        write (*,'(/,4x,a)') 'A) Pre-optimize your input seperately with xtb and use the optimized'
-        write (*,'(4x,a)') '   structure as input for CREST. (Only recommended if structure is intact)'
-        write (*,'(/,4x,a)') 'B) Restart the same CREST call as before, but ignore the topology change'
-        write (*,'(4x,a)') '   by using the "--noreftopo" keyword. (May produce artifacts)'
-        write (*,'(/,4x,a)') 'C) Fix the initial input geometry by introducing bond length constraints'
-        write (*,'(4x,a)') '   or by using a method with fixed topology (GFN-FF).'
-        write (*,*)
-        error stop 'abnormal termination of crest'
-      end if
-    end if
-  end if
-!---- update reference with optimized geometry
-  env%ref%nat = mol%nat
-  env%ref%at = mol%at
-  env%ref%xyz = mol%xyz
+  inquire(file='xtbopt.coord',exist=ex)
+  if(ex)then
+    call mol%open('xtbopt.coord')
+  endif
+
+!>--- process the optimization status
+  call trialOPT_warning(env,mol,fin)
   call mol%deallocate()
   call rename('xtbopt.coord','coord')
 
-!---- cleanup
+!>---- cleanup
   call remove(fname)
   call remove('xtb.out')
   call remove('energy')
@@ -257,7 +223,7 @@ subroutine xtbopt(env)
   call remove('xtbopt.log')
   call remove('xtbrestart')
   call remove('gfnff_topo')
-end subroutine xtbopt
+end subroutine xtbopt_legacy
 
 !--------------------------------------------------------------------------------------------
 ! A single METADYN run (resp. its setup)

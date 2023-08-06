@@ -159,6 +159,7 @@ module calc_type
     real(wp),allocatable :: etmp2(:)
     real(wp),allocatable :: grdtmp2(:,:,:)
     real(wp),allocatable :: eweight2(:)
+    real(wp),allocatable :: grdfix(:,:)
 
 !>--- constraints
     integer :: nconstraints = 0
@@ -459,7 +460,6 @@ contains  !>--- Module routines start here
     class(calcdata) :: self
     type(calcdata) :: src
     integer :: i
-    !call self%reset()
 
     self%id = src%id
 

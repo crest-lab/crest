@@ -760,6 +760,7 @@ subroutine calcSrrhoav(env,ensname)
 !>--- the parallel loop
   avbhess = env%thermo%avbhess
   write (stdout,'(1x,a,i0,a)') 'Running ',ncalc,' calculations ...'
+  call crest_oloop_pr_progress(env,ncalc,0)
 !$omp parallel &
 !$omp shared( vz,tmppath,ncalc,percent,k,bar,niceprint) &
 !$omp shared( env,nat,at,xyz,c0,et,ht,gt,stot,temps,nt,gatt,satt,avbhess,pindex )
@@ -787,18 +788,19 @@ subroutine calcSrrhoav(env,ensname)
 
     !$omp critical
     k = k+1
-    if (niceprint) then
-      percent = float(k)/float(ncalc)*100
-      call progbar(percent,bar)
-      call printprogbar(percent,bar)
-    else
-      if (gui) then
-        call wrGUIpercent(k,ncalc,100)
-      else
-        write (6,'(1x,i0)',advance='no') k
-        flush (6)
-      end if
-    end if
+    !if (niceprint) then
+    !  percent = float(k)/float(ncalc)*100
+    !  call progbar(percent,bar)
+    !  call printprogbar(percent,bar)
+    !else
+    !  if (gui) then
+    !    call wrGUIpercent(k,ncalc,100)
+    !  else
+    !    write (6,'(1x,i0)',advance='no') k
+    !    flush (6)
+    !  end if
+    !end if
+    call crest_oloop_pr_progress(env,ncalc,k)
     !$omp end critical
     !$omp end task
   end do
@@ -807,11 +809,12 @@ subroutine calcSrrhoav(env,ensname)
 !$omp taskwait
 !$omp end single
 !$omp end parallel
-  if (niceprint) then
-    write (stdout,'(/)')
-  else
-    write (stdout,'(/,1x,a,/)') 'done.'
-  end if
+  !if (niceprint) then
+  !  write (stdout,'(/)')
+  !else
+  !  write (stdout,'(/,1x,a,/)') 'done.'
+  !end if
+  call crest_oloop_pr_progress(env,ncalc,-1)
   call chdir(thispath)
   if (.not.env%keepModef) call rmrf('HESSIANS')
 

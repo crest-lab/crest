@@ -138,6 +138,7 @@ subroutine confscript2i(env,tim)
 end subroutine confscript2i
 
 !=================================================================================!
+
 subroutine xtbsp(env,xtblevel)
   use iso_fortran_env,only:wp => real64
   use crest_data
@@ -261,20 +262,41 @@ subroutine trialMD(env)
 !* check if the molecular dynamis/metadynamics
 !* will run, or if the timestep is too large
 !***********************************************
-   use crest_parameters,only:wp
-   use crest_data
-   implicit none
-   !> INPUT
-   type(systemdata) :: env
+  use crest_parameters,only:wp
+  use crest_data
+  implicit none
+  !> INPUT
+  type(systemdata) :: env
 
-   if (env%legacy) then
-     !> old xtb subprocess version
-     call trialMD_legacy(env) 
-   else
-     !> new calculator implementation
-     call trialMD_calculator(env)
-   end if
+  if (env%legacy) then
+    !> old xtb subprocess version
+    call trialMD_legacy(env)
+  else
+    !> new calculator implementation
+    call trialMD_calculator(env)
+  end if
 
 end subroutine trialMD
 
 !================================================================================!
+
+subroutine trialOPT(env)
+!**********************************************************
+!* subroutine trialOPT
+!* Performs a geometry optimization of the structure
+!* saved to env%ref and checks for changes in the topology
+!**********************************************************
+  use crest_data
+  implicit none
+  !> INPUT
+  type(systemdata) :: env
+
+  if (env%legacy) then
+    call xtbopt_legacy(env)
+  else
+    call trialOPT_calculator(env)
+  end if
+end subroutine trialOPT
+
+!================================================================================!
+

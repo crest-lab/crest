@@ -246,7 +246,8 @@ subroutine qcg_setup(env, solu, solv)
       write (ich, '(a)') '$end'
       close (ich)
 
-      call xtbopt(env)
+      !call xtbopt(env)
+      call trialOPT(env)
       call rdcoord('coord', solu%nat, solu%at, solu%xyz)
       call remove('coord')
    end if
@@ -293,7 +294,8 @@ subroutine qcg_setup(env, solu, solv)
 !---- Geometry preoptimization solvent
    if ((.not. env%nopreopt) .and. (solv%nat /= 1)) then
       call wrc0('coord', solv%nat, solv%at, solv%xyz) !write coord for xtbopt routine
-      call xtbopt(env)
+      !call xtbopt(env)
+      call trialOPT(env)
       call rdcoord('coord', solv%nat, solv%at, solv%xyz)
       call remove('coord')
    end if

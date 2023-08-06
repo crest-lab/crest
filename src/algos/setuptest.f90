@@ -16,7 +16,21 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
+
+!> The following contains routines that are run in the automatic
+!> setup of CREST to check for consistent settings.
+!> First is the trialMD calculator that can automatically adjust the timestep
+!> Second is the initial geometry optimization with topology check
+
+!========================================================================================!
 subroutine trialMD_calculator(env)
+!*****************************************************
+!* subroutine trialMD_calculator
+!* Runs a short metadynamics simulation and, in case
+!* the simulation terminates with error, tries to
+!* adjust the time step and tries again. Up to a
+!* maximum of 6 tries.
+!*****************************************************
   use crest_parameters
   use crest_data
   use crest_calculator
@@ -65,9 +79,9 @@ subroutine trialMD_calculator(env)
   MDSTART%length_steps = 0    !> to zero so it will be calculated automatically
   MDSTART%dumpstep = 20.0_wp  !> fs dump step to trajectory file, so we end up with 50 structures
   MDSTART%sdump = 0           !> also zero to reset
-  if(allocated(env%ref%wbo))then  !> should be allocated from main program
+  if (allocated(env%ref%wbo)) then  !> should be allocated from main program
     MDSTART%shk%wbo = env%ref%wbo
-  endif
+  end if
   !MDSTART%printstep = 10
 
   MTD%kpush = prefac
@@ -97,7 +111,7 @@ subroutine trialMD_calculator(env)
     MD%tstep = tstep
     MD%shk%shake_mode = shakemode
     MD%shake = (shakemode > 0)
-    write(trajectory,'("crest_trial_md_",i0,".trj")') counter
+    write (trajectory,'("crest_trial_md_",i0,".trj")') counter
     MD%trajectoryfile = trim(dirnam)//sep//trim(trajectory)
 
 !>--- And run it
@@ -222,6 +236,147 @@ contains
 
     return
   end subroutine time2string
-
 !========================================================================================!
 end subroutine trialMD_calculator
+
+!========================================================================================!
+!========================================================================================!
+!========================================================================================!
+
+subroutine trialOPT_calculator(env)
+!**********************************************************
+!* subroutine trialOPT_calculator
+!* A new calculator-based implementation of xtbopt_legacy
+!* Performs a geometry optimization of the structure
+!* saved to env%ref and checks for changes in the topology
+!*
+!* requires to have env%ref and env%calc initialized
+!**********************************************************
+  use crest_parameters
+  use crest_data
+  use crest_calculator
+  use optimize_module
+  implicit none
+  !> INPUT
+  type(systemdata),intent(inout) :: env
+  !> LOCAL
+  type(coord) :: mol,molopt
+  type(calcdata) :: tmpcalc
+  integer :: io
+  real(wp) :: energy
+  real(wp),allocatable :: grd(:,:)
+  logical :: success,pr,wr
+
+!>--- small header
+  write (stdout,*)
+  call smallhead('Initial Geometry Optimization')
+
+!>--- setup
+  call env%ref%to(mol)
+  call env%ref%to(molopt)
+  allocate(grd(3,mol%nat), source=0.0_wp)
+  tmpcalc = env%calc  !> create copy of calculator
+  tmpcalc%optlev = -1 !> set loose convergence thresholds 
+
+!>--- perform geometry optimization
+  pr = .false. !> stdout printout
+  wr = .true.  !> write crestopt.log
+  call optimize_geometry(mol,molopt,tmpcalc,energy,grd,pr,wr,io)
+
+!>--- check success 
+  success = (io == 0)
+  call trialOPT_warning(env,molopt,success)
+
+  deallocate(grd) 
+end subroutine trialOPT_calculator
+
+!========================================================================================!
+subroutine trialOPT_warning(env,mol,success)
+!*******************************************************
+!* subroutine trialOPT_warning
+!* Processes the trialOPT status and, if successfull,
+!* overwrites env%ref with the opt. structure
+!* If the checks fail, CREST is stopped by this routine
+!*******************************************************
+  use crest_parameters
+  use crest_data
+  use strucrd
+  implicit none
+  type(systemdata),intent(inout) :: env
+  type(coord),intent(in) :: mol  !> optimized geometry to be checked
+  logical,intent(in) :: success  !> status of geometry optimization
+  integer :: ntopo
+  integer,allocatable :: topo(:)
+  logical,allocatable :: changed(:)
+  integer(dp) :: i  !> revlin expects int64 input
+  integer :: j,k,l
+  logical :: tchange
+
+  if (.not.success) then
+    write (stdout,*)
+    write (stdout,*) ' Initial geometry optimization failed!'
+    write (stdout,*) ' Please check your input.'
+    error stop
+  end if
+  write (stdout,*) 'Geometry successfully optimized.'
+!---- if necessary, check if the topology has changed!
+  if (allocated(env%ref%topo)) then
+    ntopo = mol%nat*(mol%nat+1)/2
+    allocate (topo(ntopo))
+    allocate (changed(mol%nat),source=.false.)
+    call quicktopo(mol%nat,mol%at,mol%xyz,ntopo,topo)
+    do i = 1,ntopo
+      if (topo(i) .ne. env%ref%topo(i)) then
+        tchange = .true.
+        call revlin(i,k,l)
+        changed(k) = .true.
+        changed(l) = .true.
+      end if
+    end do
+    if (tchange) then
+      write (stdout,*)
+      write (stdout,'(1x,a)') '*WARNING* Change in topology detected!'
+      write (stdout,'(1x,a)') 'Atoms in which a topology change compared to the input was detected:'
+      do i = 1,mol%nat
+        if (changed(i)) then
+          write (stdout,'(1x,i0,"(",a,")")',advance='no') i,trim(i2e(mol%at(i),'nc'))
+        end if
+      end do
+      write (stdout,*)
+
+!>--- either update the topology (see option B below)
+      if (.not.env%reftopo) then
+        write (stdout,'(1x,a)') 'Taking new topology as reference and continue ...'
+        env%ref%topo = topo
+
+!>--- or abort the run
+      else
+        write (stdout,*)
+        call smallhead('* READ THE FOLLOWING CAREFULLY *')
+        write (stdout,'(1x,a)') 'A topology change was seen in the initial geometry optimization.'
+        write (stdout,'(1x,a,a,a)') 'This could be an artifact of the chosen theory level (e.g. xTB).'
+        if (env%legacy) then
+          write (stdout,'(1x,a)') 'You can check the optimization trajectory in the "xtbopt.log" file.'
+        else
+          write (stdout,'(1x,a)') 'You can check the optimization trajectory in the "crestopt.log" file.'
+        end if
+        write (stdout,'(1x,a)') 'Try either of these options:'
+        write (stdout,'(/,4x,a)') 'A) Pre-optimize your input seperately and use the optimized'
+        write (stdout,'(4x,a)') '   structure as input for CREST. (Only recommended if structure is intact)'
+        write (stdout,'(/,4x,a)') 'B) Restart the same CREST call as before, but ignore the topology change'
+        write (stdout,'(4x,a)') '   by using the "--noreftopo" keyword. (May produce artifacts)'
+        write (stdout,'(/,4x,a)') 'C) Fix the initial input geometry by introducing bond length constraints'
+        write (stdout,'(4x,a)') '   or by using a method with fixed topology (e.g. GFN-FF).'
+        write (stdout,*)
+        error stop 'safety termination of CREST'
+      end if
+    end if
+  end if
+
+!>--- If all checks succeded, update reference with optimized geometry
+  env%ref%nat = mol%nat
+  env%ref%at = mol%at
+  env%ref%xyz = mol%xyz
+
+end subroutine trialOPT_warning
+

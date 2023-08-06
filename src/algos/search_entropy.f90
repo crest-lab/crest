@@ -368,7 +368,7 @@ subroutine crest_smtd_mds(env,ensnam)
 !============================================================!
 
 !>--- Generate the required number of static MD calculators
-  nsim = TOTAL !> from the generated cluster
+  nsim = min(TOTAL,env%emtd%nMDs) !> from the generated cluster, but limited to env%emtd%nMDs
   call crest_search_multimd_init(env,mol,mddat,nsim) !> general mddat setup
   allocate (mddats(nsim),source=mddat)
 !>--- adjust T's and runtimes, and load the bias
@@ -378,7 +378,7 @@ subroutine crest_smtd_mds(env,ensnam)
   call rdensemble(clusterfile,nall,mols)
 
 !>--- print what we are doing
-  write (atmp,'(''Static MTDs (umbrella sampling) on '',i0,'' selected conformer(s)'')') nall
+  write (atmp,'(''Static MTDs (umbrella sampling) on '',i0,'' selected conformer(s)'')') nsim
   call smallheadline(trim(atmp))
   write (stdout,'("> Using ",i0," constant RMSD bias potentials per MTD")') env%nstatic
 

@@ -73,19 +73,24 @@ subroutine crest_optimization(env,tim)
     write (stdout,*) 'geometry successfully optimized!'
     write (stdout,*)
     write(stdout,'(a)') repeat('-',80)
+
     write (stdout,*)
     call smallhead( 'Output structure:') 
     call molnew%append(stdout)
     write (stdout,*)
+
     write (stdout,*) 'optimized geometry written to crestopt.xyz'
     gnorm = norm2(grad)
     write (atmp,'(1x,"Etot=",f16.10,1x,"g norm=",f12.8)') energy,gnorm
     molnew%comment = trim(atmp)
+
     open (newunit=ich,file='crestopt.xyz')
     call molnew%append(ich)
     close (ich)
+
   else
     write (stdout,*) 'geometry optimization FAILED!'
+
   end if
 
 !========================================================================================!

@@ -237,7 +237,7 @@ program CREST
 !>         PRE-OPTIMIZATION OF THE GEOMETRY
 !=========================================================================================!
   if (env%preopt) then
-    call xtbopt(env)
+    call trialOPT(env)
   else if (env%presp) then
     call xtbsp(env)
   end if
