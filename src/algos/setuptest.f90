@@ -55,11 +55,15 @@ subroutine trialMD_calculator(env)
   type(mtdpot) :: MTD
   type(timer) :: profiler
 
+  type(calcdata) :: tmpcalc
+  real(wp) :: energy
+  real(wp),allocatable :: grd(:,:)
+
   character(len=*),parameter :: dirnam = 'TRIALMD'
 
 !>--- OMP settings (should be set to 1 to simulate max parallelization)
   if (env%autothreads) then
-    call ompautoset(env%threads,8,env%omp,env%MAXRUN,8)
+    call ompautoset(env%threads,8,env%omp,env%MAXRUN,1)
   end if
 
   call getcwd(thispath)
@@ -80,6 +84,16 @@ subroutine trialMD_calculator(env)
   MDSTART%dumpstep = 20.0_wp  !> fs dump step to trajectory file, so we end up with 50 structures
   MDSTART%sdump = 0           !> also zero to reset
   if (allocated(env%ref%wbo)) then  !> should be allocated from main program
+    MDSTART%shk%wbo = env%ref%wbo
+  else !> otherwise, obtain from scratch
+    tmpcalc = env%calc
+    mol = molstart
+    tmpcalc%calcs(1)%rdwbo = .true. !> obtain WBOs
+    allocate(grd(3,mol%nat))
+    call engrad(mol,tmpcalc,energy,grd,io)
+    call move_alloc(tmpcalc%calcs(1)%wbo, env%ref%wbo)
+    deallocate(grd)
+    call tmpcalc%reset()
     MDSTART%shk%wbo = env%ref%wbo
   end if
   !MDSTART%printstep = 10

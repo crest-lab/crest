@@ -21,10 +21,11 @@
 ! calculate settings for an elipsoid wall potential
 !========================================================================================!
 subroutine wallpot(env)
-  use iso_fortran_env,wp => real64
+  use crest_parameters
   use crest_data
-  use strucrd,only:rdnat,rdcoord,wrc0
+  use strucrd,only:rdnat,rdcoord,wrc0,coord
   use axis_module
+  use crest_calculator
   implicit none
   type(systemdata) :: env
 
@@ -40,13 +41,17 @@ subroutine wallpot(env)
   real(wp) :: natfac,erffac,erfscal
   logical :: pr = .false.
 
-  real(wp),parameter :: pi43 = 3.1415926540_wp * (4.0_wp / 3.0_wp)
-  real(wp),parameter :: pi = 3.1415926540_wp
-  real(wp),parameter :: third = 1.0_wp / 3.0_wp
+  type(coord) :: mol
+  type(constraint) :: constr
+  logical,allocatable :: atms(:)
 
+  real(wp),parameter :: pi43 = pi * (4.0_wp / 3.0_wp)
+  real(wp),parameter :: third = 1.0_wp / 3.0_wp
+  real(wp),parameter :: kdefault = 1.0_wp  !> xtb version doesn't use k
+  real(wp),parameter :: alphadefault = 30.0_wp !> polynomial default in xtb
+!=========================================================!
   allocate (env%cts%pots(10))
   env%cts%pots = ''
-  !env%cts%NCI = env%NCI
   env%cts%NCI = .true.
 
   pshape = 1.0d0
@@ -54,41 +59,54 @@ subroutine wallpot(env)
   nat = env%nat
   eaxr = 0.0d0
 
-!--- read in coord
+!>--- read in coord
   allocate (xyz(3,nat),at(nat))
-  call rdcoord('coord',nat,at,xyz)
+  !call rdcoord('coord',nat,at,xyz)
+  call env%ref%to(mol)
+  at(:) = mol%at(:)
+  xyz(:,:) = mol%xyz(:,:)
 
-!--- CMA trafo
+!>--- CMA trafo
   call axis(pr,nat,at,xyz,eaxr)
   sola = sqrt(1.0d0 + (abs(eaxr(1) - eaxr(3))) / (abs(eaxr(1) + eaxr(2) + eaxr(3)) / 3.0d0))
   call getmaxdist(nat,xyz,at,rmax)
-  vtot = volsum(nat,at) !--- volume as sum of speherical atoms (crude approximation)
+!>--- volume as sum of speherical atoms (crude approximation)
+  vtot = volsum(nat,at)
 
-!--- calculate ellipsoid
+!>--- calculate ellipsoid
   roff = sola * vtot / 1000.0d0
   boxr = ((sola * vtot) / pi43)**third + roff + rmax * 0.5_wp
   r = (boxr**3 / (eaxr(1) * eaxr(2) * eaxr(3)))**third  ! volume of ellipsoid = volume of sphere
   rabc = eaxr**pshape / sum((eaxr(1:3))**pshape)
 
-  !> scale pot size by number of atoms
-  !> pure empirics
+!> scale pot size by number of atoms
+!> pure empirics
   natfac = 0.08_wp * nat - 0.08_wp * 50.0_wp
   erffac = erf(natfac) * 0.25_wp
   erfscal = 1.0_wp - erffac
-  !> erfscal is ~ 1.25 for systems <<50 atoms
-  !> erfscal is ~ 0.75 for systems >>50 atoms
+!> erfscal is ~ 1.25 for systems <<50 atoms
+!> erfscal is ~ 0.75 for systems >>50 atoms
   rabc = eaxr * r * env%potscal * erfscal * 1.5_wp
 
-!--- write CMA transformed coord file
+!>--- write CMA transformed coord file
   call wrc0('coord',env%nat,at,xyz)
   call dummypot(rabc,xyz,at,env%nat)
 
   deallocate (at,xyz)
 
+!>--- constraint in legacy framework
   write (env%cts%pots(1),'("$wall")')
   write (env%cts%pots(2),'(2x,"potential=polynomial")')
   write (env%cts%pots(3),'(2x,"ellipsoid:",1x,3(g0,",",1x),"all")') rabc
 
+!>--- add constraint in calculator framwork
+  if(.not.env%legacy)then
+    allocate(atms(nat), source=.true.) !> all atoms
+    call constr%ellipsoid( nat, atms,rabc, kdefault,alphadefault,.false.)
+    deallocate(atms)
+    !call constr%print(stdout)
+    call env%calc%add(constr)
+  endif
   return
 end subroutine wallpot
 !============================================================================

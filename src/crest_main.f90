@@ -125,7 +125,7 @@ program CREST
 !>        PRE-CONFSEARCH PROPERTY CALCS
 !=========================================================================================!
   select case (env%properties)
-    !>--- only CREGEN routine
+!>--- only CREGEN routine
   case (p_cregen)
     call tim%start(1,'CREGEN')
     write (*,*) 'Using only the cregen sorting routine.'
@@ -150,56 +150,56 @@ program CREST
     end if
     call tim%stop(1)
     call propquit(tim)
-    !>--- only ensemble comparison
+!>--- only ensemble comparison
   case (p_compare)
-    call compare_ensembles(env)         !compare ensembles
+    call compare_ensembles(env)     
     call propquit(tim)
-    !>--- protonation tool
+ !>--- protonation tool
   case (p_protonate)
     call protonate(env,tim)
     call propquit(tim)
-    !>--- deprotonation
+!>--- deprotonation
   case (p_deprotonate)
     call deprotonate(env,tim)
     call propquit(tim)
-    !>--- tautomerization
+!>--- tautomerization
   case (p_tautomerize)
     call tautomerize(env,tim)
     call propquit(tim)
-    !>--- extended tautomerization
+!>--- extended tautomerization
   case (p_tautomerize2)
     call tautomerize_ext(env%ensemblename,env,tim)
     call propquit(tim)
-    !>--- stereoisomerization
+!>--- stereoisomerization
   case (p_isomerize)
     call stereoisomerize(env,tim)
     call propquit(tim)
 
-    !>--- reactor setup
+!>--- reactor setup
   case (p_reactorset)
     call reactor_setup(env)
 
     stop
-    !>--- enhanched ensemble entropy
+!>--- enhanched ensemble entropy
   case (p_CREentropy)
     call entropic(env,.true.,.true.,.false.,env%ensemblename, &
     &    env%tboltz,dumfloat,dumfloat2)
     call propquit(tim)
-    !>--- calculate hessians and average thermo. contrib
+!>--- calculate hessians and average thermo. contrib
   case (p_rrhoaverage)
     call tim%start(4,'freq+thermo')
     call calcSrrhoav(env,env%ensemblename)
     call tim%stop(4)
     call propquit(tim)
-    !>--- to PCA and k-Means clustering for given file
+!>--- to PCA and k-Means clustering for given file
   case (p_cluster)
     call ccegen(env,.true.,env%ensemblename)
     call propquit(tim)
-    !>--- properties for enesemble file
+!>--- properties for enesemble file
   case (p_propcalc)
     call propcalc(env%ensemblename,env%properties2,env,tim)
     call propquit(tim)
-    !>--- calculate potential correction for acid/base reaction
+!>--- calculate potential correction for acid/base reaction
   case (p_acidbase)
     call tim%start(4,'acid/base')
     if (env%ptb%pka_mode == 0) then
@@ -210,26 +210,26 @@ program CREST
     end if
     call tim%stop(4)
     call propquit(tim)
-    !>--- calculate potential correction for acid/base reaction
+!>--- calculate potential correction for acid/base reaction
   case (p_ligand)
     call tim%start(4,'')
     call ligandtool(env%ptb%infile,env%ptb%newligand, &
     &    env%ptb%centeratom,env%ptb%ligand)
     call tim%stop(4)
     call propquit(tim)
-    !>--- wrapper for the thermo routine
+!>--- wrapper for the thermo routine
   case (p_thermo)
     call tim%start(4,'')
     call thermo_mini(env)
     call tim%stop(4)
     call propquit(tim)
-    !>--- ensemble merging tool
+!>--- ensemble merging tool
   case (p_gesc1,p_gesc2)
     call tim%start(9,'')
     call biasmerge(env)
     call tim%stop(9)
     if (env%properties == -9224) call propquit(tim)
-    !>--- do nothing here
+!>--- do nothing here
   case default
     continue
   end select

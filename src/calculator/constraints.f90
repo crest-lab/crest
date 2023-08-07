@@ -75,6 +75,7 @@ module constraints
     generic,public :: sphereconstraint => create_sphere_constraint,create_sphere_constraint_all
     procedure,private :: create_sphere_constraint,create_sphere_constraint_all
     procedure :: sphereupdate => sphere_update_nat
+    procedure :: ellipsoid => create_ellips_constraint
     procedure :: angleconstraint => create_angle_constraint
     procedure :: dihedralconstraint => create_dihedral_constraint
     procedure :: gapdiffconstraint => create_gapdiff_constraint
@@ -175,11 +176,11 @@ contains  !>--- Module routines start here
     case (wall)
       art = 'wall'
       write (atoms,'(1x,"atoms:",1x,i0,a)') self%n,'/all'
-      write (values,'(" radii=",3f12.5," k=",f8.5,1x,"exp=",f5.2)') self%ref(1:3),self%fc(1:2)
+      write (values,'(" radii(Bohr)=",3f12.5," k=",f8.5,1x,"exp=",f5.2)') self%ref(1:3),self%fc(1:2)
     case (wall_fermi)
       art = 'wall_fermi'
       write (atoms,'(1x,"atoms:",1x,i0,a)') self%n,'/all'
-      write (values,'(" radii=",3f12.5," k=",f8.5,1x,"exp=",f5.2)') self%ref(1:3),self%fc(1:2)
+      write (values,'(" radii(Bohr)=",3f12.5," k=",f8.5,1x,"exp=",f5.2)') self%ref(1:3),self%fc(1:2)
     case (na_gapdiff)
       art = 'nonadiabatic gap'
       write (atoms,'(1x,"[",a,"]")') 'σ*ΔE²/(ΔE+α)'
@@ -194,8 +195,10 @@ contains  !>--- Module routines start here
       values = ' '
       pr=.false.
     end select
-    if(pr) &
-    & write (chnl,'(a,a,",",a,",",a,1x,a)') ' constraint: ',trim(art),trim(atoms),trim(values)
+    if(pr) then
+      write (chnl,'("> ",a,a,a)') 'constraint: ',trim(art),trim(atoms)
+      write(chnl,'(1x,a)') trim(values)
+    endif
 
     return
   end subroutine print_constraint
@@ -753,11 +756,43 @@ contains  !>--- Module routines start here
     do i = 1,n
       if (atms(i)) self%atms(i) = i
     end do
-    self%ref = r
+    self%ref(:) = r
     self%fc(1) = k
     self%fc(2) = alpha
     return
   end subroutine create_sphere_constraint
+
+  subroutine create_ellips_constraint(self,n,atms,r,k,alpha,logfermi)
+    implicit none
+    class(constraint) :: self
+    integer,intent(in) :: n
+    logical,intent(in) :: atms(n)
+    real(wp),intent(in) :: r(3)
+    real(wp) :: k,alpha
+    logical,intent(in) :: logfermi
+    integer :: i,c
+
+    call self%deallocate()
+    if (logfermi) then
+      self%type = wall_fermi
+    else
+      self%type = wall
+    end if
+    c = count(atms,1)
+    self%n = c
+    allocate (self%atms(c))
+    allocate (self%fc(2),source=fcdefault)
+    allocate (self%ref(3),source=r)
+    do i = 1,n
+      if (atms(i)) self%atms(i) = i
+    end do
+    self%ref(:) = r(:)
+    self%fc(1) = k
+    self%fc(2) = alpha
+    return
+  end subroutine create_ellips_constraint
+
+
 
   subroutine sphere_update_nat(self,n,atms)
     implicit none
@@ -798,6 +833,11 @@ contains  !>--- Module routines start here
     if (.not. allocated(constr%ref)) return
     if (.not. allocated(constr%fc)) return
 
+    !>--- xtb defaults are:
+    !> sphere_alpha = 30
+    !> sphere_beta  = 6.0_wp
+    !> sphere_temp  = 300.0_wp
+
     do i = 1,n
       iat = constr%atms(i)
       select case (subtype)
@@ -825,6 +865,7 @@ contains  !>--- Module routines start here
         grd(1,iat) = ddist * dx
         grd(2,iat) = ddist * dy
         grd(3,iat) = ddist * dz
+
       case (wall_fermi)
         !>
         !> V = Σ kT*log{1+exp[β(|R-O|-Rref)]} 

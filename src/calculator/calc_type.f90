@@ -539,38 +539,50 @@ contains  !>--- Module routines start here
     class(calculation_settings) :: self
     integer,intent(in) :: iunit
     integer :: i,j
-    character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
-    character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
-    character(len=*),parameter :: fmt3 = '(1x,a20," : ",a)'
+    character(len=*),parameter :: fmt1 = '(2x,a20," : ",i0)'
+    character(len=*),parameter :: fmt2 = '(2x,a20," : ",f12.5)'
+    character(len=*),parameter :: fmt3 = '(2x,a20," : ",a)'
+    character(len=20) :: atmp
 
     if (allocated(self%description)) then
-      write (iunit,'(2x,a)') trim(self%description)
+      write (iunit,'("> ",a)') trim(self%description)
     else
-      write (iunit,fmt1) 'Job type',self%id
+      write(atmp,*) 'Job type'
+      write (iunit,fmt1) atmp,self%id
     end if
 
-    write (iunit,fmt1) 'Molecular charge',self%chrg
+    write(atmp,*) 'Molecular charge'
+    write (iunit,fmt1) atmp,self%chrg
     if (self%uhf /= 0) then
-      write (iunit,fmt1) 'UHF parameter',self%uhf
+      write(atmp,*) 'UHF parameter'
+      write (iunit,fmt1) atmp,self%uhf
     end if
 
     if (allocated(self%solvmodel)) then
-      write (iunit,fmt3) 'Solvation model',trim(self%solvmodel)
+      write(atmp,*) 'Solvation model'
+      write (iunit,fmt3) atmp,trim(self%solvmodel)
     end if
     if (allocated(self%solvent)) then
-      write (iunit,fmt3) 'Solvent',trim(self%solvent)
+      write(atmp,*) 'Solvent'
+      write (iunit,fmt3) atmp,trim(self%solvent)
     end if
 
     !> xTB specific parameters
     if (any((/jobtype%tblite,jobtype%xtbsys,jobtype%gfn0,jobtype%gfn0occ/) == self%id)) then
-      write (iunit,fmt2) 'Fermi temperature',self%etemp
-      write (iunit,fmt2) 'Accuracy',self%accuracy
-      write (iunit,fmt1) 'max SCC cycles',self%maxscc
+      write(atmp,*) 'Fermi temperature'
+      write (iunit,fmt2) atmp,self%etemp
+      write(atmp,*) 'Accuracy'
+      write (iunit,fmt2) atmp,self%accuracy
+      write(atmp,*) 'max SCC cycles'
+      write (iunit,fmt1) atmp,self%maxscc
     end if
 
-    if (self%apiclean) write (iunit,fmt3) 'Reset data?','  yes'
-    if (self%rdwbo) write (iunit,fmt3) 'Read WBOs?','  yes'
-    if (self%rddip) write (iunit,fmt3) 'Read dipoles?','  yes'
+    write(atmp,*) 'Reset data?'
+    if (self%apiclean) write (iunit,fmt3) atmp,'yes'
+    write(atmp,*) 'Read WBOs?'
+    if (self%rdwbo) write (iunit,fmt3) atmp,'yes'
+    write(atmp,*) 'Read dipoles?'
+    if (self%rddip) write (iunit,fmt3) atmp,'yes'
 
   end subroutine calculation_settings_info
 !========================================================================================!
@@ -589,12 +601,12 @@ contains  !>--- Module routines start here
       write (iunit,'("> ",a)') 'No calculation levels set up!'
     else if (self%ncalculations > 1) then
       do i = 1,self%ncalculations
-        write (iunit,'("> ",a,i0)') 'Calculation level ',i
+        write (iunit,'("> ",a,i0,a)') 'User-defined calculation level ',i,':'
         call self%calcs(i)%info(iunit)
         write (iunit,fmt2) 'weight',self%calcs(i)%weight
       end do
     else
-      write (iunit,'("> ",a)') 'Calculation level'
+      write (iunit,'("> ",a)') 'User-defined calculation level:'
       call self%calcs(1)%info(iunit)
     end if
     write (iunit,*)
