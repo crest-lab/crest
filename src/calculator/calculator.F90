@@ -19,7 +19,7 @@
 
 module crest_calculator
 !>--- types and readers
-  use iso_fortran_env,only:wp => real64
+  use iso_fortran_env,only:wp => real64,int64
   use strucrd
   use calc_type
 !>--- potentials and API's
@@ -50,6 +50,9 @@ module crest_calculator
   public :: scantype
   public :: calc_constraint
 !=========================================================================================!
+
+!>--- global engrad call counter
+  integer(int64),public :: engrad_total = 0
 
 !>--- public module routines
   public :: engrad
@@ -121,6 +124,8 @@ contains  !> MODULE PROCEDURES START HERE
           calc%eweight(i) = calc%calcs(i)%weight
         end do
       end if
+      !>--- count the engrad call
+      engrad_total = engrad_total + 1
     end if
     
     iostatus = 0

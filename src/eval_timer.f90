@@ -19,12 +19,22 @@
 subroutine eval_timer(tim)
   use crest_parameters
   use crest_data
+  use crest_calculator,only: engrad_total
   implicit none
   type(timer) :: tim
+  real(wp) :: time_total,time_avg
+  character(len=40) :: atmp
   write (stdout,*)
   call smallhead('Wall Time Summary')
   call tim%write(stdout,'CREST runtime',verbose=.true.)
+  time_total = tim%get()
   call tim%clear
+  if(engrad_total > 0)then
+  write(atmp,'(f30.3)') time_total/real(engrad_total,wp)
+  write(stdout,'(" * Total number of energy+grad calls: ",i0)') & !,a,1x,a,a)') & 
+  &  engrad_total!,' (avg. wall-time',trim(adjustl(atmp)),' sec)'
+  write(stdout,*)
+  endif
 end subroutine eval_timer
 
 subroutine propquit(tim)

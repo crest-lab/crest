@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2022 Philipp Pracht
+! Copyright (C) 2022-2023  Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -17,7 +17,154 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!> a collection of routines to set up parallel runs of MDs and optimizations.
+!> A collection of routines to set up OMP-parallel runs of MDs and optimizations.
+
+!========================================================================================!
+!========================================================================================!
+!> Routines for concurrent singlepoint evaluations
+!========================================================================================!
+!========================================================================================!
+subroutine crest_sploop(env,nat,nall,at,xyz,eread)
+!***************************************************************
+!* subroutine crest_sploop
+!* This subroutine performs concurrent singlpoint evaluations
+!* for the given ensemble. Input eread is overwritten
+!***************************************************************
+  use crest_parameters,only:wp,stdout,sep
+  use crest_calculator
+  use omp_lib
+  use crest_data
+  use strucrd
+  use optimize_module
+  use iomod,only:makedir,directory_exist,remove
+  implicit none
+  type(systemdata),intent(inout) :: env
+  real(wp),intent(inout) :: xyz(3,nat,nall)
+  integer,intent(in)  :: at(nat)
+  real(wp),intent(inout) :: eread(nall)
+  integer,intent(in) :: nat,nall
+
+  type(coord),allocatable :: mols(:)
+  integer :: i,j,k,l,io,ich,ich2,c,z,job_id,zcopy
+  logical :: pr,wr,ex
+  type(calcdata),allocatable :: calculations(:)
+  integer :: T  !> number of parallel running instances
+  real(wp) :: energy,gnorm
+  real(wp),allocatable :: grad(:,:)
+  integer :: thread_id,vz,job
+  character(len=80) :: atmp
+  real(wp) :: percent,runtime
+
+  type(timer) :: profiler
+
+!>--- check if we have any calculation settings allocated
+  if (env%calc%ncalculations < 1) then
+    write (stdout,*) 'no calculations allocated'
+    return
+  end if
+
+!>--- prepare objects for parallelization
+  T = env%threads
+  allocate (calculations(T),source=env%calc)
+  allocate (mols(T))
+  do i = 1,T
+    do j = 1,env%calc%ncalculations
+      calculations(i)%calcs(j) = env%calc%calcs(j)
+      !>--- directories
+      ex = directory_exist(env%calc%calcs(j)%calcspace)
+      if (.not.ex) then
+        io = makedir(trim(env%calc%calcs(j)%calcspace))
+      end if
+      write (atmp,'(a,"_",i0)') sep,i
+      calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+    end do
+    calculations(i)%pr_energies = .false.
+    allocate (mols(i)%at(nat),mols(i)%xyz(3,nat))
+  end do
+
+!>--- printout directions and timer initialization
+  pr = .false. !> stdout printout
+  wr = .false. !> write crestopt.log
+  call profiler%init(1)
+  call profiler%start(1)
+
+!>--- first progress printout (initializes progress variables)
+  call crest_oloop_pr_progress(env,nall,0)
+
+!>--- shared variables
+  allocate (grad(3,nat),source=0.0_wp)
+  c = 0  !> counter of successfull optimizations
+  k = 0  !> counter of total optimization (fail+success)
+  z = 0  !> counter to perform optimization in right order (1...nall)
+  eread(:) = 0.0_wp
+  grad(:,:) = 0.0_wp
+!>--- loop over ensemble
+  !$omp parallel &
+  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,z,pr,wr) &
+  !$omp shared(ich,ich2,mols)
+  !$omp single
+  do i = 1,nall
+
+    call initsignal()
+    vz = i
+    !$omp task firstprivate( vz ) private(j,job,energy,grad,io,atmp,gnorm,thread_id,zcopy)
+    call initsignal()
+
+    thread_id = OMP_GET_THREAD_NUM()
+    job = thread_id+1
+    !>--- modify calculation spaces
+    !$omp critical
+    z = z+1
+    zcopy = z
+    mols(job)%nat = nat
+    mols(job)%at(:) = at(:)
+    mols(job)%xyz(:,:) = xyz(:,:,z)
+    !$omp end critical
+
+    !>-- engery+gradient call
+    !call optimize_geometry(mols(job),molsnew(job),calculations(job),energy,grad,pr,wr,io)
+    call engrad(mols(job),calculations(job),energy,grad,io)
+
+    !$omp critical
+    if (io == 0) then
+      !>--- successful optimization (io==0)
+      c = c+1
+      eread(zcopy) = energy
+    end if
+    k = k+1
+    !>--- print progress
+    call crest_oloop_pr_progress(env,nall,k)
+    !$omp end critical
+    !$omp end task
+  end do
+  !$omp taskwait
+  !$omp end single
+  !$omp end parallel
+
+!>--- finalize progress printout
+  call crest_oloop_pr_progress(env,nall,-1)
+
+!>--- stop timer
+  call profiler%stop(1)
+
+!>--- prepare some summary printout
+  percent = float(c)/float(nall)*100.0_wp
+  write(atmp,'(f5.1,a)') percent,'% success)'
+  write (stdout,'(">",1x,i0,a,i0,a,a)') c,' of ',nall,' structures successfully evaluated (', &
+  &     trim(adjustl(atmp))
+  write (atmp,'(">",1x,a,i0,a)') 'Total runtime for ',nall,' singlepoint calculations:'
+  call profiler%write_timing(stdout,1,trim(atmp),.true.)
+  runtime = profiler%get(1)
+  write(atmp,'(f16.3,a)') runtime/real(nall,wp),' sec'
+  write(stdout,'(a,a,a)') '> Corresponding to approximately ',trim(adjustl(atmp)), &
+  &                       ' per processed structure' 
+
+  deallocate (grad)
+  call profiler%clear()
+  deallocate (calculations)
+  if (allocated(mols)) deallocate (mols)
+  return
+end subroutine crest_sploop
 
 !========================================================================================!
 !========================================================================================!
@@ -428,15 +575,14 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   integer,intent(inout) :: nsim
   integer :: i,io
   logical :: pr
-!========================================================================================!
+!=======================================================!
   type(calcdata) :: calc
   type(shakedata) :: shk
 
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
   character(len=*),parameter :: mdir = 'MDFILES'
-
-!========================================================================================!
+!======================================================!
 
   !>--- check if we have any MD & calculation settings allocated
   mddat = env%mddat
@@ -490,6 +636,7 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   return
 end subroutine crest_search_multimd_init
 
+!========================================================================================!
 subroutine crest_search_multimd_init2(env,mddats,nsim)
   use crest_parameters,only:wp,stdout,sep
   use crest_data
@@ -504,7 +651,7 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
   integer :: nsim
   integer :: i,io
   logical :: ex
-!========================================================================================!
+!========================================================!
   type(mtdpot),allocatable :: mtds(:)
 
   character(len=80) :: atmp
@@ -541,6 +688,7 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
 
   return
 end subroutine crest_search_multimd_init2
+
 !========================================================================================!
 subroutine crest_search_multimd2(env,mols,mddats,nsim)
 !*******************************************************************

@@ -56,15 +56,15 @@ module crest_type_timer
     procedure,private :: start_timing
     procedure,private :: stop_timing
 
-    procedure :: init  => allocate_timer
+    procedure :: init => allocate_timer
     procedure :: clear => deallocate_timer
     procedure :: start => timer_measure
-    procedure :: stop  => timer_measure
+    procedure :: stop => timer_measure
 
   end type timer
 !========================================================!
- 
-  integer,parameter,private :: lmax_default = 26 
+
+  integer,parameter,private :: lmax_default = 26
 
 !========================================================================================!
 !========================================================================================!
@@ -129,9 +129,9 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
   function get_timer(self,i) result(time)
-!**********************************
-!* To obtain current elapsed time
-!**********************************
+!********************************************
+!* To obtain current elapsed time in seconds
+!********************************************
     !> instance of timer
     class(timer),intent(inout) :: self
 
@@ -150,11 +150,11 @@ contains  !> MODULE PROCEDURES START HERE
       it = 0
     end if
 
-    if (it > 0) then
-      running = self%running(it)
-    else
-      running = .true.
-    end if
+    !if (it > 0) then
+    running = self%running(it)
+    !else
+    !  running = .true.
+    !end if
 
     if (running) then
       call timing(tcpu,twall)
@@ -279,17 +279,17 @@ contains  !> MODULE PROCEDURES START HERE
     integer  :: i
     integer(int64) ::  cpudays,cpuhours,cpumins
     integer(int64) :: walldays,wallhours,wallmins
-    integer :: lmax
+    integer :: lmax,barlen
     logical :: verbose_local
 
     call self%stop_timing(0)
 
     ! verbose ?
-    if(present(verbose))then
-     verbose_local = verbose
+    if (present(verbose)) then
+      verbose_local = verbose
     else
-     verbose_local = self%verbose
-    endif
+      verbose_local = self%verbose
+    end if
 
     ! check if an external message should be added !
     if (present(inmsg)) then
@@ -297,7 +297,7 @@ contains  !> MODULE PROCEDURES START HERE
     else
       msg = "total time"
     end if
-    lmax=len_trim(msg)
+    lmax = len_trim(msg)
     lmax = max(lmax,self%ltag)
     lmax = max(lmax,lmax_default)
 
@@ -330,28 +330,20 @@ contains  !> MODULE PROCEDURES START HERE
     !----------!
     ! printout !
     !----------!
-    !if (self%verbose) then
-    !  write (iunit,'(1x,a,":")') msg(1:lmax)
-    !  write (iunit,'(" * wall-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
-    !    walldays,wallhours,wallmins,walltime
-    !  write (iunit,'(" *  cpu-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
-    !    cpudays,cpuhours,cpumins,cputime
-    !  write (iunit,'(1x,"*",1x,"ratio c/w:",1x,f9.3,1x,"speedup")') self%tcpu(0)/self%twall(0)
-    !else
-      write (atmp,'(1x,a,i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
-        msg(1:lmax+6),walldays,wallhours,wallmins,walltime
-      write (iunit,'(a)') trim(atmp)
-      if(verbose_local)then
-      write (iunit,'(1x,a)') repeat('-',len_trim(atmp))
-      endif
-    !end if
+    write (atmp,'(1x,a,i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
+      msg(1:lmax+6),walldays,wallhours,wallmins,walltime
+    write (iunit,'(a)') trim(atmp)
+    if (verbose_local) then
+      barlen = len_trim(atmp)
+      write (iunit,'(1x,a)') repeat('-',barlen)
+    end if
 
     ! printout every timer and corresponding speedup !
     partsum = 0.0_wp
     do i = 1,self%n
       walltime = self%twall(i)
-      if(walltime <= 0.0_wp) cycle
-      partsum = partsum + walltime
+      if (walltime <= 0.0_wp) cycle
+      partsum = partsum+walltime
       wallmins = int(walltime/60._wp)
       walltime = walltime-wallmins*60._wp
       msg = self%tag(i)
@@ -359,24 +351,23 @@ contains  !> MODULE PROCEDURES START HERE
         msg(1:lmax),wallmins,walltime,100*self%twall(i)/self%twall(0)
     end do
     !> everything else is I/O or setup (e.g. loading parametrizations)
-    walltime = self%twall(0) - partsum
+    walltime = self%twall(0)-partsum
     iowall = walltime
     wallmins = int(walltime/60._wp)
     walltime = walltime-wallmins*60._wp
     msg = 'I/O and setup'
     write (iunit,'(1x,a,1x,"...",i9," min, ",f6.3," sec (",f7.3,"%)")') &
-    msg(1:lmax),wallmins,walltime,100*iowall/self%twall(0)
+      msg(1:lmax),wallmins,walltime,100*iowall/self%twall(0)
     !> and finally, again the total cpu and wall time
-    if(verbose_local)then
-     write (iunit,'(" * wall-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
+    if (verbose_local) then
+      write (iunit,'(1x,a)') repeat('-',barlen)
+      write (iunit,'(" * wall-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
         walldays,wallhours,wallmins,wallsecs
       write (iunit,'(" *  cpu-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
         cpudays,cpuhours,cpumins,cpusecs
       write (iunit,'(1x,"*",1x,"ratio c/w:",1x,f9.3,1x,"speedup")') self%tcpu(0)/self%twall(0)
-    endif    
-
-
-    write (iunit,'(a)')
+      write (iunit,'(1x,a)') repeat('-',barlen)
+    end if
 
   end subroutine write_all_timings
 
@@ -411,10 +402,10 @@ contains  !> MODULE PROCEDURES START HERE
     self%running(i) = .not.self%running(i)
 
     ! assign tag to specific timer !
-    if (present(inmsg))then
+    if (present(inmsg)) then
       self%tag(i) = trim(inmsg)
       l = len_trim(inmsg)
-    endif
+    end if
 
   end subroutine timer_measure
 
