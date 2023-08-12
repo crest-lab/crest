@@ -25,6 +25,7 @@ subroutine flexi(mol,rednat,includeAtom,flex)
   use iso_fortran_env,only:wp => real64
   use strucrd
   use zdata,only:readwbo
+  use miscdata, only: rcov
   implicit none
   !> INPUT
   type(coord),intent(in) :: mol                  !> input molecule
@@ -33,7 +34,7 @@ subroutine flexi(mol,rednat,includeAtom,flex)
   !> OUTPUT
   real(wp),intent(out) :: flex
   !> LOCAL
-  real(wp),allocatable::xyz(:,:),rcov(:),cn(:),cring(:,:),wbo(:,:),wbofull(:,:)
+  real(wp),allocatable::xyz(:,:),cn(:),cring(:,:),wbo(:,:),wbofull(:,:)
   integer,allocatable::at(:),map(:),b(:,:),sring(:),map2(:)
   real(wp) :: dx,dy,dz,r,r2,rco,val,ringf,doublef,branch,effectivNat,hybf
   real(wp) :: av2
@@ -49,9 +50,8 @@ subroutine flexi(mol,rednat,includeAtom,flex)
   rn = rednat !> Number of atoms selected by atomlist+/-
   !> rn=n if atomlist+/- is not used
 
-  allocate (xyz(3,rn),at(rn),rcov(94),map(rn),cn(rn),b(rn,rn))
+  allocate (xyz(3,rn),at(rn),map(rn),cn(rn),b(rn,rn))
   allocate (sring(rn),cring(12,rn),wbo(rn,rn),wbofull(n,n),map2(n))
-  call setrcov(rcov)
 
 !>--- map given structure to considered substructure
   if (rn .ne. n) then
@@ -180,7 +180,7 @@ subroutine flexi(mol,rednat,includeAtom,flex)
 
   flex = av2
   effectivNat = av2*dble(n)
-  deallocate (xyz,at,rcov,map,cn,b,sring,cring,wbo)
+  deallocate (xyz,at,map,cn,b,sring,cring,wbo)
 
   return
 end subroutine flexi

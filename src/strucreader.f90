@@ -318,16 +318,23 @@ contains  !> MODULE PROCEDURES START HERE
   subroutine rdensemble_conf1(fname,nat,nall,at,xyz,eread)
     implicit none
     character(len=*),intent(in) :: fname
-    integer,intent(in) :: nat
-    integer,intent(in) :: nall
-    integer :: at(nat)
-    real(wp) :: xyz(3,nat,nall)
-    real(wp) :: eread(nall)
+    integer,intent(inout) :: nat
+    integer,intent(inout) :: nall
+    integer,intent(inout),allocatable :: at(:)
+    real(wp),intent(inout),allocatable :: xyz(:,:,:)
+    real(wp),intent(inout),allocatable :: eread(:)
     integer :: i,j,k,ich,io
     logical :: ex
     integer :: dum
     character(len=512) :: line
     character(len=6) :: sym
+    if(.not.allocated(xyz).or. .not.allocated(at))then
+      call rdensembleparam(fname,nat,nall)
+    endif
+    if(.not.allocated(xyz)) allocate(xyz(3,nat,nall))
+    if(.not.allocated(at)) allocate(at(nat))
+    if(.not.allocated(eread)) allocate(eread(nall))
+
     eread = 0.0_wp
     xyz = 0.0_wp
     open (newunit=ich,file=fname)
@@ -371,15 +378,20 @@ contains  !> MODULE PROCEDURES START HERE
   subroutine rdensemble_conf2(fname,nat,nall,at,xyz)
     implicit none
     character(len=*),intent(in) :: fname
-    integer,intent(in) :: nat
-    integer,intent(in) :: nall
-    integer :: at(nat)
-    real(wp) :: xyz(3,nat,nall)
+    integer,intent(inout) :: nat
+    integer,intent(inout) :: nall
+    integer,intent(inout),allocatable :: at(:)
+    real(wp),intent(inout),allocatable :: xyz(:,:,:)
     integer :: i,j,k,ich,io
     logical :: ex
     integer :: dum,nallnew
     character(len=512) :: line
     character(len=6) :: sym
+    if(.not.allocated(xyz).or. .not.allocated(at))then
+      call rdensembleparam(fname,nat,nall)
+    endif
+    if(.not.allocated(xyz)) allocate(xyz(3,nat,nall))
+    if(.not.allocated(at)) allocate(at(nat))
     io = 0
     xyz = 0.0_wp
     open (newunit=ich,file=fname)
@@ -422,8 +434,8 @@ contains  !> MODULE PROCEDURES START HERE
   subroutine rdensemble_conf3(fname,nat,nall,at,xyz,comments)
     implicit none
     character(len=*),intent(in) :: fname
-    integer,intent(in) :: nat
-    integer,intent(in) :: nall
+    integer,intent(inout) :: nat
+    integer,intent(inout) :: nall
     integer :: at(nat)
     integer,allocatable :: atdum(:)
     real(wp) :: xyz(3,nat,nall)

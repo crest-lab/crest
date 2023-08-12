@@ -133,6 +133,7 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
   use crest_parameters
   use ls_rmsd
   use strucrd
+  use miscdata, only: rcov
   implicit none
   !> INPUT
   integer,intent(in)  :: nat,nall           !> number of atoms, number of structures
@@ -147,7 +148,6 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
   logical :: pr
   real(sp),allocatable :: zmat(:,:,:),zref(:,:) !> zmat in single precision
   integer,allocatable  :: na(:),nb(:),nc(:)
-  real(wp),allocatable :: rcov(:)
   real(wp),allocatable :: cdum(:,:),zdum(:,:),xyzref(:,:)
   real(wp),allocatable :: xyzgen(:,:,:),rms(:)
   real(wp),allocatable :: erel(:)
@@ -176,8 +176,8 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
   !>--- parameter setup
   rthrbohr = rthr/bohr  !> Ang to Bohr
   rthrbohr100 = rthrbohr/100.0_wp
-  allocate (rcov(94),erel(nall),cnref(nat),source=0.0_wp)
-  call setrcov(rcov)
+  allocate (erel(nall),cnref(nat),source=0.0_wp)
+  ! call setrcov(rcov)
   call etoerel(nall,er,erel,autokcal)
   nwin = count((erel(:) < ewin),1)
   minpos = minloc(erel,1)
@@ -385,7 +385,7 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
   if (allocated(nc)) deallocate (nc)
   if (allocated(cnref)) deallocate (cnref)
   if (allocated(erel)) deallocate (erel)
-  if (allocated(rcov)) deallocate (rcov)
+  !if (allocated(rcov)) deallocate (rcov)
   if (allocated(cdum)) deallocate (cdum)
   if (allocated(xyzgen)) deallocate (xyzgen)
 

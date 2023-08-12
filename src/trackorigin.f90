@@ -248,8 +248,8 @@ subroutine rdensemble_origin(fname,nat,nall,at,xyz,energy,origin)
     use strucrd, only: rdensemble,grepenergy
     implicit none
     character(len=*) :: fname
-    integer,intent(in)  :: nat
-    integer,intent(in)  :: nall
+    integer,intent(inout)  :: nat
+    integer,intent(inout)  :: nall
     integer,intent(inout)  :: at(nat)
     real(wp),intent(inout) :: xyz(3,nat,nall)
     real(wp),intent(inout) :: energy(nall)

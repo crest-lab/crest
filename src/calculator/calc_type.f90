@@ -66,12 +66,13 @@ module calc_type
   public :: calculation_settings
   type :: calculation_settings
 
-    integer :: id  = 0  !> calculation type (see "jobtype" parameter above)
-    integer :: prch = stdout
+    integer :: id  = 0        !> calculation type (see "jobtype" parameter above)
+    integer :: prch = stdout  !> printout channel
+    integer :: refine_lvl = 0 !> to allow defining different refinement levels
 
-    integer :: chrg = 0
-    integer :: uhf = 0
-    real(wp) :: weight = 1.0_wp
+    integer :: chrg = 0       !> molecular charge
+    integer :: uhf = 0        !> uhf parameter (xtb) or multiplicity (other)
+    real(wp) :: weight = 1.0_wp  !> calculation weight (when adding them up)
 
     character(len=:),allocatable :: calcspace  !> subdirectory to perform the calculation in
     character(len=:),allocatable :: calcfile
@@ -148,7 +149,9 @@ module calc_type
 !> data object that collects settings for *ALL* calculations and constraints.
   public :: calcdata
   type :: calcdata
+
     integer :: id = 0  !> this parameter will decide how to return or add up energies and gradients
+    integer :: refine_stage = 0 !> to allow iterating different refinement stages
 
 !>--- calculations
     integer :: ncalculations = 0

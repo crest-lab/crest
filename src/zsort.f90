@@ -19,6 +19,7 @@
 subroutine zsort  
       use iomod
       use strucrd, only: rdnat,rdcoord,wrc0
+      use miscdata, only: rcov
       implicit none
       integer n
       real*8,allocatable::xyz(:,:)                             ! comment out if subroutine
@@ -28,7 +29,7 @@ subroutine zsort
       integer,allocatable::nat_mols(:),mvec(:),itmp(:),atnew(:)        
       integer,allocatable::na(:),nb(:),nc(:),at(:)             ! comment out if subroutine
       integer,allocatable::tmpna(:),tmpnb(:),tmpnc(:)          
-      real*8,allocatable :: rcov(:),xx(:)     
+      real*8,allocatable :: xx(:)     
 
       integer :: i,j,k,nn,nmol,refmol
       integer :: zmatcnt,zmatstart
@@ -43,9 +44,8 @@ subroutine zsort
 !      write(*,*)'input on file coord, Z matrix on file zmatrix'
 !      write(*,*)'sorted coord on file zcoord'
 
-  allocate (xx(10),rcov(94))
+  allocate (xx(10))
 
-  call setrcov(rcov) ! for CN calc
   inquire (file='coord',exist=ex) ! comment out if subroutine
   if (.not. ex) stop 'ERROR: no coord file in folder!' ! comment out if subroutine
 
@@ -158,7 +158,7 @@ subroutine zsort
 
   deallocate (xyz,at,mvec,xyznew,atnew,geo,na,nb,nc,nat_mols)
 !     deallocate(mvec,xyznew,atnew,nat_mols) if subroutine
-  deallocate (rcov,xx)
+  deallocate (xx)
 
 end subroutine zsort
 

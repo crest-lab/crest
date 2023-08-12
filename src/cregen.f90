@@ -545,6 +545,7 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
   use crest_parameters
   use crest_data
   use strucrd
+  use miscdata, only: rcov
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
   integer :: ch ! printout channel
@@ -558,7 +559,7 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
   integer :: nat0
   real(wp),allocatable :: cref(:,:),c0(:,:),c1(:,:)
   integer,allocatable  :: at0(:),atdum(:)
-  real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
+  real(wp),allocatable :: cn(:),bond(:,:)
   integer :: frag,frag0
   real(wp) :: erj
   integer :: j
@@ -569,10 +570,6 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
 
   !>--- if we don't wish to include all atoms:
   substruc = (nat .ne. env%rednat .and. env%subRMSD)
-
-  !>--- settings
-  allocate (rcov(94))
-  call setrcov(rcov)
 
   !>--- read the reference structure
   allocate (cref(3,nat),atdum(nat))
@@ -657,7 +654,7 @@ subroutine discardbroken(ch,env,nat,nall,at,xyz,comments,newnall)
   if(allocated(at0)) deallocate(at0)
   if(allocated(c0)) deallocate(c0)
   if(allocated(cref)) deallocate(cref)
-  if(allocated(rcov)) deallocate(rcov)
+  ! if(allocated(rcov)) deallocate(rcov)
   return
 end subroutine discardbroken
 
@@ -670,6 +667,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
   use crest_parameters
   use crest_data
   use strucrd
+  use miscdata, only: rcov
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
   integer,intent(in) :: ch ! printout channel
@@ -683,7 +681,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
   integer,allocatable :: order(:),orderref(:)
   real(wp),allocatable :: cref(:,:),c1(:,:)
   integer,allocatable  :: atdum(:)
-  real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
+  real(wp),allocatable :: cn(:),bond(:,:)
   integer,allocatable :: toporef(:)
   integer,allocatable :: topo(:)
   logical,allocatable :: neighmat(:,:)
@@ -695,10 +693,6 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
   real(wp),allocatable :: ezdihedref(:)
   real(wp),allocatable :: ezdihed(:)
   real(wp) :: winkeldiff
-
-  !--- settings
-  allocate (rcov(94))
-  call setrcov(rcov)
 
   !--- read the reference structure
   allocate (cref(3,nat),atdum(nat))
@@ -818,7 +812,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
   deallocate (neighmat)
   deallocate (topo,toporef)
   deallocate (atdum)
-  deallocate (cref,rcov)
+  deallocate (cref)
   return
 
 contains
@@ -1136,8 +1130,6 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
 !>--- Calculate an artificial Coulomb energy used to compare structures
 !    !--- settings
 !    allocate(ecoul(nall), source=0.0_wp)
-!    allocate(rcov(94))
-!    call setrcov(rcov)
 !    allocate(bond(nat,nat),cn(nat), source=0.0_wp)
 !    allocate(cref(3,nat),source=0.0_wp)
 !    allocate(maskheavy(nat), source=0)
@@ -1567,8 +1559,6 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
 !--- Calculate an artificial Coulomb energy used to compare structures
   !--- settings
 !    allocate(ecoul(nall), source=0.0_wp)
-!    allocate(rcov(94))
-!    call setrcov(rcov)
 !    allocate(bond(nat,nat),cn(nat), source=0.0_wp)
 !    allocate(cref(3,nat),source=0.0_wp)
 !    allocate(maskheavy(nat), source=0)
@@ -1802,6 +1792,7 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
   use crest_parameters, id => dp
   use crest_data
   use strucrd
+  use miscdata, only: rcov
   implicit none
   integer,intent(in) :: ch
   integer,intent(in) :: nat
@@ -1837,7 +1828,6 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
   integer,allocatable :: elist(:,:),flist(:,:)
   integer,allocatable :: jnd(:)
   real(wp),allocatable :: sd(:,:),jfake(:),cn(:)
-  real(wp),allocatable :: rcov(:)
 
   character(len=:),allocatable :: atmp
   integer :: ig,ir,irr,nr
@@ -2116,8 +2106,6 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
 !ccccccccccccccccccccc
   if (rotfil) then
     allocate (jfake(n * (n + 1) / 2),sd(n,n),cn(n))
-    allocate (rcov(94))
-    call setrcov(rcov)
     atmp = 'anmr_rotamer'
     open (unit=112,file=atmp,form='unformatted')
     !open(unit=112,file=fname)
@@ -2143,7 +2131,7 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
       end do
     end do
     close (112)
-    deallocate (rcov,cn)
+    deallocate (cn)
     deallocate (sd,jfake)
   end if
 

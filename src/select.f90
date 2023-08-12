@@ -61,7 +61,7 @@ subroutine mreclm(molcount,nat,at,xyz,molvec,bond,rcov,cn)
       real(wp) :: xyz(3,nat)
       real(wp) :: cn(nat),bond(nat,nat)
       real(wp) :: bref(nat,nat)
-      real(wp) :: rcov(94)
+      real(wp) :: rcov(*)
       integer :: i
       logical :: taken(nat)
       molvec=0
@@ -110,15 +110,13 @@ end subroutine neighbours
 ! compute coordination numbers by adding an inverse damping function
 !================================================================================!
 subroutine xcoord(natoms,iz,xyz,cn,bond)
+      use miscdata, only: rcov
       implicit none
       integer iz(natoms),natoms,i,k1
       real*8 xyz(3,natoms),cn(natoms)
       real*8 cn_thr,bond(natoms,natoms)
       integer iat
       real*8 dx,dy,dz,r,damp,xn,rr,rco,r2,rcovi,rcovj
-      real*8,allocatable :: rcov(:)
-      allocate(rcov(94))
-      call setrcov(rcov)
 
       cn_thr=400.0d0
       k1=16
@@ -147,7 +145,6 @@ subroutine xcoord(natoms,iz,xyz,cn,bond)
         enddo
         cn(i)=xn
       enddo
-      deallocate(rcov)
 end subroutine xcoord
 
 
@@ -157,7 +154,7 @@ subroutine ycoord2(natoms,rcov,iz,xyz,cn,cn_thr,cthr,clash)
       parameter (k1     =16)
       parameter (k3     =-4)
       integer iz(*),natoms,i
-      real*8 xyz(3,*),cn(*),rcov(94)
+      real*8 xyz(3,*),cn(*),rcov(*)
       real*8 cn_thr,cthr
       logical clash
 
@@ -197,7 +194,7 @@ subroutine ycoord(natoms,rcov,iz,xyz,cn,cn_thr)
       parameter (k1     =16)
       parameter (k3     =-4)
       integer iz(*),natoms,i
-      real*8 xyz(3,*),cn(*),rcov(94)
+      real*8 xyz(3,*),cn(*),rcov(*)
       real*8 cn_thr
 
       integer iat    
@@ -227,6 +224,7 @@ subroutine ycoord(natoms,rcov,iz,xyz,cn,cn_thr)
 end subroutine ycoord
 
 subroutine ycoord3(natoms,iz,xyz,cn,cn_thr,bond)
+      use miscdata, only: rcov
       implicit none
       integer :: natoms      ! = n
       integer :: iz(natoms)  ! = at
@@ -235,11 +233,8 @@ subroutine ycoord3(natoms,iz,xyz,cn,cn_thr,bond)
       real*8 cn_thr,bond(natoms,natoms)
       integer iat
       real*8 dx,dy,dz,r,damp,xn,rr,rco,r2,rcovi,rcovj
-      real*8,allocatable :: rcov(:)
      
-      allocate(rcov(94))
       !cn_thr=1600.0d0
-      call setrcov(rcov)
       k1=16
       bond=0.0d0
       cn=0.0d0
@@ -270,7 +265,6 @@ subroutine ycoord3(natoms,iz,xyz,cn,cn_thr,bond)
         enddo
         cn(i)=xn
       enddo
-      deallocate(rcov)
 end subroutine ycoord3
 
 subroutine ncoord(natoms,rcov,iz,xyz,cn,cn_thr)
@@ -279,7 +273,7 @@ subroutine ncoord(natoms,rcov,iz,xyz,cn,cn_thr)
       parameter (k1     =16)
       parameter (k3     =-4)
       integer :: iz(*),natoms,i
-      real*8 :: xyz(3,*),cn(*),rcov(94)
+      real*8 :: xyz(3,*),cn(*),rcov(*)
       real*8 :: cn_thr
 
       integer :: iat    

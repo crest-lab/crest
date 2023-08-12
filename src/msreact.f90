@@ -90,6 +90,7 @@ subroutine msreact(mso,mol,nat,pair,nbonds)
       use crest_parameters
       use msmod
       use iomod
+      use miscdata, only: rcov
       implicit none
 
       type(msobj) :: mso    !main storage object
@@ -109,10 +110,6 @@ subroutine msreact(mso,mol,nat,pair,nbonds)
       character(len=40) :: pdir
       character(len=512) :: thisdir
       real(wp)             :: constr_dist
-      real(wp),allocatable :: rcov(:)
-
-      allocate(rcov(94))
-      call setrcov(rcov)
 
       !-- main subdirectory handling
       call getcwd(thisdir)

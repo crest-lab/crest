@@ -105,6 +105,16 @@ module crest_data
    integer,parameter,public :: p_useonly      = -227
    integer,parameter,public :: p_qcg          = 37
 
+
+!>--- refinement levels (typically after multilevel opt.)
+  type ,private:: refine_type
+    integer :: non         = 0
+    integer :: singlepoint = 1 
+    integer :: correction  = 2
+    integer :: geoopt      = 3
+  end type refine_type
+  type(refine_type), parameter,public :: refine = refine_type()
+
 !===========================================================================!
 
    private
@@ -454,6 +464,8 @@ module crest_data
    !>--- rigidconf data   
       integer :: rigidconf_algo = 0
       integer :: rigidconf_toposource = 0
+   !>--- refinement queue
+      integer,allocatable :: refine_queue(:) 
    !================================================! 
 
    !--- general logical data
@@ -557,19 +569,6 @@ module crest_data
       procedure :: wrtCHRG => wrtCHRG
    end type systemdata
 
-!========================================================================================!
-
-!   type :: timer
-!     integer :: times = 0
-!     integer(dp):: rate
-!     integer(dp),allocatable :: t(:,:)
-!     character(len=32),allocatable :: names(:)
-!    contains
-!     procedure :: init  => init_timer
-!     procedure :: clear => clear_timer
-!     procedure :: start => start_timer
-!     procedure :: stop  => stop_timer
-!   end type timer
 
 !========================================================================================!
 !========================================================================================!

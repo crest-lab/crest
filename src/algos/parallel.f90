@@ -130,6 +130,8 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
       !>--- successful optimization (io==0)
       c = c+1
       eread(zcopy) = energy
+    else
+      eread(zcopy) = 0.0_wp
     end if
     k = k+1
     !>--- print progress
@@ -295,6 +297,8 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
       end if
       eread(zcopy) = energy
       xyz(:,:,zcopy) = molsnew(job)%xyz(:,:)
+    else
+      eread(zcopy) = 0.0_wp
     end if
     k = k+1
     !>--- print progress

@@ -121,6 +121,7 @@ end subroutine simpletopo_mol
 subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
   use crest_parameters
   use zdata
+  use miscdata, only: rcov
   implicit none
   type(zmolecule)  :: zmol
   type(zmolecule)  :: zfrag
@@ -135,7 +136,6 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
   real(wp),allocatable :: cn(:)
   real(wp),allocatable :: bond(:,:)
   real(wp),allocatable :: wbo(:,:)
-  real(wp),allocatable :: rcov(:)
   integer :: i,j,k
   integer :: ntopo
   logical,allocatable :: neighmat(:,:)
@@ -144,18 +144,16 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
 
   logical :: ex,useWBO
 
-!--- header
+!>--- header
   if (verbose) then
     write (*,*)
     call smallhead('TOPOLOGY ANALYSIS')
   end if
 
-!--- set covalent radii and calculate coordination numbers
-  allocate (rcov(94))
-  call setrcov(rcov)
+!>--- set covalent radii and calculate coordination numbers
   allocate (cn(n),bond(n,n))
   call xcoord2(n,at,xyz,rcov,cn,900.0_wp,bond)
-!--- read in WBOs if required
+!>--- read in WBOs if required
   ex = .false.
   if (present(wbofile)) then
     inquire (file=wbofile,exist=ex)
@@ -274,7 +272,6 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
 !--- deallocation of memory
   if (allocated(wbo)) deallocate (wbo)
   deallocate (bond,cn)
-  deallocate (rcov)
   return
 end subroutine simpletopo
 
@@ -289,7 +286,7 @@ subroutine xcoord2(nat,iz,xyz,rcov,cn,cn_thr,bond)
   real(wp),intent(in) :: xyz(3,nat)
   real(wp),intent(out) :: cn(nat)
   real(wp),intent(in)  :: cn_thr
-  real(wp),intent(in)  :: rcov(94)
+  real(wp),intent(in)  :: rcov(*)
   real(wp),intent(out) :: bond(nat,nat)
   integer :: i,k1
   integer :: iat
@@ -467,23 +464,22 @@ subroutine bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighbourmat,excl)
 end subroutine bondtotopo_excl
 subroutine quicktopo(nat,at,xyz,ntopo,topovec)
   use iso_fortran_env,only:wp => real64
+  use miscdata, only: rcov
   implicit none
   integer :: nat
   integer :: at(nat)
   real(wp) :: xyz(3,nat) !must be in Bohrs
   integer :: ntopo
   integer :: topovec(ntopo)
-  real(wp),allocatable :: rcov(:),cn(:),bond(:,:)
+  real(wp),allocatable :: cn(:),bond(:,:)
   logical,allocatable :: neighmat(:,:)
-  allocate (rcov(94))
-  call setrcov(rcov)
   allocate (bond(nat,nat),cn(nat),source=0.0_wp)
   allocate (neighmat(nat,nat),source=.false.)
   cn = 0.0d0
   bond = 0.0d0
   call xcoord2(nat,at,xyz,rcov,cn,900.0_wp,bond)
   call bondtotopo(nat,at,bond,cn,ntopo,topovec,neighmat)
-  deallocate (neighmat,cn,bond,rcov)
+  deallocate (neighmat,cn,bond)
   return
 end subroutine quicktopo
 

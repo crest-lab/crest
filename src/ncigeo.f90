@@ -159,6 +159,7 @@ end subroutine wallpot_calc
 !cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 subroutine getmaxdist(n,xyz,at,dist)
   use iso_fortran_env,wp => real64
+  use miscdata, only: rcov 
   implicit none
   integer :: n
   integer :: at(n)
@@ -166,10 +167,7 @@ subroutine getmaxdist(n,xyz,at,dist)
   real(wp) :: xyz(3,n)
   real(wp) :: dist
   real(wp) :: dum
-  real(wp),allocatable :: rcov(:)
 
-  allocate (rcov(94))
-  call setrcov(rcov)
   dist = 0.0d0
 
   do i = 1,n
@@ -177,8 +175,6 @@ subroutine getmaxdist(n,xyz,at,dist)
     dum = dum + rcov(at(i))
     if (dum .gt. dist) dist = dum
   end do
-
-  deallocate (rcov)
 
 end subroutine getmaxdist
 
@@ -278,6 +274,7 @@ end function getbox
 !---- set up  a box around the molecule. the return value is the box volume
 function getbox2(n,xyz,at,box)
   use iso_fortran_env,wp => real64
+  use miscdata, only: rcov
   implicit none
   real(wp) :: getbox2
   integer,intent(in)  :: n
@@ -285,10 +282,8 @@ function getbox2(n,xyz,at,box)
   real(wp),intent(out) :: box(3,3)
   integer,intent(in) :: at(n)
   integer :: i
-  real(wp),allocatable :: rcov(:),rat(:)
+  real(wp),allocatable :: rat(:)
   real(wp) :: rcovmax
-  allocate (rcov(94),rat(n))
-  call setrcov(rcov)
   do i = 1,n
     rat(i) = rcov(at(i))
   end do
@@ -306,48 +301,26 @@ function getbox2(n,xyz,at,box)
     end if
     getbox2 = getbox2 * box(i,3)          !to volume
   end do
-  deallocate (rat,rcov)
+  deallocate (rat)
   return
 end function getbox2
 
 !---- get the volume simply as a sum of spherical atom volumes (crude approximation)
 function volsum(n,at)
   use iso_fortran_env,wp => real64
+  use miscdata, only: vdw_d3
   implicit none
   real(wp) :: volsum
   integer,intent(in)  :: n
   integer,intent(in) :: at(n)
   integer :: i
-  real(wp),allocatable :: rcov(:)
   real(wp) :: r
-  allocate (rcov(94))
-  !--- D3 radii in Bohr
-  rcov = (/ &
-   &  2.18230009,1.73469996,3.49559999,3.09820008,3.21600008, &
-   &  2.91030002,2.62249994,2.48169994,2.29959989,2.13739991, &
-   &  3.70819998,3.48390007,4.01060009,3.79169989,3.50169992, &
-   &  3.31069994,3.10459995,2.91479993,4.24109983,4.10349989, &
-   &  3.89030004,3.76419997,3.72110009,3.44140005,3.54620004, &
-   &  3.44210005,3.43269992,3.34619999,3.30080009,3.23090005, &
-   &  3.95790005,3.86190009,3.66249990,3.52679992,3.36619997, &
-   &  3.20959997,4.61759996,4.47639990,4.21960020,4.05970001, &
-   &  3.85960007,3.75430012,3.56900001,3.46230006,3.39750004, &
-   &  3.35249996,3.33080006,3.46199989,4.26230001,4.18739986, &
-   &  4.01499987,3.89010000,3.73799992,3.58890009,5.05670023, &
-   &  5.18139982,4.62610006,4.62010002,4.57019997,4.52710009, &
-   &  4.48960018,4.45149994,4.42339993,4.12430000,4.24270010, &
-   &  4.15409994,4.27939987,4.24499989,4.22079992,4.19859982, &
-   &  4.01300001,4.24499989,4.09800005,3.98550010,3.89549994, &
-   &  3.74900007,3.44560003,3.35249996,3.25640011,3.35990000, &
-   &  4.31269979,4.27640009,4.11749983,4.00540018,3.86439991, &
-   &  3.72160006,5.07959986,4.92939997,4.70429993,4.42519999, &
-   &  4.45940018,4.39569998,4.35389996,4.43410015/)
+  !> using D3 vdW radii
   volsum = 0.0_wp
   do i = 1,n
-    r = rcov(at(i))
+    r = vdw_d3(at(i))
     volsum = volsum + (4.0_wp / 3.0_wp) * (3.14159265359_wp * r**3)
   end do
-  deallocate (rcov)
   return
 end function volsum
 

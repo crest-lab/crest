@@ -58,6 +58,7 @@ subroutine rigidconf_tree(env,mol)
   use adjacency
   use INTERNALS_mod
   use rigidconf_analyze
+  use miscdata, only: rcov
   implicit none
   !> INPUT/OUTPUT
   type(systemdata),intent(inout) :: env
@@ -96,7 +97,7 @@ subroutine rigidconf_tree(env,mol)
   !> data for new structure and reference checks
   logical,allocatable :: sane(:)
   type(coord) :: newmol
-  real(wp),allocatable :: rcov(:),cnref(:)
+  real(wp),allocatable :: cnref(:)
   real(wp) :: cthr,p 
   integer :: nremain
 
@@ -193,8 +194,7 @@ subroutine rigidconf_tree(env,mol)
 
 !========================================================================================!
 !>--- Calculate reference CNs
-  allocate (rcov(94),cnref(mol%nat),source=0.0_wp)
-  call setrcov(rcov)
+  allocate (cnref(mol%nat),source=0.0_wp)
   call ycoord(mol%nat,rcov,mol%at,mol%xyz,cnref,100.0d0) !> refernce CNs
   
 !>--- Generate all the conformers and check for CN clashes

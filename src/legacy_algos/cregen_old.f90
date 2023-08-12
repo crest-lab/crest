@@ -30,6 +30,7 @@ subroutine cregen2(env)
       use iomod
       use strucrd, only: rdnat,rdcoord,wrc0,i2e,e2i
       use axis_module
+      use miscdata, only: rcov
    !$ use omp_lib
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
@@ -46,7 +47,7 @@ subroutine cregen2(env)
       integer,allocatable  :: pair(:),pre(:),nb(:,:),elist(:,:),flist(:,:)
       integer,allocatable  :: jnd(:),sames(:)
       logical,allocatable  :: vis(:)
-      real(wp),allocatable :: xx(:),pg(:),rcov(:)
+      real(wp),allocatable :: xx(:),pg(:)
       real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:), ydum(:)  ! rmsd dummy stuff
       integer,allocatable:: iref(:),dgen(:),glist(:,:),nmract(:)
       character(len=40),allocatable :: origin(:),originnew(:)
@@ -115,8 +116,7 @@ subroutine cregen2(env)
 
       call remove('LOWER_FOUND')
       
-      allocate(rcov(94),gdum(3,3),Udum(3,3),xdum(3),ydum(3),nmract(100))
-      call setrcov(rcov)
+      allocate(gdum(3,3),Udum(3,3),xdum(3),ydum(3),nmract(100))
 
 !---- setting the threads for OMP parallel usage
       if(autothreads)then
@@ -1294,7 +1294,7 @@ subroutine cregen2(env)
       deallocate(iref,xx)
 
       deallocate(molvec,cn,cn0,c2,c1,at)
-      deallocate(nmract,ydum,xdum,Udum,gdum,rcov)
+      deallocate(nmract,ydum,xdum,Udum,gdum)
 
       end associate settingNames
    
