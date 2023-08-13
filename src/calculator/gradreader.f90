@@ -21,29 +21,24 @@ module gradreader_module
 
   use iso_fortran_env,only:wp => real64
   implicit none
-
-!=========================================================================================!
   !--- private module variables and parameters
   private
 
-
-   !> Type enumerator
-   type :: enum_filetype
-      integer :: unknown   = 0
-      integer :: engrad    = 1
-      integer :: orca      = 1
-      integer :: turbomole = 2
-   end type enum_filetype
-   type(enum_filetype), parameter :: gradtype = enum_filetype()
-
-
+  !> Type enumerator
+  type :: enum_filetype
+    integer :: unknown = 0
+    integer :: engrad = 1
+    integer :: orca = 1
+    integer :: turbomole = 2
+  end type enum_filetype
+  type(enum_filetype),parameter :: gradtype = enum_filetype()
 
   public :: gradtype
   public :: conv2gradfmt
   public :: rd_efile
   public :: rd_grad_engrad
   public :: rd_grad_generic
-
+  public :: rd_grad_tm
 
 !========================================================================================!
 !========================================================================================!
@@ -51,50 +46,46 @@ contains  !>--- Module routines start here
 !========================================================================================!
 !========================================================================================!
 
-
-!========================================================================================!
-!> subrotuine rd_grad_engrad
-!> read *.engrad file (used e.g. by xtb and orca)
-!> all comments (#) are ignored
-!> first number read should be number of atoms
-!> followed by 3N lines á 1 float for the gradient
-!>---------------------------------------------------
   subroutine rd_efile(fname,energy,iostatus)
+!***************************************************
+!* subroutine rd_efile
+!* read the energy from a file containing only that
+!***************************************************
     implicit none
     character(len=*),intent(in) :: fname
     real(wp),intent(out) :: energy
     integer,intent(out) :: iostatus
-    integer :: c, iunit, n, i,j
+    integer :: c,iunit,n,i,j
     character(len=128) :: atmp
     real(wp) :: dum
-    energy=0.0_wp
+    energy = 0.0_wp
     iostatus = 0
-    open(newunit=iunit,file=fname)
-    read(iunit,*,iostat=iostatus) energy
-    close(iunit)
+    open (newunit=iunit,file=fname)
+    read (iunit,*,iostat=iostatus) energy
+    close (iunit)
   end subroutine rd_efile
 
-
 !========================================================================================!
-!> subrotuine rd_grad_engrad
-!> read *.engrad file (used e.g. by xtb and orca)
-!> all comments (#) are ignored
-!> first number read should be number of atoms
-!> followed by 3N lines á 1 float for the gradient
-!>---------------------------------------------------
   subroutine rd_grad_engrad(iunit,nat,energy,grad,iostatus)
+!**************************************************
+!* subrotuine rd_grad_engrad
+!* read *.engrad file (used e.g. by xtb and orca)
+!* all comments (#) are ignored
+!* first number read should be number of atoms
+!* followed by 3N lines á 1 float for the gradient
+!**************************************************
     implicit none
     integer,intent(in) :: iunit
     integer,intent(in) :: nat
     real(wp),intent(out) :: energy
     real(wp),intent(out) :: grad(3,nat)
     integer,intent(out) :: iostatus
-    integer :: c, io, n, i,j   
+    integer :: c,io,n,i,j
     character(len=128) :: atmp
     real(wp) :: dum
 
     iostatus = 0
-    energy  = 0.0_wp
+    energy = 0.0_wp
     grad(:,:) = 0.0_wp
 
     c = 0
@@ -109,10 +100,10 @@ contains  !>--- Module routines start here
           iostatus = 2
           exit
         end if
-        c = c + 1
+        c = c+1
       else if (c == 1) then
         read (atmp,*) energy
-        c = c + 1
+        c = c+1
         cycle
       else if (c == 2) then
         backspace (iunit)
@@ -126,24 +117,69 @@ contains  !>--- Module routines start here
             grad(j,i) = dum
           end do
         end do
-        c = c + 1
+        c = c+1
       else if (c >= 3) then
         exit
       end if
     end do
 
-
     return
   end subroutine rd_grad_engrad
 
+!========================================================================================!
+  subroutine rd_grad_tm(iunit,nat,energy,grad,iostatus)
+!**************************************************
+!* subrotuine rd_grad_tm
+!* read a turbomole-type "gradient" file
+!**************************************************
+    implicit none
+    integer,intent(in) :: iunit
+    integer,intent(in) :: nat
+    real(wp),intent(out) :: energy
+    real(wp),intent(out) :: grad(3,nat)
+    integer,intent(out) :: iostatus
+    integer :: c,io,n,i,j
+    character(len=128) :: atmp
+    character(len=20) :: btmp(8)
+    real(wp) :: dum
+    logical :: readblock
 
- !========================================================================================!
-!> subrotuine rd_grad_engrad
-!> read unspecified gradient file
-!> routine can look for a (case sensitive) keyword after which the gradient is read
-!> NOTE: routine does not provide the energy
-!>---------------------------------------------------
+    iostatus = 0
+    energy = 0.0_wp
+    grad(:,:) = 0.0_wp
+
+    c = 0
+    readblock = .false.
+    do
+      read (iunit,'(a)',iostat=io) atmp
+      if (io < 0) exit !> EOF exit
+      atmp = adjustl(atmp)
+      if (atmp(1:4) == '$end') readblock = .false.
+      if( readblock ) then      
+        if(index(atmp,'cycle').ne.0)then
+          read(atmp,*) btmp(1:2),j,btmp(3:6),energy,btmp(7:8),dum
+        elseif(c < nat)then !> skip coords
+          c = c + 1  
+        else !> read grad
+          call rd_grad_n3(iunit,nat,grad,iostatus)
+          exit
+        endif
+      endif
+      if (atmp(1:5) == '$grad') readblock = .true.
+    end do
+
+    return
+  end subroutine rd_grad_tm
+
+!========================================================================================!
   subroutine rd_grad_generic(iunit,nat,grad,gradkey,gradfmt,iostatus)
+!**************************************************
+!* subrotuine rd_grad_generic
+!* read unspecified gradient file
+!* routine can look for a (case sensitive) keyword 
+!* after which the gradient is read
+!* NOTE: routine does not provide the energy
+!************************************************** 
     implicit none
     integer,intent(in) :: iunit
     integer,intent(in) :: nat
@@ -151,7 +187,7 @@ contains  !>--- Module routines start here
     character(len=*),intent(in) :: gradkey
     integer,intent(in) :: gradfmt
     integer,intent(out) :: iostatus
-    integer :: c, io, n, i,j
+    integer :: c,io,n,i,j
     character(len=128) :: atmp
     real(wp) :: dum
 
@@ -164,33 +200,33 @@ contains  !>--- Module routines start here
       if (io < 0) exit
       atmp = adjustl(atmp)
       if (atmp(1:1) == '#') cycle
-      if (index(atmp,gradkey).ne.0)then
-        c = c + 1
-        if( gradfmt == 0)then
+      if (index(atmp,gradkey) .ne. 0) then
+        c = c+1
+        if (gradfmt == 0) then
           call rd_grad_3n(iunit,nat,grad,iostatus)
         else
           call rd_grad_n3(iunit,nat,grad,iostatus)
-        endif
-      endif
+        end if
+      end if
       if (c >= 1) then
         exit
       end if
     end do
 
-  end subroutine rd_grad_generic 
-   
+  end subroutine rd_grad_generic
 
 !========================================================================================!
-!> subrotuine rd_grad_3n/rd_grad_n3
-!> read 3N lines into grad or N lines á 3 entries
-!>---------------------------------------------------
   subroutine rd_grad_3n(iunit,nat,grad,iostatus)
+!***************************
+!* subrotuine rd_grad_3n
+!* read 3N lines into grad
+!***************************
     implicit none
     integer,intent(in) :: iunit
     integer,intent(in) :: nat
     real(wp),intent(out) :: grad(3,nat)
     integer,intent(out) :: iostatus
-    integer :: c, io, n, i,j
+    integer :: c,io,n,i,j
     character(len=128) :: atmp
     real(wp) :: dum
 
@@ -212,12 +248,16 @@ contains  !>--- Module routines start here
     return
   end subroutine rd_grad_3n
   subroutine rd_grad_n3(iunit,nat,grad,iostatus)
+!***************************************
+!* subrotuine rd_grad_n3
+!* read gradient as N lines á 3 entries
+!***************************************
     implicit none
     integer,intent(in) :: iunit
     integer,intent(in) :: nat
     real(wp),intent(out) :: grad(3,nat)
     integer,intent(out) :: iostatus
-    integer :: c, io, n, i,j
+    integer :: c,io,n,i,j
     character(len=128) :: atmp
     real(wp) :: dum(3)
 
@@ -238,23 +278,27 @@ contains  !>--- Module routines start here
   end subroutine rd_grad_n3
 
 !========================================================================================!
-!> utility function, determine whether to
-!> read 3N lines into grad or N lines á 3 entries
-!>---------------------------------------------------
   function conv2gradfmt(str) result(ifmt)
+!*************************************************
+!* utility function, determine whether to
+!* read 3N lines into grad or N lines á 3 entries
+!*************************************************
     implicit none
     character(len=*),intent(in) :: str
     integer :: ifmt
     ifmt = 0
     select case (str)
-    case( '3n','3N' )
+    case ('3n','3N')
       ifmt = 0
-    case( 'N3','n3','n*3','N*3','n;3','N;3')
+    case ('N3','n3','n*3','N*3','n;3','N;3')
       ifmt = 1
     case default
-      ifmt = 0  
+      ifmt = 0
     end select
   end function conv2gradfmt
 
+
+!========================================================================================!
+!========================================================================================!
 end module gradreader_module
 

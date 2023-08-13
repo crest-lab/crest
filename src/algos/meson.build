@@ -27,7 +27,7 @@ srcs += files(
   'search_mecp.f90',
   'setuptest.f90',
   'hessian_tools.f90',
-  'search_imtdgc.f90',
+  'search_conformers.f90',
   'search_entropy.f90',
   'parallel.f90', 
 )

@@ -23,8 +23,7 @@ module crest_calculator
   use strucrd
   use calc_type
 !>--- potentials and API's
-  use xtb_sc
-  use generic_sc
+  use subprocess_engrad !> driver exports for subprocesses
   use lj
   use api_engrad  !> contains many potentials
 !>--- other
@@ -100,6 +99,7 @@ contains  !> MODULE PROCEDURES START HERE
 !==========================================================!
     call initsignal()
 
+
     !>--- reset
     energy = 0.0_wp
     gradient(:,:) = 0.0_wp
@@ -142,6 +142,10 @@ contains  !> MODULE PROCEDURES START HERE
       !==================================================================================!
       !>--- loop over all calculations to be done
       do i = 1,calc%ncalculations
+
+        !> skip through calculations we do not want 
+        if(calc%calcs(i)%refine_lvl /= calc%refine_stage) cycle
+
         select case (calc%calcs(i)%id)
         case (jobtype%xtbsys)  !>-- xtb system call
           call xtb_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
@@ -246,9 +250,6 @@ contains  !> MODULE PROCEDURES START HERE
         energy = energy + efix
         gradient = gradient + calc%grdfix
       end do
-     ! !$omp critical
-     ! deallocate (grdfix)
-     ! !$omp end critical
     end if
 
     return
@@ -259,7 +260,8 @@ contains  !> MODULE PROCEDURES START HERE
 !**********************************************************
 !* subroutine engrad_xyz
 !* A wrapper for the engrad_mol routine.
-!* *WARNING* should not be used as a call in parallel
+!*
+!* *WARNING* should >>NOT<< be used as a call in parallel
 !* sections of the code, due to allocation overhead of mol
 !**********************************************************   
     implicit none

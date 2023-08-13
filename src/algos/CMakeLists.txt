@@ -29,7 +29,7 @@ list(APPEND srcs
   "${dir}/search_mecp.f90"
   "${dir}/setuptest.f90"
   "${dir}/hessian_tools.f90"
-  "${dir}/search_imtdgc.f90"
+  "${dir}/search_conformers.f90"
   "${dir}/search_entropy.f90"
   "${dir}/parallel.f90"
 )

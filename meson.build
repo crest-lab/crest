@@ -21,7 +21,7 @@ project(
   license: 'LGPL-3.0-or-later',
   meson_version: '>=0.63',
   default_options: [
-    'buildtype=release',
+    'buildtype=debugoptimized',
     'default_library=static',
     'c_link_args=-static',
     'fortran_link_args=-static',

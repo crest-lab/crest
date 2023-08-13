@@ -31,6 +31,8 @@ list(APPEND srcs
   "${dir}/xhcff.F90"
   "${dir}/xtb_sc.f90"
   "${dir}/generic_sc.f90"
+  "${dir}/turbom_sc.f90"
+  "${dir}/subprocess_engrad.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

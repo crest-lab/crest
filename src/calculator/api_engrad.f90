@@ -17,13 +17,12 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!====================================================!
-! module api_engrad
-! a collection of engrad calls for different APIs
-! this builds the communication between CRESTs
-! calculation_settings and the respective API setups
-!====================================================!
+!> module api_engrad
+!> a collection of engrad calls for different APIs
+!> this builds the communication between CRESTs
+!> calculation_settings and the respective API setups
 
+!=========================================================================================!
 module api_engrad
 
   use iso_fortran_env,only:wp => real64,stdout => output_unit
@@ -36,12 +35,9 @@ module api_engrad
   use gfn0_api
   use gfnff_api
   use xhcff_api
-!=========================================================================================!
   implicit none
   !--- private module variables and parameters
   private
-  integer :: i,j,k,l,ich,och,io
-  logical :: ex
 
   public :: tblite_engrad
   public :: gfn0_engrad,gfn0occ_engrad
@@ -65,8 +61,11 @@ contains    !> MODULE PROCEDURES START HERE
 
     character(len=:),allocatable :: cpath
     logical :: loadnew,pr
+
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
     iostatus = 0
-    pr =.true. !> tblite always printes some data
+    pr = .true. !> tblite always printes some data
 
     !>--- setup system call information
     !$omp critical
@@ -87,7 +86,7 @@ contains    !> MODULE PROCEDURES START HERE
     end if
     open (newunit=calc%ctx%unit,file=cpath,status='replace')
     deallocate (cpath)
-    call api_print_input_structure(pr, calc%ctx%unit, mol)
+    call api_print_input_structure(pr,calc%ctx%unit,mol)
     !> populate parameters and wavefunction
     if (loadnew) then
       call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp, &
@@ -130,6 +129,9 @@ contains    !> MODULE PROCEDURES START HERE
     character(len=:),allocatable :: cpath
     logical :: loadnew
     logical :: pr
+
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
     iostatus = 0
     pr = .false.
 !>--- setup system call information
@@ -154,7 +156,7 @@ contains    !> MODULE PROCEDURES START HERE
       pr = .true.
     end if
     deallocate (cpath)
-    call api_print_input_structure(pr, calc%prch, mol)
+    call api_print_input_structure(pr,calc%prch,mol)
 
     !> populate parameters and wavefunction
     if (loadnew) then
@@ -197,6 +199,8 @@ contains    !> MODULE PROCEDURES START HERE
     type(gfn0_results) :: res
     character(len=:),allocatable :: cpath
     logical :: loadnew,pr
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
     iostatus = 0
     pr = .false.
     !>--- setup system call information
@@ -221,7 +225,7 @@ contains    !> MODULE PROCEDURES START HERE
       pr = .true.
     end if
     deallocate (cpath)
-    call api_print_input_structure(pr, calc%prch, mol)
+    call api_print_input_structure(pr,calc%prch,mol)
 
     !> populate parameters and wavefunction
     if (loadnew) then
@@ -260,6 +264,8 @@ contains    !> MODULE PROCEDURES START HERE
 
     character(len=:),allocatable :: cpath
     logical :: loadnew,pr
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
     iostatus = 0
     pr = .false.
 !>--- setup system call information
@@ -284,7 +290,7 @@ contains    !> MODULE PROCEDURES START HERE
       pr = .true.
     end if
     deallocate (cpath)
-    call api_print_input_structure(pr, calc%prch, mol)
+    call api_print_input_structure(pr,calc%prch,mol)
 
 !>--- populate parameters and neighbourlists
     if (loadnew) then
@@ -309,7 +315,6 @@ contains    !> MODULE PROCEDURES START HERE
     call gfnff_wbos(calc,mol,iostatus)
     !$omp end critical
 
-
     return
   end subroutine gfnff_engrad
 
@@ -325,6 +330,8 @@ contains    !> MODULE PROCEDURES START HERE
 
     character(len=:),allocatable :: cpath
     logical :: loadnew,pr
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
     iostatus = 0
     pr = .false.
 !>--- setup system call information
@@ -349,13 +356,13 @@ contains    !> MODULE PROCEDURES START HERE
       pr = .true.
     end if
     deallocate (cpath)
-    call api_print_input_structure(pr, calc%prch, mol)
+    call api_print_input_structure(pr,calc%prch,mol)
 
 !>--- populate parameters
     if (loadnew) then
       !> call xhcff with verbosity turned off
-      call xhcff_setup(mol,calc%xhcff, calc%extpressure, calc%ngrid, calc%proberad, &
-      &                calc%vdwset, pr, calc%prch, iostatus)
+      call xhcff_setup(mol,calc%xhcff,calc%extpressure,calc%ngrid,calc%proberad, &
+      &                calc%vdwset,pr,calc%prch,iostatus)
     end if
     !$omp end critical
     if (iostatus /= 0) return
@@ -367,7 +374,7 @@ contains    !> MODULE PROCEDURES START HERE
 
 !>--- printout
     if (pr) then
-      !call xhcff_print(calc%prch,calc%xhcff) 
+      !call xhcff_print(calc%prch,calc%xhcff)
       !> the xhcff_sp call includes the printout within xhcff-lib
       call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if

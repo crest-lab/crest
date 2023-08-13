@@ -24,17 +24,19 @@
 !> INPUT FILE PARSER FOR CREST
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
-!> A supplement to the parseflags routine
-!> in confparse.f90. This routine reads
-!> an input file (TOML format via the toml-f library)
-!>
-!> Input/Output:
-!>  env   -  crest's systemdata object, which
-!>           contains basically all information
-!>           for the calculation
-!>  fname -  name of the input file
-!>-----------------------------------------------
+
 subroutine parseinputfile(env,fname)
+!****************************************************
+!* A supplement to the parseflags routine
+!* in confparse.f90. This routine reads
+!* an input file (TOML format via the toml-f library)
+!*
+!* Input/Output:
+!*  env   -  crest's systemdata object, which
+!*           contains basically all information
+!*           for the calculation
+!*  fname -  name of the input file
+!****************************************************
   use crest_parameters
   !> modules for data storage in crest
   use crest_data
@@ -162,6 +164,8 @@ subroutine env_calcdat_specialcases(env)
   use crest_calculator
   implicit none
   type(systemdata) :: env
+  integer :: i,j,k,l
+  integer :: refine_lvl
 
   !> special case for GFN-FF calculations
   if(any(env%calc%calcs(:)%id == jobtype%gfnff))then
@@ -171,5 +175,15 @@ subroutine env_calcdat_specialcases(env)
     env%checkiso = .true.
   endif
 
+
+  !> check if any refinement is to be done between opt.
+  if(any(env%calc%calcs(:)%refine_lvl > 0))then
+    do i=1,env%calc%ncalculations 
+      refine_lvl = env%calc%calcs(i)%refine_lvl
+      if(refine_lvl <= 0 ) cycle
+      if(any(env%refine_queue(:) == refine_lvl)) cycle
+      call env%addrefine( refine_lvl )
+    enddo
+  endif
 
 end subroutine env_calcdat_specialcases

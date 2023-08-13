@@ -180,31 +180,6 @@ subroutine crest_search_entropy(env,tim)
     call remaining_in(atmp,env%ewin,nallout)
 
 !=========================================================!
-!>--- (optional) Perform additional MDs on the lowest conformers
-    if (env%rotamermds) then
-      call tim%start(4,'Molecular dynamics (MD)')
-      call crest_rotamermds(env,conformerfile)
-      call tim%stop(4)
-
-!>--- Reoptimization of trajectories
-      call checkname_xyz(crefile,atmp,btmp)
-      write (stdout,'('' Appending file '',a,'' with new structures'')') trim(atmp)
-      ensnam = 'crest_dynamics.trj'
-      call appendto(ensnam,trim(atmp))
-      call tim%start(3,'Geometry optimization')
-      call crest_multilevel_wrap(env,trim(atmp),5)
-      call tim%stop(3)
-
-      call elowcheck(lower,env)
-      if (lower) then
-        call checkname_xyz(crefile,atmp,str)
-        call checkname_xyz('.cre',str,btmp)
-        call rename(atmp,btmp)
-        cycle MAINLOOP
-      end if
-    end if
-
-!=========================================================!
 !>---- Entropy mode iterative statically biased MDs
     if (env%entropymd) then
 !>--- determine how many MDs need to be run and setup

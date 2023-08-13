@@ -188,7 +188,7 @@ subroutine crest_search_imtdgc(env,tim)
     !multilevel = .false.
     !multilevel(5) = .true.
     !call crest_multilevel_oloop(env,trim(atmp),multilevel)
-    call crest_multilevel_wrap(env,trim(atmp),5)
+    call crest_multilevel_wrap(env,trim(atmp),-1)
     call tim%stop(3)
 
     call elowcheck(lower,env)
@@ -269,11 +269,13 @@ subroutine crest_multilevel_wrap(env,ensnam,level)
   integer :: k
   multilevel = .false.
   select case(level)
-  case( 1:6 )
-    multilevel(level) =.true.
-  case default
-  !>-- map global variable to multilevel selection
-    k = optlevmap_alt(env%optlev) 
+  case( 1: ) !> explicit selection (level is a positie integer)
+    k = min(level,6) 
+    multilevel(k) =.true.
+  case default 
+  !>-- map global variable to multilevel selection (level is 0 or negative)
+    k = optlevmap_alt(env%optlev) + level
+    k = max(1,k)
     multilevel(k) =.true.
   end select
   call crest_multilevel_oloop(env,ensnam,multilevel)
@@ -305,6 +307,16 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
   real(wp) :: hlowbackup
   integer :: microbackup
   integer :: optlevelbackup
+
+  interface 
+    subroutine crest_refine(env,input,output)
+      use crest_data
+      implicit none
+      type(systemdata),intent(inout) :: env
+      character(len=*),intent(in) :: input
+      character(len=*),intent(in),optional :: output
+    end subroutine crest_refine
+  end interface
 
 !>--- save backup thresholds
   ewinbackup     = env%ewin
@@ -349,18 +361,32 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
        call set_multilevel_options(env,i,.true.)
      !>--- run parallel optimizations
        call crest_oloop(env,nat,nall,at,xyz,eread,dump)
+       deallocate(eread,at,xyz)
      !>--- rename ensemble and sort
        call checkname_xyz(crefile,inpnam,outnam)
        call rename(ensemblefile,trim(inpnam))
-       call sort_and_check(env,trim(inpnam))
-       call checkname_xyz(crefile,inpnam,outnam)
-     !>--- read new ensemble for next iteration
-       deallocate(eread,at,xyz)
+     !>--- check for empty ensemble content
        call rdensembleparam(trim(inpnam),nat,nall)
        if (nall .lt. 1) then
          write(stdout,*) 'empty ensemble file',trim(inpnam)
          stop
        endif
+
+     !==========================================================!
+     !>-- dedicated ensemble refinement step (overwrites inpnam)
+      call  crest_refine(env,trim(inpnam))
+     !==========================================================!
+
+     !>--- CREGEN sorting
+       call sort_and_check(env,trim(inpnam))
+       call checkname_xyz(crefile,inpnam,outnam)
+     !>--- check for empty ensemble content (again)
+       call rdensembleparam(trim(inpnam),nat,nall)
+       if (nall .lt. 1) then
+         write(stdout,*) 'empty ensemble file',trim(inpnam)
+         stop
+       endif
+     !>--- read new ensemble for next iteration
        allocate (xyz(3,nat,nall),at(nat),eread(nall))
        call rdensemble(trim(inpnam),nat,nall,at,xyz,eread)
      !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!

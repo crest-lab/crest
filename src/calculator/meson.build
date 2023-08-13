@@ -29,4 +29,6 @@ srcs += files(
   'xhcff.F90',
   'xtb_sc.f90',
   'generic_sc.f90',
+  'turbom_sc.f90',
+  'subprocess_engrad.f90',
 )

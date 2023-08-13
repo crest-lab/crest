@@ -46,7 +46,7 @@ subroutine crest_refine(env,input,output)
   real(wp),allocatable :: eread(:),etmp(:)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
-  integer :: nrefine,refinemode
+  integer :: nrefine,refine_stage
 !===========================================================!
 !>--- setup
   if (present(output)) then
@@ -56,18 +56,25 @@ subroutine crest_refine(env,input,output)
   end if
   call rdensemble(input,nat,nall,at,xyz,eread)
   allocate (etmp(nall),source=0.0_wp)
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!>--- Important: crest_sploop requires coordinates in Bohrs
+    xyz = xyz / bohr
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+
 !===========================================================!
   DO_REFINE: if (allocated(env%refine_queue)) then
 !===========================================================!
 
-    call smallhead('Ensemble Refinement')
+    call smallhead('esemble refinement')
 
     nrefine = size(env%refine_queue,1)
 
     do i = 1,nrefine
-      refinemode = env%refine_queue(i)
+      refine_stage = env%refine_queue(i)
+      !> set the calculator to the correct stage
+      env%calc%refine_stage = refine_stage
 
-      select case (refinemode)
+      select case (refine_stage)
       case (refine%singlepoint)
         write (stdout,'("> Singlepoint re-ranking for ",i0," structures")') nall
         call crest_sploop(env,nat,nall,at,xyz,eread)
@@ -88,10 +95,17 @@ subroutine crest_refine(env,input,output)
       end select
     end do
 
+    !> reset the refinement stage of the calculator
+    env%calc%refine_stage = 0
+
 !===========================================================!
   end if DO_REFINE
 !===========================================================!
 
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!>--- Important: ensemble file must be written in AA
+  xyz = xyz / angstrom
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>--- write output ensemble
   call wrensemble(outname,nat,nall,at,xyz,eread)
 

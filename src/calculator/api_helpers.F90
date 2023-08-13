@@ -54,21 +54,21 @@ contains    !> MODULE PROCEDURES START HERE
     write (iunit,'(a)') '# Input structure (in Ångström)'
     call mol%append(iunit)
 
-    if(allocated(mol%lat))then
-    write (iunit,'(a)') '# Lattice vectors (in Ångström)'
-    do i=1,3
-     write(iunit,'(3F16.8)') mol%lat(1:3,i)
-    enddo
-    endif
+    if (allocated(mol%lat)) then
+      write (iunit,'(a)') '# Lattice vectors (in Ångström)'
+      do i = 1,3
+        write (iunit,'(3F16.8)') mol%lat(1:3,i)
+      end do
+    end if
 
-    if(mol%chrg .ne. 0)then
-    write (iunit,'(a)') '# Molecular charge'
-    write(iunit,*) mol%chrg
-    endif
+    if (mol%chrg .ne. 0) then
+      write (iunit,'(a)') '# Molecular charge'
+      write (iunit,*) mol%chrg
+    end if
     write (iunit,*)
   end subroutine api_print_input_structure
 
-   subroutine api_print_e_grd(pr,iunit,mol,energy,gradient)
+  subroutine api_print_e_grd(pr,iunit,mol,energy,gradient)
     implicit none
     !> INPUT
     logical,intent(in) :: pr
@@ -78,24 +78,22 @@ contains    !> MODULE PROCEDURES START HERE
     real(wp),intent(in) :: gradient(3,mol%nat)
     !> LOCAL
     real(wp) :: gnorm
-    integer :: i 
+    integer :: i
 
     !> if printing is turned off, return
     if (.not.pr) return
 
     !> else, write e+grd info to the output unit
     gnorm = sqrt(sum(gradient**2))
-    write(iunit,*)
+    write (iunit,*)
     write (iunit,'(a)') '# Total energy and gradient norm'
     write (iunit,*) energy,gnorm
     write (iunit,'(a)') '# Gradient'
-    do i=1,mol%nat
+    do i = 1,mol%nat
       write (iunit,'(3F20.10)') gradient(1:3,i)
-    enddo    
+    end do
     write (iunit,*)
   end subroutine api_print_e_grd
-
-
 
 !=========================================================================================!
 !>--- tblite helper/setup routines
@@ -275,9 +273,6 @@ contains    !> MODULE PROCEDURES START HERE
 #endif
   end subroutine gfnff_wbos
 
-
-
-
 !========================================================================================!
 
 !>--- XHCFF setup/helper routines
@@ -294,7 +289,6 @@ contains    !> MODULE PROCEDURES START HERE
     if (calc%apiclean) loadnew = .true.
 #endif
   end subroutine xhcff_initcheck
-
 
 !========================================================================================!
 end module api_helpers

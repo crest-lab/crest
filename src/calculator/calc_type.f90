@@ -84,6 +84,7 @@ module calc_type
     character(len=:),allocatable :: description
 
 !>--- gradient format specifications
+    logical :: rdgrad = .true.
     integer :: gradtype = 0
     integer :: gradfmt = 0
     character(len=:),allocatable :: gradkey

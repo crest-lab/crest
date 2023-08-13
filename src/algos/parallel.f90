@@ -50,7 +50,7 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
   type(calcdata),allocatable :: calculations(:)
   integer :: T  !> number of parallel running instances
   real(wp) :: energy,gnorm
-  real(wp),allocatable :: grad(:,:)
+  real(wp),allocatable :: grad(:,:),grads(:,:,:)
   integer :: thread_id,vz,job
   character(len=80) :: atmp
   real(wp) :: percent,runtime
@@ -92,22 +92,22 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
   call crest_oloop_pr_progress(env,nall,0)
 
 !>--- shared variables
-  allocate (grad(3,nat),source=0.0_wp)
+  allocate (grads(3,nat,T), source=0.0_wp)
   c = 0  !> counter of successfull optimizations
   k = 0  !> counter of total optimization (fail+success)
   z = 0  !> counter to perform optimization in right order (1...nall)
   eread(:) = 0.0_wp
-  grad(:,:) = 0.0_wp
+  grads(:,:,:) = 0.0_wp
 !>--- loop over ensemble
   !$omp parallel &
-  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,z,pr,wr) &
+  !$omp shared(env,calculations,nat,nall,at,xyz,eread,grads,c,k,z,pr,wr) &
   !$omp shared(ich,ich2,mols)
   !$omp single
   do i = 1,nall
 
     call initsignal()
     vz = i
-    !$omp task firstprivate( vz ) private(j,job,energy,grad,io,atmp,gnorm,thread_id,zcopy)
+    !$omp task firstprivate( vz ) private(i,j,job,energy,io,thread_id,zcopy)
     call initsignal()
 
     thread_id = OMP_GET_THREAD_NUM()
@@ -122,8 +122,7 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
     !$omp end critical
 
     !>-- engery+gradient call
-    !call optimize_geometry(mols(job),molsnew(job),calculations(job),energy,grad,pr,wr,io)
-    call engrad(mols(job),calculations(job),energy,grad,io)
+    call engrad(mols(job),calculations(job),energy,grads(:,:,job),io)
 
     !$omp critical
     if (io == 0) then
@@ -161,7 +160,7 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
   write(stdout,'(a,a,a)') '> Corresponding to approximately ',trim(adjustl(atmp)), &
   &                       ' per processed structure' 
 
-  deallocate (grad)
+  deallocate (grads)
   call profiler%clear()
   deallocate (calculations)
   if (allocated(mols)) deallocate (mols)
@@ -201,7 +200,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   type(calcdata),allocatable :: calculations(:)
   integer :: T  !> number of parallel running instances
   real(wp) :: energy,gnorm
-  real(wp),allocatable :: grad(:,:)
+  real(wp),allocatable :: grads(:,:,:)
   integer :: thread_id,vz,job
   character(len=80) :: atmp
   real(wp) :: percent,runtime
@@ -248,22 +247,22 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   call crest_oloop_pr_progress(env,nall,0)
 
 !>--- shared variables
-  allocate (grad(3,nat),source=0.0_wp)
+  allocate (grads(3,nat,T),source=0.0_wp)
   c = 0  !> counter of successfull optimizations
   k = 0  !> counter of total optimization (fail+success)
   z = 0  !> counter to perform optimization in right order (1...nall)
   eread(:) = 0.0_wp
-  grad(:,:) = 0.0_wp
+  grads(:,:,:) = 0.0_wp
 !>--- loop over ensemble
   !$omp parallel &
-  !$omp shared(env,calculations,nat,nall,at,xyz,c,k,z,pr,wr,dump) &
+  !$omp shared(env,calculations,nat,nall,at,xyz,eread,grads,c,k,z,pr,wr,dump) &
   !$omp shared(ich,ich2,mols,molsnew)
   !$omp single
   do i = 1,nall
 
     call initsignal()
     vz = i
-    !$omp task firstprivate( vz ) private(j,job,energy,grad,io,atmp,gnorm,thread_id,zcopy)
+    !$omp task firstprivate( vz ) private(j,job,energy,io,atmp,gnorm,thread_id,zcopy)
     call initsignal()
 
     thread_id = OMP_GET_THREAD_NUM()
@@ -282,14 +281,14 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
     !$omp end critical
 
     !>-- geometry optimization
-    call optimize_geometry(mols(job),molsnew(job),calculations(job),energy,grad,pr,wr,io)
+    call optimize_geometry(mols(job),molsnew(job),calculations(job),energy,grads(:,:,job),pr,wr,io)
 
     !$omp critical
     if (io == 0) then
       !>--- successful optimization (io==0)
       c = c+1
       if (dump) then
-        gnorm = norm2(grad)
+        gnorm = norm2(grads(:,:,job))
         write (atmp,'(1x,"Etot=",f16.10,1x,"g norm=",f12.8)') energy,gnorm
         molsnew(job)%comment = trim(atmp)
         call molsnew(job)%append(ich)
@@ -334,7 +333,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
     close (ich2)
   end if
 
-  deallocate (grad)
+  deallocate (grads)
   call profiler%clear()
   deallocate (calculations)
   if (allocated(mols)) deallocate (mols)
@@ -864,7 +863,7 @@ subroutine parallel_md_block_printout(MD,vz)
     end if
   end if
   il = (44-len_trim(atmp))/2
-  write (stdout,'(a,1x,a,1x,a)') repeat('=',il),trim(atmp),repeat('=',il)
+  write (stdout,'(a,1x,a,1x,a)') repeat(':',il),trim(atmp),repeat(':',il)
 
   write (stdout,'("|   MD simulation time   :",f8.1," ps       |")') MD%length_ps
   write (stdout,'("|   target T             :",f8.1," K        |")') MD%tsoll
@@ -927,9 +926,9 @@ subroutine parallel_md_finish_printout(MD,vz,io,profiler)
     write (atmp,'(a)') '*MD'
   end if
   if (io == 0) then
-    write (btmp,'(a,1x,i0,a)') trim(atmp),vz,' completed successfully'
+    write (btmp,'(a,1x,i3,a)') trim(atmp),vz,' completed successfully'
   else
-    write (btmp,'(a,1x,i0,a)') trim(atmp),vz,' terminated with early'
+    write (btmp,'(a,1x,i3,a)') trim(atmp),vz,' terminated with early'
   end if
   !write (stdout,'("* ",i0,a)') MD%dumped,' structures written to trajectory file'
   !write(btmp,'(a,1x,i0,a)') trim(atmp),vz,' runtime'

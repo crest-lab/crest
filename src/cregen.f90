@@ -1188,7 +1188,8 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
   allocate (gdum(3,3),Udum(3,3),xdum(3),ydum(3))
   !>-- begin calculation of RMSDs
   klong = 0
-  write (*,'(1x,a)') 'running RMSDs...'
+  write (stdout,'(a)',advance='no') 'CREGEN> running RMSDs ...'
+  flush(stdout) 
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
   if (.not. substruc) then !regular case, all atoms included in RMSD
     if (.not. heavy) then    !really, the regular case
@@ -1273,7 +1274,7 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
 !$OMP END PARALLEL
     end do
   end if
-  write (*,'(1x,a)') 'done.'
+  write (stdout,'(1x,a)') 'done.'
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
 !>-- Now, with the RMSDs and rotational constants we can kick out duplicates
   do i = 1,nall
@@ -1586,7 +1587,8 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
   allocate (gdum(3,3),Udum(3,3),xdum(3),ydum(3))
   !-- begin calculation of RMSDs
   klong = 0
-  write (*,'(1x,a)') 'running RMSDs...'
+  write (stdout,'(a)',advance='no') 'CREGEN> running RMSDs ...'
+  flush(stdout)
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
   if (.not. heavy) then    !really, the regular case
     do i = 1,nall
@@ -1646,7 +1648,7 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
     deallocate (maskheavy,c1h,c0h)
   end if
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
-  write (*,'(1x,a)') 'done.'
+  write (stdout,'(1x,a)') 'done.'
   !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
 !-- Now, with the RMSDs and rotational constants we can kick out duplicates
   do i = 1,nall
@@ -2771,7 +2773,7 @@ subroutine cregen_pr2(ch,env,nall,comments,ng,degen,er)
   write (ch,'(''E lowest                              :'',f12.5)') eref
   !---- elow printout in between routines
   if (.not. env%confgo) then
-    write (*,'(1x,''E lowest :'',f12.5)') eref
+    write (stdout,'("CREGEN> E lowest :",f12.5)') eref
   end if
   if (env%QCG) then
     write (ch,'(''ensemble average energy (kcal)        :'', F14.8)') eav

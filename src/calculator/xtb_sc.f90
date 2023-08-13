@@ -17,26 +17,19 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!====================================================!
-! module xtb_sc
-! A module containing routines for
-! system calls to the xtb code
-!====================================================!
+!> module xtb_sc
+!> A module containing routines for
+!> system calls to the xtb code
 
+!=========================================================================================!
 module xtb_sc
-
   use iso_fortran_env,only:wp => real64
   use strucrd
   use calc_type
   use iomod,only:makedir,directory_exist,remove,command
   implicit none
-
-!=========================================================================================!
-  !--- private module variables and parameters
+  !>--- private module variables and parameters
   private
-  integer :: i,j,k,l,ich,och,io
-  logical :: ex
-
   integer,parameter :: nf = 3
   character(len=*),parameter :: xtbfiles(nf) = [&
           & 'charges    ','xtbinp.grad','xtbrestart ']
@@ -45,7 +38,6 @@ module xtb_sc
   character(len=13),parameter :: gf = 'xtbinp.engrad'
 
   public :: xtb_engrad
-
 
 !========================================================================================!
 !========================================================================================!
@@ -67,8 +59,11 @@ contains  !>--- Module routines start here
     real(wp),intent(inout) :: grad(3,mol%nat)
     integer,intent(out) :: iostatus
 
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
+
     iostatus = 0
-    
+
     !>--- setup system call information
     !$omp critical
     call xtb_setup(mol,calc)
@@ -76,7 +71,7 @@ contains  !>--- Module routines start here
 
     !>--- do the systemcall
     call initsignal()
-    call command(calc%systemcall, iostatus)
+    call command(calc%systemcall,iostatus)
     if (iostatus /= 0) return
 
     !>--- read energy and gradient
@@ -115,14 +110,14 @@ contains  !>--- Module routines start here
     call initsignal()
 
     !>--- set default binary if not present
-    if (.not. allocated(calc%binary)) then
+    if (.not.allocated(calc%binary)) then
       calc%binary = xtb
     end if
 
     !>--- check for the calculation space
     if (allocated(calc%calcspace)) then
       ex = directory_exist(calc%calcspace)
-      if (.not. ex) then
+      if (.not.ex) then
         io = makedir(trim(calc%calcspace))
       end if
       cpath = calc%calcspace
@@ -131,13 +126,13 @@ contains  !>--- Module routines start here
     end if
     !>--- cleanup old files
     do i = 1,nf
-      !write(*,*) trim(cpath)//sep//trim(xtbfiles(i)) 
+      !write(*,*) trim(cpath)//sep//trim(xtbfiles(i))
       call remove(trim(cpath)//sep//trim(xtbfiles(i)))
     end do
     deallocate (cpath)
 
     !>--- construct path information and write coord file
-    if (.not. allocated(calc%calcfile)) then
+    if (.not.allocated(calc%calcfile)) then
       if (allocated(calc%calcspace)) then
         l = len_trim(calc%calcspace)
         fname = trim(calc%calcspace)
@@ -156,8 +151,10 @@ contains  !>--- Module routines start here
     call mol%write(fname)
     deallocate (fname)
 
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
     !>--- if the systemcall was already set up, return
     if (allocated(calc%systemcall)) return
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 
     !>--- construct path information for sys-call
     if (allocated(calc%calcspace)) then
@@ -206,7 +203,7 @@ contains  !>--- Module routines start here
     use strucrd
     use calc_type
     use iomod,only:makedir,directory_exist,remove
-    use gradreader_module, only:rd_grad_engrad
+    use gradreader_module,only:rd_grad_engrad
 
     implicit none
     type(coord) :: mol
@@ -225,7 +222,7 @@ contains  !>--- Module routines start here
 
     iostatus = 0
 
-    if (.not. allocated(calc%gradfile)) then
+    if (.not.allocated(calc%gradfile)) then
       if (allocated(calc%calcspace)) then
         calc%gradfile = trim(calc%calcspace)//sep//gf
       else
@@ -234,7 +231,7 @@ contains  !>--- Module routines start here
     end if
 
     inquire (file=calc%gradfile,exist=ex)
-    if (.not. ex) then
+    if (.not.ex) then
       iostatus = 1
       return
     end if
@@ -254,11 +251,13 @@ contains  !>--- Module routines start here
     type(coord) :: mol
     type(calculation_settings) :: calc
     integer,intent(out) :: iostatus
-    integer :: i,j
+
     real(wp) :: dum
     character(len=:),allocatable :: wbofile
     character(len=128) :: atmp
 
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
     call initsignal()
 
     iostatus = 0
@@ -274,7 +273,7 @@ contains  !>--- Module routines start here
     end if
 
     inquire (file=wbofile,exist=ex)
-    if (.not. ex) then
+    if (.not.ex) then
       iostatus = 1
       return
     end if

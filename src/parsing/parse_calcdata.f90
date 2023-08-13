@@ -25,6 +25,7 @@
 
 module parse_calcdata
   use crest_parameters
+  use crest_data
   use crest_calculator,only:calcdata,calculation_settings,jobtype,constraint,scantype
   use dynamics_module
   use gradreader_module,only:gradtype,conv2gradfmt
@@ -311,6 +312,19 @@ contains !> MODULE PROCEDURES START HERE
     case ('gbsa','alpb','cpcm')
       job%solvmodel = key
       job%solvent = val
+
+    case ('refine','refinement')
+      select case (val)
+      case ('sp','singlepoint')
+        job%refine_lvl = refine%singlepoint
+      case ('add','correction')
+        job%refine_lvl = refine%correction
+      case ('opt','optimization')
+        job%refine_lvl = refine%geoopt
+      case default
+        job%refine_lvl = refine%non
+      end select
+
 
     end select
     return
