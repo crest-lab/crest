@@ -4,10 +4,14 @@ Newer versions of CREST use external projects:
 
 | Library | Description | Build Option | git submodule |
 | ------- | ----------- | ------------ | :-----------: |
-| [`toml-f`](https://github.com/toml-f/toml-f) | A TOML parser for Fortran | `-DWITH_TOMLF=true` (default) | :white_check_mark: |
-| [`gfn0`](https://github.com/pprcht/gfn0) | A GFN0-xTB standalone library | `-DWITH_GFN0=true` (default) |  :white_check_mark:|
-| [`gfnff`](https://github.com/pprcht/gfnff) | A GFN-FF standalone library | `-DWITH_GFNFF=true` (default) | :white_check_mark: |
-| [`tblite`](https://github.com/tblite/tblite) | A lightweight implementation of the GFN1 and GFN2-xTB Hamiltonians | `-DWITH_TBLITE=true` | :x: |
+| [`toml-f`](https://github.com/toml-f/toml-f) | A TOML parser for Fortran | `-DWITH_TOMLF=true` (default) | ✅ |
+| [`gfn0`](https://github.com/pprcht/gfn0) | A GFN0-xTB standalone library | `-DWITH_GFN0=true` (default) | ✅ |
+| [`gfnff`](https://github.com/pprcht/gfnff) | A GFN-FF standalone library | `-DWITH_GFNFF=true` (default) | ✅ |
+| [`tblite`](https://github.com/tblite/tblite) | A lightweight implementation of the GFN1 and GFN2-xTB Hamiltonians | `-DWITH_TBLITE=true` | ✅ |
+<!--
+| [`xhcff`](https://github.com/zellerf/xhcff) | Implementation of the XHCFF force field | `-DWITH_XHCFF=true` | ✅ |
+-->
+
 
 Both `cmake` and `meson` should be **able to handle the download automatically** (with meson being a little bit better at this). The build option can be specified in the respective setup step.
 
@@ -17,7 +21,7 @@ To do so, in the CREST main directory use
 git submodule init
 git submodule update
 ```
-which should download all the subprojects.
+which should check out all the subprojects.
 
 To update the submodule sources from the respective remote branches
 ```bash
@@ -27,15 +31,14 @@ can be used.
 
 ---
 
-### `tblite` additional information
-The [`tblite`](https://github.com/tblite/tblite) subproject is an important exception.
-It is **not** set up as a `git` submodule, but it could still be downloaded manually.
+### Additional note on `tblite` 
+As with all other public submodules, [`tblite`](https://github.com/tblite/tblite) could  be downloaded manually.
 To do so, while in the CREST main directory, use the usual
 ```bash
 git clone https://github.com/tblite/tblite.git subprojects/tblite
 ```
 to clone `tblite` to the correct place.
-However, to make the build work after downloading, some of the `meson` build instructions of `tblite` must be updated.
+To make this build work after downloading, some of the `meson` build instructions of `tblite` must be updated.
 We have prepared a patch file for this located at [packagefiles/tblite/](./packagefile/tblite/)
 Change to the directory and apply the patches via
 ```bash
@@ -43,4 +46,11 @@ cd subprojects/tblite
 git apply ../packagefile/tblite/tblite_patch.patch
 ```
 
-Note that `meson` will download and apply the patch automatically *if you don't download `tblite` yourself*!
+To circumvent these for the submodule implementation, the **submodule tracks a modified commit** (rather than the originial repository) in which **the patch is already applied**.
+Should you wish to update the `tblite` source code, 
+```bash
+git submodule update --remote --merge
+```
+can be used instead of the command given above.
+However, we try to keep the tracked submodule commits up-to-date.
+

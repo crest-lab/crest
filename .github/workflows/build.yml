@@ -56,6 +56,10 @@ jobs:
     - name: Install meson
       run: pip3 install meson==0.63.3 ninja
 
+    - name: Git Sumbodules
+      run: |
+        git submodule update 
+
     - name: Configure meson build
       run: meson setup ${{ env.BUILD_DIR }} --prefix=/
 

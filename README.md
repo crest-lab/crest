@@ -34,7 +34,11 @@ For building the program from source we recommend the Intel `ifort` and `icc` co
 
 Detailed build instructions can be found at <https://crest-lab.github.io/crest-docs/page/installation>.
 
-For builds with subprojects see [here](./subprojects/README.md).
+
+
+
+
+
 
 
 ### Precompiled binaries
@@ -64,6 +68,13 @@ Working and tested builds of CREST (mostly on Ubuntu 20.04 LTS):
 | Meson | [Intel (`ifort` 2021.9.0/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ |
 
 
+
+Generally, subprojects should be initialized for the *default* build options, which can be done by 
+```bash
+git submodule init
+git submodule update
+```
+For more information about builds including subprojects see [here](./subprojects/README.md).
 
 Some basic build instructions can be found in the following dropdown tabs:
 
