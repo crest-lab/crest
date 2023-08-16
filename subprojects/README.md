@@ -32,12 +32,15 @@ can be used.
 ---
 
 ### Additional note on `tblite` 
-As with all other public submodules, [`tblite`](https://github.com/tblite/tblite) could  be downloaded manually.
-To do so, while in the CREST main directory, use the usual
+As with all other public submodules, [`tblite`](https://github.com/tblite/tblite) could  be downloaded either manually, while in the CREST main directory, use the usual
 ```bash
 git clone https://github.com/tblite/tblite.git subprojects/tblite
 ```
-to clone `tblite` to the correct place.
+to clone `tblite` to the correct place, or, with the above mentioned
+```bash
+git submodule update --init
+```
+
 To make this build work after downloading, some of the `meson` build instructions of `tblite` must be updated.
 We have prepared a patch file for this located at [packagefiles/tblite/](./packagefile/tblite/)
 Change to the directory and apply the patches via
@@ -46,11 +49,4 @@ cd subprojects/tblite
 git apply ../packagefile/tblite/tblite_patch.patch
 ```
 
-To circumvent these for the submodule implementation, the **submodule tracks a modified commit** (rather than the originial repository) in which **the patch is already applied**.
-Should you wish to update the `tblite` source code, 
-```bash
-git submodule update --remote --merge
-```
-can be used instead of the command given above.
-However, we try to keep the tracked submodule commits up-to-date.
-
+Both the GitHub workflows build and the `meson` build *without* submodule initialization should apply the patch automatically

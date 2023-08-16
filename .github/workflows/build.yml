@@ -56,9 +56,12 @@ jobs:
     - name: Install meson
       run: pip3 install meson==0.63.3 ninja
 
-    - name: Git Sumbodules
+    - name: Git Sumbodules (including tblite patch)
       run: |
-        git submodule update 
+        git submodule update --init
+        cd subprojects/tblite
+        git apply ../packagefiles/tblite/tblite_patch.patch
+        cd ../../
 
     - name: Configure meson build
       run: meson setup ${{ env.BUILD_DIR }} --prefix=/
