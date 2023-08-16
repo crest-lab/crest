@@ -171,6 +171,10 @@ contains  !> MODULE PROCEDURES START HERE
         case (jobtype%xhcff) !>--- XHCFF-lib 
           call xhcff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
 
+        case (jobtype%turbomole) !>--- Turbomole-style SPs
+          call  turbom_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+
+
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
             read (calc%calcs(i)%other,*) dum1,dum2

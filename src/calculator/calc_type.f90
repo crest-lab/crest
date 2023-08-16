@@ -51,7 +51,7 @@ module calc_type
      & 'Unknown calculation type                    ', &
      & 'xTB calculation via external binary         ', &
      & 'Generic script execution                    ', &
-     & 'Systemcall to the Turbomole program package ', &
+     & 'Systemcall with Turbomole-style in/output   ', &
      & 'Systemcall to the ORCA program package      ', &
      & 'Systemcall to the TeraChem program package  ', &
      & 'xTB calculation via tblite lib              ', &
@@ -66,7 +66,7 @@ module calc_type
   public :: calculation_settings
   type :: calculation_settings
 
-    integer :: id  = 0        !> calculation type (see "jobtype" parameter above)
+    integer :: id = 0        !> calculation type (see "jobtype" parameter above)
     integer :: prch = stdout  !> printout channel
     integer :: refine_lvl = 0 !> to allow defining different refinement levels
 
@@ -143,6 +143,7 @@ module calc_type
     procedure :: addconfig => calculation_settings_addconfig
     procedure :: autocomplete => calculation_settings_autocomplete
     procedure :: info => calculation_settings_info
+    procedure :: create => create_calclevel_shortcut
   end type calculation_settings
 !=========================================================================================!
 
@@ -282,7 +283,7 @@ contains  !>--- Module routines start here
     if (allocated(self%wfn_backup)) deallocate (self%wfn_backup)
     if (allocated(self%g0calc)) deallocate (self%g0calc)
     if (allocated(self%ff_dat)) deallocate (self%ff_dat)
-    if (allocated(self%xhcff)) deallocate(self%xhcff)
+    if (allocated(self%xhcff)) deallocate (self%xhcff)
 
     self%id = 0
     self%prch = stdout
@@ -306,10 +307,9 @@ contains  !>--- Module routines start here
     self%maxscc = 500
     self%saveint = .false.
 
-    self%ngrid = 230 
+    self%ngrid = 230
     self%extpressure = 0.0_wp
     self%proberad = 1.5_wp
-
 
     return
   end subroutine calculation_settings_deallocate
@@ -551,41 +551,55 @@ contains  !>--- Module routines start here
     if (allocated(self%description)) then
       write (iunit,'("> ",a)') trim(self%description)
     else
-      write(atmp,*) 'Job type'
+      write (atmp,*) 'Job type'
       write (iunit,fmt1) atmp,self%id
     end if
+    !> more info
+    if (self%id == jobtype%tblite) then
+      select case (self%tblitelvl)
+      case (2)
+        write (iunit,'(2x,a)') 'GFN2-xTB level'
+      case (1)
+        write (iunit,'(2x,a)') 'GFN1-xTB level'
+      end select
+    end if
+    if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &
+    &  jobtype%generic,jobtype%terachem/) == self%id)) then
+      write (iunit,'(2x,a,a)') 'selected binary : ',trim(self%binary)
+    end if
 
-    write(atmp,*) 'Molecular charge'
+    !> system data
+    write (atmp,*) 'Molecular charge'
     write (iunit,fmt1) atmp,self%chrg
     if (self%uhf /= 0) then
-      write(atmp,*) 'UHF parameter'
+      write (atmp,*) 'UHF parameter'
       write (iunit,fmt1) atmp,self%uhf
     end if
 
     if (allocated(self%solvmodel)) then
-      write(atmp,*) 'Solvation model'
+      write (atmp,*) 'Solvation model'
       write (iunit,fmt3) atmp,trim(self%solvmodel)
     end if
     if (allocated(self%solvent)) then
-      write(atmp,*) 'Solvent'
+      write (atmp,*) 'Solvent'
       write (iunit,fmt3) atmp,trim(self%solvent)
     end if
 
     !> xTB specific parameters
     if (any((/jobtype%tblite,jobtype%xtbsys,jobtype%gfn0,jobtype%gfn0occ/) == self%id)) then
-      write(atmp,*) 'Fermi temperature'
+      write (atmp,*) 'Fermi temperature'
       write (iunit,fmt2) atmp,self%etemp
-      write(atmp,*) 'Accuracy'
+      write (atmp,*) 'Accuracy'
       write (iunit,fmt2) atmp,self%accuracy
-      write(atmp,*) 'max SCC cycles'
+      write (atmp,*) 'max SCC cycles'
       write (iunit,fmt1) atmp,self%maxscc
     end if
 
-    write(atmp,*) 'Reset data?'
+    write (atmp,*) 'Reset data?'
     if (self%apiclean) write (iunit,fmt3) atmp,'yes'
-    write(atmp,*) 'Read WBOs?'
+    write (atmp,*) 'Read WBOs?'
     if (self%rdwbo) write (iunit,fmt3) atmp,'yes'
-    write(atmp,*) 'Read dipoles?'
+    write (atmp,*) 'Read dipoles?'
     if (self%rddip) write (iunit,fmt3) atmp,'yes'
 
   end subroutine calculation_settings_info
@@ -641,6 +655,37 @@ contains  !>--- Module routines start here
 
     return
   end subroutine calculation_info
+
+!=========================================================================================!
+
+  subroutine create_calclevel_shortcut(self,levelstring)
+!*********************************************************************
+!* subroutine create_calclevel_shortcut called with %create(...)
+!* Set up a calculation_settings object for a given level of theory
+!* More shortcuts can be added as required.
+!* Be careful about the intent(out) setting!
+!*********************************************************************
+    implicit none
+    class(calculation_settings),intent(out) :: self
+    character(len=*) :: levelstring
+    call self%deallocate()
+    select case (trim(levelstring))
+    case ('gfnff')
+      self%id = jobtype%gfnff
+    case ('gfn0')
+      self%id = jobtype%gfn0
+    case ('gfn2')
+      self%id = jobtype%tblite
+      self%tblitelvl = 2
+    case ('gfn1')
+      self%id = jobtype%tblite
+      self%tblitelvl = 1
+    case ('gp3')
+      self%id = jobtype%turbomole
+      self%rdgrad = .false.
+      self%binary = 'gp3'
+    end select
+  end subroutine create_calclevel_shortcut
 
 !=========================================================================================!
 end module calc_type

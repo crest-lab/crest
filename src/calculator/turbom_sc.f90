@@ -27,7 +27,7 @@ module turbom_sc
   use iso_fortran_env,only:wp => real64
   use strucrd
   use calc_type
-  use iomod,only:makedir,directory_exist,remove,command
+  use iomod,only:makedir,directory_exist,remove,command,checkprog_silent
   use gradreader_module,only:rd_grad_tm
   implicit none
   !>--- private module variables and parameters
@@ -140,14 +140,16 @@ contains  !>--- Module routines start here
     else
       fname = calc%calcfile
     end if
-    call mol%write(fname) !> should write a "coord" file
+    call mol%write(fname) !> should write a "coord" file, must be called for each SP
     deallocate (fname)
 
     !>--- write charge and uhf files
     if (calc%chrg /= 0) then
       call touch_chrg_tm(calc,calc%chrg)
     end if
-    call touch_uhf_tm(calc,calc%uhf)
+    if (calc%uhf /= 0) then
+      call touch_uhf_tm(calc,calc%uhf)
+    endif
 
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
     !>--- if the systemcall was already set up, return
@@ -161,6 +163,10 @@ contains  !>--- Module routines start here
     else
       calc%systemcall = trim(calc%binary)
     end if
+
+    !>--- check if the binary exists
+    call checkprog_silent(trim(calc%binary),.true.,io)
+    if(io .ne. 0) error stop
 
     !>--- add other call information
     calc%systemcall = trim(calc%systemcall)//' '//xyzn

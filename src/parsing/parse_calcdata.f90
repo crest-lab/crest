@@ -246,6 +246,12 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%terachem
       case ('tblite')
         job%id = jobtype%tblite
+      case ('gfn2','gfn2-xtb')
+        job%id = jobtype%tblite
+        job%tblitelvl = 2
+      case ('gfn1','gfn1-xtb')
+        job%id = jobtype%tblite
+        job%tblitelvl = 1 
       case ('gfn0','gfn0-xtb')
         job%id = jobtype%gfn0
       case ('gfn0*','gfn0*-xtb')
@@ -341,6 +347,8 @@ contains !> MODULE PROCEDURES START HERE
       job%rddip = val
     case ('dipgrad')
       job%rddipgrad = val
+    case ('rdgrad')
+      job%rdgrad = val
     case ('refresh')
       job%apiclean = val
     case ('print')

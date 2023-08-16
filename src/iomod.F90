@@ -978,7 +978,7 @@ contains !> MODULE PROCEDURES START HERE
     if(present(verbose))then
     if (io .ne. 0 .and. verbose) then
       write (stdout,'(4x,a,a,a)') 'binary: "',trim(fname),'"'
-      write (stdout,'(4x,a)') 'status: not found'
+      write (stdout,'(4x,a)') 'status: not found!'
     end if
     endif
 

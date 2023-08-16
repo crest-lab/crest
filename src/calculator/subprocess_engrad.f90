@@ -25,6 +25,7 @@
 module subprocess_engrad
   use generic_sc
   use xtb_sc
+  use turbom_sc
   implicit none
   !>--- private module variables and parameters
   private
@@ -34,6 +35,9 @@ module subprocess_engrad
 
   !>--- xtb subprocess
   public :: xtb_engrad
+
+  !>--- Turbomole-style subprocesses
+  public :: turbom_engrad
 
 !=========================================================================================!
 !=========================================================================================!
