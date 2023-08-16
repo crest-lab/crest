@@ -10,3 +10,6 @@
 	path = subprojects/gfnff
 	url = https://github.com/pprcht/gfnff.git
     branch = master 
+[submodule "subprojects/tblite"]
+	path = subprojects/tblite
+	url = https://github.com/tblite/tblite.git
