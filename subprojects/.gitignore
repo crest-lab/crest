@@ -11,6 +11,7 @@ xhcff
 !gfn0
 !toml-f
 !gfnff
+!tblite
 
 !packagefiles
 !packagefiles/tblite

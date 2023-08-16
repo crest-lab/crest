@@ -38,7 +38,7 @@ module tblite_api
   use tblite_xtb_singlepoint,only:xtb_singlepoint
   use tblite_results,only:tblite_resultstype => results_type
 #endif
-  use wiberg_mayer,only:get_wbo
+  use wiberg_mayer,only:get_wbo_rhf
   implicit none
   private
 
@@ -318,7 +318,7 @@ contains  !>--- Module routines start here
 
     wbo = 0.0_wp
 #ifdef WITH_TBLITE
-    call get_wbo(nat,tbcalc%bas%nao,wfn%density, &
+    call get_wbo_rhf(nat,tbcalc%bas%nao,wfn%density, &
     &         tbres%overlap,tbcalc%bas%ao2at,wbo)
 #endif
   end subroutine tblite_getwbos

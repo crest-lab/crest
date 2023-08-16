@@ -8,5 +8,5 @@
     branch = main
 [submodule "subprojects/gfnff"]
 	path = subprojects/gfnff
-	url = https://github.com/pprcht/gfnff
+	url = https://github.com/pprcht/gfnff.git
     branch = master 
