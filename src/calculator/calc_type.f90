@@ -670,20 +670,26 @@ contains  !>--- Module routines start here
     character(len=*) :: levelstring
     call self%deallocate()
     select case (trim(levelstring))
-    case ('gfnff')
+    case ('gfnff','--gff','--gfnff')
       self%id = jobtype%gfnff
-    case ('gfn0')
+    case ('gfn0','--gfn0')
       self%id = jobtype%gfn0
-    case ('gfn2')
+    case ('gfn2','--gfn2')
       self%id = jobtype%tblite
       self%tblitelvl = 2
-    case ('gfn1')
+    case ('gfn1','--gfn1')
       self%id = jobtype%tblite
       self%tblitelvl = 1
     case ('gp3')
       self%id = jobtype%turbomole
       self%rdgrad = .false.
       self%binary = 'gp3'
+    case ('orca')
+      self%id = jobtype%orca
+       
+    case ('generic')
+      self%id = jobtype%generic
+      
     end select
   end subroutine create_calclevel_shortcut
 

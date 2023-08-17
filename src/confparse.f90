@@ -1133,6 +1133,15 @@ subroutine parseflags(env,arg,nra)
         else
           write (*,'(2x,a,a)') argument,' : energy reweighting'
         end if
+
+      case('-refine','-rsp','-ropt') !> add one refinement step (via cmd only one is possible)
+        env%legacy = .false. !> new calculators only!
+        if(nra <= i+1)then
+          env%gfnver2 = trim(arg(i+1))
+          write (*,'(2x,a,1x,a,a)') argument,trim(env%gfnver2), &
+          & ' : adding refinement step (singlepoint on optimized structures)'
+        endif
+        
       case ('-charges') !read charges from file for GFN-FF calcs.
         ctmp = trim(arg(i+1))
         if ((len_trim(ctmp) < 1).or.(ctmp(1:1) == '-')) then
@@ -2107,7 +2116,11 @@ subroutine parseflags(env,arg,nra)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
   if (.not.env%legacy.and.env%calc%ncalculations == 0) then
+    write (stdout,'(/,a)',advance='no') '> Setting up backup calculator ...'
+    flush (stdout)
     call env2calc_setup(env)
+    write(stdout,*) 'done.'
+    call env%calc%info(stdout)
   end if
 
   return

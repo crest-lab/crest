@@ -96,6 +96,40 @@ contains    !> MODULE PROCEDURES START HERE
   end subroutine api_print_e_grd
 
 !=========================================================================================!
+
+  subroutine api_handle_output(calc,fname,mol)
+    implicit none
+    type(calculation_settings),intent(inout) :: calc
+    character(len=*),intent(in) :: fname
+    type(coord) :: mol
+    character(len=:),allocatable :: cpath
+    logical :: ex,pr
+    integer :: io
+
+    pr = .false.
+    inquire (unit=calc%prch,opened=ex)
+    if ((calc%prch .ne. stdout).and.ex) then
+      close (calc%prch)
+    end if
+    if (allocated(calc%calcspace)) then
+      ex = directory_exist(calc%calcspace)
+      if (.not.ex) then
+        io = makedir(trim(calc%calcspace))
+      end if
+      cpath = calc%calcspace//sep//fname
+    else
+      cpath = fname
+    end if
+    if ((calc%prch .ne. stdout)) then
+      open (newunit=calc%prch,file=cpath)
+      pr = .true.
+    end if
+    deallocate (cpath)
+    call api_print_input_structure(pr,calc%prch,mol)
+
+  end subroutine api_handle_output
+
+!=========================================================================================!
 !>--- tblite helper/setup routines
   subroutine tblite_init(calc,loadnew)
     implicit none

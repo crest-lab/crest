@@ -252,8 +252,6 @@ contains  !>--- Module routines start here
     !call prmat(6,wbo,nat,nat,'WBO_uhf')
     deallocate(Pa,Pb)
 #endif   
-
-
   end subroutine gfn0_getwbos
 
 

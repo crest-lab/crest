@@ -27,43 +27,48 @@ subroutine env2calc(env,calc,molin)
   use crest_data
   use crest_calculator
   use strucrd
+  use iomod
   implicit none
   !> INPUT
-  type(systemdata),intent(in) :: env
+  type(systemdata),intent(inout) :: env
   type(coord),intent(in),optional :: molin
   !> OUTPUT
   type(calcdata) :: calc
   !> LOCAL
-  type(calculation_settings) :: cal
+  type(calculation_settings) :: cal,cal2
   type(coord) :: mol
 
+!>--- Calculator level
+!  write (stdout,'(/,a)',advance='no') '> Setting up backup calculator ...'
+!  flush (stdout)
   call calc%reset()
 
-  cal%uhf = env%uhf
-  cal%chrg = env%chrg
-  !>-- obtain WBOs OFF by default
-  cal%rdwbo = .false.
-
   !>-- defaults to whatever env has selected or gfn0
-  select case (trim(env%gfnver))
-  case ('--gfn0')
-    cal%id = jobtype%gfn0
-  case ('--gfn1')
-    cal%id = jobtype%tblite
-    cal%tblitelvl = 1
-  case ('--gfn2')
-    cal%id = jobtype%tblite
-    cal%tblitelvl = 2
-  case ('--gff','--gfnff')
-    cal%id = jobtype%gfnff
-  case default
-    cal%id = jobtype%gfn0
-  end select
+!  select case (trim(env%gfnver))
+!  case ('--gfn0')
+!    cal%id = jobtype%gfn0
+!  case ('--gfn1')
+!    cal%id = jobtype%tblite
+!    cal%tblitelvl = 1
+!  case ('--gfn2')
+!    cal%id = jobtype%tblite
+!    cal%tblitelvl = 2
+!  case ('--gff','--gfnff')
+!    cal%id = jobtype%gfnff
+!  case default
+!    cal%id = jobtype%gfn0
+!  end select
+  call cal%create(trim(env%gfnver))
   if (present(molin)) then
     mol = molin
     !else
     !  call mol%open('coord')
   end if
+
+  cal%uhf = env%uhf
+  cal%chrg = env%chrg
+  !>-- obtain WBOs OFF by default
+  cal%rdwbo = .false.
 
   !> implicit solvation
   if (env%gbsa) then
@@ -84,12 +89,34 @@ subroutine env2calc(env,calc,molin)
 
   call calc%add(cal)
 
+
+!>--- Refinement level
+  if (trim(env%gfnver2) .ne. '') then
+    env%gfnver2 = lowercase(env%gfnver2)
+    call cal2%create(trim(env%gfnver2))
+
+    cal2%chrg = cal%chrg
+    cal2%uhf = cal%uhf
+    if (env%gbsa) then
+      cal2%solvmodel = cal%solvmodel
+      cal2%solvent = cal%solvent
+    end if
+
+    call cal2%autocomplete(2)
+        
+    cal2%refine_lvl = refine%singlepoint
+    call calc%add(cal2)
+    if(allocated(env%refine_queue)) deallocate(env%refine_queue)
+    call env%addrefine( refine%singlepoint )  
+  end if
+
   return
 end subroutine env2calc
 
 subroutine env2calc_setup(env)
 !***********************************
 !* Setup the calc object within env
+!* (wrapper to get the mol object)
 !***********************************
   use crest_data
   use crest_calculator
@@ -107,7 +134,7 @@ subroutine env2calc_setup(env)
       use crest_calculator
       use strucrd
       implicit none
-      type(systemdata),intent(in) :: env
+      type(systemdata),intent(inout) :: env
       type(coord),intent(in),optional :: molin
       type(calcdata) :: calc
     end subroutine env2calc
