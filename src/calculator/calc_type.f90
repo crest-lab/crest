@@ -566,13 +566,14 @@ contains  !>--- Module routines start here
     class(calculation_settings) :: self
     integer,intent(in) :: iunit
     integer :: i,j
-    character(len=*),parameter :: fmt1 = '(2x,a20," : ",i0)'
-    character(len=*),parameter :: fmt2 = '(2x,a20," : ",f12.5)'
-    character(len=*),parameter :: fmt3 = '(2x,a20," : ",a)'
+    character(len=*),parameter :: fmt1 = '(" :",2x,a20," : ",i0)'
+    character(len=*),parameter :: fmt2 = '(" :",2x,a20," : ",f0.5)'
+    character(len=*),parameter :: fmt3 = '(" :",2x,a20," : ",a)'
+    character(len=*),parameter :: fmt4 = '(" :",1x,a)'
     character(len=20) :: atmp
 
     if (allocated(self%description)) then
-      write (iunit,'("> ",a)') trim(self%description)
+      write (iunit,'(" :",1x,a)') trim(self%description)
     else
       write (atmp,*) 'Job type'
       write (iunit,fmt1) atmp,self%id
@@ -581,17 +582,18 @@ contains  !>--- Module routines start here
     if (self%id == jobtype%tblite) then
       select case (self%tblitelvl)
       case (2)
-        write (iunit,'(2x,a)') 'GFN2-xTB level'
+        write (iunit,fmt4) 'GFN2-xTB level'
       case (1)
-        write (iunit,'(2x,a)') 'GFN1-xTB level'
+        write (iunit,fmt4) 'GFN1-xTB level'
       end select
     end if
     if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &
     &  jobtype%generic,jobtype%terachem/) == self%id)) then
-      write (iunit,'(3x,a,a)') 'selected binary : ',trim(self%binary)
+      write (iunit,'(" :",3x,a,a)') 'selected binary : ',trim(self%binary)
     end if
     if( self%refine_lvl > 0)then
-      write(iunit,fmt1) 'refinement stage',self%refine_lvl
+      write (atmp,*) 'refinement stage'
+      write(iunit,fmt1) atmp,self%refine_lvl
     endif
 
     !> system data
@@ -628,6 +630,10 @@ contains  !>--- Module routines start here
     write (atmp,*) 'Read dipoles?'
     if (self%rddip) write (iunit,fmt3) atmp,'yes'
 
+
+    write(atmp,*) 'Weight'
+    write(iunit,fmt2) atmp,self%weight
+
   end subroutine calculation_settings_info
 
 !========================================================================================!
@@ -639,6 +645,8 @@ contains  !>--- Module routines start here
     integer :: i
     character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
     character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
+    character(len=20) :: atmp
+
 
     write (iunit,'(1x,a)') '----------------'
     write (iunit,'(1x,a)') 'Calculation info'
@@ -649,7 +657,6 @@ contains  !>--- Module routines start here
       do i = 1,self%ncalculations
         write (iunit,'("> ",a,i0,a)') 'User-defined calculation level ',i,':'
         call self%calcs(i)%info(iunit)
-        write (iunit,fmt2) 'weight',self%calcs(i)%weight
       end do
     else
       write (iunit,'("> ",a)') 'User-defined calculation level:'

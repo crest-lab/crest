@@ -39,25 +39,9 @@ subroutine env2calc(env,calc,molin)
   type(coord) :: mol
 
 !>--- Calculator level
-!  write (stdout,'(/,a)',advance='no') '> Setting up backup calculator ...'
-!  flush (stdout)
   call calc%reset()
 
   !>-- defaults to whatever env has selected or gfn0
-!  select case (trim(env%gfnver))
-!  case ('--gfn0')
-!    cal%id = jobtype%gfn0
-!  case ('--gfn1')
-!    cal%id = jobtype%tblite
-!    cal%tblitelvl = 1
-!  case ('--gfn2')
-!    cal%id = jobtype%tblite
-!    cal%tblitelvl = 2
-!  case ('--gff','--gfnff')
-!    cal%id = jobtype%gfnff
-!  case default
-!    cal%id = jobtype%gfn0
-!  end select
   call cal%create(trim(env%gfnver))
   if (present(molin)) then
     mol = molin
@@ -163,6 +147,34 @@ subroutine confscript2i(env,tim)
     end if
   end if
 end subroutine confscript2i
+
+!================================================================================!
+subroutine mdopt(env,tim)
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  type(timer)   :: tim
+  if (env%legacy) then
+    call mdopt_legacy(env,tim)
+  else
+    call crest_ensemble_optimization(env,tim)
+  end if
+end subroutine mdopt
+
+!================================================================================!
+subroutine screen(env,tim)
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  type(timer)   :: tim
+  if (env%legacy) then
+    call screen_legacy(env,tim)
+  else
+    call crest_ensemble_screening(env,tim)
+  end if
+end subroutine screen
 
 !=================================================================================!
 

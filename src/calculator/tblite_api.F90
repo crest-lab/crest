@@ -117,6 +117,9 @@ contains  !>--- Module routines start here
 
     real(wp) :: etemp_au,energy
     real(wp),allocatable :: grad(:,:)
+    logical :: pr
+
+    pr = (ctx%verbosity > 0)
 
     !>--- make an mctcmol object from mol
     call tblite_mol2mol(mol,chrg,uhf,mctcmol)
@@ -124,13 +127,13 @@ contains  !>--- Module routines start here
     !>--- select parametrization and set up calculator
     select case (lvl)
     case (xtblvl%gfn1)
-      call ctx%message("tblite> setting up GFN1-xTB calculation")
+      if(pr) call ctx%message("tblite> setting up GFN1-xTB calculation")
       call new_gfn1_calculator(tbcalc,mctcmol)
     case (xtblvl%gfn2)
-      call ctx%message("tblite> setting up GFN2-xTB calculation")
+      if(pr) call ctx%message("tblite> setting up GFN2-xTB calculation")
       call new_gfn2_calculator(tbcalc,mctcmol)
     case (xtblvl%ipea1)
-      call ctx%message("tblite> setting up IPEA1-xTB calculation")
+      if(pr) call ctx%message("tblite> setting up IPEA1-xTB calculation")
       call new_ipea1_calculator(tbcalc,mctcmol)
     case default
       call ctx%message("Error: Unknown method in tblite!")

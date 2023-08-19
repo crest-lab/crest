@@ -697,35 +697,6 @@ contains !> MODULE PROCEDURES START HERE
     return
   end subroutine pwdlock
 
-!-----------------------------------------------------------------------------------
-! copy a coord file until an $set-block is encountered
-!-----------------------------------------------------------------------------------
-  subroutine clear_setblock(fname)
-    implicit none
-    character(len=*) :: fname
-    character(len=512) :: atmp
-    integer :: iost
-    integer :: ich,ich2
-
-    open (newunit=ich,file=fname)
-    open (newunit=ich2,file='.setdgtmp')
-
-    do
-      read (ich,'(a)',iostat=iost) atmp
-      if (iost < 0) exit
-      if ((index(atmp,'$set') .ne. 0).or.  &
-      &  (index(atmp,'$end') .ne. 0)) then
-        write (ich2,'(a)') '$end'
-        exit
-      else
-        write (ich2,'(a)') trim(atmp)
-      end if
-    end do
-    close (ich,status='delete')
-    close (ich2)
-    call rename('.setdgtmp',fname)
-  end subroutine clear_setblock
-
 !====================================================================!
   function filechecker(fin,fout) result(have)
     implicit none
@@ -996,7 +967,7 @@ contains !> MODULE PROCEDURES START HERE
 !> For some reason the behaviour of "call system"  and "call execute_command_line"
 !> differs slightly beteen Intel and GNU versions of the program that I have build.
 !> I don't understand why this is the case.
-!> To circumvent issues for now, I will simpy include two different wrappers with
+!> To circumvent issues for now, I will simply include two different wrappers with
 !> precompiler statements.
 !> It doesn't matter too much as these are mostly relevant for legacy routines.
   subroutine command(cmd,exitstat)

@@ -20,7 +20,30 @@
 module utilities
   use crest_parameters
   implicit none
-  public
+  private
+  
+  !> subroutines
+  public :: boltz2
+  public :: boltz
+  public :: checkname_tmp
+  public :: checkname_xyz
+  public :: distance
+  public :: getanmrrc
+  public :: getname1
+  public :: heavyrmsd
+  public :: rdarg
+  public :: revlin_count
+  public :: revlin
+  public :: TRJappendto_skipfirst
+  public :: XYZappendto
+
+  !> functions
+  public :: lin
+  public :: lina
+  public :: linr
+  public :: ohbonded2
+  public :: ohbonded
+  public :: distcma
 
 !========================================================================================!
 !========================================================================================!
@@ -46,7 +69,7 @@ contains  !> MODULE PROCEDURES START HERE
 !* (i.e., the reverse of the lin function)
 !******************************************
     implicit none
-    integer*8 :: k,b,x
+    integer(int64) :: k,b,x
     integer :: i,j
     real(wp) :: kf
     real(wp) :: idum
@@ -67,17 +90,15 @@ contains  !> MODULE PROCEDURES START HERE
   subroutine revlin_count(k,i,j,dimij)
 !********************************************
 !* determine i and j for a given index k
-!* by counting until k is reached 
+!* by counting until k is reached
 !* (only for testing, because too expensive)
 !********************************************
     implicit none
-    integer*8 :: k
+    integer(int64) :: k
     integer :: i,j
     integer :: a,b
     integer :: dimij
-    integer*8 :: kdum
-    integer*8 :: lina
-
+    integer(int64) :: kdum
     OUTER: do a = 1,dimij
       do b = 1,a
         kdum = lina(a,b)
@@ -88,11 +109,10 @@ contains  !> MODULE PROCEDURES START HERE
         end if
       end do
     end do OUTER
-
     return
   end subroutine revlin_count
 !==========================================!
-  integer*8 function lina(i1,i2)
+  integer(int64) function lina(i1,i2)
 !*********************************
 !* int64 version of lin function
 !*********************************
@@ -106,25 +126,27 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end function lina
 !==========================================!
-  integer*8 function linr(o1,o2,i)
-    integer*8 :: o1
+  integer(int64) function linr(o1,o2,i)
+    integer(int64) :: o1
     integer   :: o2,i
     linr = (o1+1)
     linr = linr+i
     linr = linr-o2
     return
-  end
+  end function linr
 
 !========================================================================================!
 
+  subroutine boltz(n,t,e,p)
 !*********************************
 !* Boltzmann weighting routines
 !* formerly in "boltz.f"
 !*********************************
-  subroutine boltz(n,t,e,p)
+    integer,intent(in) :: n
     real(wp) :: e(*),p(*)
     real(wp),allocatable :: e2(:)
     real(wp) :: t,f,hsum,esum
+    integer :: i
     allocate (e2(n))
     !f=8.314*t/4.184d+3
     f = 0.593d0/298.15d0
@@ -180,7 +202,6 @@ contains  !> MODULE PROCEDURES START HERE
 !* Calculate heavy atom (+OH) RMSD
 !**********************************
     use ls_rmsd
-    use crest_parameters,only:bohr
     implicit none
     integer n,at(n),j,nall,k,l,nn
     real(wp) xyz(3,n,nall),rmsdval
@@ -215,10 +236,9 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine heavyrmsd
 
   logical function ohbonded2(n,m,xyz,at)
-    integer :: n,at(n),m
+    integer :: n,at(n),m,i
     real(wp) :: xyz(3,n)
     real(wp) :: r
-
     ohbonded2 = .false.
     if (at(m) .ne. 1) return
 
@@ -237,8 +257,8 @@ contains  !> MODULE PROCEDURES START HERE
 
 !--- formerly in "ohbonded.f"
   logical function ohbonded(n,m,xyz,at,acid)
-    integer n,at(n),m,acid(86)
-    real(wp) xyz(3,n)
+    integer :: n,at(n),m,acid(86),i
+    real(wp) :: xyz(3,n)
     real(wp) :: r
 
     ohbonded = .false.
@@ -263,13 +283,10 @@ contains  !> MODULE PROCEDURES START HERE
   subroutine distance(n,xyz,r)
     implicit none
     integer,intent(in) :: n
-    real(wp),allocatable,intent(inout) :: r(:,:)
+    real(wp),intent(inout) :: r(:,:)
     real(wp),intent(in) :: xyz(3,n)
     real(wp) :: dx,dy,dz
     integer :: i,j
-    if(.not.allocated(r))then
-        allocate(r(n,n), source=0.0_wp)
-    endif
     do i = 1,n
       do j = 1,n
         dx = xyz(1,j)-xyz(1,i)
@@ -291,6 +308,216 @@ contains  !> MODULE PROCEDURES START HERE
     dz = xyz(3,j)
     distcma = sqrt(dx*dx+dy*dy+dz*dz)
   end function distcma
+
+!========================================================================================!
+
+  subroutine checkname_tmp(base,fname,checkname)
+!************************************************
+!* Iterate X through files called <base>_<X>.tmp
+!* And returns the file names
+!* <base>_<X>.tmp as <fname>
+!* and <base>_<X+1>.tmp as <checkname>
+!***********************************************
+    character(len=*) :: base,fname,checkname
+    integer :: i,j
+    logical :: ex
+    i = 0
+    do
+      write (checkname,'(a,''_'',i0,''.tmp'')') trim(base),i
+      inquire (file=trim(checkname),exist=ex)
+      if (ex) then
+        i = i+1
+      else
+        exit
+      end if
+    end do
+    j = max(0,i-1)
+    write (fname,'(a,''_'',i0,''.tmp'')') trim(base),j
+  end subroutine checkname_tmp
+
+!===============================================================!
+  subroutine checkname_xyz(base,fname,checkname)
+!************************************************
+!* Iterate X through files called <base>_<X>.xyz
+!* And returns the file names
+!* <base>_<X>.xyz as <fname>
+!* and <base>_<X+1>.xyz as <checkname>
+!************************************************
+    character(len=*) :: base,fname,checkname
+    integer :: i,j
+    logical :: ex
+    i = 0
+    do
+      write (checkname,'(a,''_'',i0,''.xyz'')') trim(base),i
+      inquire (file=trim(checkname),exist=ex)
+      if (ex) then
+        i = i+1
+      else
+        exit
+      end if
+    end do
+    j = max(0,i-1)
+    write (fname,'(a,''_'',i0,''.xyz'')') trim(base),j
+  end subroutine checkname_xyz
+
+!========================================================================================!
+
+  subroutine getname1(i,atmp)
+!*****************************************************
+!* generate file name scoord.<i> and return as <atmp>
+!*****************************************************
+    integer :: i
+    character(len=*) :: atmp
+    write (atmp,'(''scoord.'',i0)') i
+  end subroutine getname1
+
+!========================================================================================!
+
+  subroutine getanmrrc(atmp,fail)
+!*************************************
+!* check for existance of file <atmp>
+!* fail==.true. if it does not exist
+!*************************************
+    implicit none
+    character(len=*),intent(inout) :: atmp
+    logical,intent(out) :: fail
+    logical :: ex
+    inquire (file=trim(atmp),exist=ex)
+    fail = .not.ex
+    return
+  end subroutine getanmrrc
+
+!========================================================================================!
+
+! copy a coord file until an $set-block is encountered
+  subroutine clear_setblock(fname)
+    implicit none
+    character(len=*) :: fname
+    character(len=512) :: atmp
+    integer :: iost
+    integer :: ich,ich2
+
+    open (newunit=ich,file=fname)
+    open (newunit=ich2,file='.setdgtmp')
+
+    do
+      read (ich,'(a)',iostat=iost) atmp
+      if (iost < 0) exit
+      if ((index(atmp,'$set') .ne. 0).or.  &
+      &  (index(atmp,'$end') .ne. 0)) then
+        write (ich2,'(a)') '$end'
+        exit
+      else
+        write (ich2,'(a)') trim(atmp)
+      end if
+    end do
+    close (ich,status='delete')
+    close (ich2)
+    call rename('.setdgtmp',fname)
+  end subroutine clear_setblock
+
+
+!========================================================================================!
+
+  subroutine rdarg(str,arg,val)
+!*************************************************************************
+!* read a string <str> and get the value <val> (returned as string, also)
+!* that was assignet to the argument <arg>
+!* Example:
+!* <str>= "reference=foo"
+!* <arg>= "reference="  --> <val> will return "foo"
+!*************************************************************************
+    implicit none
+    character(len=*) :: str
+    character(len=*) :: arg
+    character(len=*) :: val
+    character(len=512) :: tmp
+    integer :: io
+    val = ''
+    io = index(str,arg,.true.)
+    if (io .ne. 0) then
+      io = io+len(arg)
+      tmp = str(io:)
+      val = trim(tmp)
+    else
+      val = ''
+    end if
+    return
+  end subroutine rdarg
+
+!========================================================================================!
+
+  subroutine TRJappendto_skipfirst(from,to)
+!*********************************************************************************
+!* append content of test file "from" into text file "to", similar to "cat A >> B"
+!* but specifically for TRJ files, but leaves out the first structure on "from"
+!*********************************************************************************
+    implicit none
+    integer :: io,ich,och
+    integer :: nat,i
+    character(len=*) :: from
+    character(len=*) :: to
+    character(len=1024) :: str
+    open (newunit=ich,file=to)
+    open (newunit=och,file=from)
+    do
+      read (ich,*,iostat=io)
+      if (io < 0) then
+        backspace (ich)
+        exit
+      end if
+    end do
+    !---first structure is read, but not copied
+    read (och,'(a)',iostat=io) str
+    if (io == 0) then
+      read (str,*) nat
+      read (och,'(a)',iostat=io) str
+      do i = 1,nat
+        read (och,'(a)',iostat=io) str
+      end do
+    end if
+    !---------------------------
+    do
+      read (och,'(a)',iostat=io) str
+      if (io < 0) exit
+      write (ich,'(a)') trim(str)
+    end do
+    close (och)
+    close (ich)
+  end subroutine TRJappendto_skipfirst
+
+!===============================================================!
+
+  subroutine XYZappendto(from,to)
+!**********************************************************************************
+!* append content of test file "from" into text file "to", similar to "cat A >> B"
+!* but specifically for XYZ files
+!**********************************************************************************
+    implicit none
+    integer :: io
+    character(len=*) :: from
+    character(len=*) :: to
+    integer :: i,nat,tunit,funit
+    character(len=1024) :: str
+    open (newunit=tunit,file=to)
+    open (newunit=funit,file=from)
+    do
+      read (tunit,*,iostat=io)
+      if (io < 0) then
+        backspace (tunit)
+        exit
+      end if
+    end do
+    read (funit,*) nat
+    write (tunit,*) nat
+    do i = 1,nat+1
+      read (funit,'(a)',iostat=io) str
+      if (io < 0) exit
+      write (tunit,'(a)') trim(str)
+    end do
+    close (funit)
+    close (tunit)
+  end subroutine XYZappendto
 
 !========================================================================================!
 !========================================================================================!

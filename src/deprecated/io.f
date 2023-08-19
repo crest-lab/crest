@@ -380,30 +380,30 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 ! minigrep: a grep subroutine that returns true or false, depending on
 ! if the substring "str" is present in the file "fil"
 !-------------------------------------------------------------------------
-      subroutine gettime(fil,secs)
-      implicit none
-      real*8 :: secs
-      real*8 :: floats(10)
-      character(len=*) :: fil
-      character(len=512) :: tmp,tmp2
-      integer :: io,ich,n
-      secs=0.0d0
-      open(newunit=ich,file=fil)
-      do
-        read(ich,'(a)',iostat=io) tmp
-        if(io < 0)exit
-        if(index(tmp,'finished run on').ne.0)then
-          read(ich,'(a)') tmp
-          read(ich,'(a)') tmp
-          read(ich,'(a)') tmp
-          read(ich,'(a)') tmp
-          call rdarg(tmp,'time:',tmp2)
-          call readl(tmp2,floats,n)
-        endif
-      enddo
-      secs=secs+floats(2)*86400.0d0  !days to seconds      
-      secs=secs+floats(3)*3600.0d0   !hours to seconds
-      secs=secs+floats(4)*60.0d0     !minutes to seconds
-      secs=secs+floats(5)           
-      return
-      end subroutine gettime
+!      subroutine gettime(fil,secs)
+!      implicit none
+!      real*8 :: secs
+!      real*8 :: floats(10)
+!      character(len=*) :: fil
+!      character(len=512) :: tmp,tmp2
+!      integer :: io,ich,n
+!      secs=0.0d0
+!      open(newunit=ich,file=fil)
+!      do
+!        read(ich,'(a)',iostat=io) tmp
+!        if(io < 0)exit
+!        if(index(tmp,'finished run on').ne.0)then
+!          read(ich,'(a)') tmp
+!          read(ich,'(a)') tmp
+!          read(ich,'(a)') tmp
+!          read(ich,'(a)') tmp
+!          call rdarg(tmp,'time:',tmp2)
+!          call readl(tmp2,floats,n)
+!        endif
+!      enddo
+!      secs=secs+floats(2)*86400.0d0  !days to seconds      
+!      secs=secs+floats(3)*3600.0d0   !hours to seconds
+!      secs=secs+floats(4)*60.0d0     !minutes to seconds
+!      secs=secs+floats(5)           
+!      return
+!      end subroutine gettime

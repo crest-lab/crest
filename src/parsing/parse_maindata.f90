@@ -100,9 +100,12 @@ contains   !> MODULE PROCEDURES START HERE
       case ('ancopt','optimize')
         env%preopt = .false.
         env%crestver = crest_optimize
-      case ('ancopt_ensemble','optimize_ensemble')
+      case ('ancopt_ensemble','optimize_ensemble','mdopt')
         env%preopt = .false.
         env%crestver = crest_mdopt2
+      case ('screen_ensemble','screen')
+        env%preopt = .false.
+        env%crestver = crest_screen
       case ('md','mtd','metadynamics','dynamics')
         env%preopt = .false.
         env%crestver = crest_moldyn

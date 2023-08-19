@@ -18,6 +18,7 @@
 !================================================================================!
 
 subroutine fragmentize(nspin,maxsystem,maxmagnat,jab,neigh,ispinsyst,nspinsyst,nsystem)
+  use utilities
   implicit none
   !Dummy Arguments:
   integer,intent(in)  :: nspin
@@ -35,7 +36,6 @@ subroutine fragmentize(nspin,maxsystem,maxmagnat,jab,neigh,ispinsyst,nspinsyst,n
   integer:: ass
   integer:: k
   integer:: j
-  integer:: lin
   integer:: maxdistatoms(2)
   integer:: max_linkatoms(2)
   integer:: assigned_to_frag(nspin)

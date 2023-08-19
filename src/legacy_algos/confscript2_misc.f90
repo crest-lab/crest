@@ -23,6 +23,7 @@
 subroutine xtbsp_legacy(env,xtblevel)
   use crest_parameters
   use iomod
+  use utilities
   use crest_data
   implicit none
   type(systemdata) :: env
@@ -61,7 +62,7 @@ subroutine xtbsp_legacy(env,xtblevel)
 !---- new plain coord file
   fname = 'tmpcoord'
   call copy('coord',fname)
-  call clear_setblock(fname)
+
 !---- jobcall
   jobcall = ""
   jobcall = trim(jobcall)//trim(env%ProgName)
@@ -167,9 +168,8 @@ subroutine xtbopt_legacy(env)
   end if
 !---- new plain coord file
   fname = 'tmpcoord'
-  !call copy('coord',fname)
   call wrc0(fname,env%ref%nat,env%ref%at,env%ref%xyz)
-  call clear_setblock(fname)
+
 !---- coord setup section
   open (newunit=ich,file=fname)
   do
@@ -225,15 +225,16 @@ subroutine xtbopt_legacy(env)
   call remove('gfnff_topo')
 end subroutine xtbopt_legacy
 
-!--------------------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 ! A single METADYN run (resp. its setup)
-!--------------------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 subroutine MetaMD(env,nr,mdtime,fac,expo,dumplist)
   use iso_c_binding
   use crest_parameters
   use iomod
   use crest_data
   use strucrd,only:wrc0,rdensembleparam,rdensemble
+  use utilities
   implicit none
   type(systemdata) :: env
 
@@ -293,13 +294,14 @@ subroutine MetaMD(env,nr,mdtime,fac,expo,dumplist)
   end associate
 end subroutine MetaMD
 
-!--------------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 ! Run several METADYN in parallel, OMP VERSION!
-!--------------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
 subroutine MetaMD_para_OMP(env)
   use crest_parameters
   use iomod
   use crest_data
+  use utilities
   implicit none
 
   type(systemdata) :: env
@@ -398,6 +400,7 @@ subroutine MDopt_para(env,ensnam,multilev)
   use crest_data
   use iomod
   use strucrd,only:rdensembleparam,rdensemble,wrxyz
+  use utilities
   implicit none
   type(systemdata) :: env
   character(len=*),intent(in)  :: ensnam
@@ -550,6 +553,7 @@ subroutine multilevel_opt(env,modus)
   use crest_parameters
   use iomod
   use crest_data
+  use utilities
   implicit none
 
   type(systemdata) :: env
@@ -685,6 +689,7 @@ subroutine setMDrun2(fname,hmass,mdtime,mdtemp,mdstep,shake,mddumpxyz, &
  &                   mdskip,mddump,nvt,cts)
   use crest_parameters
   use crest_data
+  use utilities
   implicit none
   type(constra) :: cts
   character(len=*) :: fname
@@ -823,6 +828,7 @@ subroutine cross3(env)
   use crest_parameters
   use crest_data
   use iomod
+  use utilities
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
   real(wp) :: ewinbackup
@@ -937,6 +943,7 @@ end subroutine collect_trj
 !---------------------------------------------------------------------
 subroutine collect_trj_skipfirst(base,whichfile)
   use iomod
+  use utilities
   implicit none
   character(len=*) :: base,whichfile
   character(len=256) :: str,dir
@@ -964,6 +971,7 @@ subroutine append_INPUT_to(fnam,newtag)
   use iomod
   use crest_data
   use strucrd,only:coord2xyz
+  use utilities
   implicit none
   character(len=*)  :: fnam
   character(len=80) :: tmpnam,inam,onam
@@ -1017,6 +1025,7 @@ subroutine sort_and_check(env,filename)
   use crest_data
   use iomod
   use strucrd,only:rdensembleparam,rdensemble
+  use utilities
   implicit none
 
   type(systemdata) :: env
@@ -1059,10 +1068,9 @@ end subroutine sort_and_check
 subroutine collectcre(env)
   use iomod
   use crest_data
+  use utilities
   implicit none
-
   type(systemdata) :: env
-
   character(len=80) :: atmp,btmp
   character(len=80) :: crename
   integer :: i
@@ -1093,6 +1101,7 @@ subroutine elowcheck(lower,env)
   use iomod
   use crest_data
   use strucrd,only:xyz2coord
+  use utilities 
   implicit none
   type(systemdata) :: env
   real(wp) :: ediff,ethr,ewin
@@ -1146,15 +1155,15 @@ subroutine catchdiatomic(env)
   use iomod
   implicit none
   type(systemdata) :: env
-  type(coord) :: strc
+  type(coord) :: mol
   integer :: ich
   character(len=1024) :: jobcall
 
-  call strc%open('coord')
+  call mol%open('coord')
 
   open (file=conformerfile,newunit=ich)
-  strc%xyz = strc%xyz*bohr !to ang
-  call wrxyz(ich,strc%nat,strc%at,strc%xyz)
+  mol%xyz = mol%xyz*bohr !to ang
+  call wrxyz(ich,mol%nat,mol%at,mol%xyz)
   close (ich)
   !create the system call (it is the same for every optimization)
   write (jobcall,'(a,1x,a,1x,a,'' --opt '',a,1x,a,'' --ceasefiles  >xtb.out'')') &
@@ -1164,7 +1173,7 @@ subroutine catchdiatomic(env)
   call copy(conformerfile,'crest_rotamers.xyz')
   call copy(conformerfile,'crest_best.xyz')
 
-  call strc%deallocate
+  call mol%deallocate
   return
 end subroutine catchdiatomic
 
@@ -1176,6 +1185,7 @@ subroutine emtdcopy(env,iter,stopiter,broken)
   use crest_data
   use iomod
   use strucrd
+  use utilities 
   implicit none
   type(systemdata) :: env
   integer :: iter,iter2
@@ -1342,6 +1352,7 @@ subroutine emtdcheckempty(env,empty,nbias)
   use crest_data
   use strucrd
   use iomod
+  use utilities 
   implicit none
   type(systemdata) :: env
   logical :: empty

@@ -34,6 +34,7 @@ module crest_data
   public :: protobj
   public :: constra
   public :: optlevflag,optlevnum,optlevmap_alt
+  public :: optlev_to_multilev
 
   !> basename for the CRE files
   character(len=14),parameter,public :: crefile = 'crest_rotamers'
@@ -88,6 +89,7 @@ module crest_data
   integer,parameter,public :: p_protonate    = -3
   integer,parameter,public :: p_deprotonate  = -4
   integer,parameter,public :: p_tautomerize  = -5
+  integer,parameter,public :: p_zsort        = -6
   integer,parameter,public :: p_tautomerize2 = -555
   integer,parameter,public :: p_isomerize    = -92
   integer,parameter,public :: p_reactorset   = -312
@@ -343,6 +345,7 @@ module crest_data
     character(len=20)  :: lmover         !> GFN version for LMO computation in xtb_lmo subroutine
     character(len=512) :: ProgName       !> name of the xtb executable (+ path)
     character(len=512) :: ProgIFF        !> name of xtbiff for QCG-mode
+    character(len=512) :: homedir        !> original directory from which calculation was started
     character(len=512) :: scratchdir     !> path to the scratch directory
     character(len=:),allocatable :: inputcoords,inputcoords_solv,inputcoords_solu
     character(len=:),allocatable :: wbofile
@@ -488,7 +491,7 @@ module crest_data
     logical :: iru                   !> re-use previously found conformers as bias in iterative approach
     logical :: keepModef             !> keep MODEF* dirs in V1 ?
     logical :: keepScratch = .false. !> keep scratch directory or delete it?
-    logical :: legacy = .true.       !> switch between the original system call routines of crest and newer, e.g. tblite implementations
+    logical :: legacy = .false.       !> switch between the original system call routines of crest and newer, e.g. tblite implementations
     logical :: metadynset            !> is the number of MTDs already set (V2) ?
     logical :: methautocorr          !> try to automatically include Methyl equivalencies in CREGEN ?
     logical :: multilevelopt         !> perform the multileveloptimization
@@ -857,7 +860,7 @@ contains  !> MODULE PROCEDURES START HERE
       multilev(1) = .true.
     endif
     j = optlevmap_alt(optlev)
-    j = max(j-1, 1)
+    j = max(j-1, 1)  !> j is reduced by one
     if (optlev <= 2.0d0)then  !> "normal" to "vtight"
      multilev(:) = .false.
      multilev(1) = .true.

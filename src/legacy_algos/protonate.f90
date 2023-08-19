@@ -24,325 +24,320 @@
 !================================================================================!
 
 subroutine prothead
-      implicit none
-      write(*,*)'       __________________________________________'
-      write(*,*)'      |                                          |'
-      write(*,*)'      |       automated protonation script       |'
-      write(*,*)'      |__________________________________________|'
-      write(*,*)' Universitaet Bonn, MCTC'
-      write(*,*)' P.Pracht, Wed 28. Nov 13:11:52 CEST 2018'
-      write(*,*)
-      write(*,*)' Cite as:'
-      write(*,*)' P.Pracht, C.A.Bauer, S.Grimme'
-      write(*,*)' JCC, 2017, 38, 2618–2631.'
-      write(*,*)
+  implicit none
+  write (*,*) '       __________________________________________'
+  write (*,*) '      |                                          |'
+  write (*,*) '      |       automated protonation script       |'
+  write (*,*) '      |__________________________________________|'
+  write (*,*) ' Universitaet Bonn, MCTC'
+  write (*,*) ' P.Pracht, Wed 28. Nov 13:11:52 CEST 2018'
+  write (*,*)
+  write (*,*) ' Cite as:'
+  write (*,*) ' P.Pracht, C.A.Bauer, S.Grimme'
+  write (*,*) ' JCC, 2017, 38, 2618–2631.'
+  write (*,*)
 end subroutine prothead
-
 
 !--------------------------------------------------------------------------------------------
 ! Protonation workflow with GFNn-xTB
 !--------------------------------------------------------------------------------------------
 subroutine protonate(env,tim)
-      use crest_parameters
-      use crest_data
-      use iomod
-      use strucrd, only: coord2xyz
-      implicit none
-      type(systemdata) :: env
-      type(timer)      :: tim
-      type(protobj)    :: prot
+  use crest_parameters
+  use crest_data
+  use iomod
+  use strucrd,only:coord2xyz
+  use utilities
+  implicit none
+  type(systemdata) :: env
+  type(timer)      :: tim
+  type(protobj)    :: prot
 
-      character(len=32)  :: dirn
-      character(len=64)  :: protname
-      character(len=256) :: thispath
-      character(len=256) :: filename
-      character(len=128) :: inpnam,outnam
+  character(len=32)  :: dirn
+  character(len=64)  :: protname
+  character(len=256) :: thispath
+  character(len=256) :: filename
+  character(len=128) :: inpnam,outnam
 
-      integer :: ich
-      integer :: natp,nallout,refchrg
+  integer :: ich
+  integer :: natp,nallout,refchrg
 
-      logical :: ex
+  logical :: ex
 
 !--- printout & clean directory
-      call protclean
-      call prothead
+  call protclean
+  call prothead
 
-      if(.not.allocated(env%ptb%atmap))allocate(env%ptb%atmap(env%nat))
-      if(.not.env%ptb%strictPDT .and. .not.env%ptb%fixPDT)then
+  if (.not.allocated(env%ptb%atmap)) allocate (env%ptb%atmap(env%nat))
+  if (.not.env%ptb%strictPDT.and..not.env%ptb%fixPDT) then
 !--- sort the input file (H atoms to the bottom)
-        call htothebottom('coord',env%chrg,env%nat,env%ptb%atmap)
-      else
+    call htothebottom('coord',env%chrg,env%nat,env%ptb%atmap)
+  else
 !--- or sort AND apply heavy atom bond constraints
-         call PDT_constraints(env)
-      endif
+    call PDT_constraints(env)
+  end if
 
 !--- get some settings
-      call getcwd(thispath)
-      dirn='PROT'
-      protname='protonate_0.xyz'
-      prot=env%ptb
-      refchrg = env%chrg
-      prot%newchrg = env%chrg + 1  !increase chrg by one
-      natp=env%nat + 1 !additional proton, Nat is increased by one
-     
+  call getcwd(thispath)
+  dirn = 'PROT'
+  protname = 'protonate_0.xyz'
+  prot = env%ptb
+  refchrg = env%chrg
+  prot%newchrg = env%chrg+1  !increase chrg by one
+  natp = env%nat+1 !additional proton, Nat is increased by one
+
 !--- do the xTB calculation for the LMOs
-      call tim%start(1,'LMO calc.')
-      call xtblmo(env)   
-      call tim%stop(1)
-      inquire(file='coordprot.0',exist=ex)
-      if(.not.ex)then
-        write(*,*)
-        write(*,*) '***Warning***'
-        write(*,*) 'No "coordprot.0" file was written, it is possible that'
-        write(*,*) 'there are no suitable LP- or π-centers in the molecule.'     
-        write(*,*) 'Hence the procedure could not be automatized. (sorry)'
-        write(*,*) '***Warning***'
-        return
-      endif
+  call tim%start(1,'LMO calc.')
+  call xtblmo(env)
+  call tim%stop(1)
+  inquire (file='coordprot.0',exist=ex)
+  if (.not.ex) then
+    write (*,*)
+    write (*,*) '***Warning***'
+    write (*,*) 'No "coordprot.0" file was written, it is possible that'
+    write (*,*) 'there are no suitable LP- or π-centers in the molecule.'
+    write (*,*) 'Hence the procedure could not be automatized. (sorry)'
+    write (*,*) '***Warning***'
+    return
+  end if
 
 !--- get the new charge and set up the calculations
-     call tim%start(2,'multilevel OPT')
-     open(newunit=ich,file='.CHRG')
-     write(ich,*) prot%newchrg     !new charge written here
-     close(ich)
-     write(*,*)
-     write(*,'(''-----------------------'')')
-     write(*,'(''Multilevel Optimization'')')
-     write(*,'(''-----------------------'')')
+  call tim%start(2,'multilevel OPT')
+  open (newunit=ich,file='.CHRG')
+  write (ich,*) prot%newchrg     !new charge written here
+  close (ich)
+  write (*,*)
+  write (*,'(''-----------------------'')')
+  write (*,'(''Multilevel Optimization'')')
+  write (*,'(''-----------------------'')')
 
-     call coord2xyz('coordprot.0',trim(protname))
-     call appendto('xtbscreen.xyz',protname)
-     env%nat=natp
+  call coord2xyz('coordprot.0',trim(protname))
+  call appendto('xtbscreen.xyz',protname)
+  env%nat = natp
 
-     !write(*,*) 'switching stuff:'
-     !write(*,*) prot%swelem
-     !write(*,*) prot%swat
-     !write(*,*) prot%swchrg
-     if(prot%swelem)then
-       call swelem(protname,env)
-     endif
-     env%chrg = prot%newchrg !!all optimizations access env%chrg!!!
+  !write(*,*) 'switching stuff:'
+  !write(*,*) prot%swelem
+  !write(*,*) prot%swat
+  !write(*,*) prot%swchrg
+  if (prot%swelem) then
+    call swelem(protname,env)
+  end if
+  env%chrg = prot%newchrg !!all optimizations access env%chrg!!!
 
-     call smallhead('1. crude pre-optimization')
-     call checkname_xyz('protonate',inpnam,outnam)
-     call MDopt_para(env,protname,1)
-        filename=trim(thispath)//'/'//trim(outnam)
-        call rename('OPTIM'//'/'//'opt.xyz',trim(filename))
-        call rmrf('OPTIM')
-        !write(*,*) trim(filename)
-        !call copy(trim(filename),'ensemble-test.xyz')
-        if(prot%ABcorrection)then
-            call prot_correction(env,trim(filename))
-        endif
-        prot%ewin=prot%ewin*3.0d0
-        call sort_ens(prot,outnam,.false.)
-        call remaining_in(outnam,prot%ewin,nallout) !--- remaining number of structures
-        !call prot_correction(env,trim(outnam))
-        write(*,*)
+  call smallhead('1. crude pre-optimization')
+  call checkname_xyz('protonate',inpnam,outnam)
+  call MDopt_para(env,protname,1)
+  filename = trim(thispath)//'/'//trim(outnam)
+  call rename('OPTIM'//'/'//'opt.xyz',trim(filename))
+  call rmrf('OPTIM')
+  !write(*,*) trim(filename)
+  !call copy(trim(filename),'ensemble-test.xyz')
+  if (prot%ABcorrection) then
+    call prot_correction(env,trim(filename))
+  end if
+  prot%ewin = prot%ewin*3.0d0
+  call sort_ens(prot,outnam,.false.)
+  call remaining_in(outnam,prot%ewin,nallout) !--- remaining number of structures
+  !call prot_correction(env,trim(outnam))
+  write (*,*)
 
-     call smallhead('2. loose optimization')
-     call checkname_xyz('protonate',inpnam,outnam)
-     call MDopt_para(env,inpnam,2)
-        filename=trim(thispath)//'/'//trim(outnam)
-        call rename('OPTIM'//'/'//'opt.xyz',trim(filename))
-        call rmrf('OPTIM')
-        if(prot%ABcorrection)then
-            call prot_correction(env,trim(filename))
-        endif
-        prot%ewin=prot%ewin*(2.0d0/3.0d0)
-        call sort_ens(prot,outnam,.false.)
-        call remaining_in(outnam,prot%ewin,nallout) !--- remaining number of structures
-        write(*,*)
+  call smallhead('2. loose optimization')
+  call checkname_xyz('protonate',inpnam,outnam)
+  call MDopt_para(env,inpnam,2)
+  filename = trim(thispath)//'/'//trim(outnam)
+  call rename('OPTIM'//'/'//'opt.xyz',trim(filename))
+  call rmrf('OPTIM')
+  if (prot%ABcorrection) then
+    call prot_correction(env,trim(filename))
+  end if
+  prot%ewin = prot%ewin*(2.0d0/3.0d0)
+  call sort_ens(prot,outnam,.false.)
+  call remaining_in(outnam,prot%ewin,nallout) !--- remaining number of structures
+  write (*,*)
 
-     call smallhead('3. optimization with user-defined thresholds')
-     call checkname_xyz('protonate',inpnam,outnam)
-     call MDopt_para(env,inpnam,0)
-        filename=trim(thispath)//'/'//trim(outnam)
-        call rename('OPTIM'//'/'//'opt.xyz',trim(filename))
-        call rmrf('OPTIM')
-        if(prot%ABcorrection)then
-            call prot_correction(env,trim(filename))
-        endif
-        prot%ewin=prot%ewin/2.0d0
-        call sort_ens(prot,outnam,.false.)
-        call remaining_in(outnam,prot%ewin,nallout) !--- remaining number of structures
+  call smallhead('3. optimization with user-defined thresholds')
+  call checkname_xyz('protonate',inpnam,outnam)
+  call MDopt_para(env,inpnam,0)
+  filename = trim(thispath)//'/'//trim(outnam)
+  call rename('OPTIM'//'/'//'opt.xyz',trim(filename))
+  call rmrf('OPTIM')
+  if (prot%ABcorrection) then
+    call prot_correction(env,trim(filename))
+  end if
+  prot%ewin = prot%ewin/2.0d0
+  call sort_ens(prot,outnam,.false.)
+  call remaining_in(outnam,prot%ewin,nallout) !--- remaining number of structures
 
-
-     !call rename(outnam,'protonated.xyz')
-     call cosort(outnam,'protonated.xyz',.false.,.false.)
-     call sort_ens(prot,'protonated.xyz',.true.)
-     call tim%stop(2)
-
-
+  !call rename(outnam,'protonated.xyz')
+  call cosort(outnam,'protonated.xyz',.false.,.false.)
+  call sort_ens(prot,'protonated.xyz',.true.)
+  call tim%stop(2)
 
 !>--- (optional) post-processing
-     if(env%relax)then
-       env%rednat = env%rednat +1
-       call relaxensemble('protonated.xyz',env,tim)
-     endif
-     
-     if(env%outputsdf)then
-     call new_wrsdfens(env,'protonated.xyz','protonated.sdf',.true.)
-     endif  
+  if (env%relax) then
+    env%rednat = env%rednat+1
+    call relaxensemble('protonated.xyz',env,tim)
+  end if
 
+  if (env%outputsdf) then
+    call new_wrsdfens(env,'protonated.xyz','protonated.sdf',.true.)
+  end if
 
 !--- reset data for main dir
-     env%chrg = refchrg
-     if(env%chrg .eq. 0) then
-       call remove('.CHRG')
-     else
-       open(newunit=ich,file='.CHRG')
-       write(ich,*) env%chrg
-       close(ich)
-     endif
-     env%nat=natp - 1 !reset nat
+  env%chrg = refchrg
+  if (env%chrg .eq. 0) then
+    call remove('.CHRG')
+  else
+    open (newunit=ich,file='.CHRG')
+    write (ich,*) env%chrg
+    close (ich)
+  end if
+  env%nat = natp-1 !reset nat
 end subroutine protonate
 
 !--------------------------------------------------------------------------------------------
 ! A quick single point xtb calculation and calculate LMOs
 !--------------------------------------------------------------------------------------------
 subroutine xtblmo(env)
-         use crest_parameters
-         use iomod
-         use crest_data
-         implicit none
-         type(systemdata) :: env
-         character(len=80) :: fname
-         character(len=512) :: jobcall
-         integer :: io
-         character(len=*),parameter :: pipe = ' > xtb.out 2>/dev/null'
+  use crest_parameters
+  use iomod
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  character(len=80) :: fname
+  character(len=512) :: jobcall
+  integer :: io
+  character(len=*),parameter :: pipe = ' > xtb.out 2>/dev/null'
 
 !---- setting threads
-         if(env%autothreads)then
-            call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
-         endif
+  if (env%autothreads) then
+    call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
+  end if
 !---- new plain coord file
-         fname='tmpcoord'
-         call copy('coord',fname)
-         call clear_setblock(fname)
+  fname = 'tmpcoord'
+  call copy('coord',fname)
 !---- jobcall
-         write(*,*)
-         write(*,'('' LMO calculation ... '')',advance='no')
-         write(jobcall,'(a,1x,a,1x,a,'' --sp --lmo'',1x,a)') &
-         &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv)
-         jobcall = trim(jobcall)//trim(pipe)
-         call command(trim(jobcall), io)
-         write(*,'(''done.'')')
+  write (*,*)
+  write (*,'('' LMO calculation ... '')',advance='no')
+  write (jobcall,'(a,1x,a,1x,a,'' --sp --lmo'',1x,a)') &
+  &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv)
+  jobcall = trim(jobcall)//trim(pipe)
+  call command(trim(jobcall),io)
+  write (*,'(''done.'')')
 
 !---- cleanup
-         call remove(fname)
-         call remove('xtb.out')
-         call remove('energy')
-         call remove('charges')
-         call remove('xtbrestart')
+  call remove(fname)
+  call remove('xtb.out')
+  call remove('energy')
+  call remove('charges')
+  call remove('xtbrestart')
 end subroutine xtblmo
 
 !--------------------------------------------------------------------------------------------
 ! swithc the added proton to a nother element
 !--------------------------------------------------------------------------------------------
 subroutine swelem(iname,env)
-         use crest_parameters 
-         use iomod
-         use crest_data
-         use strucrd, only: rdensembleparam,rdensemble,wrxyz
-         implicit none
-         type(systemdata) :: env
-         type(protobj) :: prot
-         character(len=*) :: iname
+  use crest_parameters
+  use iomod
+  use crest_data
+  use strucrd,only:rdensembleparam,rdensemble,wrxyz
+  implicit none
+  type(systemdata) :: env
+  type(protobj) :: prot
+  character(len=*) :: iname
 
-         integer :: i,ich
-         integer :: nat,nall
-         integer :: nchrg
-         real(wp),allocatable :: xyz(:,:,:)
-         real(wp),allocatable :: eread(:)
-         integer,allocatable  :: at(:)
+  integer :: i,ich
+  integer :: nat,nall
+  integer :: nchrg
+  real(wp),allocatable :: xyz(:,:,:)
+  real(wp),allocatable :: eread(:)
+  integer,allocatable  :: at(:)
 
-         prot=env%ptb
-         nchrg=env%chrg + prot%swchrg
-         prot%newchrg=nchrg
+  prot = env%ptb
+  nchrg = env%chrg+prot%swchrg
+  prot%newchrg = nchrg
 
-         call rdensembleparam(iname,nat,nall)
-         allocate(xyz(3,nat,nall),eread(nall),at(nat))
-         call rdensemble(iname,nat,nall,at,xyz,eread)
+  call rdensembleparam(iname,nat,nall)
+  allocate (xyz(3,nat,nall),eread(nall),at(nat))
+  call rdensemble(iname,nat,nall,at,xyz,eread)
 
-         !---- write updated .CHRG file
-         open(newunit=ich,file='.CHRG')
-         write(ich,'(i6)')  nchrg    !new charge written here
-         close(ich)
-         call remove(iname)
+  !---- write updated .CHRG file
+  open (newunit=ich,file='.CHRG')
+  write (ich,'(i6)') nchrg    !new charge written here
+  close (ich)
+  call remove(iname)
 
-         open(newunit=ich,file=iname)
-         at(nat)=prot%swat
-         do i=1,nall
-            call wrxyz(ich,nat,at,xyz(:,:,i))
-         enddo
-         close(ich)
-         deallocate(at,eread,xyz)
+  open (newunit=ich,file=iname)
+  at(nat) = prot%swat
+  do i = 1,nall
+    call wrxyz(ich,nat,at,xyz(:,:,i))
+  end do
+  close (ich)
+  deallocate (at,eread,xyz)
 
-         env%ptb=prot
-         return
+  env%ptb = prot
+  return
 end subroutine swelem
 
 subroutine swparse(iname,prot)
-         use crest_parameters
-         use iomod
-         use crest_data
-         use strucrd, only: i2e,e2i
-         implicit none
-         type(protobj) :: prot
-         character(len=*) :: iname
+  use crest_parameters
+  use iomod
+  use crest_data
+  use strucrd,only:i2e,e2i
+  implicit none
+  type(protobj) :: prot
+  character(len=*) :: iname
 
-         integer :: i,slen
-         character(len=1) :: sig
-         character(len=10) :: el
-         character(len=10) :: numbers
-         character(len=10) :: elchrg
-         character(len=2)  :: chrg
-         character(len=1)  :: chrg2
+  integer :: i,slen
+  character(len=1) :: sig
+  character(len=10) :: el
+  character(len=10) :: numbers
+  character(len=10) :: elchrg
+  character(len=2)  :: chrg
+  character(len=1)  :: chrg2
 
-         numbers='0123456789'
-         chrg='+-'
-         elchrg=''
-         chrg2=''
-         el=''
+  numbers = '0123456789'
+  chrg = '+-'
+  elchrg = ''
+  chrg2 = ''
+  el = ''
 
-         !write(*,*)iname         
+  !write(*,*)iname
 
-         slen=len_trim(iname)
-         do i=1,slen
-            sig=iname(i:i)
-            !write(*,*) sig
-            if(sig=='')cycle
-            if(index(numbers,sig).ne.0)then
-              elchrg=trim(elchrg)//sig
-            elseif(index(chrg,sig).ne.0)then
-              chrg2=sig
-            else
-            el=trim(el)//sig            
-            !write(*,*) el
-            endif
-         enddo
+  slen = len_trim(iname)
+  do i = 1,slen
+    sig = iname(i:i)
+    !write(*,*) sig
+    if (sig == '') cycle
+    if (index(numbers,sig) .ne. 0) then
+      elchrg = trim(elchrg)//sig
+    elseif (index(chrg,sig) .ne. 0) then
+      chrg2 = sig
+    else
+      el = trim(el)//sig
+      !write(*,*) el
+    end if
+  end do
 
-         prot%swat = e2i(el)
+  prot%swat = e2i(el)
 
-         if(elchrg.ne.'')then
-           read(elchrg,*) prot%swchrg
-         elseif(chrg2=='+')then
-           prot%swchrg = 1
-         elseif(chrg2=='-')then
-           prot%swchrg = -1
-         else
-           prot%swchrg = 0
-         endif
-         if(chrg2=='-'.and.prot%swchrg.gt.0) prot%swchrg = prot%swchrg * (-1)
+  if (elchrg .ne. '') then
+    read (elchrg,*) prot%swchrg
+  elseif (chrg2 == '+') then
+    prot%swchrg = 1
+  elseif (chrg2 == '-') then
+    prot%swchrg = -1
+  else
+    prot%swchrg = 0
+  end if
+  if (chrg2 == '-'.and.prot%swchrg .gt. 0) prot%swchrg = prot%swchrg*(-1)
 
-         if(prot%swat.ne.0.and.prot%swat.le.86)then
-         write(*,'(2x,a,1x,a,1x,a,a,1x,i0,a)') '-swel :','using',trim(i2e(prot%swat,'nc')), &
-         & '-atom with charge',prot%swchrg,' instead of H⁺'
+  if (prot%swat .ne. 0.and.prot%swat .le. 86) then
+    write (*,'(2x,a,1x,a,1x,a,a,1x,i0,a)') '-swel :','using',trim(i2e(prot%swat,'nc')), &
+    & '-atom with charge',prot%swchrg,' instead of H⁺'
 
-         prot%swelem=.true.
+    prot%swelem = .true.
 
-         endif
+  end if
 
 end subroutine swparse
 
@@ -351,37 +346,36 @@ end subroutine swparse
 ! to the acid/base reaction
 !----------------------------------------------------!
 subroutine prot_correction(env,iname)
-    use crest_parameters
-    use crest_data
-    use strucrd
-    implicit none
-    type(systemdata) :: env
-    character(len=*) :: iname
-    integer :: nat,nall
-    integer,allocatable :: at(:)
-    real(wp),allocatable :: xyz(:,:,:)
-    real(wp),allocatable :: eread(:)
-    integer :: i
-    real(wp) :: dE
-    real(wp) :: acidchrg
-    real(wp) :: d1,d2,d3,d4,d5,d6
+  use crest_parameters
+  use crest_data
+  use strucrd
+  implicit none
+  type(systemdata) :: env
+  character(len=*) :: iname
+  integer :: nat,nall
+  integer,allocatable :: at(:)
+  real(wp),allocatable :: xyz(:,:,:)
+  real(wp),allocatable :: eread(:)
+  integer :: i
+  real(wp) :: dE
+  real(wp) :: acidchrg
+  real(wp) :: d1,d2,d3,d4,d5,d6
 
+  write (*,'(1x,a)') 'Calculate acid/base correction ...'
+  call rdensembleparam(iname,nat,nall)
+  allocate (xyz(3,nat,nall),eread(nall),at(nat))
+  call rdensemble(iname,nat,nall,at,xyz,eread)
 
-    write(*,'(1x,a)') 'Calculate acid/base correction ...'
-    call rdensembleparam(iname,nat,nall)
-    allocate(xyz(3,nat,nall),eread(nall),at(nat))
-    call rdensemble(iname,nat,nall,at,xyz,eread)
+  acidchrg = env%chrg+1
+  do i = 1,nall
+    call wrxyz('acid.xyz',nat,at,xyz(:,:,i))
+    call acidbase(env,'acid.xyz','coord',acidchrg,.true.,.false.,dE, &
+        & .false.,d1,d2,d3,d4,d5,d6)
+    !eread(i) = eread(i) - dE
+    eread(i) = d1+d3-dE
+  end do
 
-    acidchrg = env%chrg + 1
-    do i=1,nall
-     call wrxyz('acid.xyz',nat,at,xyz(:,:,i))
-     call acidbase(env,'acid.xyz','coord',acidchrg,.true.,.false.,dE, &
-         & .false.,d1,d2,d3,d4,d5,d6)
-     !eread(i) = eread(i) - dE
-     eread(i) = d1+d3-dE
-    enddo
+  call wrensemble(iname,nat,nall,at,xyz,eread)
 
-    call wrensemble(iname,nat,nall,at,xyz,eread)
-
-    return
+  return
 end subroutine prot_correction

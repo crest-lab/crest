@@ -798,7 +798,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    use iomod
    use zdata
    use strucrd
-
+   use utilities
    implicit none
 
    type(systemdata)           :: env

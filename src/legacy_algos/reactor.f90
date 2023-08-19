@@ -576,6 +576,7 @@ End subroutine swap_pair
 subroutine reactorneighbours(nat,at,xyz,bond,ndim,ngh)
     use crest_parameters, only: wp, sp
     use miscdata, only: rcov
+    use utilities
     implicit none
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
@@ -586,7 +587,7 @@ subroutine reactorneighbours(nat,at,xyz,bond,ndim,ngh)
 
     real(wp),allocatable :: cn(:)
     integer :: i,j,k,l
-    integer :: icn,lin
+    integer :: icn
     real(wp) :: rcn,rcn2
 
     ngh=0 !reset

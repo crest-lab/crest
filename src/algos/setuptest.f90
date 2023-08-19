@@ -320,6 +320,7 @@ subroutine trialOPT_warning(env,mol,success)
   use crest_parameters
   use crest_data
   use strucrd
+  use utilities
   implicit none
   type(systemdata),intent(inout) :: env
   type(coord),intent(in) :: mol  !> optimized geometry to be checked

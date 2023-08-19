@@ -268,6 +268,7 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
   use crest_parameters
   use crest_data
   use iomod
+  use utilities
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
   character(len=*) :: fname
@@ -668,6 +669,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
   use crest_data
   use strucrd
   use miscdata, only: rcov
+  use utilities
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
   integer,intent(in) :: ch ! printout channel
@@ -830,7 +832,7 @@ contains
     integer,intent(out) :: ncc
     real(wp) :: dist
     integer :: l
-    integer :: ci,cj,lin
+    integer :: ci,cj
     real(wp),parameter :: distcc = 1.384_wp
     ncc = 0
     do ci = 1,nat
@@ -867,7 +869,7 @@ contains
     integer,intent(out) :: ezat(4,ncc)
     real(wp) :: dist
     integer :: i,j,k,l
-    integer :: ci,cj,lin
+    integer :: ci,cj
     real(wp),parameter :: distcc = 1.384_wp
     if (ncc < 1) return
     k = 0
@@ -1040,6 +1042,7 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
   use strucrd
   use ls_rmsd
   use axis_module
+  use utilities
   implicit none
   type(systemdata) :: env
   integer,intent(in) :: ch
@@ -1073,7 +1076,6 @@ subroutine cregen_CRE(ch,env,nat,nall,at,xyz,comments,nallout,group)
   real(wp) :: rdum,dr,rdum2
   real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:),ydum(:) !dummy tensors
   integer(id) :: klong
-  integer(id) :: linr  !this is a function
   integer(id),allocatable :: rmap1(:)
   integer,allocatable :: rmap2(:)
   logical :: l1,l2,l3
@@ -1485,6 +1487,7 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
   use strucrd
   use ls_rmsd
   use axis_module
+  use utilities
   implicit none
   type(systemdata) :: env
   integer,intent(in) :: ch
@@ -1516,7 +1519,6 @@ subroutine cregen_CRE_2(ch,env,nat,nall,at,xyz,comments,nallout,group)
   real(wp) :: rdum,dr,rdum2
   real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:),ydum(:) !> dummy tensors
   integer(id) :: klong
-  integer(id) :: lina  !> this is a function
   integer(id),allocatable :: rmap1(:)
   integer,allocatable :: rmap2(:)
   logical :: l1,l2,l3
@@ -1795,6 +1797,7 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
   use crest_data
   use strucrd
   use miscdata, only: rcov
+  use utilities
   implicit none
   integer,intent(in) :: ch
   integer,intent(in) :: nat
@@ -1807,7 +1810,6 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
   real(wp),allocatable :: cdum(:,:)
   integer :: ng,n
   integer :: i,j,k,l
-  integer :: lin
   logical :: ex
 
   !--- arrays and variable for the analysis
@@ -1887,7 +1889,7 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
 !-- (costly) symmetry analyis of all rotamers for NMR. this is complicated stuff also
 !   and the end of the program where this is completed...
   do i = 1,nall
-    call distance(n,xyz(1,1,i),dist(1,1,i))   ! distance matrix
+    call distance(n,xyz(:,:,i),dist(:,:,i))   ! distance matrix
     do j = 1,n
       do k = 1,n
         tmp2(k) = dist(k,j,i) * dble(at(k))  ! the distance of j to all atoms * Z to distinguish
@@ -2118,7 +2120,7 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
       write (112) nr
       do ir = 1,nr
         irr = glist(ir,ig)
-        call distance(n,xyz(1,1,irr),sd)   ! distance matrix
+        call distance(n,xyz(:,:,irr),sd)   ! distance matrix
         cdum(1:3,1:n) = xyz(1:3,1:n,irr)
         call ncoord(n,rcov,at,cdum,cn,500.0d0)
         do i = 1,n - 1
@@ -2153,6 +2155,7 @@ end subroutine cregen_EQUAL
 !-- util to fill nmract array
 subroutine cregen_nmract(ch,nmract)
   use crest_parameters
+  use utilities
   implicit none
   integer :: nmract(86)
   character(len=:),allocatable :: atmp
@@ -2206,6 +2209,7 @@ subroutine cregen_repairorder(nat,nall,xyz,comments,group)
   use crest_parameters, id => dp 
   use crest_data
   use strucrd
+  use utilities
   implicit none
   integer,intent(in) :: nat
   integer,intent(in) :: nall
@@ -2223,23 +2227,6 @@ subroutine cregen_repairorder(nat,nall,xyz,comments,group)
 
   !-- check if timetag info is present?
   ttag = .false.
-  !if(env%entropic)then
-  !  call getorigin(comments(1),atmp)
-  !  if(atmp(1:1)=='t') then
-  !   ttag=.true.
-  !   allocate(timetag(nall))
-  !   do i=1,nall
-  !     call getorigin(comments(i),atmp)
-  !     if(atmp(1:1)=='t')then !should work only with timetag flag
-  !      atmp=atmp(2:) !cut the "t"
-  !      read(atmp,*)timetag(i)
-  !     else
-  !      timetag(i)=1
-  !     endif
-  !   enddo
-  !   tmax=maxval(timetag,1)
-  !  endif
-  !endif
 
   ng = group(0)
   allocate (order(nall),orderref(nall))
@@ -2381,6 +2368,7 @@ subroutine cregen_file_wr(env,fname,nat,nall,at,xyz,comments)
   use crest_parameters, only: wp
   use crest_data
   use strucrd
+  use utilities,only: boltz
   implicit none
   type(systemdata) :: env
   character(len=*) :: fname
@@ -2434,6 +2422,7 @@ subroutine cregen_conffile(env,cname,nat,nall,at,xyz,comments,ng,degen)
   use crest_data
   use strucrd
   use iomod
+  use utilities
   implicit none
   type(systemdata) :: env
   character(len=*) :: cname
@@ -2677,6 +2666,7 @@ subroutine cregen_pr2(ch,env,nall,comments,ng,degen,er)
   use crest_data
   use strucrd
   use iomod,only:touch
+  use utilities, only: boltz
   implicit none
   integer :: ch
   type(systemdata) :: env

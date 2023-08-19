@@ -65,7 +65,7 @@ subroutine crest_refine(env,input,output)
   DO_REFINE: if (allocated(env%refine_queue)) then
 !===========================================================!
 
-    call smallhead('esemble refinement')
+    call smallhead('ensemble refinement')
 
     nrefine = size(env%refine_queue,1)
 

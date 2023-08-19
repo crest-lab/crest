@@ -25,12 +25,13 @@
 subroutine cregen2(env)
       use iso_fortran_env, only : wp => real64, sp => real32, idp => int64
       use crest_data
-      use crest_parameters, only: bohr
+      use crest_parameters, only: bohr,autokcal
       use ls_rmsd
       use iomod
       use strucrd, only: rdnat,rdcoord,wrc0,i2e,e2i
       use axis_module
       use miscdata, only: rcov
+      use utilities
    !$ use omp_lib
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
@@ -53,7 +54,7 @@ subroutine cregen2(env)
       character(len=40),allocatable :: origin(:),originnew(:)
       integer,allocatable :: timetag(:)
 
-      real(wp) :: autokcal,beta,eav,A,T,rthr,s,g
+      real(wp) :: beta,eav,A,T,rthr,s,g
       real(wp) :: ss,ethr,de,dr,bthr
       real(wp) :: elow,ewin,pthr,eref,athr,r
       real(wp) :: dum
@@ -61,16 +62,12 @@ subroutine cregen2(env)
       !real*8 :: gdum(3,3),Udum(3,3),xdum(3), ydum(3)  ! rmsd dummy stuff
       real(wp), external :: rotdiff,shortest_distance
 
-      parameter (autokcal=627.509541d0)
-
       integer :: i,j,k,l,m,nall,n,ig,ng,nall2
       integer :: m1,m2,s1,s2,maxg,current,ndoub
       integer :: molcount0,j1,iat,k2,m1end
       integer :: kk,memb,irr,ir,nr,jj,nall_old
       integer :: TID, nproc
       integer :: ich,ich2,io,ich3,rednat
-      integer, external :: lin
-      integer*8, external :: lina,linr
       integer(idp) :: klong
       integer(idp),allocatable :: rmatmap1(:)
       integer,allocatable :: rmatmap2(:),includeRMSD(:)
@@ -786,7 +783,7 @@ subroutine cregen2(env)
       if(anal)then
       allocate(dist(n,n,nall))
       do i=1,nall
-         call distance(n,xyz(1,1,i),dist(1,1,i))   ! distance matrix
+         call distance(n,xyz(:,:,i),dist(:,:,i))   ! distance matrix
          do j=1,n
             do k=1,n
                tmp2(k)=dist(k,j,i)*dble(at(k))  ! the distance of j to all atoms * Z to distinguish
@@ -1194,7 +1191,7 @@ subroutine cregen2(env)
       write(112) nr         
       do ir=1,nr
          irr=glist(ir,ig)
-         call distance(n,xyz(1,1,irr),sd)   ! distance matrix
+         call distance(n,xyz(:,:,irr),sd)   ! distance matrix
          c1(1:3,1:n)=xyz(1:3,1:n,irr)
          call ncoord(n,rcov,at,c1,cn,500.0d0)
          do i=1,n-1

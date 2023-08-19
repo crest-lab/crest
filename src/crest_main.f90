@@ -103,24 +103,6 @@ program CREST
     end if
   end if
 
-!>--- call zsort subroutine?
-  if (env%autozsort) then
-    write (*,'(''-------------------------'')')
-    write (*,'(''Starting z-matrix sorting'')')
-    write (*,'(''-------------------------'')')
-    call zsort
-    if (env%onlyZsort) then
-      write (*,*)
-      write (*,*) 'The z-matrix of the input coord file has been sorted.'
-      write (*,*) 'The sorted file in the TM format is called "zcoord"'
-      write (*,*)
-      write (*,*) 'exit.'
-      stop
-    end if
-    call rename('zcoord','coord')
-    call rmrf('*.zmat')
-  end if
-
 !=========================================================================================!
 !>        PRE-CONFSEARCH PROPERTY CALCS
 !=========================================================================================!
@@ -150,6 +132,16 @@ program CREST
     end if
     call tim%stop(1)
     call propquit(tim)
+!>--- zsort routine
+  case(p_zsort) 
+    call zsort
+    write (*,*)
+    write (*,*) 'The z-matrix of the input coord file has been sorted.'
+    write (*,*) 'The sorted file in TM format is called "zcoord"'
+    write (*,*)
+    write (*,*) 'exit.'
+    call propquit(tim)
+
 !>--- only ensemble comparison
   case (p_compare)
     call compare_ensembles(env)     
@@ -248,42 +240,58 @@ program CREST
   select case (env%crestver)
   case (crest_mfmdgc)           !> MF-MD-GC algo (deprecated)
     call confscript1(env,tim)
+
   case (crest_imtd,crest_imtd2) !> MTD-GC algo
     call confscript2i(env,tim)
-  case (crest_mdopt)
+
+  case (crest_mdopt, crest_mdopt2)
     call mdopt(env,tim)        !> MDOPT
+
   case (crest_screen)
     call screen(env,tim)       !> SCREEN
+
   case (crest_nano)
     call reactor(env,tim)      !> NANO-REACTOR
+
   case (crest_compr)
     call compress(env,tim)     !> MTD COMPRESS mode
+
   case (crest_msreac)
     call msreact_handler(env,tim) !> MSREACT sub-program
+
   case (crest_pka)
     call pkaquick(env,tim)
+
   case (crest_solv)             !> microsolvation tools
     call crest_solvtool(env,tim)
+
   case (crest_sp)
     call crest_singlepoint(env,tim)
+
   case (crest_optimize)
     call crest_optimization(env,tim)
-  case (crest_mdopt2)
-    call crest_ensemble_optimization(env,tim)
+
   case (crest_moldyn)
     call crest_moleculardynamics(env,tim)
+
   case (crest_s1)
     call crest_search_1(env,tim)
+
   case (crest_mecp)
     call crest_search_mecp(env,tim)
+
   case (crest_numhessian)
     call crest_numhess(env,tim)
+
   case (crest_scanning)
     call crest_scan(env,tim)
+
   case (crest_rigcon) !> rule-based conformer generation
     call crest_rigidconf(env,tim)
+
   case (crest_test)
     call crest_playground(env,tim)
+
   case default
     continue
   end select

@@ -32,9 +32,10 @@ module turbom_sc
   implicit none
   !>--- private module variables and parameters
   private
-  integer,parameter :: nf = 3
-  character(len=*),parameter :: xtbfiles(nf) = [&
-          & 'charges    ','xtbinp.grad','xtbrestart ']
+  integer,parameter :: nf = 6
+  character(len=*),parameter :: oldfiles(nf) = [&
+          & 'energy','ceh.charges','output','.data', &
+          & 'NOT_CONVERGED','gp3restart' ]
   character(len=*),parameter :: ridft = 'ridft' !> Turbomoles 'ridft'
   character(len=*),parameter :: xyzn = 'coord'  !> input coords must be in coord
   character(len=*),parameter :: ef = 'energy'   !> energy will be read from file energy
@@ -119,7 +120,7 @@ contains  !>--- Module routines start here
     end if
     !>--- cleanup old files
     do i = 1,nf
-      call remove(trim(cpath)//sep//trim(xtbfiles(i)))
+      call remove(trim(cpath)//sep//trim(oldfiles(i)))
     end do
     deallocate (cpath)
 

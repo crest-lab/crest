@@ -50,6 +50,7 @@ subroutine propcalc(iname,imode,env,tim)
   use crest_data
   use iomod
   use strucrd,only:rdensembleparam,rdensemble,wrxyz
+  use utilities, only: boltz2
   implicit none
 
   type(systemdata) :: env
@@ -558,6 +559,7 @@ subroutine etotprop(TMPCONF,pop,pr)
   use iso_fortran_env,wp => real64
   use crest_data
   use iomod
+  use utilities, only: boltz2
   implicit none
   integer,intent(in) :: TMPCONF
   real(wp),intent(inout) :: pop(TMPCONF)
@@ -662,6 +664,7 @@ subroutine wrpropens_pop(env,TMPCONF,n,xyz,at,eread,pthr)
   use crest_data
   use iomod
   use strucrd,only:wrxyz
+  use utilities, only: boltz2
   implicit none
 
   type(systemdata) :: env
@@ -715,6 +718,7 @@ subroutine autoir(TMPCONF,imode,env)
   use iso_fortran_env,wp => real64
   use crest_data
   use iomod
+  use utilities, only: boltz2
   implicit none
 
   type(systemdata) :: env

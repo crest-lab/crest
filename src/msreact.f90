@@ -91,6 +91,7 @@ subroutine msreact(mso,mol,nat,pair,nbonds)
       use msmod
       use iomod
       use miscdata, only: rcov
+      use utilities, only: lin
       implicit none
 
       type(msobj) :: mso    !main storage object
@@ -100,7 +101,6 @@ subroutine msreact(mso,mol,nat,pair,nbonds)
       integer :: pair(nat*(nat+1)/2)
       !integer :: paths(nat*(nat+1)/2,nat)
       integer :: nbonds
-      integer :: lin !this is a function
       integer :: i,j,k
       integer :: p
       integer :: np
@@ -246,6 +246,7 @@ subroutine msreact_topowrap(mol,pair,paths,wboname)
     use msmod
     use zdata
     use adjacency
+    use utilities, only: lin
     implicit none
     type(msmol) :: mol
     integer :: pair(mol%nat*(mol%nat+1)/2)
@@ -260,7 +261,6 @@ subroutine msreact_topowrap(mol,pair,paths,wboname)
     real(wp),allocatable :: dist(:,:)
 
     integer :: lpath,i,j,k
-    integer :: lin !this is a function
     integer,allocatable :: path(:)
     logical :: ex
 

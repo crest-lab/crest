@@ -21,6 +21,7 @@ subroutine trialMD_legacy(env)
   use crest_data
   use ls_rmsd
   use iomod
+  use utilities
   implicit none
 
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
@@ -45,7 +46,7 @@ subroutine trialMD_legacy(env)
 !>--- some settings
   if (env%autothreads) then
     !> use maximum number of threads for the xtb   job, with a maximum of 8
-    call ompautoset(env%threads,8,env%omp,env%MAXRUN,8) 
+    call ompautoset(env%threads,8,env%omp,env%MAXRUN,8)
   end if
 
   call getcwd(thispath)
@@ -148,6 +149,37 @@ subroutine trialMD_legacy(env)
 !=========================================================================================!
 contains
 !=========================================================================================!
+  subroutine gettime(fil,secs)
+!*********************************
+!* Obtain runtime from xtb output
+!*********************************
+    implicit none
+    real(wp) :: secs
+    real(wp) :: floats(10)
+    character(len=*) :: fil
+    character(len=512) :: tmp,tmp2
+    integer :: io,ich,n
+    secs = 0.0d0
+    open (newunit=ich,file=fil)
+    do
+      read (ich,'(a)',iostat=io) tmp
+      if (io < 0) exit
+      if (index(tmp,'finished run on') .ne. 0) then
+        read (ich,'(a)') tmp
+        read (ich,'(a)') tmp
+        read (ich,'(a)') tmp
+        read (ich,'(a)') tmp
+        call rdarg(tmp,'time:',tmp2)
+        call readl(tmp2,floats,n)
+      end if
+    end do
+    secs = secs+floats(2)*86400.0d0  !days to seconds
+    secs = secs+floats(3)*3600.0d0   !hours to seconds
+    secs = secs+floats(4)*60.0d0     !minutes to seconds
+    secs = secs+floats(5)
+    return
+  end subroutine gettime
+
   subroutine timeestimate(rtime,mdtime,nmetadyn,threads)
 !******************************************
 !* calaculate and print the time estimate

@@ -42,6 +42,7 @@ subroutine deprotonate(env,tim)
       use crest_data
       use iomod
       use strucrd, only: rdnat,rdcoord,i2e
+      use utilities
       implicit none
       type(systemdata) :: env
       type(timer)      :: tim

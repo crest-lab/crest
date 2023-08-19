@@ -40,6 +40,7 @@ subroutine parseflags(env,arg,nra)
   use crest_data
   use crest_calculator
   use iomod
+  use utilities
   use strucrd
   use dynamics_module
   use optimize_module
@@ -83,7 +84,7 @@ subroutine parseflags(env,arg,nra)
 
     write (*,'(/,1x,a)') 'Command line input:'
     call get_command(cmd)
-    write (*,'(1x,a,a,/)') '> ',trim(cmd)
+    write (*,'(1x,a,a,/)') '$ ',trim(cmd)
   end if
 
 !=========================================================================================!
@@ -120,6 +121,7 @@ subroutine parseflags(env,arg,nra)
   env%threadssetmanual = .false. !> did the user set the #threads manually?
 
   env%scratch = .false.          !> use scratch directory?
+  call getcwd(env%homedir)       !> original directory
   env%scratchdir = ''            !> directory that shall be used for scratch
 
 !>--- xtb settings
@@ -2109,6 +2111,11 @@ subroutine parseflags(env,arg,nra)
   if (env%sdfformat) then
     env%autozsort = .false.
   end if
+  
+!>--- 2023/08/19 moved zsort to a standalone property tool
+  if(env%autozsort)then
+    env%properties = p_zsort
+  endif 
 
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
@@ -2139,6 +2146,7 @@ subroutine parseRC2(env,bondconst)
   use iso_fortran_env,wp => real64
   use crest_data
   use iomod
+  use utilities
   implicit none
 
   type(systemdata),intent(inout) :: env

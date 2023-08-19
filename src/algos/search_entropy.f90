@@ -31,6 +31,7 @@ subroutine crest_search_entropy(env,tim)
   use dynamics_module
   use shake_module
   use iomod
+  use utilities
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -130,7 +131,7 @@ subroutine crest_search_entropy(env,tim)
 !==========================================================!
 !>--- Reoptimization of trajectories
       call tim%start(3,'Geometry optimization')
-      multilevel = (/.true.,.false.,.false.,.false.,.true.,.false./)
+      call optlev_to_multilev(env%optlev,multilevel)
       call crest_multilevel_oloop(env,ensnam,multilevel)
       call tim%stop(3)
 
@@ -278,6 +279,7 @@ subroutine crest_smtd_mds(env,ensnam)
   use crest_calculator
   use strucrd
   use iomod
+  use utilities
   use dynamics_module
   implicit none
   type(systemdata),intent(inout) :: env
@@ -392,6 +394,7 @@ subroutine crest_init_multimd_smtd(env,mddats,nsim,biasfile)
   use strucrd
   use dynamics_module
   use iomod,only:makedir,directory_exist,remove
+  use utilities 
 !$ use omp_lib
   implicit none
   type(systemdata),intent(inout) :: env

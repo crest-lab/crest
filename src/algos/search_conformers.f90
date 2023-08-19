@@ -32,6 +32,7 @@ subroutine crest_search_imtdgc(env,tim)
   use dynamics_module
   use shake_module
   use iomod
+  use utilities
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -123,7 +124,7 @@ subroutine crest_search_imtdgc(env,tim)
 !==========================================================!
 !>--- Reoptimization of trajectories
     call tim%start(3,'Geometry optimization')
-    multilevel = (/.true.,.false.,.false.,.false.,.true.,.false./)
+    call optlev_to_multilev(env%optlev,multilevel)
     call crest_multilevel_oloop(env,ensnam,multilevel)
     call tim%stop(3)
 
@@ -185,9 +186,6 @@ subroutine crest_search_imtdgc(env,tim)
     ensnam = 'crest_dynamics.trj'
     call appendto(ensnam,trim(atmp))
     call tim%start(3,'Geometry optimization')
-    !multilevel = .false.
-    !multilevel(5) = .true.
-    !call crest_multilevel_oloop(env,trim(atmp),multilevel)
     call crest_multilevel_wrap(env,trim(atmp),-1)
     call tim%stop(3)
 
@@ -293,6 +291,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
   use crest_calculator
   use strucrd
   use optimize_module
+  use utilities
   implicit none
   type(systemdata) :: env 
   character(len=*),intent(in) :: ensnam
@@ -553,6 +552,7 @@ subroutine crest_newcross3(env)
   use crest_parameters
   use crest_data
   use iomod
+  use utilities
   implicit none
   type(systemdata) :: env  
   real(wp) :: ewinbackup
@@ -588,8 +588,7 @@ subroutine crest_newcross3(env)
 
 !>-- optimize ensemble
     if (env%gcmultiopt) then !>-- optionally split into two steps
-      multilevel(3) = .true.
-      multilevel(5) = .true.
+      call optlev_to_multilev(env%optlev,multilevel)
     else
       multilevel(4) = .true.
     end if

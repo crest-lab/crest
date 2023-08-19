@@ -36,13 +36,13 @@ subroutine zsort
 
       logical ex
 
-!      write(*,*)
-!      write(*,'(7x,''========================================'')')
-!      write(*,'(7x,''|             Z S O R T                |'')')
-!      write(*,'(7x,''|JS, Universitaet Bonn, MCTC, 05/2017  |'')')
-!      write(*,'(7x,''========================================'')')
-!      write(*,*)'input on file coord, Z matrix on file zmatrix'
-!      write(*,*)'sorted coord on file zcoord'
+      write(*,*)
+      write(*,'(7x,''========================================'')')
+      write(*,'(7x,''|             Z S O R T                |'')')
+      write(*,'(7x,''|JS, Universitaet Bonn, MCTC, 05/2017  |'')')
+      write(*,'(7x,''========================================'')')
+      write(*,*)'input on file coord, Z matrix on file zmatrix'
+      write(*,*)'sorted coord on file zcoord'
 
   allocate (xx(10))
 

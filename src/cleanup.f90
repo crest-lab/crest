@@ -105,6 +105,7 @@ end subroutine cleanMTD
 !------------------------------------------------------------------------
 subroutine V2terminating
   use iomod
+  use utilities
   use crest_data
   implicit none
   character(len=256) :: inpnam,outnam

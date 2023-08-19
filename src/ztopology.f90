@@ -325,6 +325,7 @@ end subroutine xcoord2
 !===================================================!
 subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
   use iso_fortran_env,only:wp => real64
+  use utilities
   integer,intent(in)  :: nat
   integer,intent(in) :: at(nat)
   real(wp),intent(inout) :: bond(nat,nat)
@@ -335,7 +336,6 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
   logical,intent(inout) :: neighbourmat(nat,nat)
   integer :: i,j,k,l
   integer :: icn,rcn
-  integer :: lin
   allocate (cn2(nat),source=0.0_wp)
   topo = 0
   neighbourmat = .false.
@@ -394,6 +394,7 @@ end subroutine bondtotopo
 
 subroutine bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighbourmat,excl)
   use iso_fortran_env,only:wp => real64
+  use utilities
   integer,intent(in)  :: nat
   integer,intent(in) :: at(nat)
   real(wp),intent(inout) :: bond(nat,nat)
@@ -405,7 +406,6 @@ subroutine bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighbourmat,excl)
   logical,intent(in) :: excl(nat)
   integer :: i,j,k,l
   integer :: icn,rcn
-  integer :: lin
   allocate (cn2(nat),source=0.0_wp)
   topo = 0
   neighbourmat = .false.
@@ -488,6 +488,7 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec)
   use iso_fortran_env,only:wp => real64
   use zdata
   use strucrd,only:i2e
+  use utilities
   implicit none
   type(zmolecule) :: zmol
   integer,intent(in)  :: nat
@@ -496,7 +497,6 @@ subroutine neighbourset(zmol,nat,at,xyz,cn,ntopo,topovec)
   real(wp),intent(in) :: cn(nat)
   integer,intent(in)     :: ntopo
   integer,intent(in) :: topovec(ntopo)
-  integer :: lin
   integer :: i,j,k,l
   integer :: inei
 

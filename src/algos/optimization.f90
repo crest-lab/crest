@@ -226,8 +226,103 @@ subroutine crest_ensemble_optimization(env,tim)
   call crest_oloop(env,nat,nall,at,xyz,eread,.true.)
 
   deallocate (eread,at,xyz)
+
+  write(stdout,'(/,a,a,a)') 'Optimized ensemble written to <',ensemblefile,'>'
 !========================================================================================!
   call tim%stop(14)
   return
 end subroutine crest_ensemble_optimization
+
+!========================================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!========================================================================================!
+subroutine crest_ensemble_screening(env,tim)
+!****************************************************
+!* subroutine crest_ensemble_screening
+!* This routine implements a standalone runtype
+!* to perform geometry optimizations along an
+!* ensemble in a multilevel step and sort in between
+!****************************************************
+  use crest_parameters,only:wp,stdout,bohr
+  use crest_data
+  use crest_calculator
+  use strucrd
+  use optimize_module
+  use iomod 
+  implicit none
+  type(systemdata),intent(inout) :: env
+  type(timer),intent(inout)      :: tim
+  type(coord) :: mol,molnew
+  integer :: i,j,k,l,io,ich,c
+  logical :: pr,wr,ex
+!========================================================================================!
+  type(calcdata) :: calc
+
+  real(wp) :: energy,gnorm
+  real(wp),allocatable :: grad(:,:)
+
+  character(len=:),allocatable :: ensnam
+  integer :: nat,nall
+  real(wp),allocatable :: eread(:)
+  real(wp),allocatable :: xyz(:,:,:)
+  integer,allocatable  :: at(:)
+  character(len=80) :: atmp
+  real(wp) :: percent
+  character(len=52) :: bar
+  logical :: multilevel(6)
+!========================================================================================!
+  write (*,*)
+!>--- check for the ensemble file
+  inquire (file=env%ensemblename,exist=ex)
+  if (ex) then
+    ensnam = env%ensemblename
+  else
+    write (stdout,*) 'no ensemble file provided.'
+    return
+  end if
+
+!>--- start the timer
+  call tim%start(14,'Ensemble screening')
+
+!>---- read the input ensemble
+  call rdensembleparam(ensnam,nat,nall)
+  if (nall .lt. 1) return
+
+!>--- set OMP parallelization
+  if (env%autothreads) then
+    !>--- usually, one thread per xtb job
+    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
+  end if
+
+!========================================================================================!
+  !>--- printout header
+  write (stdout,*)
+  write (stdout,'(10x,"┍",48("━"),"┑")')
+  write (stdout,'(10x,"│",15x,a,15x,"│")') "ENSEMBLE SCREENING"
+  write (stdout,'(10x,"┕",48("━"),"┙")')
+  write (stdout,*)
+  write (stdout,'(1x,''Multilevel optimization and structure screening.'')')
+  write (stdout,*)
+  write (stdout,'(1x,a,a)') 'Input file: ','<'//trim(ensnam)//'>'
+  write (stdout,'(1x,a,i0,a)') 'Containing ',nall,' structures.'
+
+  !>--- call the loop
+  call rmrfw('crest_rotamers_')
+  call optlev_to_multilev(3.0d0,multilevel)
+  call crest_multilevel_oloop(env,ensnam,multilevel)
+ 
+!---- printout
+  call catdel('cregen.out.tmp')
+  write (stdout,'(/,1x,a,1x,a)') 'Final ensemble on file','<'//trim(ensemblefile)//'>'
+
+  call rename(conformerfile,trim(ensemblefile))
+
+!---- clean up
+  call screen_cleanup
+
+
+!========================================================================================!
+  call tim%stop(14)
+  return
+end subroutine crest_ensemble_screening
 
