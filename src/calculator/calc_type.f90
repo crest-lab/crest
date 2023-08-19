@@ -66,12 +66,13 @@ module calc_type
   public :: calculation_settings
   type :: calculation_settings
 
-    integer :: id = 0        !> calculation type (see "jobtype" parameter above)
+    integer :: id = 0         !> calculation type (see "jobtype" parameter above)
     integer :: prch = stdout  !> printout channel
+    logical :: pr = .false.   !> allow the calculation to produce printout? Results in a lot I/O
     integer :: refine_lvl = 0 !> to allow defining different refinement levels
 
-    integer :: chrg = 0       !> molecular charge
-    integer :: uhf = 0        !> uhf parameter (xtb) or multiplicity (other)
+    integer :: chrg = 0          !> molecular charge
+    integer :: uhf = 0           !> uhf parameter (xtb) or multiplicity (other)
     real(wp) :: weight = 1.0_wp  !> calculation weight (when adding them up)
 
     character(len=:),allocatable :: calcspace  !> subdirectory to perform the calculation in
@@ -79,9 +80,9 @@ module calc_type
     character(len=:),allocatable :: gradfile
     character(len=:),allocatable :: path
     character(len=:),allocatable :: other
-    character(len=:),allocatable :: binary     !> binary or generic script
-    character(len=:),allocatable :: systemcall !> systemcall for running generic scripts
-    character(len=:),allocatable :: description
+    character(len=:),allocatable :: binary      !> binary or generic script
+    character(len=:),allocatable :: systemcall  !> systemcall for running generic scripts
+    character(len=:),allocatable :: description !> see above jobdescription parameter
 
 !>--- gradient format specifications
     logical :: rdgrad = .true.
@@ -122,6 +123,8 @@ module calc_type
     type(tblite_resultstype),allocatable :: tbres
     type(wavefunction_type),allocatable  :: wfn_backup
 
+    type(tblite_data),allocatable :: tblite
+
     !> GFN0-xTB data
     type(gfn0_data),allocatable          :: g0calc
     integer :: nconfig = 0
@@ -130,6 +133,7 @@ module calc_type
 
     !> GFN-FF data
     type(gfnff_data),allocatable :: ff_dat
+
     !> XHCFF data
     integer :: ngrid = 230             !>  lebedev grid points per atom
     real(wp) :: extpressure = 0.0_wp   !>  hydorstatic pressure in Gpa
@@ -142,6 +146,7 @@ module calc_type
     procedure :: deallocate => calculation_settings_deallocate
     procedure :: addconfig => calculation_settings_addconfig
     procedure :: autocomplete => calculation_settings_autocomplete
+    procedure :: printid => calculation_settings_printid
     procedure :: info => calculation_settings_info
     procedure :: create => create_calclevel_shortcut
   end type calculation_settings
@@ -193,6 +198,7 @@ module calc_type
     logical  :: average_conv = .false.
     logical  :: tsopt = .false.
     integer  :: iupdat = 0  !> 0=BFGS, 1=Powell, 2=SR1, 3=Bofill, 4=Schlegel
+    integer  :: opt_engine = 0 !> default: ANCOPT
 
 !>--- GFN0* data, needed for special MECP application
     type(gfn0_data),allocatable  :: g0calc
@@ -535,7 +541,24 @@ contains  !>--- Module routines start here
       write (nmbr,'(i0)') id
       self%calcspace = 'calculation.level.'//trim(nmbr)
     end if
+
+    if(self%pr)then
+       self%prch = self%prch + id
+    endif
   end subroutine calculation_settings_autocomplete
+
+!>-- generate a unique print id for the calculation
+  subroutine calculation_settings_printid(self,thread,id)
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in)  :: thread,id
+    integer :: i,j,dum
+    character(len=50) :: nmbr
+    dum = 100*(thread+1)
+    dum = dum+id 
+    self%prch = dum
+  end subroutine calculation_settings_printid
+
 
 !=========================================================================================!
   subroutine calculation_settings_info(self,iunit)
@@ -565,8 +588,11 @@ contains  !>--- Module routines start here
     end if
     if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &
     &  jobtype%generic,jobtype%terachem/) == self%id)) then
-      write (iunit,'(2x,a,a)') 'selected binary : ',trim(self%binary)
+      write (iunit,'(3x,a,a)') 'selected binary : ',trim(self%binary)
     end if
+    if( self%refine_lvl > 0)then
+      write(iunit,fmt1) 'refinement stage',self%refine_lvl
+    endif
 
     !> system data
     write (atmp,*) 'Molecular charge'
@@ -603,7 +629,9 @@ contains  !>--- Module routines start here
     if (self%rddip) write (iunit,fmt3) atmp,'yes'
 
   end subroutine calculation_settings_info
+
 !========================================================================================!
+
   subroutine calculation_info(self,iunit)
     implicit none
     class(calcdata) :: self

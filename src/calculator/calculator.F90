@@ -138,6 +138,7 @@ contains  !> MODULE PROCEDURES START HERE
 !==========================================================!
     !>--- Calculation
     if (n > 0) then
+      if(calc%id > 0 .and. calc%id > n) error stop 'Invalid calculator setup'
 
       !==================================================================================!
       !>--- loop over all calculations to be done
@@ -146,6 +147,10 @@ contains  !> MODULE PROCEDURES START HERE
         !> skip through calculations we do not want 
         if(calc%calcs(i)%refine_lvl /= calc%refine_stage) cycle
 
+        !> also skip through if only one level was requested
+        if(calc%id > 0 .and. i.ne.calc%id) cycle
+
+        !> select the calculation type
         select case (calc%calcs(i)%id)
         case (jobtype%xtbsys)  !>-- xtb system call
           call xtb_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
@@ -182,7 +187,6 @@ contains  !> MODULE PROCEDURES START HERE
           call lj_engrad(mol%nat,mol%xyz,dum1,dum2,calc%etmp(i),calc%grdtmp(:,:,i))
 
         case default
-          !write (*,*) 'Nothing selected for energy and gradient calculation.'
           calc%etmp(i) = 0.0_wp
           calc%grdtmp(:,:,i) = 0.0_wp
         end select
@@ -192,7 +196,7 @@ contains  !> MODULE PROCEDURES START HERE
       end do
 
       !==================================================================================!
-      !>--- switch case for what to to with the energies
+      !>--- switch case for what-to-do with the energies
       select case (calc%id)
       case( 0 ) !> the DEFAULT
       !>--- an option to add multiple energies and gradients accodring to weights

@@ -352,7 +352,8 @@ contains !> MODULE PROCEDURES START HERE
     case ('refresh')
       job%apiclean = val
     case ('print')
-      if (val) job%prch = 999  !> the actual ID will be overwritten automatically
+      job%pr = val
+      if (val) job%prch = 999  !> the actual ID will be generated automatically
     end select
     return
   end subroutine parse_setting_bool

@@ -97,35 +97,38 @@ contains    !> MODULE PROCEDURES START HERE
 
 !=========================================================================================!
 
-  subroutine api_handle_output(calc,fname,mol)
+  subroutine api_handle_output(calc,fname,mol,pr)
     implicit none
     type(calculation_settings),intent(inout) :: calc
     character(len=*),intent(in) :: fname
-    type(coord) :: mol
+    type(coord),intent(inout) :: mol
+    logical,intent(out) :: pr
     character(len=:),allocatable :: cpath
-    logical :: ex,pr
+    logical :: ex
     integer :: io
 
-    pr = .false.
-    inquire (unit=calc%prch,opened=ex)
-    if ((calc%prch .ne. stdout).and.ex) then
-      close (calc%prch)
-    end if
-    if (allocated(calc%calcspace)) then
-      ex = directory_exist(calc%calcspace)
-      if (.not.ex) then
-        io = makedir(trim(calc%calcspace))
+    pr = calc%pr
+    if(pr)then
+      inquire (unit=calc%prch,opened=ex)
+      if ((calc%prch .ne. stdout).and.ex) then
+       close (calc%prch)
       end if
-      cpath = calc%calcspace//sep//fname
-    else
-      cpath = fname
-    end if
-    if ((calc%prch .ne. stdout)) then
-      open (newunit=calc%prch,file=cpath)
-      pr = .true.
-    end if
-    deallocate (cpath)
-    call api_print_input_structure(pr,calc%prch,mol)
+      if (allocated(calc%calcspace)) then
+        ex = directory_exist(calc%calcspace)
+        if (.not.ex) then
+          io = makedir(trim(calc%calcspace))
+        end if
+        cpath = calc%calcspace//sep//fname
+      else
+        cpath = fname
+      end if
+      if ((calc%prch .ne. stdout)) then
+        !> NOTE: this requires a predifined print channel!
+        open (unit=calc%prch,file=cpath)
+      end if
+      deallocate (cpath)
+      call api_print_input_structure(pr,calc%prch,mol)
+    endif
 
   end subroutine api_handle_output
 

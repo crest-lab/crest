@@ -355,7 +355,7 @@ subroutine trialOPT_warning(env,mol,success)
     if (tchange) then
       write (stdout,*)
       write (stdout,'(1x,a)') '*WARNING* Change in topology detected!'
-      write (stdout,'(1x,a)') 'Atoms in which a topology change compared to the input was detected:'
+      write (stdout,'(1x,a)') 'Topology change compared to the input affects atoms:'
       do i = 1,mol%nat
         if (changed(i)) then
           write (stdout,'(1x,i0,"(",a,")")',advance='no') i,trim(i2e(mol%at(i),'nc'))

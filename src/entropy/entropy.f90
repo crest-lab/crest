@@ -354,7 +354,7 @@ subroutine newentropyextrapol(env)
   call calcSrrhoav(env,'crest_conformers.xyz')
   if (env%nreset > 0) then
     write (*,*)
-    write (*,'(1x,a)') 'Attention:'
+    write (*,'(1x,a)') '**WARNING**'
     write (*,'(1x,a,a)') 'The algorithm has found a better global ', &
     & 'minimum structure and restarted at least once.'
     write (*,'(1x,a)') 'The associated restart can strongly affect the δSrrho values.'

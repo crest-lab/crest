@@ -53,6 +53,7 @@ module tblite_api
   end type tblite_calculator
   type :: tblite_ctx
     integer :: unit = stdout
+    integer :: verbosity = 0
   end type tblite_ctx
   type :: tblite_resultstype
     integer :: id = 0
@@ -175,6 +176,7 @@ contains  !>--- Module routines start here
     type(solvation_input),allocatable :: solv_inp
     type(solvent_data) :: solv_data
     character(len=:),allocatable :: str
+    logical :: pr
 
     real(wp) :: etemp_au,energy
 
@@ -182,42 +184,44 @@ contains  !>--- Module routines start here
       return
     end if
 
+    pr = (ctx%verbosity > 0)
+
     !>--- make an mctcmol object from mol
     call tblite_mol2mol(mol,chrg,uhf,mctcmol)
 
-    call ctx%message("tblite> setting up tblite implicit solvation")
+    if(pr) call ctx%message("tblite> setting up tblite implicit solvation")
     !>--- generat solvation parametrization
     solv_data = get_solvent_data(solvent)
     if (solv_data%eps <= 0.0_wp) then
-      call ctx%message("tblite> Unknown solvent!")
+      if(pr) call ctx%message("tblite> Unknown solvent!")
       return
     end if
     allocate (solv_inp)
     select case (trim(smodel))
     case ('gbsa')
-      call ctx%message("tblite> using GBSA/"//solvent)
+      if(pr) call ctx%message("tblite> using GBSA/"//solvent)
       allocate (solv_inp%alpb)
       solv_inp%alpb = alpb_input(solv_data%eps,alpb=.false.)
     case ('cpcm')
-      call ctx%message("tblite> using CPCM/"//solvent)
+      if(pr) call ctx%message("tblite> using CPCM/"//solvent)
       allocate (solv_inp%cpcm)
       solv_inp%cpcm = cpcm_input(solv_data%eps)
     case ('alpb')
-      call ctx%message("tblite> using ALPB/"//solvent)
+      if(pr) call ctx%message("tblite> using ALPB/"//solvent)
       allocate (solv_inp%alpb)
       solv_inp%alpb = alpb_input(solv_data%eps,alpb=.true.)
     case default
-      call ctx%message("tblite> Unknown tblite implicit solvation model!")
+      if(pr) call ctx%message("tblite> Unknown tblite implicit solvation model!")
       return
     end select
     str = 'tblite> WARNING: implicit solvation energies are not entirely '// &
     &'consistent with the xtb implementation.'
-    call ctx%message(str)
+    if(pr) call ctx%message(str)
 
 !>--- add to calculator
     call new_solvation(solv,mctcmol,solv_inp,error)
     if (allocated(error)) then
-      call ctx%message("tblite> failed to set up tblite implicit solvation!")
+      if(pr) call ctx%message("tblite> failed to set up tblite implicit solvation!")
       return
     end if
     call move_alloc(solv,cont)
@@ -251,10 +255,12 @@ contains  !>--- Module routines start here
     type(structure_type) :: mctcmol
     type(error_type),allocatable :: error
     real(wp) :: sigma(3,3)
+    logical :: pr
 
     iostatus = 0
     energy = 0.0_wp
     gradient(:,:) = 0.0_wp
+    pr = (ctx%verbosity > 0)
 
     !>--- make an mctcmol object from mol
     call tblite_mol2mol(mol,chrg,uhf,mctcmol)
@@ -265,7 +271,7 @@ contains  !>--- Module routines start here
 
     if (ctx%failed()) then
       ! Tear down the error stack to send the actual error messages back
-      call ctx%message("tblite> Singlepoint calculation failed")
+      if(pr) call ctx%message("tblite> Singlepoint calculation failed")
       iostatus = 1
     end if
 

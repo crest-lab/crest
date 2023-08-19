@@ -79,7 +79,7 @@ subroutine crest_search_imtdgc(env,tim)
 
   if (env%performMTD) then
 !>--- (optional) calculate a short 1ps test MTD to check settings
-   call tim%start(1,'trial metadynamics (MTD)')
+   call tim%start(1,'Trial metadynamics (MTD)')
    call trialmd(env)  
    call tim%stop(1)
   end if
@@ -292,6 +292,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
   use crest_data
   use crest_calculator
   use strucrd
+  use optimize_module
   implicit none
   type(systemdata) :: env 
   character(len=*),intent(in) :: ensnam
@@ -447,6 +448,8 @@ contains
      env%rthr        = 0.125_wp
      env%calc%optlev = 0
     end select
+
+    call print_opt_data(env%calc, stdout)
 
   end subroutine set_multilevel_options
 end subroutine crest_multilevel_oloop

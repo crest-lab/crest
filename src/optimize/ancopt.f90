@@ -60,6 +60,7 @@ module ancopt_module
     module procedure new_convergence_log
   end interface convergence_log
 
+  public :: get_optthr
   public :: ancopt
 contains
 !========================================================================================!

@@ -77,6 +77,7 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
       end if
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+      call calculations(i)%calcs(j)%printid(i,j)
     end do
     calculations(i)%pr_energies = .false.
     allocate (mols(i)%at(nat),mols(i)%xyz(3,nat))
@@ -227,6 +228,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
       end if
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+      call calculations(i)%calcs(j)%printid(i,j)
     end do
     calculations(i)%pr_energies = .false.
     allocate (mols(i)%at(nat),mols(i)%xyz(3,nat))
@@ -474,6 +476,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
       end if
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+      call calculations(i)%calcs(j)%printid(i,j)
     end do
     calculations(i)%pr_energies = .false.
     !>--- initialize the calculations
@@ -753,6 +756,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
       end if
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+      call calculations(i)%calcs(j)%printid(i,j)
     end do
     calculations(i)%pr_energies = .false.
   end do
@@ -863,30 +867,30 @@ subroutine parallel_md_block_printout(MD,vz)
     end if
   end if
   il = (44-len_trim(atmp))/2
-  write (stdout,'(a,1x,a,1x,a)') repeat(':',il),trim(atmp),repeat(':',il)
+  write (stdout,'(2x,a,1x,a,1x,a)') repeat(':',il),trim(atmp),repeat(':',il)
 
-  write (stdout,'("|   MD simulation time   :",f8.1," ps       |")') MD%length_ps
-  write (stdout,'("|   target T             :",f8.1," K        |")') MD%tsoll
-  write (stdout,'("|   timestep dt          :",f8.1," fs       |")') MD%tstep
-  write (stdout,'("|   dump interval(trj)   :",f8.1," fs       |")') MD%dumpstep
+  write (stdout,'(2x,"|   MD simulation time   :",f8.1," ps       |")') MD%length_ps
+  write (stdout,'(2x,"|   target T             :",f8.1," K        |")') MD%tsoll
+  write (stdout,'(2x,"|   timestep dt          :",f8.1," fs       |")') MD%tstep
+  write (stdout,'(2x,"|   dump interval(trj)   :",f8.1," fs       |")') MD%dumpstep
   if (MD%shake.and.MD%shk%shake_mode > 0) then
     if (MD%shk%shake_mode == 2) then
-      write (stdout,'("|   SHAKE algorithm      :",a5," (all bonds) |")') to_str(MD%shake)
+      write (stdout,'(2x,"|   SHAKE algorithm      :",a5," (all bonds) |")') to_str(MD%shake)
     else
-      write (stdout,'("|   SHAKE algorithm      :",a5," (H only) |")') to_str(MD%shake)
+      write (stdout,'(2x,"|   SHAKE algorithm      :",a5," (H only) |")') to_str(MD%shake)
     end if
   end if
   if (MD%simtype == type_mtd) then
     if (MD%cvtype(1) == cv_rmsd) then
-      write (stdout,'("|   dump interval(Vbias) :",f8.2," ps       |")') &
+      write (stdout,'(2x,"|   dump interval(Vbias) :",f8.2," ps       |")') &
           & MD%mtd(1)%cvdump_fs/1000.0_wp
     end if
-    write (stdout,'("|   Vbias prefactor (k)  :",f8.4," Eh       |")') &
+    write (stdout,'(2x,"|   Vbias prefactor (k)  :",f8.4," Eh       |")') &
       &  MD%mtd(1)%kpush
     if (MD%cvtype(1) == cv_rmsd.or.MD%cvtype(1) == cv_rmsd_static) then
-      write (stdout,'("|   Vbias exponent (α)   :",f8.4," bohr⁻²   |")') MD%mtd(1)%alpha
+      write (stdout,'(2x,"|   Vbias exponent (α)   :",f8.4," bohr⁻²   |")') MD%mtd(1)%alpha
     else
-      write (stdout,'("|   Vbias exponent (α)   :",f8.4,"          |")') MD%mtd(1)%alpha
+      write (stdout,'(2x,"|   Vbias exponent (α)   :",f8.4,"          |")') MD%mtd(1)%alpha
     end if
   end if
 
