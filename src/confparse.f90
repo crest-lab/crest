@@ -1138,7 +1138,7 @@ subroutine parseflags(env,arg,nra)
 
       case('-refine','-rsp','-ropt') !> add one refinement step (via cmd only one is possible)
         env%legacy = .false. !> new calculators only!
-        if(nra <= i+1)then
+        if(nra >= i+1)then
           env%gfnver2 = trim(arg(i+1))
           write (*,'(2x,a,1x,a,a)') argument,trim(env%gfnver2), &
           & ' : adding refinement step (singlepoint on optimized structures)'

@@ -372,6 +372,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
          stop
        endif
 
+       write(stdout,*)
      !==========================================================!
      !>-- dedicated ensemble refinement step (overwrites inpnam)
       call  crest_refine(env,trim(inpnam))

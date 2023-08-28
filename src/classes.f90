@@ -194,7 +194,7 @@ module crest_data
     logical :: rdCFER = .false.
     character(len=:),allocatable :: cferfile
 
-    integer :: divers = 1    !number of structures red from given ensemble for extended taut. mode
+    integer :: divers = 1    !number of structures read from given ensemble for extended taut. mode
     logical :: alldivers = .false.  !use all structures of given ensemble for extended taut mode
     logical,allocatable :: blacklist(:) !a blacklist of atoms to disallow deprotonation from
   end type protobj

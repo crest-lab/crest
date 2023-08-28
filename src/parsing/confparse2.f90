@@ -82,7 +82,7 @@ subroutine parseinputfile(env,fname)
     call parse_main_auto(env,kv)
   end do
 
-!>--- parse all objects that write to env
+!>--- parse all objects that write to env or global data
   do i = 1,dict%nblk
     blk = dict%blk_list(i)
     call parse_main_blk(env,blk)

@@ -180,8 +180,68 @@ contains   !> MODULE PROCEDURES START HERE
     type(datablock) :: blk
     select case (blk%header)
     case ('cregen')
-
+      call parse_cregen(env,blk)
+    case('confsolv')
+      call parse_confsolv(env,blk)
     end select
   end subroutine parse_main_blk
+!========================================================================================!
+ subroutine parse_cregen(env,blk)
+!****************************************
+!* parse settings for the CREGEN routine
+!****************************************  
+    implicit none
+    type(systemdata) :: env
+    type(datablock) :: blk
+    type(keyvalue) :: kv
+    integer :: i
+!>--- parse the arguments
+    do i = 1,blk%nkv
+      kv = blk%kv_list(i)
+    select case (kv%key)
+    case ('ewin') 
+      env%ewin = kv%value_f
+    case ('ethr')
+      env%ethr = kv%value_f
+    case ('rthr')
+      env%rthr = kv%value_f
+    case ( 'bthr')
+      env%bthr2 = kv%value_f
+    case ('eqv','nmr') 
+      env%doNMR = kv%value_b 
+    end select
+    enddo
+  end subroutine parse_cregen
+
+!========================================================================================!
+  subroutine parse_confsolv(env,blk)
+    use ConfSolv_module
+    implicit none
+    type(systemdata) :: env
+    type(datablock) :: blk
+    type(keyvalue) :: kv
+    integer :: i    
+!>--- add ConfSolv as refinement level to give a δΔGsolv
+    call env%addrefine(refine%ConfSolv)
+
+!>--- parse the arguments
+    do i = 1,blk%nkv
+      kv = blk%kv_list(i)
+    select case (kv%key)
+    case ('pid')
+      if(.not.allocated(cs_pid)) allocate(cs_pid)
+      cs_pid = kv%value_i
+    case ('bin')
+       cs_bin = trim(kv%value_c)
+    case ( 'port')
+       if(.not.allocated(cs_port)) allocate(cs_port)
+       cs_port = kv%value_i
+    case ('solvent')
+       cs_solvent = kv%value_c
+    case ('param','checkpoint')
+       cs_param = kv%value_c
+    end select
+    enddo
+  end subroutine parse_confsolv
 !========================================================================================!
 end module parse_maindata

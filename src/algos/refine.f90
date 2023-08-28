@@ -88,11 +88,13 @@ subroutine crest_refine(env,input,output)
         write (stdout,'("> Geometry optimization of ",i0," structures")') nall
         call crest_oloop(env,nat,nall,at,xyz,eread,.false.)
 
-        !case(refine%confsolv)
-        !call confsolv_request( input, etmp)
-        !eread(:) = eread(:) + etmp(:)
-
+      case(refine%confsolv)
+        write (stdout,'("> ConfSolv: δΔGsolv estimation from 3D directed message passing neural networks (D-MPNN)")')
+        call confsolv_request( input, nall, etmp)
+        eread(:) = eread(:) + etmp(:)
+   
       end select
+      write(stdout,*) 
     end do
 
     !> reset the refinement stage of the calculator

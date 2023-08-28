@@ -226,8 +226,16 @@ subroutine crest_ensemble_optimization(env,tim)
   call crest_oloop(env,nat,nall,at,xyz,eread,.true.)
 
   deallocate (eread,at,xyz)
-
   write(stdout,'(/,a,a,a)') 'Optimized ensemble written to <',ensemblefile,'>'
+
+!========================================================================================!
+  !>--- (optional) refinement step
+  if (allocated(env%refine_queue)) then
+    write(stdout,*)
+    call crest_refine(env,ensemblefile,ensemblefile//'.refine')
+    write(stdout,'(/,a,a,a)') 'Refined ensemble written to <',ensemblefile,'.refine>'
+  endif 
+
 !========================================================================================!
   call tim%stop(14)
   return
