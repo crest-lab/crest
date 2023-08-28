@@ -1522,9 +1522,11 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
    optlev_tmp = env%optlev
    env%optlev = 1.0d0    !Increaseing percision for ensemble search to minimze scattering
    gfnver_tmp = env%gfnver
-!   env%gfnver = '--gfn2' !CFF always gfn2
-   env%gfnver = env%ensemble_opt !CFF always gfn2
-!   write (*, *) 'Method for CFF: GFN2-xTB'
+   if (env%final_gfn2_opt) then
+      env%gfnver = '--gfn2'
+   else
+      env%gfnver = env%ensemble_opt !CFF always with ensemble method
+   end if
    nothing_added = .false.
 
    dum = 0
