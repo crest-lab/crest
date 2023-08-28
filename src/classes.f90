@@ -442,7 +442,8 @@ module crest_data
       logical :: entropymd = .false. ! entropy mode static mtds
       logical :: esort = .false.   ! legacy option in old cregen
       logical :: ext               ! external
-      logical :: extLFER =.false.  ! read in external LFER parameters
+      logical :: extLFER =.false.  ! read in external LFER parameters 
+      logical :: final_gfn2_opt = .false. ! final GFN2 optimization in QCG
       logical :: fullcre = .false. ! calculate exact rotamer degeneracies
       logical :: gbsa              ! use gbsa
       logical :: gcmultiopt        ! 2 level optimization for GC in V2

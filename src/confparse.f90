@@ -1644,6 +1644,8 @@ subroutine parseflags(env,arg,nra)
         env%max_solv = NINT(xx(1))
       case ('-normdock')
         env%docking_qcg_flag = ''
+      case ('-fin_opt_gfn2')
+        env%final_gfn2_opt = .true.
       case ('-nclus')
         env%qcg_flag = .true.
         call readl(arg(i + 1),xx,j)
@@ -1969,6 +1971,8 @@ subroutine parseflags(env,arg,nra)
     env%lmover = env%gfnver
   end if
   endif
+  if (env%ensemble_opt == '--gfn2' .or. env%gfnver == '--gfn2') &
+          & env%final_gfn2_opt = .false. !Prevent additional opt.
 
   if (env%useqmdff) then
     env%autozsort = .false.
