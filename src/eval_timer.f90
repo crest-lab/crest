@@ -17,9 +17,14 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 subroutine eval_timer(tim)
+!********************************
+!* The final timer evaluation to
+!* be called at the end of CREST
+!********************************
   use crest_parameters
   use crest_data
   use crest_calculator,only: engrad_total
+  use crest_restartlog
   implicit none
   type(timer) :: tim
   real(wp) :: time_total,time_avg
@@ -34,6 +39,7 @@ subroutine eval_timer(tim)
   write(stdout,'(" * Total number of energy+grad calls: ",i0)') & !,a,1x,a,a)') & 
   &  engrad_total!,' (avg. wall-time',trim(adjustl(atmp)),' sec)'
   write(stdout,*)
+  call dump_restart() 
   endif
 end subroutine eval_timer
 

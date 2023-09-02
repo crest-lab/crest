@@ -34,6 +34,7 @@ list(APPEND srcs
   "${dir}/stereoisomers.f90"
   "${dir}/tautomerize.f90"
   "${dir}/trialmd_legacy.f90"
+  "${dir}/zsort.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

@@ -347,6 +347,7 @@ module crest_data
     character(len=512) :: ProgIFF        !> name of xtbiff for QCG-mode
     character(len=512) :: homedir        !> original directory from which calculation was started
     character(len=512) :: scratchdir     !> path to the scratch directory
+    character(len=:),allocatable :: cmd
     character(len=:),allocatable :: inputcoords,inputcoords_solv,inputcoords_solu
     character(len=:),allocatable :: wbofile
     character(len=:),allocatable :: atlist

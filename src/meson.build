@@ -67,6 +67,7 @@ srcs += files(
   'propcalc.f90',
   'quicksort.f90',
   'readl.f90',
+  'restartlog.f90',
   'rotcompare.f90',
   'scratch.f90',
   'sdfio.f90',
@@ -83,7 +84,6 @@ srcs += files(
   'trackorigin.f90',
   'utilmod.f90',
   'zdata.f90',
-  'zsort.f90',
   'ztopology.f90',
 )
 

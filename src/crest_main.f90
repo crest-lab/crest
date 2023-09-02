@@ -24,7 +24,7 @@ program CREST
   use iso_fortran_env,wp => real64
   !> module for the main data storage
   use crest_data
-
+  use crest_restartlog
   implicit none
   type(systemdata) :: env  !> MAIN STORAGE OF SYSTEM DATA
   type(timer)   :: tim     !> timer object
@@ -55,7 +55,7 @@ program CREST
   end do
   call parseflags(env,arg,args)
   deallocate (arg)
-
+  call restart_save_env(env)
 !=========================================================================================!
 !> scratch dir handling
 

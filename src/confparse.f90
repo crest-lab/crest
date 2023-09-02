@@ -45,6 +45,7 @@ subroutine parseflags(env,arg,nra)
   use dynamics_module
   use optimize_module
   use parse_inputfile
+  use crest_restartlog
   implicit none
   type(systemdata),intent(inout) :: env
   integer,intent(in) :: nra
@@ -79,13 +80,14 @@ subroutine parseflags(env,arg,nra)
 
 !=========================================================================================!
 !>--- print the program header and command line input
+  call get_command(cmd)
   if (.not.gui) then
     call confscript_head(.false.)
 
     write (*,'(/,1x,a)') 'Command line input:'
-    call get_command(cmd)
     write (*,'(1x,a,a,/)') '$ ',trim(cmd)
   end if
+  env%cmd = trim(cmd)
 
 !=========================================================================================!
 !>--- check if help is requested or citations shall be diplayed
@@ -2358,6 +2360,7 @@ subroutine inputcoords(env,arg)
   else
     inputfile = 'coord'
   end if
+  if(.not.allocated(env%inputcoords)) env%inputcoords = inputfile
 
 !>-- if the input was a SDF file, special handling
   env%sdfformat = .false.

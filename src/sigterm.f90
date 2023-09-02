@@ -18,32 +18,40 @@
 !================================================================================!
 subroutine wsigint !> Ctrl+C
   use crest_parameters, only:stderr,stdout
+  use crest_restartlog, only: dump_restart
   integer :: myunit
   write(*,*)
   write (stderr,'(" recieved SIGINT, trying to terminate CREST...")')
+  call dump_restart()
   call exit(1)
   error stop
 end subroutine wsigint
 
 subroutine wsigquit !> Ctrl+D or Ctrl+\
   use crest_parameters, only:stderr,stdout
+  use crest_restartlog, only: dump_restart 
   integer :: myunit
   write(*,*)
   write (stderr,'(" recieved SIGQUIT, trying to terminate CREST...")')
+  call dump_restart()
   call exit(1)
   error stop
 end subroutine wsigquit
 
 subroutine wsigterm !> Recieved by the "kill" pid command
   use crest_parameters, only:stderr,stdout
+  use crest_restartlog, only: dump_restart 
   write(stdout,*)
   write (stderr,'(" recieved SIGTERM, trying to terminate CREST...")')
+  call dump_restart()
   call exit(1)
   error stop
 end subroutine wsigterm
 
 subroutine wsigkill
   use crest_parameters, only:stderr,stdout
+  use crest_restartlog, only: dump_restart
+  call dump_restart() 
   error stop 'CREST recieved SIGKILL.'
 end subroutine wsigkill
 

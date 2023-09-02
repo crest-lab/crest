@@ -179,13 +179,14 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
 !* This subroutine performs concurrent geometry optimizations
 !* for the given ensemble. Inputs xyz and eread are overwritten
 !***************************************************************
-  use crest_parameters,only:wp,stdout,sep
+  use crest_parameters,only:wp,stdout,sep 
   use crest_calculator
   use omp_lib
   use crest_data
   use strucrd
   use optimize_module
   use iomod,only:makedir,directory_exist,remove
+  use crest_restartlog, only: trackrestart
   implicit none
   type(systemdata),intent(inout) :: env
   real(wp),intent(inout) :: xyz(3,nat,nall)
@@ -207,6 +208,9 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   real(wp) :: percent,runtime
 
   type(timer) :: profiler
+
+!>--- decide wether to skip this call
+   if(trackrestart(env)) return 
 
 !>--- check if we have any calculation settings allocated
   if (env%calc%ncalculations < 1) then
@@ -423,6 +427,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   use dynamics_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
+  use crest_restartlog, only: trackrestart
   implicit none
   type(systemdata),intent(inout) :: env
   type(mddata) :: mddats(nsim)
@@ -443,6 +448,8 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   real(wp),allocatable :: grdtmp(:,:)
   type(timer) :: profiler
 !===========================================================!
+!>--- decide wether to skip this call
+   if(trackrestart(env)) return
 
 !>--- set threads
   if (env%autothreads) then
@@ -709,6 +716,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   use shake_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
+  use crest_restartlog, only: trackrestart
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -728,12 +736,16 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   integer :: vz,job,thread_id
   type(timer) :: profiler
 !===========================================================!
-  !>--- set threads
+!>--- decide wether to skip this call
+   if(trackrestart(env)) return
+
+
+!>--- set threads
   if (env%autothreads) then
     call ompautoset(env%threads,7,env%omp,env%MAXRUN,nsim)
   end if
 
-  !>--- check if we have any MD & calculation settings allocated
+!>--- check if we have any MD & calculation settings allocated
   if (.not.env%mddat%requested) then
     write (stdout,*) 'MD requested, but no MD settings present.'
     return
@@ -742,7 +754,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
     return
   end if
 
-  !>--- prepare calculation objects for parallelization (one per thread)
+!>--- prepare calculation objects for parallelization (one per thread)
   T = env%threads
   allocate (calculations(T),source=env%calc)
   allocate (moltmps(T),source=mols(1))
@@ -761,11 +773,11 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
     calculations(i)%pr_energies = .false.
   end do
 
-  !>--- other settings
+!>--- other settings
   pr = .false.
   call profiler%init(nsim)
 
-  !>--- run the MDs
+!>--- run the MDs
   !$omp parallel &
   !$omp shared(env,calculations,mddats,mols,pr,percent,bar,ich, moltmps,profiler)
   !$omp single
@@ -799,7 +811,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   !$omp end single
   !$omp end parallel
 
-  !>--- collect trajectories into one
+!>--- collect trajectories into one
   call collect(nsim,mddats)
 
   call profiler%clear()

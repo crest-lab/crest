@@ -70,6 +70,7 @@ list(APPEND srcs
   "${dir}/propcalc.f90"
   "${dir}/quicksort.f90"
   "${dir}/readl.f90"
+  "${dir}/restartlog.f90"
   "${dir}/rotcompare.f90"
   "${dir}/scratch.f90"
   "${dir}/sdfio.f90"
@@ -86,7 +87,6 @@ list(APPEND srcs
   "${dir}/trackorigin.f90"
   "${dir}/utilmod.f90"
   "${dir}/zdata.f90"
-  "${dir}/zsort.f90"
   "${dir}/ztopology.f90"
 )
 
