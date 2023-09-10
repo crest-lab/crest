@@ -214,6 +214,8 @@ subroutine newcregen(env,quickset)
 !>--- write new file with ALL remaining structures
   if (newfile) then
     call cregen_file_wr(env,oname,nat,nall,at,xyz,comments)
+!>--- track ensemble for restart
+    call trackensemble(oname,nat,nall,at,xyz,comments)
   end if
 !>--- write a file only containing the conformers.
   if (conffile) then

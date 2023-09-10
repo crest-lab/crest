@@ -186,7 +186,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   use strucrd
   use optimize_module
   use iomod,only:makedir,directory_exist,remove
-  use crest_restartlog, only: trackrestart
+  use crest_restartlog, only: trackrestart,restart_write_dummy
   implicit none
   type(systemdata),intent(inout) :: env
   real(wp),intent(inout) :: xyz(3,nat,nall)
@@ -210,7 +210,10 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   type(timer) :: profiler
 
 !>--- decide wether to skip this call
-   if(trackrestart(env)) return 
+   if(trackrestart(env))then 
+     call restart_write_dummy(ensemblefile)
+     return 
+   endif
 
 !>--- check if we have any calculation settings allocated
   if (env%calc%ncalculations < 1) then
@@ -427,7 +430,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   use dynamics_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
-  use crest_restartlog, only: trackrestart
+  use crest_restartlog, only: trackrestart,restart_write_dummy
   implicit none
   type(systemdata),intent(inout) :: env
   type(mddata) :: mddats(nsim)
@@ -449,7 +452,10 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   type(timer) :: profiler
 !===========================================================!
 !>--- decide wether to skip this call
-   if(trackrestart(env)) return
+   if(trackrestart(env))then
+     call restart_write_dummy('crest_dynamics.trj')
+     return
+   endif
 
 !>--- set threads
   if (env%autothreads) then
@@ -716,7 +722,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   use shake_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
-  use crest_restartlog, only: trackrestart
+  use crest_restartlog, only: trackrestart,restart_write_dummy
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -737,8 +743,10 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   type(timer) :: profiler
 !===========================================================!
 !>--- decide wether to skip this call
-   if(trackrestart(env)) return
-
+   if(trackrestart(env))then
+     call restart_write_dummy('crest_dynamics.trj')
+     return
+   endif
 
 !>--- set threads
   if (env%autothreads) then

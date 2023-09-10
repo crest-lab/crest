@@ -26,6 +26,7 @@ module parse_maindata
   use crest_parameters
   !> modules for data storage in crest
   use crest_data
+  use crest_restartlog
   !> modules used for parsing the root_object
   !>
   use parse_keyvalue,only:keyvalue,valuetypes
@@ -170,6 +171,10 @@ contains   !> MODULE PROCEDURES START HERE
       env%checktopo = val
     case ('notopo')
       env%checktopo = .not.val
+    case ('restart')
+      if(val)then
+        call read_restart(env)
+      endif
     end select
     return
   end subroutine parse_main_bool

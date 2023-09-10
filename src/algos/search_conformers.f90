@@ -292,6 +292,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
   use strucrd
   use optimize_module
   use utilities
+  use crest_restartlog
   implicit none
   type(systemdata) :: env 
   character(len=*),intent(in) :: ensnam
@@ -334,7 +335,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
   write(stdout,'(1x,a)') '|  Multilevel Ensemble Optimization  |'
   write(stdout,'(1x,a)') '======================================'
   endif
-
+  
 !>--- read ensemble
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) then
@@ -343,6 +344,8 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
   endif
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
   call rdensemble(ensnam,nat,nall,at,xyz,eread)
+!>--- track ensemble for restart
+  call trackensemble(ensnam,nat,nall,at,xyz,eread)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>--- Important: crest_oloop requires coordinates in Bohrs
   xyz = xyz / bohr

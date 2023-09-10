@@ -993,12 +993,16 @@ end subroutine append_INPUT_to
 ! print the number of remaining files in an ensemble file for a given energy window
 !-------------------------------------------------------------------------
 subroutine remaining_in(filename,ewin,nall)
+  use crest_parameters
+  use crest_restartlog, only: restart_write_dummy
   use strucrd,only:rdensembleparam,rdensemble
   implicit none
   integer :: nall
-  real*8 :: ewin
+  real(wp) :: ewin
   character(len=*) :: filename
   integer :: k,nat
+
+  call restart_write_dummy(trim(filename))
 
   open (newunit=k,file=trim(filename))
   read (k,*) nat
