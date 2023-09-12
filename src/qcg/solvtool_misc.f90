@@ -150,9 +150,10 @@ subroutine xtb_dock(env, fnameA, fnameB, solu, clus)
 
    type(systemdata)                :: env
    type(zmolecule), intent(in)     :: solu, clus
-   character(len=*), intent(in)     :: fnameA, fnameB
+   character(len=*), intent(in)    :: fnameA, fnameB
    character(len=80)               :: pipe
    character(len=512)              :: jobcall
+   integer                         :: i, ich
 
    call remove('xtb_dock.out')
    call remove('xcontrol')
@@ -161,6 +162,21 @@ subroutine xtb_dock(env, fnameA, fnameB, solu, clus)
 
 !---- writing wall pot in xcontrol
    call write_wall(env, solu%nat, solu%ell_abc, clus%ell_abc, 'xcontrol')
+
+!---- Write directed stuff, if requested
+   if (allocated(env%directed_file)) then
+      do i=1, size(env%directed_number)
+         if &
+         & ((i==1 .and. env%directed_number(i) >= clus%nmol) .OR. &
+         & (env%directed_number(i) >= clus%nmol .and. env%directed_number(i-1) < clus%nmol)) &
+         & then
+            open(newunit=ich, file='xcontrol', status='old', position='append', action='write')
+                 write(ich,'("$directed")')
+                 write(ich,'(a,1x,a)') 'atoms:', trim(env%directed_list(i,1))
+                 write(ich,'("$end")')
+         end if
+      end do
+   end if
 
 !--- Setting threads
 !   if(env%autothreads)then

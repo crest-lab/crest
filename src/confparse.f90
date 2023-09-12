@@ -1646,6 +1646,14 @@ subroutine parseflags(env,arg,nra)
         env%docking_qcg_flag = ''
       case ('-fin_opt_gfn2')
         env%final_gfn2_opt = .true.
+      case ('-directed') !specify the directed list
+        env%qcg_flag = .true.
+        ctmp = trim(arg(i + 1))
+        if (ctmp(1:1) .ne. '-') then
+!          allocate(env%directed_file(512))
+          env%directed_file = trim(ctmp)
+          write (*,'(2x,a,1x,a)') trim(argument)//' :',trim(ctmp)
+        end if
       case ('-nclus')
         env%qcg_flag = .true.
         call readl(arg(i + 1),xx,j)

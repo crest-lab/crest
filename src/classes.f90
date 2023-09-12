@@ -375,6 +375,9 @@ module crest_data
       integer           :: nsolv = 0            !Number of solventmolecules
       integer           :: nqcgclust = 0        !Number of cluster to be taken
       integer           :: max_solv = 0         !Maximal number of solvents added, if none is given
+      character(len=:), allocatable :: directed_file !name of the directed list
+      character(len=64), allocatable :: directed_list(:,:) !How many solvents at which atom to add
+      integer, allocatable :: directed_number(:) !Numbers of solvents added per defined atom
       integer           :: ensemble_method = -1 !Default -1 for qcgmtd, 0= crest, 1= standard MD, 2= MTD
       character(len=20) :: ensemble_opt         !Method for ensemble optimization in qcg mode
       character(len=20) :: freqver              !Method for frequency computation in qcg mode
