@@ -66,4 +66,10 @@ option(
   description: 'build with XHCFF integration',
 )
 
+option(
+  'WITH_LWONIOM',
+  type: 'boolean',
+  value: true,
+  description: 'build with lwONIOM integration',
+)
 

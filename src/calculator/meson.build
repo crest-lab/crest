@@ -21,6 +21,7 @@ srcs += files(
   'gfn0_api.F90',
   'gfnff_api.F90',
   'lj.f90',
+  'lwoniom.F90', 
   'nonadiabatic.f90',
   'tblite_api.F90',
   'api_helpers.F90',

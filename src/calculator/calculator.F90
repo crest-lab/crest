@@ -29,6 +29,7 @@ module crest_calculator
 !>--- other
   use constraints
   use nonadiabatic_module
+  use lwoniom_module
 !$ use omp_lib
   implicit none
 !=========================================================================================!
@@ -85,49 +86,57 @@ contains  !> MODULE PROCEDURES START HERE
 !* for thousands of energy+gradient calls.
 !***************************************************************
     implicit none
-    type(coord) :: mol
+    type(coord),target :: mol
     type(calcdata) :: calc
     real(wp),intent(inout) :: energy
     real(wp),intent(inout) :: gradient(3,mol%nat)
     integer,intent(out) :: iostatus
-
     integer :: i,j,k,l,n,io,nocc
-
     real(wp) :: dum1,dum2
     real(wp) :: efix
-
+    type(coord),pointer :: molptr
+    integer :: pnat
+    logical :: useONIOM
 !==========================================================!
     call initsignal()
-
 
     !>--- reset
     energy = 0.0_wp
     gradient(:,:) = 0.0_wp
 !==========================================================!
     !>--- check for sane input
-    dum1 = sum(mol%xyz) 
-    if(dum1.ne.dum1)then !> NaN catch, we don't want to calculate garbage.
-     iostatus = 1        !> For some builds I found this necessary because
-     return              !> OpenMP can get picky...
-    endif
+    dum1 = sum(mol%xyz)
+    if (dum1 .ne. dum1) then !> NaN catch, we don't want to calculate garbage.
+      iostatus = 1           !> For some builds I found this necessary because
+      return                 !> OpenMP can get picky...
+    end if
 
     !>--- Calculation setup
     n = calc%ncalculations
 
     !$omp critical
     if (n > 0) then
-      if (.not. allocated(calc%etmp)) allocate (calc%etmp(n),source=0.0_wp)
-      if (.not. allocated(calc%grdtmp)) allocate (calc%grdtmp(3,mol%nat,n),source=0.0_wp)
-      if (.not. allocated(calc%eweight)) then
+      if (.not.allocated(calc%etmp)) allocate (calc%etmp(n),source=0.0_wp)
+      if (.not.allocated(calc%grdtmp)) allocate (calc%grdtmp(3,mol%nat,n),source=0.0_wp)
+      if (.not.allocated(calc%eweight)) then
         allocate (calc%eweight(n),source=0.0_wp)
         do i = 1,n
           calc%eweight(i) = calc%calcs(i)%weight
         end do
       end if
       !>--- count the engrad call
-      engrad_total = engrad_total + 1
+      engrad_total = engrad_total+1
     end if
-    
+
+    !>--- update ONIOM geometries
+    useONIOM = allocated(calc%ONIOM)
+    if (useONIOM) then
+      if (.not.allocated(calc%ONIOMmols)) then
+        allocate (calc%ONIOMmols(calc%ONIOM%nfrag))
+      end if
+      call ONIOM_update_geo(calc%ONIOM,mol,calc%ONIOMmols)
+    end if
+
     iostatus = 0
     dum1 = 1.0_wp
     dum2 = 1.0_wp
@@ -138,53 +147,61 @@ contains  !> MODULE PROCEDURES START HERE
 !==========================================================!
     !>--- Calculation
     if (n > 0) then
-      if(calc%id > 0 .and. calc%id > n) error stop 'Invalid calculator setup'
+      if (calc%id > 0.and.calc%id > n) error stop 'Invalid calculator setup'
 
       !==================================================================================!
       !>--- loop over all calculations to be done
       do i = 1,calc%ncalculations
 
-        !> skip through calculations we do not want 
-        if(calc%calcs(i)%refine_lvl /= calc%refine_stage) cycle
+        !> skip through calculations we do not want
+        if (calc%calcs(i)%refine_lvl /= calc%refine_stage) cycle
+
+        !> Assign the molecule (necessary for ONIOM stuff)
+        if (calc%calcs(i)%ONIOM_id /= 0) then
+          j = calc%calcs(i)%ONIOM_id
+          call ONIOM_associate_mol(calc%ONIOMmols(j),molptr)
+        else
+          molptr => mol
+        end if
+        pnat = molptr%nat
 
         !> also skip through if only one level was requested
-        if(calc%id > 0 .and. i.ne.calc%id) cycle
+        if (calc%id > 0.and. i .ne. calc%id .and. .not.useONIOM) cycle
 
         !> select the calculation type
         select case (calc%calcs(i)%id)
         case (jobtype%xtbsys)  !>-- xtb system call
-          call xtb_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+          call xtb_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
         case (jobtype%generic) !>-- generic script/program call
-          call generic_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+          call generic_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
         case (jobtype%tblite)  !>-- tblite api call
-          call tblite_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+          call tblite_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
         case (jobtype%gfn0) !>-- GFN0-xTB api
-          call gfn0_engrad(mol,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i), &
-          &                calc%grdtmp(:,:,i),iostatus)
+          call gfn0_engrad(molptr,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i), &
+          &                calc%grdtmp(:,1:pnat,i),iostatus)
 
         case (jobtype%gfn0occ) !>-- Special GFN0-xTB api given orbital population
           !> note the use of calc%g0calc instead of calc%calcs(i)%g0calc !
-          call gfn0occ_engrad(mol,calc%calcs(i),calc%g0calc,calc%etmp(i), &
-          &                   calc%grdtmp(:,:,i),iostatus)
- 
-        case (jobtype%gfnff) !>-- GFN-FF api
-          call gfnff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+          call gfn0occ_engrad(molptr,calc%calcs(i),calc%g0calc,calc%etmp(i), &
+          &                   calc%grdtmp(:,1:pnat,i),iostatus)
 
-        case (jobtype%xhcff) !>--- XHCFF-lib 
-          call xhcff_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
+        case (jobtype%gfnff) !>-- GFN-FF api
+          call gfnff_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
+
+        case (jobtype%xhcff) !>--- XHCFF-lib
+          call xhcff_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
         case (jobtype%turbomole) !>--- Turbomole-style SPs
-          call  turbom_engrad(mol,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,:,i),iostatus)
-
+          call turbom_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then
             read (calc%calcs(i)%other,*) dum1,dum2
           end if
-          call lj_engrad(mol%nat,mol%xyz,dum1,dum2,calc%etmp(i),calc%grdtmp(:,:,i))
+          call lj_engrad(mol%nat,mol%xyz,dum1,dum2,calc%etmp(i),calc%grdtmp(:,1:pnat,i))
 
         case default
           calc%etmp(i) = 0.0_wp
@@ -195,37 +212,63 @@ contains  !> MODULE PROCEDURES START HERE
         end if
       end do
 
+      !>--- for ONIOM calculations, copy gradients to right positions
+      !>--- and project with Jacobian
+      !$omp critical
+      if (useONIOM) then
+        call calc_ONIOM_projection(calc)
+      end if
+      !$omp end critical
+
       !==================================================================================!
       !>--- switch case for what-to-do with the energies
       select case (calc%id)
-      case( 0 ) !> the DEFAULT
-      !>--- an option to add multiple energies and gradients accodring to weights
-      !>--- which might be useful for additive contributions   
+      case (0) !> the DEFAULT
+        !>--- an option to add multiple energies and gradients accodring to weights
+        !>--- which might be useful for additive contributions
         call calc_add_weighted_egrd(n,calc%eweight,calc%etmp,calc%grdtmp, &
         &                energy,gradient)
 
+        !$omp critical
+        if (useONIOM) then
+          call ONIOM_engrad(calc%ONIOM,mol,energy,gradient)
+        end if
+        !$omp end critical
+
       case (1:)
-      !>--- if calc%id is a positive integer, take e+grd from 
-      !>--- the respective specified calculation
+        !>--- if calc%id is a positive integer, take e+grd from
+        !>--- the respective specified calculation
         j = calc%id
         if (j <= calc%ncalculations) then
-          energy = calc%etmp(j)
-          gradient = calc%grdtmp(:,:,j)
+          if (useONIOM.and.calc%calcs(j)%ONIOM_id /= 0) then
+            k = calc%calcs(j)%ONIOM_id  
+            if(calc%calcs(j)%ONIOM_highlowroot == 1)then
+              call ONIOM_get_fraggrad(calc%ONIOM,k,gradient,"high",energy)
+            else
+              call ONIOM_get_fraggrad(calc%ONIOM,k,gradient,"low",energy)
+            endif
+          else
+            energy = calc%etmp(j)
+            gradient = calc%grdtmp(:,:,j)
+          end if
         end if
 
       case (-1)
-      !>--- if calc%id is equal to -1, we are using the MECP routines:
-      !>--- take non-adiabatic arithmetic mean (of first two calculations)
+        if (useONIOM) then
+          write (stdout,'(a)') '**ERROR** MECP routines currently incompatible with ONIOM'
+          error stop
+        end if
+        !>--- if calc%id is equal to -1, we are using the MECP routines:
+        !>--- take non-adiabatic arithmetic mean (of first two calculations)
         call engrad_mean(mol%nat,calc%ncalculations,calc%etmp,calc%grdtmp, &
         &                energy,gradient)
 
-      case default 
-      !>--- any other case does not return any energy and gradient
-      !>--- from this part  of the calculator. 
-      !>--- constraints (see below) will be applied, however.
+      case default
+        !>--- any other case does not return any energy and gradient
+        !>--- from this part  of the calculator.
+        !>--- constraints (see below) will be applied, however.
       end select
 
-      
       !>--- printout (to file or stdout)
       call calc_eprint(calc,energy,calc%etmp)
     end if
@@ -234,29 +277,29 @@ contains  !> MODULE PROCEDURES START HERE
     !>--- Constraints
     if (calc%nconstraints > 0) then
       !$omp critical
-      if(.not.allocated(calc%grdfix))then
+      if (.not.allocated(calc%grdfix)) then
         allocate (calc%grdfix(3,mol%nat),source=0.0_wp)
-      endif
+      end if
       !$omp end critical
       do i = 1,calc%nconstraints
         efix = 0.0_wp
         calc%grdfix = 0.0_wp
         if (calc%cons(i)%type >= 0) then
           !>--- structural constraints
-          call calc_constraint(mol%nat,mol%xyz,calc%cons(i), efix,calc%grdfix)
+          call calc_constraint(mol%nat,mol%xyz,calc%cons(i),efix,calc%grdfix)
 
-        else if (allocated(calc%etmp) .and. allocated(calc%grdtmp)) then
+        else if (allocated(calc%etmp).and.allocated(calc%grdtmp)) then
           !>--- non-adiabatic constraints
           if (n > 1) then
             call calc_nonadiabatic_constraint(mol%nat,calc%cons(i),n,calc%etmp,calc%grdtmp, &
-            &    efix, calc%grdfix)
+            &    efix,calc%grdfix)
           else !> this "else" is necessary for constrained model hessians
             efix = 0.0_wp
             calc%grdfix = 0.0_wp
           end if
         end if
-        energy = energy + efix
-        gradient = gradient + calc%grdfix
+        energy = energy+efix
+        gradient = gradient+calc%grdfix
       end do
     end if
 
@@ -271,7 +314,7 @@ contains  !> MODULE PROCEDURES START HERE
 !*
 !* *WARNING* should >>NOT<< be used as a call in parallel
 !* sections of the code, due to allocation overhead of mol
-!**********************************************************   
+!**********************************************************
     implicit none
     integer,intent(in) :: n
     real(wp),intent(in) :: xyz(3,n) ! coordinates should be in Bohr (a.u.)
@@ -314,21 +357,21 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: energy,el,er
     real(wp),allocatable :: grad(:,:)
     real(wp),allocatable :: numgrd(:,:)
-    real(wp),parameter :: step = 0.00001_wp,step2 = 0.5_wp / step
+    real(wp),parameter :: step = 0.00001_wp,step2 = 0.5_wp/step
 
     allocate (grad(3,mol%nat),source=0.0_wp)
     allocate (numgrd(3,mol%nat),source=0.0_wp)
 
     do i = 1,mol%nat
       do j = 1,3
-        mol%xyz(j,i) = mol%xyz(j,i) + step
+        mol%xyz(j,i) = mol%xyz(j,i)+step
         call engrad(mol%nat,mol%xyz,mol%at,calc,er,grad,io)
 
-        mol%xyz(j,i) = mol%xyz(j,i) - 2 * step
+        mol%xyz(j,i) = mol%xyz(j,i)-2*step
         call engrad(mol%nat,mol%xyz,mol%at,calc,el,grad,io)
 
-        mol%xyz(j,i) = mol%xyz(j,i) + step
-        numgrd(j,i) = step2 * (er - el)
+        mol%xyz(j,i) = mol%xyz(j,i)+step
+        numgrd(j,i) = step2*(er-el)
       end do
     end do
 
@@ -340,7 +383,7 @@ contains  !> MODULE PROCEDURES START HERE
     write (*,*)
     write (*,*) 'Gradient Difference:'
     do i = 1,mol%nat
-      write (*,'(3f18.8)') numgrd(1:3,i) - angrad(1:3,i)
+      write (*,'(3f18.8)') numgrd(1:3,i)-angrad(1:3,i)
     end do
 
     deallocate (numgrd,grad)
@@ -361,14 +404,14 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: at(nat)
     real(wp),intent(in) :: xyz(3,nat)
     type(calcdata) :: calc
-    real(wp),intent(out) :: hess(nat * 3, nat*3)
+    real(wp),intent(out) :: hess(nat*3,nat*3)
     integer,intent(out)  :: io
 
     type(coord) :: mol !> coord type, so that the input remains unchanged
     real(wp) :: energy,el,er,hij
     real(wp),allocatable :: gradr(:,:),gradl(:,:)
-    real(wp),allocatable :: gradr_tmp(:,:,:), gradl_tmp(:,:,:)
-    real(wp),parameter :: step = 0.005_wp,step2 = 0.5_wp / step !0.00001_wp
+    real(wp),allocatable :: gradr_tmp(:,:,:),gradl_tmp(:,:,:)
+    real(wp),parameter :: step = 0.005_wp,step2 = 0.5_wp/step !0.00001_wp
     integer :: i,j,k,l,m,ii,jj
 
     hess = 0.0_wp
@@ -376,41 +419,41 @@ contains  !> MODULE PROCEDURES START HERE
     mol%nat = nat
     mol%at = at
     mol%xyz = xyz
-    
+
     allocate (gradr(3,mol%nat),source=0.0_wp) !dummy
     allocate (gradl(3,mol%nat),source=0.0_wp) !dummy
 
     do i = 1,mol%nat
       do j = 1,3
-        ii = (i - 1) * 3 + j
+        ii = (i-1)*3+j
         gradr = 0.0_wp
-        mol%xyz(j,i) = mol%xyz(j,i) + step
-        call engrad(mol, calc,er,gradr,io)
+        mol%xyz(j,i) = mol%xyz(j,i)+step
+        call engrad(mol,calc,er,gradr,io)
 
         gradl = 0.0_wp
-        mol%xyz(j,i) = mol%xyz(j,i) - 2.0_wp * step
-        call engrad(mol, calc,el,gradl,io)
+        mol%xyz(j,i) = mol%xyz(j,i)-2.0_wp*step
+        call engrad(mol,calc,el,gradl,io)
 
-        mol%xyz(j,i) = mol%xyz(j,i) + step
+        mol%xyz(j,i) = mol%xyz(j,i)+step
 
-          do k = 1,mol%nat
-            do l = 1,3
-              jj = (k - 1) * 3 + l
-              hess(jj,ii) = (gradr(l,k) - gradl(l,k)) * step2
-            end do
+        do k = 1,mol%nat
+          do l = 1,3
+            jj = (k-1)*3+l
+            hess(jj,ii) = (gradr(l,k)-gradl(l,k))*step2
           end do
+        end do
 
       end do
     end do
 
     !Symmetrize Hessian
-      do i = 1,nat*3
-        do j = i,nat*3
-          hij = (hess(i,j) + hess(j,i))*0.5_wp 
-          hess(i,j) = hij
-          hess(j,i) = hij
-        end do
+    do i = 1,nat*3
+      do j = i,nat*3
+        hij = (hess(i,j)+hess(j,i))*0.5_wp
+        hess(i,j) = hij
+        hess(j,i) = hij
       end do
+    end do
 
     call engrad(mol,calc,el,gradl,io) !>- to get the gradient of the non-displaced structure
 
@@ -432,14 +475,14 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: at(nat)
     real(wp),intent(in) :: xyz(3,nat)
     type(calcdata) :: calc
-    real(wp),intent(out) :: hess(nat * 3,nat * 3,calc%ncalculations)
+    real(wp),intent(out) :: hess(nat*3,nat*3,calc%ncalculations)
     integer,intent(out)  :: io
 
     type(coord) :: mol !> coord type, so that the input remains unchanged
     real(wp) :: energy,el,er,hij
     real(wp),allocatable :: gradr(:,:),gradl(:,:)
-    real(wp),allocatable :: gradr_tmp(:,:,:), gradl_tmp(:,:,:)
-    real(wp),parameter :: step = 0.005_wp,step2 = 0.5_wp / step !0.00001_wp
+    real(wp),allocatable :: gradr_tmp(:,:,:),gradl_tmp(:,:,:)
+    real(wp),parameter :: step = 0.005_wp,step2 = 0.5_wp/step !0.00001_wp
     integer :: i,j,k,l,m,ii,jj
 
     hess = 0.0_wp
@@ -447,7 +490,7 @@ contains  !> MODULE PROCEDURES START HERE
     mol%nat = nat
     mol%at = at
     mol%xyz = xyz
-    
+
     allocate (gradr(3,mol%nat),source=0.0_wp) !dummy
     allocate (gradl(3,mol%nat),source=0.0_wp) !dummy
 
@@ -456,26 +499,26 @@ contains  !> MODULE PROCEDURES START HERE
 
     do i = 1,mol%nat
       do j = 1,3
-        ii = (i - 1) * 3 + j
+        ii = (i-1)*3+j
         !gradr = 0.0_wp
-        mol%xyz(j,i) = mol%xyz(j,i) + step
+        mol%xyz(j,i) = mol%xyz(j,i)+step
         call engrad(mol%nat,mol%xyz,mol%at,calc,er,gradr,io)
 
         gradr_tmp = calc%grdtmp
 
         !gradl = 0.0_wp
-        mol%xyz(j,i) = mol%xyz(j,i) - 2.0_wp * step
+        mol%xyz(j,i) = mol%xyz(j,i)-2.0_wp*step
         call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io)
 
         gradl_tmp = calc%grdtmp
 
-        mol%xyz(j,i) = mol%xyz(j,i) + step
+        mol%xyz(j,i) = mol%xyz(j,i)+step
 
         do m = 1,calc%ncalculations
           do k = 1,mol%nat
             do l = 1,3
-              jj = (k - 1) * 3 + l
-              hess(jj,ii,m) = (gradr_tmp(l,k,m) - gradl_tmp(l,k,m)) * step2
+              jj = (k-1)*3+l
+              hess(jj,ii,m) = (gradr_tmp(l,k,m)-gradl_tmp(l,k,m))*step2
             end do
           end do
         end do
@@ -486,7 +529,7 @@ contains  !> MODULE PROCEDURES START HERE
     do m = 1,calc%ncalculations
       do i = 1,nat*3
         do j = i,nat*3
-          hij = (hess(i,j,m) + hess(j,i,m))*0.5_wp 
+          hij = (hess(i,j,m)+hess(j,i,m))*0.5_wp
           hess(i,j,m) = hij
           hess(j,i,m) = hij
         end do
@@ -500,7 +543,6 @@ contains  !> MODULE PROCEDURES START HERE
     call mol%deallocate()
     return
   end subroutine numhess2
-
 
 !========================================================================================!
   subroutine constrhess(nat,at,xyz,calc,phess)
@@ -518,7 +560,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: at(nat)
     real(wp),intent(in) :: xyz(3,nat)
     type(calcdata),intent(in) :: calc
-    real(wp),intent(inout) :: phess((nat * 3) * ((nat * 3) + 1) / 2)
+    real(wp),intent(inout) :: phess((nat*3)*((nat*3)+1)/2)
 
     type(calcdata) :: dummycalc
     integer :: tc_backup
@@ -534,7 +576,7 @@ contains  !> MODULE PROCEDURES START HERE
     dummycalc%id = -1000  !> set to something arbitrary so that only constraints are considered
     dummycalc%ncalculations = 0
     dummycalc%pr_energies = .false.
-    n3 = nat * 3
+    n3 = nat*3
     allocate (hess(n3,n3),source=0.0_wp)
 
     call numhess1(nat,at,xyz,dummycalc,hess,io)
@@ -542,8 +584,8 @@ contains  !> MODULE PROCEDURES START HERE
     k = 0
     do i = 1,n3
       do j = 1,i
-        k = k + 1
-        phess(k) = phess(k) + 0.5_wp * (hess(j,i) + hess(i,j))
+        k = k+1
+        phess(k) = phess(k)+0.5_wp*(hess(j,i)+hess(i,j))
       end do
     end do
 
@@ -563,9 +605,9 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=:),allocatable :: btmp
     logical :: ex
 
-    if(.not.present(chnl))then
-     if(.not.calc%pr_energies) return
-    endif
+    if (.not.present(chnl)) then
+      if (.not.calc%pr_energies) return
+    end if
     btmp = ''
     write (atmp,'(f20.12)') energy
     btmp = btmp//atmp
@@ -574,15 +616,14 @@ contains  !> MODULE PROCEDURES START HERE
       write (atmp,'(f20.12)') energies(i)
       btmp = btmp//atmp
     end do
-    if(present(chnl))then
+    if (present(chnl)) then
       write (chnl,'(a)') btmp
     else
       write (calc%eout_unit,'(a)') btmp
-    endif
+    end if
     deallocate (btmp)
     return
   end subroutine calc_print_energies
-
 
 !==========================================================================================!
   subroutine calc_add_weighted_egrd(ncalc,weights,energies,gradients,e,grd)
@@ -602,11 +643,39 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),intent(inout) :: grd(:,:)
     !> LOCAL
     integer :: i
-    do i=1,ncalc
-       e = e + weights(i)*energies(i)
-       grd(:,:) = grd(:,:) + weights(i)*gradients(:,:,i)
-    enddo 
+    do i = 1,ncalc
+      e = e+weights(i)*energies(i)
+      grd(:,:) = grd(:,:)+weights(i)*gradients(:,:,i)
+    end do
   end subroutine calc_add_weighted_egrd
+
+!==========================================================================================!
+
+  subroutine calc_ONIOM_projection(calc)
+!*******************************************
+!* Iterate through the ONIOM data and
+!* place the correct energies and gradients
+!*******************************************
+    implicit none
+    type(calcdata),intent(inout) :: calc
+    integer :: n,i,j,k,l,l1,l2
+    integer :: natp,trunat
+
+    if (allocated(calc%ONIOM).and.calc%ncalculations > 0) then
+      trunat = maxval(calc%ONIOMmols(:)%nat)
+      do i = 1,calc%ONIOM%nfrag
+        l1 = calc%ONIOM%calcids(1,i)
+        l2 = calc%ONIOM%calcids(2,i)
+        j = calc%calcs(l1)%ONIOM_id
+        natp = calc%ONIOMmols(j)%nat
+
+        call calc%ONIOM%fragment(i)%gradient_distribution(  &
+        &    calc%etmp(l1),calc%grdtmp(1:3,1:natp,l1), &
+        &    calc%etmp(l2),calc%grdtmp(1:3,1:natp,l2))
+        call calc%ONIOM%fragment(i)%jacobian(trunat)
+      end do
+    end if
+  end subroutine calc_ONIOM_projection
 
 !==========================================================================================!
 !==========================================================================================!

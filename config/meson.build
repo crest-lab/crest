@@ -247,6 +247,18 @@ if get_option('WITH_XHCFF')
 endif
 
 
+# lwONIOM
+if get_option('WITH_LWONIOM')
+ add_project_arguments('-DWITH_LWONIOM', language: 'fortran')
+ lwoniom_dep = dependency(
+   'lwoniom',
+   fallback: ['lwoniom', 'lwoniom_dep'],
+   default_options: ['default_library=static'],
+ )
+ exe_deps += lwoniom_dep
+endif
+
+
 ## ========================================= ##
 ## populate the data for crest_metadata.fh
 ## ========================================= ##  
@@ -277,6 +289,7 @@ config = configuration_data({
   'gfnffvar': get_option('WITH_GFNFF'), 
   'tblitevar': get_option('WITH_TBLITE'),
   'xhcffvar': get_option('WITH_XHCFF'),
+  'lwoniomvar': get_option('WITH_LWONIOM'),
 })
 #message(get_option('WITH_TOMLF'))
 

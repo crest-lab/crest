@@ -20,11 +20,14 @@
 module calc_type
   use iso_fortran_env,only:wp => real64,stdout => output_unit
   use constraints
+  use strucrd,only:coord
 !>--- api types
   use tblite_api
   use gfn0_api
   use gfnff_api,only:gfnff_data
   use xhcff_api,only:xhcff_calculator
+!>--- other
+  use lwoniom_module
   implicit none
 
   character(len=1),public,parameter :: sep = '/'
@@ -141,6 +144,11 @@ module calc_type
     integer :: vdwset = 0              !>  Set of VDW radii to use in sas calculation -> default D3, 1 -> Bondi
     type(xhcff_calculator),allocatable :: xhcff
 
+    !> ONIOM fragment IDs
+    integer :: ONIOM_highlowroot = 0 
+    integer :: ONIOM_id = 0
+    integer :: ONIOM_root = 0
+
 !>--- Type procedures
   contains
     procedure :: deallocate => calculation_settings_deallocate
@@ -208,6 +216,11 @@ module calc_type
     integer :: eout_unit = stdout
     character(len=:),allocatable :: elog
 
+!>--- ONIOM calculator data
+    type(lwoniom_data),allocatable :: ONIOM
+    type(coord),allocatable :: ONIOMmols(:)
+    integer,allocatable :: ONIOMmap(:) !> map calculation_settings to ONIOM fragments
+
 !>--- Type procedures
   contains
     procedure :: reset => calculation_reset
@@ -218,6 +231,7 @@ module calc_type
     procedure :: printconstraints => calculation_print_constraints
     procedure :: removeconstraint => calculation_remove_constraint
     procedure :: info => calculation_info
+    procedure :: ONIOMexpand => calculation_ONIOMexpand
   end type calcdata
 
 !========================================================================================!
@@ -260,6 +274,10 @@ contains  !>--- Module routines start here
     if (allocated(self%grdtmp2)) deallocate (self%grdtmp2)
 
     if (allocated(self%g0calc)) deallocate (self%g0calc)
+
+    if (allocated(self%ONIOM)) deallocate (self%ONIOM)
+    if (allocated(self%ONIOMmols)) deallocate (self%ONIOMmols)
+    if (allocated(self%ONIOMmap)) deallocate (self%ONIOMmap)
 
     return
   end subroutine calculation_reset
@@ -317,6 +335,8 @@ contains  !>--- Module routines start here
     self%extpressure = 0.0_wp
     self%proberad = 1.5_wp
 
+    self%ONIOM_highlowroot = 0
+    self%ONIOM_id = 0
     return
   end subroutine calculation_settings_deallocate
 
@@ -542,9 +562,9 @@ contains  !>--- Module routines start here
       self%calcspace = 'calculation.level.'//trim(nmbr)
     end if
 
-    if(self%pr)then
-       self%prch = self%prch + id
-    endif
+    if (self%pr) then
+      self%prch = self%prch+id
+    end if
   end subroutine calculation_settings_autocomplete
 
 !>-- generate a unique print id for the calculation
@@ -555,10 +575,81 @@ contains  !>--- Module routines start here
     integer :: i,j,dum
     character(len=50) :: nmbr
     dum = 100*(thread+1)
-    dum = dum+id 
+    dum = dum+id
     self%prch = dum
   end subroutine calculation_settings_printid
 
+!=========================================================================================!
+
+  subroutine calculation_ONIOMexpand(self)
+!*******************************************************
+!* for an ONIOM calculations some of the calculators
+!* have to be duplikated, which is done by this routine
+!*******************************************************
+    class(calcdata) :: self
+    integer :: ncalcs
+    integer :: maxid
+    integer :: i,j,k,l,newid,j2
+    type(calculation_settings) :: calculator
+    integer,allocatable :: newids(:,:)
+    if (.not.allocated(self%ONIOM)) return
+    ncalcs = self%ONIOM%ncalcs
+    maxid = maxval(self%ONIOM%calcids(1,:),1)
+    if (maxid > self%ncalculations) then
+      write (stdout,'(a)') '**ERROR** in ONIOM setup: not enough calculators defined!'
+      error stop
+    end if
+
+    write(stdout,'(a)',advance='no') 'Assigning and duplicating calculators for ONIOM setup ...'
+    flush(stdout)
+
+    allocate (self%ONIOMmap(ncalcs),source=0)
+    allocate (newids(2,self%ONIOM%nfrag), source = 0)
+    k = 0
+    do i = 1,self%ONIOM%nfrag
+
+      do l = 1,2
+        !> j is now the ID of the reference calculation_settings object
+        j = self%ONIOM%calcids(l,i)
+        if (l == 2) then
+          !> to exlcude the highest ONIOM layer, we need to cycle
+          j2 = self%ONIOM%calcids(1,i)
+          if (j == j2)then
+             newid = newids(1,i)
+             newids(2,i) = newid
+             self%calcs(newid)%ONIOM_highlowroot = 3
+             self%calcs(newid)%ONIOM_id = i
+             cycle
+          endif
+        end if
+
+        if (any(self%ONIOMmap(:) .eq. j)) then
+          !> If one of this type is already in the mapping, duplicate the calculator and add it
+          call calculator%deallocate()
+          calculator = self%calcs(j)
+          call self%add(calculator)
+          newid = self%ncalculations
+          k = k+1
+          self%ONIOMmap(k) = newid
+        else
+          !> otherwise (it's not yet present), we can simply add it
+          k = k+1
+          newid = j
+          self%ONIOMmap(k) = newid
+        end if
+        newids(l,i) = newid
+
+        self%calcs(newid)%ONIOM_highlowroot = l
+        self%calcs(newid)%ONIOM_id = i
+
+        !> ALWAYS set the weight of ONIOM calcs to 0!
+        self%calcs(newid)%weight = 0.0_wp
+      end do
+    end do
+    self%ONIOM%calcids = newids
+    deallocate(newids)
+    write(stdout,*) 'done.'
+  end subroutine calculation_ONIOMexpand
 
 !=========================================================================================!
   subroutine calculation_settings_info(self,iunit)
@@ -591,10 +682,10 @@ contains  !>--- Module routines start here
     &  jobtype%generic,jobtype%terachem/) == self%id)) then
       write (iunit,'(" :",3x,a,a)') 'selected binary : ',trim(self%binary)
     end if
-    if( self%refine_lvl > 0)then
+    if (self%refine_lvl > 0) then
       write (atmp,*) 'refinement stage'
-      write(iunit,fmt1) atmp,self%refine_lvl
-    endif
+      write (iunit,fmt1) atmp,self%refine_lvl
+    end if
 
     !> system data
     write (atmp,*) 'Molecular charge'
@@ -630,9 +721,20 @@ contains  !>--- Module routines start here
     write (atmp,*) 'Read dipoles?'
     if (self%rddip) write (iunit,fmt3) atmp,'yes'
 
+    write (atmp,*) 'Weight'
+    write (iunit,fmt2) atmp,self%weight
 
-    write(atmp,*) 'Weight'
-    write(iunit,fmt2) atmp,self%weight
+    if(self%ONIOM_highlowroot /= 0)then
+      select case(self%ONIOM_highlowroot)
+      case( 1 )
+      write (atmp,*) 'ONIOM frag ("high")'
+      case(2)
+      write (atmp,*) 'ONIOM frag ("low")'
+      case(3)
+      write (atmp,*) 'ONIOM frag ("root")'
+      end select
+      write (iunit,fmt1) trim(atmp),self%ONIOM_id
+    endif
 
   end subroutine calculation_settings_info
 
@@ -646,7 +748,6 @@ contains  !>--- Module routines start here
     character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
     character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
     character(len=20) :: atmp
-
 
     write (iunit,'(1x,a)') '----------------'
     write (iunit,'(1x,a)') 'Calculation info'
@@ -685,6 +786,15 @@ contains  !>--- Module routines start here
         write (iunit,'(1x,a)') 'Energies and gradients of all calculation levels will be'// &
         & ' added according to their weights'
       end select
+      if(allocated(self%ONIOM))then
+        write (iunit,'(1x,a)') 'ONIOM energy and gradient will be constructed from calculations:'
+        do i=1,self%ncalculations
+          if(any(self%ONIOMmap(:).eq.i))then
+             write(stdout,'(1x,i0)',advance='no') i
+          endif
+        enddo
+        write (iunit,*)
+      endif
       write (iunit,*)
     end if
 
@@ -721,10 +831,10 @@ contains  !>--- Module routines start here
       self%binary = 'gp3'
     case ('orca')
       self%id = jobtype%orca
-       
+
     case ('generic')
       self%id = jobtype%generic
-      
+
     end select
   end subroutine create_calclevel_shortcut
 

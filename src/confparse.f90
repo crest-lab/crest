@@ -46,6 +46,7 @@ subroutine parseflags(env,arg,nra)
   use optimize_module
   use parse_inputfile
   use crest_restartlog
+  use lwoniom_module
   implicit none
   type(systemdata),intent(inout) :: env
   integer,intent(in) :: nra
@@ -2131,6 +2132,16 @@ subroutine parseflags(env,arg,nra)
     write(stdout,*) 'done.'
     call env%calc%info(stdout)
   end if
+
+!>--- ONIOM setup from toml file
+  if (allocated(env%ONIOM_toml))then
+    allocate(env%calc%ONIOM)
+    call ONIOM_read_toml(env%ONIOM_toml,env%nat,env%ref%at,env%ref%xyz,env%calc%ONIOM)     
+    call env%calc%ONIOMexpand()
+    !call env%calc%info(stdout)
+    !stop 'ONIOM read'
+  endif
+
 
   return
 end subroutine parseflags

@@ -103,6 +103,13 @@ subroutine parseinputfile(env,fname)
     env%mddat = mddat
   end if
 
+!>--- check for lwONIOM setup (will be read at end of confparse)
+   do i = 1,dict%nblk
+      if(dict%blk_list(i)%header == 'lwoniom')then
+        env%ONIOM_toml = trim(fname)  
+      endif
+   enddo
+
   call dict%deallocate()
   return
 end subroutine parseinputfile

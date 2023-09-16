@@ -1,0 +1,4 @@
+[wrap-git]
+directory = lwoniom
+url = https://github.com/pprcht/lwoniom
+revision = head

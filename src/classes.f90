@@ -27,6 +27,7 @@ module crest_data
   use dynamics_module,only:mddata
   use strucrd,only:coord
   use crest_type_timer,only:timer
+  use lwoniom_module, only: lwoniom_input
   implicit none
 
   public :: systemdata
@@ -457,6 +458,9 @@ module crest_data
     integer :: rigidconf_toposource = 0
     !>--- refinement queue
     integer,allocatable :: refine_queue(:)
+    !>--- lwONIOM input
+    character(len=:),allocatable    :: ONIOM_toml
+    type(lwoniom_input),allocatable :: ONIOM_input
     !================================================!
 
     !>--- general logical data
