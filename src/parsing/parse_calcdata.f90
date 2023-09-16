@@ -208,7 +208,7 @@ contains !> MODULE PROCEDURES START HERE
     character(len=*) :: key
     integer :: val
     select case (key)
-    case ('uhf')
+    case ('uhf','multiplicity')
       job%uhf = val
     case ('chrg','charge')
       job%chrg = val
@@ -314,6 +314,14 @@ contains !> MODULE PROCEDURES START HERE
       case default
         job%tblitelvl = xtblvl%unknown
       end select
+
+    case('orca_cmd')
+      job%id = jobtype%orca
+      job%ORCA%cmd = val
+      job%binary = val
+    case('orca_template')
+      job%id = jobtype%orca
+      call job%ORCA%read( val )
 
     case ('gbsa','alpb','cpcm')
       job%solvmodel = key

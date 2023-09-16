@@ -29,6 +29,8 @@ srcs += files(
   'gradreader.f90',
   'xhcff.F90',
   'xtb_sc.f90',
+  'subprocess_types.f90',
+  'orca_sc.f90',
   'generic_sc.f90',
   'turbom_sc.f90',
   'subprocess_engrad.f90',

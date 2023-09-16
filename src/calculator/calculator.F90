@@ -168,34 +168,47 @@ contains  !> MODULE PROCEDURES START HERE
         !> also skip through if only one level was requested
         if (calc%id > 0.and. i .ne. calc%id .and. .not.useONIOM) cycle
 
-        !> select the calculation type
+        !>--- select the calculation type
         select case (calc%calcs(i)%id)
-        case (jobtype%xtbsys)  !>-- xtb system call
+
+        case (jobtype%xtbsys)
+        !> xtb system call
           call xtb_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
-        case (jobtype%generic) !>-- generic script/program call
+        case (jobtype%generic) 
+        !> generic script/program call
           call generic_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
-        case (jobtype%tblite)  !>-- tblite api call
+        case (jobtype%tblite)
+        !> tblite api call
           call tblite_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
-        case (jobtype%gfn0) !>-- GFN0-xTB api
+        case (jobtype%gfn0) 
+        !> GFN0-xTB api
           call gfn0_engrad(molptr,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i), &
           &                calc%grdtmp(:,1:pnat,i),iostatus)
 
-        case (jobtype%gfn0occ) !>-- Special GFN0-xTB api given orbital population
-          !> note the use of calc%g0calc instead of calc%calcs(i)%g0calc !
+        case (jobtype%gfn0occ) 
+        !> Special GFN0-xTB api given orbital population
+        !> note the use of calc%g0calc instead of calc%calcs(i)%g0calc !
           call gfn0occ_engrad(molptr,calc%calcs(i),calc%g0calc,calc%etmp(i), &
           &                   calc%grdtmp(:,1:pnat,i),iostatus)
 
-        case (jobtype%gfnff) !>-- GFN-FF api
+        case (jobtype%gfnff) 
+        !> GFN-FF api
           call gfnff_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
-        case (jobtype%xhcff) !>--- XHCFF-lib
+        case (jobtype%xhcff) 
+        !> XHCFF-lib
           call xhcff_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
-        case (jobtype%turbomole) !>--- Turbomole-style SPs
+        case (jobtype%turbomole) 
+        !> Turbomole-style SPs
           call turbom_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
+
+        case (jobtype%orca)
+        !> ORCA-style SPs
+           call orca_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
 
         case (99) !-- Lennard-Jones dummy calculation
           if (allocated(calc%calcs(i)%other)) then

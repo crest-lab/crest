@@ -20,7 +20,7 @@
 !> This is a collection of various IO subroutines
 
 module iomod
-  use iso_fortran_env,wp => real64,stdout=>output_unit
+  use iso_fortran_env,wp => real64,stdout => output_unit
   use iso_c_binding
   implicit none
   public
@@ -475,6 +475,28 @@ contains !> MODULE PROCEDURES START HERE
     close (ich)
     return
   end subroutine grepcntxt
+
+!=====================================================================================!
+  function getlines(fname,maxwidth) result(n)
+    character(len=*) :: fname
+    logical :: ex
+    integer,intent(out),optional :: maxwidth
+    integer :: n,io,w,ich
+    character(len=1056) :: atmp
+    n = 0
+    w = 0
+    inquire (file=fname,exist=ex)
+    if (.not.ex) return
+    open (newunit=ich,file=fname)
+    do
+      read (ich,'(a)',iostat=io) atmp
+      if (io /= 0) exit
+      n = n+1
+      if (len_trim(atmp) > w) w = len_trim(atmp)
+    end do
+    if (present(maxwidth)) maxwidth = w
+    close (ich)
+  end function getlines
 
 !--------------------------------------------------------------------------------------
 ! Write a file with a single line (INT)
@@ -944,18 +966,18 @@ contains !> MODULE PROCEDURES START HERE
 
     pipe = ' >/dev/null 2>/dev/null'
     checkcall = 'command -v '//trim(fname)//pipe
-    call command(trim(checkcall), exitstat=io)
+    call command(trim(checkcall),exitstat=io)
 
-    if(present(verbose))then
-    if (io .ne. 0 .and. verbose) then
-      write (stdout,'(4x,a,a,a)') 'binary: "',trim(fname),'"'
-      write (stdout,'(4x,a)') 'status: not found!'
+    if (present(verbose)) then
+      if (io .ne. 0.and.verbose) then
+        write (stdout,'(4x,a,a,a)') 'binary: "',trim(fname),'"'
+        write (stdout,'(4x,a)') 'status: not found!'
+      end if
     end if
-    endif
 
-    if(present(iostat))then
-       iostat = io
-    endif
+    if (present(iostat)) then
+      iostat = io
+    end if
 
     return
   end subroutine checkprog_silent

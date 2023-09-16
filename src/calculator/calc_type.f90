@@ -26,12 +26,13 @@ module calc_type
   use gfn0_api
   use gfnff_api,only:gfnff_data
   use xhcff_api,only:xhcff_calculator
-!>--- other
+!>--- other types
+  use orca_type
   use lwoniom_module
   implicit none
 
-  character(len=1),public,parameter :: sep = '/'
-  character(len=12),public,parameter :: dev0 = ' 2>/dev/null'
+  character(len=*),public,parameter :: sep = '/'
+  character(len=*),public,parameter :: dev0 = ' 2>/dev/null'
 
 !&<
   !> job type enumerator
@@ -147,7 +148,9 @@ module calc_type
     !> ONIOM fragment IDs
     integer :: ONIOM_highlowroot = 0 
     integer :: ONIOM_id = 0
-    integer :: ONIOM_root = 0
+
+    !> ORCA job template
+    type(orca_input) :: ORCA
 
 !>--- Type procedures
   contains
