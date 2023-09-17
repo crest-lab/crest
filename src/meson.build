@@ -39,7 +39,6 @@ srcs += files(
   'cleanup.f90',
   'compress.f90',
   'confparse.f90',
-  'constraining.f90',
   'cregen.f90',
   'crest_pars.f90',
   'ensemblecomp.f90',

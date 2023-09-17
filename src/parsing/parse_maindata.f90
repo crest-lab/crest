@@ -154,6 +154,8 @@ contains   !> MODULE PROCEDURES START HERE
       env%inputcoords = val
     case ('input')
       env%inputcoords = val
+    case ('constraints','xtbconstraints','xtbinput') !> equivalent to --cinp
+      env%constraints = val
     end select
     return
   end subroutine parse_main_c

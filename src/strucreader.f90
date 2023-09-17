@@ -1981,9 +1981,11 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*),intent(in) :: cin
     character(len=:),allocatable :: c
     integer :: iout
-    integer :: i,j,k,ich,io
+    integer :: i,j,k,ich,io,Z
     logical :: ex
     c = trim(convertlable(cin))
+    read(cin,*,iostat=io) j
+    if(io == 0) Z = j
     if (any(PSE(:) .eq. c)) then
       do i = 1,118
         if (trim(PSE(i)) .eq. c) then
@@ -1991,6 +1993,8 @@ contains  !> MODULE PROCEDURES START HERE
           exit
         end if
       end do
+    else if(io==0 .and. Z <= 118)then
+      iout = Z
     else !> special cases
       select case (trim(c))
       case ('D'); iout = 1

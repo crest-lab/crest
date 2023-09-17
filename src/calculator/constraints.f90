@@ -37,7 +37,7 @@ module constraints
   real(wp),parameter :: autokcal = 627.509541_wp
   real(wp),parameter :: kB = 3.166808578545117e-06_wp !in Eh/K
   real(wp),parameter :: pi = 3.14159265359_wp
-  real(wp),parameter :: deg = 180.0_wp / pi ! 1 rad in degrees
+  real(wp),parameter :: deg = 180.0_wp/pi ! 1 rad in degrees
   real(wp),parameter :: fcdefault = 0.01_wp
   real(wp),parameter :: Tdefault = 298.15_wp
 
@@ -86,7 +86,6 @@ module constraints
   end type constraint
   !=====================================================!
 
-
   public :: scantype
   !=====================================================!
   type :: scantype
@@ -106,8 +105,6 @@ module constraints
   end type scantype
   !=====================================================!
 
-
-
   public :: calc_constraint
 
 !========================================================================================!
@@ -117,6 +114,11 @@ contains  !>--- Module routines start here
 !========================================================================================!
 
   subroutine calc_constraint(n,xyz,constr,energy,grd)
+!*****************************************************
+!* Calculate energy and gradient contribution for
+!* the given constraint.
+!* In and outputs are in atomic units (Bohr, Hartree)
+!*****************************************************
     implicit none
     integer,intent(in) :: n
     real(wp),intent(in) :: xyz(3,n)
@@ -164,15 +166,15 @@ contains  !>--- Module routines start here
     case (bond)
       art = 'distance'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0)') self%atms(1:2)
-      write (values,'(" d=",f8.2,1x,"k=",f8.5)') self%ref(1),self%fc(1)
+      write (values,'(" d=",f8.2,1x,"k=",f8.5)') self%ref(1)*bohr,self%fc(1)
     case (angle)
       art = 'angle'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0,",",i0)') self%atms(1:3)
-      write (values,'(" deg=",f6.2,1x,"k=",f8.5)') self%ref(1) * deg,self%fc(1)
+      write (values,'(" deg=",f6.2,1x,"k=",f8.5)') self%ref(1)*deg,self%fc(1)
     case (dihedral)
       art = 'dihedral'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0,",",i0,",",i0)') self%atms(1:4)
-      write (values,'(" deg=",f6.2,1x,"k=",f8.5)') self%ref(1) * deg,self%fc(1)
+      write (values,'(" deg=",f6.2,1x,"k=",f8.5)') self%ref(1)*deg,self%fc(1)
     case (wall)
       art = 'wall'
       write (atoms,'(1x,"atoms:",1x,i0,a)') self%n,'/all'
@@ -193,12 +195,12 @@ contains  !>--- Module routines start here
       art = 'none'
       atoms = 'none'
       values = ' '
-      pr=.false.
+      pr = .false.
     end select
-    if(pr) then
+    if (pr) then
       write (chnl,'("> ",a,a,a)') 'constraint: ',trim(art),trim(atoms)
-      write(chnl,'(1x,a)') trim(values)
-    endif
+      write (chnl,'(1x,a)') trim(values)
+    end if
 
     return
   end subroutine print_constraint
@@ -214,28 +216,28 @@ contains  !>--- Module routines start here
     integer :: a1,a2
 
     call self%deallocate()
-    
-    select case( i )
-    case ( 1 )
-      if( any(rawa(1) == (/character(7)::'all','allauto' /)))then
-      call self%dummyconstraint(t)
-      endif
-    case (2) 
-      if( any(rawa(1) == (/character(9)::'all','allauto' /)))then
-      read(rawa(2),*) k
-      call self%dummyconstraint(t,k)
-      endif
+
+    select case (i)
+    case (1)
+      if (any(rawa(1) == (/character(7)::'all','allauto'/))) then
+        call self%dummyconstraint(t)
+      end if
+    case (2)
+      if (any(rawa(1) == (/character(9)::'all','allauto'/))) then
+        read (rawa(2),*) k
+        call self%dummyconstraint(t,k)
+      end if
     case (3)
-      read(rawa(1),*) a1
-      read(rawa(2),*) a2
-      read(rawa(3),*) dist
+      read (rawa(1),*) a1
+      read (rawa(2),*) a2
+      read (rawa(3),*) dist
       dist = abs(dist)
       call self%bondconstraint(a1,a2,dist)
-    case (4)   
-      read(rawa(1),*) a1
-      read(rawa(2),*) a2
-      read(rawa(3),*) dist
-      read(rawa(4),*) k
+    case (4)
+      read (rawa(1),*) a1
+      read (rawa(2),*) a2
+      read (rawa(3),*) dist
+      read (rawa(4),*) k
       dist = abs(dist)
       call self%bondconstraint(a1,a2,dist,k)
     end select
@@ -253,7 +255,7 @@ contains  !>--- Module routines start here
 
     call self%deallocate()
 
-    select case( i )
+    select case (i)
     case (3)
       a1 = nint(fa(1))
       a2 = nint(fa(2))
@@ -269,8 +271,6 @@ contains  !>--- Module routines start here
 
     return
   end subroutine analyze_dummy_bond_constraint2
-
-
 
 !========================================================================================!
 !> subroutine constraint_deallocate
@@ -347,9 +347,13 @@ contains  !>--- Module routines start here
   end subroutine create_bond_constraint
 
 !========================================================================================!
-!> constrain the distance between two atoms A...B
-!> by an harmonic potential V(r) = 1/2kr²
+
   subroutine bond_constraint(n,xyz,constr,energy,grd)
+!**************************************************
+!* constrain the distance between two atoms A...B
+!* by an harmonic potential V(r) = 1/2kr²
+!* r and k are in atomic units (Bohr, Hartree)
+!**************************************************
     implicit none
     integer,intent(in) :: n
     real(wp),intent(in) :: xyz(3,n)
@@ -366,32 +370,32 @@ contains  !>--- Module routines start here
     grd = 0.0_wp
 
     if (constr%n /= 2) return
-    if (.not. allocated(constr%atms)) return
-    if (.not. allocated(constr%ref)) return
-    if (.not. allocated(constr%fc)) return
+    if (.not.allocated(constr%atms)) return
+    if (.not.allocated(constr%ref)) return
+    if (.not.allocated(constr%fc)) return
 
     iat = constr%atms(1)
     jat = constr%atms(2)
-    a = xyz(1,iat) - xyz(1,jat)
-    b = xyz(2,iat) - xyz(2,jat)
-    c = xyz(3,iat) - xyz(3,jat)
-    dist = sqrt(a**2 + b**2 + c**2)
+    a = xyz(1,iat)-xyz(1,jat)
+    b = xyz(2,iat)-xyz(2,jat)
+    c = xyz(3,iat)-xyz(3,jat)
+    dist = sqrt(a**2+b**2+c**2)
     ref = constr%ref(1)
     k = constr%fc(1)
 
-    x = dist - ref
+    x = dist-ref
     select case (constr%subtype)
     case (pharmonic)
-      energy = 0.5_wp * k * (x)**2
-      dum = k * x
+      energy = 0.5_wp*k*(x)**2
+      dum = k*x
     case (plogfermi)
-      energy = kb * T * log(1.0_wp + exp(beta * x))
-      dum = (kb * T * beta * exp(beta * x)) / (exp(beta * x) + 1.0_wp)
+      energy = kb*T*log(1.0_wp+exp(beta*x))
+      dum = (kb*T*beta*exp(beta*x))/(exp(beta*x)+1.0_wp)
     end select
 
-    grd(1,iat) = dum * (a / dist)
-    grd(2,iat) = dum * (b / dist)
-    grd(3,iat) = dum * (c / dist)
+    grd(1,iat) = dum*(a/dist)
+    grd(2,iat) = dum*(b/dist)
+    grd(3,iat) = dum*(c/dist)
     grd(1,jat) = -grd(1,iat)
     grd(2,jat) = -grd(2,iat)
     grd(3,jat) = -grd(3,iat)
@@ -421,7 +425,7 @@ contains  !>--- Module routines start here
     if (d2 > 360.0_wp) then
       dum = d2
       do
-        dum = dum - 360.0_wp
+        dum = dum-360.0_wp
         if (dum < 360.0_wp) then
           d2 = dum
           exit
@@ -429,9 +433,9 @@ contains  !>--- Module routines start here
       end do
     end if
     if (d2 > 180.0_wp) then
-      d2 = 360.0_wp - d2
+      d2 = 360.0_wp-d2
     end if
-    self%ref(1) = d2 / deg !reference in rad
+    self%ref(1) = d2/deg !reference in rad
     if (present(k)) then
       self%fc(1) = k
     end if
@@ -460,9 +464,9 @@ contains  !>--- Module routines start here
     grd = 0.0_wp
 
     if (constr%n /= 3) return
-    if (.not. allocated(constr%atms)) return
-    if (.not. allocated(constr%ref)) return
-    if (.not. allocated(constr%fc)) return
+    if (.not.allocated(constr%atms)) return
+    if (.not.allocated(constr%ref)) return
+    if (.not.allocated(constr%fc)) return
 
     ref = constr%ref(1)
     k = constr%fc(1)
@@ -474,25 +478,25 @@ contains  !>--- Module routines start here
     C = xyz(:,kat)
     call angle_and_derivatives(A,B,C,angle,dadA,dadB,dadC)
 
-    x = angle - ref
+    x = angle-ref
     select case (constr%subtype)
     case (pharmonic) !> harmonic potential
-      energy = 0.5_wp * k * (x)**2
-      dum = k * (x)
+      energy = 0.5_wp*k*(x)**2
+      dum = k*(x)
     case (plogfermi) !> logfermi potential
-      energy = kb * T * log(1.0_wp + exp(beta * x))
-      dum = (kb * T * beta * exp(beta * x)) / (exp(beta * x) + 1.0_wp)
+      energy = kb*T*log(1.0_wp+exp(beta*x))
+      dum = (kb*T*beta*exp(beta*x))/(exp(beta*x)+1.0_wp)
     end select
 
-    grd(1,iat) = dum * dadA(1)
-    grd(2,iat) = dum * dadA(2)
-    grd(3,iat) = dum * dadA(3)
-    grd(1,jat) = dum * dadB(1)
-    grd(2,jat) = dum * dadB(2)
-    grd(3,jat) = dum * dadB(3)
-    grd(1,kat) = dum * dadC(1)
-    grd(2,kat) = dum * dadC(2)
-    grd(3,kat) = dum * dadC(3)
+    grd(1,iat) = dum*dadA(1)
+    grd(2,iat) = dum*dadA(2)
+    grd(3,iat) = dum*dadA(3)
+    grd(1,jat) = dum*dadB(1)
+    grd(2,jat) = dum*dadB(2)
+    grd(3,jat) = dum*dadB(3)
+    grd(1,kat) = dum*dadC(1)
+    grd(2,kat) = dum*dadC(2)
+    grd(3,kat) = dum*dadC(3)
 
     return
   end subroutine angle_constraint
@@ -511,26 +515,26 @@ contains  !>--- Module routines start here
     dadB = 0.0_wp
     dadC = 0.0_wp
 
-    r1 = A - B
-    r2 = C - B
+    r1 = A-B
+    r2 = C-B
     l1 = rlen(r1)
     l2 = rlen(r2)
     p = dot(r1,r2)
-    d = p / (l1 * l2)
+    d = p/(l1*l2)
     angle = acos(d)
-    if (angle < 1d-6 .or. (pi - angle) < 1d-6) then
-      dadA(:) = (1.0_wp / l2) * sin(acos(r2(:) / l2))
-      dadC(:) = (1.0_wp / l1) * sin(acos(r1(:) / l1))
-      if ((pi - angle) < 1d-6) then
+    if (angle < 1d-6.or.(pi-angle) < 1d-6) then
+      dadA(:) = (1.0_wp/l2)*sin(acos(r2(:)/l2))
+      dadC(:) = (1.0_wp/l1)*sin(acos(r1(:)/l1))
+      if ((pi-angle) < 1d-6) then
         dadA = -dadA
         dadC = -dadC
       end if
     else
-      dinv = 1.0_wp / sqrt(1.0_wp - d**2)
-      dadA(:) = -dinv * (r2(:) * l1 * l2 - p * (l2 / l1) * r1(:)) / (l1**2 * l2**2)
-      dadC(:) = -dinv * (r1(:) * l1 * l2 - p * (l1 / l2) * r2(:)) / (l1**2 * l2**2)
+      dinv = 1.0_wp/sqrt(1.0_wp-d**2)
+      dadA(:) = -dinv*(r2(:)*l1*l2-p*(l2/l1)*r1(:))/(l1**2*l2**2)
+      dadC(:) = -dinv*(r1(:)*l1*l2-p*(l1/l2)*r2(:))/(l1**2*l2**2)
     end if
-    dadB = -dadA - dadC
+    dadB = -dadA-dadC
 
     return
   end subroutine angle_and_derivatives
@@ -539,7 +543,7 @@ contains  !>--- Module routines start here
     implicit none
     real(wp) :: r(3)
     rlen = 0.0_wp
-    rlen = r(1)**2 + r(2)**2 + r(3)**2
+    rlen = r(1)**2+r(2)**2+r(3)**2
     rlen = sqrt(rlen)
     return
   end function rlen
@@ -547,7 +551,7 @@ contains  !>--- Module routines start here
     implicit none
     real(wp) :: r1(3),r2(3)
     dot = 0.0_wp
-    dot = r1(1) * r2(1) + r1(2) * r2(2) + r1(3) * r2(3)
+    dot = r1(1)*r2(1)+r1(2)*r2(2)+r1(3)*r2(3)
     return
   end function dot
   subroutine cross(r1,r2,r3)
@@ -555,9 +559,9 @@ contains  !>--- Module routines start here
     real(wp) :: r1(3),r2(3)
     real(wp) :: r3(3)
     r3 = 0.0_wp
-    r3(1) = r1(2) * r2(3) - r1(3) * r2(2)
-    r3(2) = r1(3) * r2(1) - r1(1) * r2(3)
-    r3(3) = r1(1) * r2(2) - r1(2) * r2(1)
+    r3(1) = r1(2)*r2(3)-r1(3)*r2(2)
+    r3(2) = r1(3)*r2(1)-r1(1)*r2(3)
+    r3(3) = r1(1)*r2(2)-r1(2)*r2(1)
     return
   end subroutine cross
 
@@ -587,21 +591,21 @@ contains  !>--- Module routines start here
     if (abs(d2) > 360.0_wp) then
       dum = abs(d2)
       do
-        dum = dum - 360.0_wp
+        dum = dum-360.0_wp
         if (dum < 360.0_wp) then
           d2 = dum
           exit
         end if
       end do
-      d2 = d2 * sig
+      d2 = d2*sig
     end if
     if (d2 > 180.0_wp) then
-      d2 = d2 - 360.0_wp
+      d2 = d2-360.0_wp
     end if
     if (d2 < -180.0_wp) then
-      d2 = d2 + 360.0_wp
+      d2 = d2+360.0_wp
     end if
-    self%ref(1) = d2 / deg !reference in rad
+    self%ref(1) = d2/deg !reference in rad
     if (present(k)) then
       self%fc(1) = k
     end if
@@ -632,9 +636,9 @@ contains  !>--- Module routines start here
     grd = 0.0_wp
 
     if (constr%n /= 4) return
-    if (.not. allocated(constr%atms)) return
-    if (.not. allocated(constr%ref)) return
-    if (.not. allocated(constr%fc)) return
+    if (.not.allocated(constr%atms)) return
+    if (.not.allocated(constr%ref)) return
+    if (.not.allocated(constr%fc)) return
 
     ref = constr%ref(1)
     k = constr%fc(1)
@@ -648,34 +652,34 @@ contains  !>--- Module routines start here
     D = xyz(:,lat)
     Nzero = 0.0_wp
     !> vectors spanning the planes (A,B,C) and (D,C,B)
-    rab = A - B
-    rcb = C - B
-    rdc = D - C
+    rab = A-B
+    rcb = C-B
+    rdc = D-C
     !> get the two normal vectors N1 and N2 for the two planes
     call cross(rab,rcb,N1)
     call cross(rdc,rcb,N2)
     p = dot(N1,rdc)
     sig = -sign(1.0_wp,p)
     call angle_and_derivatives(N1,Nzero,N2,dangle,dadN1,dad0,dadN2)
-    dangle = sig * dangle
-    
-    x = dangle - ref
-    if(x < -180.0_wp/deg) x = x + 360.0_wp/deg
-    if(x > 180.0_wp/deg) x = x - 360.0_wp/deg
+    dangle = sig*dangle
+
+    x = dangle-ref
+    if (x < -180.0_wp/deg) x = x+360.0_wp/deg
+    if (x > 180.0_wp/deg) x = x-360.0_wp/deg
     select case (constr%subtype)
     case (pharmonic) !> harmonic potential
-      energy = 0.5_wp * k * (x)**2
-      dum = k * (x)
+      energy = 0.5_wp*k*(x)**2
+      dum = k*(x)
     case (plogfermi) !> logfermi potential
-      energy = kb * T * log(1.0_wp + exp(beta * x))
-      dum = (kb * T * beta * exp(beta * x)) / (exp(beta * x) + 1.0_wp)
+      energy = kb*T*log(1.0_wp+exp(beta*x))
+      dum = (kb*T*beta*exp(beta*x))/(exp(beta*x)+1.0_wp)
     end select
 
     call dtorsdr(A,B,C,D,dadN1,dadN2,sig,dDdA,dDdB,dDdC,dDdD)
-    grd(1:3,iat) = dum * dDdA(1:3)
-    grd(1:3,jat) = dum * dDdB(1:3)
-    grd(1:3,kat) = dum * dDdC(1:3)
-    grd(1:3,lat) = dum * dDdD(1:3)
+    grd(1:3,iat) = dum*dDdA(1:3)
+    grd(1:3,jat) = dum*dDdB(1:3)
+    grd(1:3,kat) = dum*dDdC(1:3)
+    grd(1:3,lat) = dum*dDdD(1:3)
 
     return
   contains
@@ -686,27 +690,27 @@ contains  !>--- Module routines start here
       real(wp),intent(in) :: sig !> sign
       real(wp),intent(out) :: dphidA(3),dphidB(3),dphidC(3),dphidD(3) !> Cartesian derivatives
 
-      dphidA(1) = sig * (dadN1(2) * (B(3) - C(3)) + dadN1(3) * (C(2) - B(2)))
-      dphidA(2) = sig * (dadN1(1) * (C(3) - B(3)) + dadN1(3) * (B(1) - C(1)))
-      dphidA(3) = sig * (dadN1(1) * (B(2) - C(2)) + dadN1(2) * (C(1) - B(1)))
+      dphidA(1) = sig*(dadN1(2)*(B(3)-C(3))+dadN1(3)*(C(2)-B(2)))
+      dphidA(2) = sig*(dadN1(1)*(C(3)-B(3))+dadN1(3)*(B(1)-C(1)))
+      dphidA(3) = sig*(dadN1(1)*(B(2)-C(2))+dadN1(2)*(C(1)-B(1)))
 
-      dphidB(1) = sig * (dadN1(2) * (C(3) - A(3)) + dadN1(3) * (A(2) - C(2)) &
-      &       + dadN2(2) * (C(3) - D(3)) + dadN2(3) * (D(2) - C(2)))
-      dphidB(2) = sig * (dadN1(1) * (A(3) - C(3)) + dadN1(3) * (C(1) - A(1)) &
-      &       + dadN2(1) * (D(3) - C(3)) + dadN2(3) * (C(1) - D(1)))
-      dphidB(3) = sig * (dadN1(1) * (C(2) - A(2)) + dadN1(2) * (A(1) - C(1)) &
-      &       + dadN2(1) * (C(2) - D(2)) + dadN2(2) * (D(1) - C(1)))
+      dphidB(1) = sig*(dadN1(2)*(C(3)-A(3))+dadN1(3)*(A(2)-C(2)) &
+      &       +dadN2(2)*(C(3)-D(3))+dadN2(3)*(D(2)-C(2)))
+      dphidB(2) = sig*(dadN1(1)*(A(3)-C(3))+dadN1(3)*(C(1)-A(1)) &
+      &       +dadN2(1)*(D(3)-C(3))+dadN2(3)*(C(1)-D(1)))
+      dphidB(3) = sig*(dadN1(1)*(C(2)-A(2))+dadN1(2)*(A(1)-C(1)) &
+      &       +dadN2(1)*(C(2)-D(2))+dadN2(2)*(D(1)-C(1)))
 
-      dphidC(1) = sig * (dadN1(2) * (A(3) - B(3)) + dadN1(3) * (B(2) - A(2)) &
-      &       + dadN2(2) * (D(3) - B(3)) + dadN2(3) * (B(2) - D(2)))
-      dphidC(2) = sig * (dadN1(1) * (B(3) - A(3)) + dadN1(3) * (A(1) - B(1)) &
-      &       + dadN2(1) * (B(3) - D(3)) + dadN2(3) * (D(1) - B(1)))
-      dphidC(3) = sig * (dadN1(1) * (A(2) - B(2)) + dadN1(2) * (B(1) - A(1)) &
-      &       + dadN2(1) * (D(2) - B(2)) + dadN2(2) * (B(1) - D(1)))
+      dphidC(1) = sig*(dadN1(2)*(A(3)-B(3))+dadN1(3)*(B(2)-A(2)) &
+      &       +dadN2(2)*(D(3)-B(3))+dadN2(3)*(B(2)-D(2)))
+      dphidC(2) = sig*(dadN1(1)*(B(3)-A(3))+dadN1(3)*(A(1)-B(1)) &
+      &       +dadN2(1)*(B(3)-D(3))+dadN2(3)*(D(1)-B(1)))
+      dphidC(3) = sig*(dadN1(1)*(A(2)-B(2))+dadN1(2)*(B(1)-A(1)) &
+      &       +dadN2(1)*(D(2)-B(2))+dadN2(2)*(B(1)-D(1)))
 
-      dphidD(1) = sig * (dadN2(2) * (B(3) - C(3)) + dadN2(3) * (C(2) - B(2)))
-      dphidD(2) = sig * (dadN2(1) * (C(3) - B(3)) + dadN2(3) * (B(1) - C(1)))
-      dphidD(3) = sig * (dadN2(1) * (B(2) - C(2)) + dadN2(2) * (C(1) - B(1)))
+      dphidD(1) = sig*(dadN2(2)*(B(3)-C(3))+dadN2(3)*(C(2)-B(2)))
+      dphidD(2) = sig*(dadN2(1)*(C(3)-B(3))+dadN2(3)*(B(1)-C(1)))
+      dphidD(3) = sig*(dadN2(1)*(B(2)-C(2))+dadN2(2)*(C(1)-B(1)))
 
       return
     end subroutine dtorsdr
@@ -792,8 +796,6 @@ contains  !>--- Module routines start here
     return
   end subroutine create_ellips_constraint
 
-
-
   subroutine sphere_update_nat(self,n,atms)
     implicit none
     class(constraint) :: self
@@ -802,11 +804,11 @@ contains  !>--- Module routines start here
     integer :: c,i
     c = count(atms,1)
     self%n = c
-    if(allocated(self%atms))deallocate(self%atms)
-    allocate(self%atms(c))
-    do i=1,n
+    if (allocated(self%atms)) deallocate (self%atms)
+    allocate (self%atms(c))
+    do i = 1,n
       if (atms(i)) self%atms(i) = i
-    enddo
+    end do
     return
   end subroutine sphere_update_nat
 !========================================================================================!
@@ -829,9 +831,9 @@ contains  !>--- Module routines start here
     energy = 0.0_wp
     grd = 0.0_wp
 
-    if (.not. allocated(constr%atms)) return
-    if (.not. allocated(constr%ref)) return
-    if (.not. allocated(constr%fc)) return
+    if (.not.allocated(constr%atms)) return
+    if (.not.allocated(constr%ref)) return
+    if (.not.allocated(constr%fc)) return
 
     !>--- xtb defaults are:
     !> sphere_alpha = 30
@@ -845,41 +847,41 @@ contains  !>--- Module routines start here
         return
       case (wall)
         !>
-        !> V = k*Σ(|R-O|/Rref)^α 
+        !> V = k*Σ(|R-O|/Rref)^α
         !>
         k = constr%fc(1)
         alpha = constr%fc(2)
-        dalpha = alpha - 1.0_wp
+        dalpha = alpha-1.0_wp
         x = xyz(1,iat)
         y = xyz(2,iat)
         z = xyz(3,iat)
         a = constr%ref(1)
         b = constr%ref(2)
         c = constr%ref(3)
-        dist = (x / a)**2 + (y / b)**2 + (z / c)**2
-        energy = energy + k * (dist**alpha)
-        dx = 2.0_wp * (x / (a**2))
-        dy = 2.0_wp * (y / (b**2))
-        dz = 2.0_wp * (z / (c**2))
-        ddist = k * alpha * (dist**dalpha)
-        grd(1,iat) = ddist * dx
-        grd(2,iat) = ddist * dy
-        grd(3,iat) = ddist * dz
+        dist = (x/a)**2+(y/b)**2+(z/c)**2
+        energy = energy+k*(dist**alpha)
+        dx = 2.0_wp*(x/(a**2))
+        dy = 2.0_wp*(y/(b**2))
+        dz = 2.0_wp*(z/(c**2))
+        ddist = k*alpha*(dist**dalpha)
+        grd(1,iat) = ddist*dx
+        grd(2,iat) = ddist*dy
+        grd(3,iat) = ddist*dz
 
       case (wall_fermi)
         !>
-        !> V = Σ kT*log{1+exp[β(|R-O|-Rref)]} 
+        !> V = Σ kT*log{1+exp[β(|R-O|-Rref)]}
         !>
         T = constr%fc(1)
         beta = constr%fc(2)
         ref = maxval(constr%ref(1:3))
-        w(1:3) = ref / constr%ref(1:3)
-        r = w * (xyz(1:3,iat))
+        w(1:3) = ref/constr%ref(1:3)
+        r = w*(xyz(1:3,iat))
         dist = sqrt(sum(r**2))
-        expo = exp(beta * (dist - ref))
-        fermi = 1.0_wp / (1.0_wp + expo)
-        energy = energy + kB * T * log(1.0_wp + expo)
-        grd(:,iat) = grd(:,iat) + kB * T * beta * expo * fermi * (r * w) / (dist + 1.0e-14_wp)
+        expo = exp(beta*(dist-ref))
+        fermi = 1.0_wp/(1.0_wp+expo)
+        energy = energy+kB*T*log(1.0_wp+expo)
+        grd(:,iat) = grd(:,iat)+kB*T*beta*expo*fermi*(r*w)/(dist+1.0e-14_wp)
       case (box)
 
       case (box_fermi)
@@ -923,8 +925,6 @@ contains  !>--- Module routines start here
     return
   end subroutine create_gapdiff_constraint2
 
-
-
-
+!========================================================================================!
 !========================================================================================!
 end module constraints

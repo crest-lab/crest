@@ -42,7 +42,6 @@ list(APPEND srcs
   "${dir}/cleanup.f90"
   "${dir}/compress.f90"
   "${dir}/confparse.f90"
-  "${dir}/constraining.f90"
   "${dir}/cregen.f90"
   "${dir}/crest_pars.f90"
   "${dir}/ensemblecomp.f90"

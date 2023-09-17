@@ -77,6 +77,7 @@ module calc_type
 
     integer :: chrg = 0          !> molecular charge
     integer :: uhf = 0           !> uhf parameter (xtb) or multiplicity (other)
+    logical :: active = .true.   !> active setting to disable the calculation (this is different from weight=0)
     real(wp) :: weight = 1.0_wp  !> calculation weight (when adding them up)
 
     character(len=:),allocatable :: calcspace  !> subdirectory to perform the calculation in
@@ -177,6 +178,7 @@ module calc_type
     real(wp),allocatable :: etmp(:)
     real(wp),allocatable :: grdtmp(:,:,:)
     real(wp),allocatable :: eweight(:)
+    real(wp),allocatable :: weightbackup(:)
     real(wp),allocatable :: etmp2(:)
     real(wp),allocatable :: grdtmp2(:,:,:)
     real(wp),allocatable :: eweight2(:)
@@ -235,6 +237,8 @@ module calc_type
     procedure :: removeconstraint => calculation_remove_constraint
     procedure :: info => calculation_info
     procedure :: ONIOMexpand => calculation_ONIOMexpand
+    procedure :: active => calc_set_active
+    procedure :: active_restore => calc_set_active_restore
   end type calcdata
 
 !========================================================================================!
@@ -840,6 +844,46 @@ contains  !>--- Module routines start here
 
     end select
   end subroutine create_calclevel_shortcut
+
+!=========================================================================================!
+
+  subroutine calc_set_active(self,ids)
+     implicit none
+     class(calcdata) :: self
+     integer,intent(in) :: ids(:) 
+     integer :: i,j,k,l
+     if(allocated(self%weightbackup)) deallocate(self%weightbackup)
+!>--- on-the-fly multiscale definition
+      allocate(self%weightbackup(self%ncalculations), source = 1.0_wp)
+      do i=1,self%ncalculations
+!>--- save backup weights
+        self%weightbackup(i) =  self%calcs(i)%weight
+!>--- set the weight of all unwanted calculations to 0
+        if(.not.any(ids(:).eq.i))then
+           self%calcs(i)%weight = 0.0_wp
+           self%calcs(i)%active = .false.
+        else
+!>--- and all other to 1
+           self%calcs(i)%weight = 1.0_wp
+           self%calcs(i)%active = .true.
+        endif
+      enddo
+  end subroutine calc_set_active
+  
+  subroutine calc_set_active_restore(self)
+     implicit none
+     class(calcdata) :: self
+     integer :: i,j,k,l
+     if(.not.allocated(self%weightbackup)) return
+     do i=1,self%ncalculations
+!>--- set all to active and restore saved weights        
+        self%calcs(i)%weight = self%weightbackup(i)
+        self%calcs(i)%active = .true.
+        self%eweight(i) = self%weightbackup(i)
+     enddo
+     deallocate(self%weightbackup)
+  end subroutine calc_set_active_restore
+ 
 
 !=========================================================================================!
 end module calc_type

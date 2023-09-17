@@ -216,7 +216,7 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine print_block
 
 !=======================================================================================!
-!> check if string is a block header
+!> check if string is a toml block header
   function isheader(str)
     implicit none
     logical :: isheader

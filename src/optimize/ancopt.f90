@@ -28,7 +28,7 @@ module ancopt_module
   use ls_rmsd
   use testmol
 
-  use type_anc
+  use optimize_type
   use optimize_maths
   use modelhessian_module
   use hessupdate_module
@@ -99,7 +99,7 @@ contains
     logical :: fail
     !> Local objects
     type(coord)   :: molopt
-    type(tb_anc)  :: anc
+    type(optimizer)  :: anc
     type(mhparam) :: mhset
 
     real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,hlow,edum,s6,thr
@@ -360,7 +360,7 @@ contains
 
     type(coord) :: mol
     type(calcdata) :: calc
-    type(tb_anc) :: anc
+    type(optimizer) :: anc
     integer,intent(inout) :: iter
     integer,intent(in)    :: maxmicro
     real(wp),intent(inout) :: etot

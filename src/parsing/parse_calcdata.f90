@@ -717,6 +717,11 @@ contains !> MODULE PROCEDURES START HERE
       call parse_md(mddat,kv%key,kv%value_b)
     case (4) !> string
       call parse_md(mddat,kv%key,kv%value_c)
+    case default
+      select case ( kv%key )
+      case ('active','active_levels') 
+        mddat%active_potentials = kv%value_ia
+      end select 
     end select
   end subroutine parse_md_auto
   subroutine parse_md_float(mddat,key,val)

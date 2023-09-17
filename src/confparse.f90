@@ -2120,6 +2120,12 @@ subroutine parseflags(env,arg,nra)
     env%properties = p_zsort
   endif 
 
+!>--- for legacy runtypes, check if xtb is present
+  if(env%legacy)then
+    call checkprog_silent(env%ProgName,.true.,iostat=io)
+    if(io /= 0 ) error stop
+  endif
+
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !> FALLBACK setup of new calculator
@@ -2160,6 +2166,7 @@ subroutine parseRC2(env,bondconst)
   use crest_data
   use iomod
   use utilities
+  use parse_xtbinput
   implicit none
 
   type(systemdata),intent(inout) :: env
@@ -2209,7 +2216,7 @@ subroutine parseRC2(env,bondconst)
   else
     env%cts%used = .false.
     return
-  end if
+  end if 
 
 !>--- read the data
   call read_constrainbuffer(env%constraints,env%cts)
@@ -2224,6 +2231,9 @@ subroutine parseRC2(env,bondconst)
       end if
     end do
   end if
+  if(.not.env%legacy)then
+    call parse_xtbinputfile(env,env%constraints)
+  endif
 
 !>--- some settings
   create = .false.

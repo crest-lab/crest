@@ -20,5 +20,5 @@ srcs += files(
   'modelhessian.f90',
   'optimize_maths.f90',
   'optimize_module.f90',
-  'type_anc.f90',
+  'optimize_type.f90',
 )

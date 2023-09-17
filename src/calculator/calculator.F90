@@ -167,6 +167,7 @@ contains  !> MODULE PROCEDURES START HERE
 
         !> also skip through if only one level was requested
         if (calc%id > 0.and. i .ne. calc%id .and. .not.useONIOM) cycle
+        if (.not.calc%calcs(i)%active) cycle
 
         !>--- select the calculation type
         select case (calc%calcs(i)%id)
@@ -235,6 +236,9 @@ contains  !> MODULE PROCEDURES START HERE
 
       !==================================================================================!
       !>--- switch case for what-to-do with the energies
+      !$omp critical
+       !write(*,*) calc%id,n,calc%ewight(:)
+      !$omp end critical
       select case (calc%id)
       case (0) !> the DEFAULT
         !>--- an option to add multiple energies and gradients accodring to weights

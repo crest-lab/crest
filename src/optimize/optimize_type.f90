@@ -20,15 +20,15 @@
 ! Routines were adapted from the xtb code (github.com/grimme-lab/xtb)
 ! under the Open-source software LGPL-3.0 Licencse.
 !================================================================================!
-module type_anc
+module optimize_type
    use iso_fortran_env, only: wp=>real64
    use optimize_maths, only: detrotra8
    implicit none
 
-   public :: tb_anc
+   public :: optimizer
    private
 
-   type tb_anc
+   type optimizer
       integer  :: n    !< number of atoms
       integer  :: n3   !< dimension of hessian
       integer  :: nvar !< actual dimension
@@ -45,13 +45,17 @@ module type_anc
    procedure :: write => write_anc
    procedure :: new => generate_anc_blowup
    procedure :: get_cartesian
-   end type tb_anc
+   end type optimizer
 
-contains
 !========================================================================================!
+!========================================================================================!
+contains  !> MODULE PROCEDURES START HERE
+!========================================================================================!
+!========================================================================================!
+
 subroutine allocate_anc(self,n,nvar,hlow,hmax)
    implicit none
-   class(tb_anc),intent(inout)  :: self
+   class(optimizer),intent(inout)  :: self
    integer,      intent(in)     :: n
    integer,      intent(in)     :: nvar
    integer                      :: n3
@@ -70,10 +74,12 @@ subroutine allocate_anc(self,n,nvar,hlow,hmax)
    allocate( self%coord(nvar),           source = 0.0_wp )
    allocate( self%xyz(3,n),              source = 0.0_wp )
 end subroutine allocate_anc
+
 !========================================================================================!
+
 subroutine deallocate_anc(self)
    implicit none
-   class(tb_anc),intent(inout) :: self
+   class(optimizer),intent(inout) :: self
    self%n    = 0
    self%n3   = 0
    self%nvar = 0
@@ -83,17 +89,18 @@ subroutine deallocate_anc(self)
    if (allocated(self%coord)) deallocate( self%coord )
    if (allocated(self%xyz  )) deallocate( self%xyz   )
 end subroutine deallocate_anc
+
 !========================================================================================!
 !> @brief print information about current approximate normal coordinates to unit
 subroutine write_anc(self,iunit,comment)
    implicit none
-   class(tb_anc),   intent(in) :: self    !< approximate normal coordinates
+   class(optimizer),   intent(in) :: self    !< approximate normal coordinates
    integer,         intent(in) :: iunit   !< file handle
    character(len=*),intent(in) :: comment !< name of the variable
    character(len=*),parameter  :: dfmt = '(1x,a,1x,"=",1x,g0)'
 
    write(iunit,'(72(">"))')
-   write(iunit,'(1x,"*",1x,a)') "Writing 'tb_anc' class"
+   write(iunit,'(1x,"*",1x,a)') "Writing 'optimizer' class"
    write(iunit,'(  "->",1x,a)') comment
    write(iunit,'(72("-"))')
    write(iunit,'(1x,"*",1x,a)') "status of the fields"
@@ -130,10 +137,12 @@ subroutine write_anc(self,iunit,comment)
    endif
    write(iunit,'(72("<"))')
 end subroutine write_anc
+
 !========================================================================================!
+
 subroutine generate_anc_blowup(self,xyz,hess,pr,linear,fail)
    implicit none
-   class(tb_anc),intent(inout) :: self
+   class(optimizer),intent(inout) :: self
    real(wp),     intent(in)    :: xyz(3,self%n)
    real(wp),     intent(inout) :: hess(self%n3,self%n3)
    logical,      intent(in)    :: pr
@@ -223,10 +232,12 @@ subroutine generate_anc_blowup(self,xyz,hess,pr,linear,fail)
    self%coord = 0.0_wp
    return
 end subroutine generate_anc_blowup
+
 !========================================================================================!
+
 subroutine generate_anc_packed(self,xyz,hess,pr,fail)
    implicit none
-   class(tb_anc),intent(inout) :: self
+   class(optimizer),intent(inout) :: self
    real(wp),     intent(in)    :: xyz(3,self%n)
    real(wp),     intent(inout) :: hess(self%n3*(self%n3+1)/2)
    logical,      intent(in)    :: pr
@@ -317,7 +328,9 @@ subroutine generate_anc_packed(self,xyz,hess,pr,fail)
    self%coord = 0.0_wp
    return
 end subroutine generate_anc_packed
+
 !========================================================================================!
+
 pure subroutine sort(nat3,nvar,hess,b)
    implicit none
    integer :: ii,k,j,m,i
@@ -356,10 +369,12 @@ pure subroutine sort(nat3,nvar,hess,b)
    enddo
    return
 end subroutine sort
+
 !========================================================================================!
+
 subroutine get_cartesian(self,xyz)
    implicit none
-   class(tb_anc),intent(in) :: self
+   class(optimizer),intent(in) :: self
    integer :: m,i,j,k
    real(wp),intent(out) :: xyz (3,self%n)
    real(wp) :: dum
@@ -369,5 +384,7 @@ subroutine get_cartesian(self,xyz)
    call dgemv('n',self%n3,self%nvar,1.0_wp,self%B,self%n3,self%coord,1,1.0_wp,xyz,1)
    return
 end subroutine get_cartesian
+
 !========================================================================================!
-end module type_anc
+!========================================================================================!
+end module optimize_type

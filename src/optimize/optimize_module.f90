@@ -68,7 +68,7 @@ contains  !> MODULE PROCEDURES START HERE
     case default
     call ancopt(molnew,calc,etot,grd,pr,wr,iostatus)
     end select
-
+ 
     return
   end subroutine optimize_geometry
 

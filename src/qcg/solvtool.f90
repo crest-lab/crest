@@ -36,7 +36,7 @@ subroutine crest_solvtool(env, tim)
    type(zmolecule) :: solute, solvent, cluster, cluster_backup 
    type(ensemble) :: full_ensemble, solvent_ensemble
 
-   integer :: progress
+   integer :: progress,io
    character(len=512) :: thispath
 
    real(wp), parameter         :: eh = 627.509541d0
@@ -52,6 +52,11 @@ subroutine crest_solvtool(env, tim)
    !>-----------------------------------
    call qcg_head()
    !>-----------------------------------
+
+!> Check, if xtb is present
+   call checkprog_silent(env%ProgName,.true.,iostat=io)
+   if(io /= 0 ) error stop
+
 !> Check, if xtbiff is present
    if (env%use_xtbiff) then
       call check_prog_path_iff(env)

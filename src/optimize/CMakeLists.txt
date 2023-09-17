@@ -22,7 +22,7 @@ list(APPEND srcs
   "${dir}/modelhessian.f90"
   "${dir}/optimize_maths.f90"
   "${dir}/optimize_module.f90"
-  "${dir}/type_anc.f90"
+  "${dir}/optimize_type.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

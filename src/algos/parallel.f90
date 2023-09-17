@@ -291,7 +291,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
 
     !>-- geometry optimization
     call optimize_geometry(mols(job),molsnew(job),calculations(job),energy,grads(:,:,job),pr,wr,io)
-
+   
     !$omp critical
     if (io == 0) then
       !>--- successful optimization (io==0)
@@ -900,6 +900,9 @@ subroutine parallel_md_block_printout(MD,vz)
       write (stdout,'(2x,"|   SHAKE algorithm      :",a5," (H only) |")') to_str(MD%shake)
     end if
   end if
+  if(allocated(MD%active_potentials))then
+      write (stdout,'(2x,"|   active potentials    :",i4," porential |")') size(MD%active_potentials,1)
+  endif
   if (MD%simtype == type_mtd) then
     if (MD%cvtype(1) == cv_rmsd) then
       write (stdout,'(2x,"|   dump interval(Vbias) :",f8.2," ps       |")') &

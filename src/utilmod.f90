@@ -19,6 +19,7 @@
 
 module utilities
   use crest_parameters
+  use ls_rmsd
   implicit none
   private
   

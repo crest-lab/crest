@@ -98,6 +98,9 @@ module dynamics_module
     type(mtdpot),allocatable :: mtd(:)
     integer,allocatable :: cvtype(:)
 
+    !>--- on-the-fly multi-scale level choosing
+    integer,allocatable :: active_potentials(:)
+
   contains
     generic,public :: add => md_add_mtd
     procedure,private :: md_add_mtd
@@ -141,7 +144,7 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),allocatable :: acc(:,:)
     real(wp),allocatable :: mass(:)
     real(wp),allocatable :: xyz_angstrom(:,:)
-
+    real(wp),allocatable :: backupweights(:)
     type(coord) :: molo
     real(wp) :: f
     real(wp) :: molmass,tmass
@@ -171,6 +174,11 @@ contains  !> MODULE PROCEDURES START HERE
     ekav = 0.0_wp
     epav = 0.0_wp
     temp = 0.0_wp
+
+!>--- on-the-fly multiscale definition
+    if(allocated(dat%active_potentials))then
+      call calc%active(dat%active_potentials)
+    endif
 
 !>--- allocate data fields
     allocate (xyz_angstrom(3,mol%nat))
@@ -205,6 +213,9 @@ contains  !> MODULE PROCEDURES START HERE
         end if
       end if
       write (*,'('' hydrogen mass /u   :'',f10.5 )') dat%md_hmass
+      if(allocated(dat%active_potentials))then
+       write (*,'('' active potentials  :'',i10)') size(dat%active_potentials,1)
+      endif
     end if
 
 !>--- set atom masses
@@ -434,6 +445,11 @@ contains  !> MODULE PROCEDURES START HERE
     deallocate (vel,velo,grd)
     deallocate (molo%xyz,molo%at)
     deallocate (xyz_angstrom)
+
+!>--- restore weights if necessary
+    if(allocated(dat%active_potentials))then
+      call calc%active_restore()
+    endif
 
     return
   end subroutine dynamics

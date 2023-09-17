@@ -16,10 +16,12 @@
 
 srcs += files(
   'confparse2.f90',
+  'constraining.f90',
   'parse_block.f90',
   'parse_calcdata.f90',
   'parse_datastruct.f90',
   'parse_maindata.f90',
+  'parse_xtbinput.f90',
   'parse_toml.F90',
   'parse_inputfile.F90',
   'parse_keyvalue.f90',

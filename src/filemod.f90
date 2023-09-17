@@ -447,7 +447,7 @@ end function
 subroutine clearcomment(str,id)
      implicit none
      character(len=*),intent(inout) :: str
-     character(len=1),intent(in) :: id 
+     character(len=*),intent(in) :: id 
      character(len=:),allocatable :: atmp
      integer :: k
      atmp = str
