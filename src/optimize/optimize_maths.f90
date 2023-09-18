@@ -27,6 +27,10 @@ module optimize_maths
   private
 
   public :: trproj
+  interface trproj
+    module procedure :: trproj_normal
+    module procedure :: trproj_frozen
+  end interface
   public :: detrotra8
   public :: solver_sdavidson
   public :: solver_sspevx
@@ -129,7 +133,7 @@ contains
 !>       hess    = projected hessian out of space of transl. and rot.
 !>                 motion
 !-----------------------------------------------------------------
-  subroutine trproj(natoms,nat3,xyz,hess,ldebug,nmode,mode,ndim)
+  subroutine trproj_normal(natoms,nat3,xyz,hess,ldebug,nmode,mode,ndim)
     implicit none
     !> Input
     logical,intent(in) :: ldebug
@@ -166,7 +170,7 @@ contains
     call gtrprojm(natoms,nat3,xyzucm,hess,ldebug,nmode,mode,ndim)
 
     return
-  end subroutine trproj
+  end subroutine trproj_normal
 
 !========================================================================================!
 !> calculating the translational-rotational projection matrix
@@ -195,7 +199,7 @@ contains
     !> Local
     integer :: i,ii,iii
     real(wp),allocatable :: fmat(:,:)
-    integer :: nprj
+    integer :: nprj,fnrozen
 
     nprj = 6
     if (nmode .gt. 0) nprj = nprj + nmode
@@ -228,27 +232,6 @@ contains
         fmat(1:nat3,6 + i) = mode(1:nat3,i)
       end do
     end if
-    !!> exact fixing
-    !if (nmode .lt. 0) then
-    !  do i = 1,natoms
-    !    !> rotational vectors
-    !    fmat(3 * (i - 1) + 1,1) = 0.0_wp
-    !    fmat(3 * (i - 1) + 2,1) = -xyzucm(3,i)
-    !    fmat(3 * (i - 1) + 3,1) = xyzucm(2,i)
-    !    fmat(3 * (i - 1) + 1,2) = xyzucm(3,i)
-    !    fmat(3 * (i - 1) + 2,2) = 0.0_wp
-    !    fmat(3 * (i - 1) + 3,2) = -xyzucm(1,i)
-    !    fmat(3 * (i - 1) + 1,3) = -xyzucm(2,i)
-    !    fmat(3 * (i - 1) + 2,3) = xyzucm(1,i)
-    !    fmat(3 * (i - 1) + 3,3) = 0.0_wp
-    !  end do
-    !  do i = 1,fixset%n
-    !    iii = fixset%atoms(i)
-    !    do ii = 1,3
-    !      fmat(3 * (iii - 1) + ii,3 + (i - 1) * 3 + ii) = 1.0_wp
-    !    end do
-    !  end do
-    !end if
 
     if (ldebug) then
       write (*,'(a)')
@@ -265,6 +248,142 @@ contains
     deallocate (fmat)
     return
   end subroutine gtrprojm
+
+
+!========================================================================================!
+!>  subroutine trproj drives projection of hessian out of the
+!>  space of translational and rotational motions:
+!>  first get xyz c.m.; second get transl. and rot. projection matrix
+!>  This is the frozen atom version
+!>  get center of mass coordinates with unit mass
+!>
+!> Input
+!>   natoms  = number of atoms
+!>   nat3    = 3*natoms
+!>   xyz     = cartesian coordinates
+!>   ldebug  = debug flag = .true. for debugging
+!>   freezelist = an array of booleans that are .true. for frozen atoms
+!>
+!> Ouput
+!>       xyzucm  = temporary c.m. coordinates
+!>
+!>       hess    = projected hessian out of space of transl. and rot.
+!>                 motion
+!-----------------------------------------------------------------
+  subroutine trproj_frozen(natoms,nat3,xyz,hess,ldebug,freezelist)
+    implicit none
+    !> Input
+    logical,intent(in) :: ldebug
+    integer,intent(in) :: natoms,nat3
+    logical,intent(in) :: freezelist(natoms)
+    real(wp),dimension(3,natoms) :: xyz
+    !> Ouput
+    real(wp),dimension(nat3*(nat3 + 1)/2) :: hess
+    !> Local
+    integer :: i
+    real(wp) :: xm,ym,zm
+    real(wp),dimension(3,natoms) :: xyzucm
+
+    !> temporary coordinates, c.m. shifted
+    xyzucm(:,:) = xyz(:,:)
+    xm = 0.0_wp
+    ym = 0.0_wp
+    zm = 0.0_wp
+    do i = 1,natoms
+      xm = xm + xyzucm(1,i)
+      ym = ym + xyzucm(2,i)
+      zm = zm + xyzucm(3,i)
+    end do
+    xm = xm / natoms
+    ym = ym / natoms
+    zm = zm / natoms
+    do i = 1,natoms
+      xyzucm(1,i) = xyzucm(1,i) - xm
+      xyzucm(2,i) = xyzucm(2,i) - ym
+      xyzucm(3,i) = xyzucm(3,i) - zm
+    end do
+
+    !> get translational and rotational projection matrix
+    call gtrprojm_frozen(natoms,nat3,xyzucm,hess,ldebug,freezelist)
+
+    return
+  end subroutine trproj_frozen
+
+!========================================================================================!
+!> calculating the translational-rotational projection matrix
+!> taking into account frozen atoms 
+!> 
+!> Input
+!>   natoms  = number of atoms
+!>   nat3    = 3*natoms
+!>   xyzucm  = coords c.m. from gxyzucm.f
+!>   hess    = hessian
+!>   ldebug  = debug flag = .true. for debugging
+!>
+!> Ouput
+!>   fmat    = F-matrix with translational and rotational vectors
+!>   pmat    = projection matrix P = (1-FFt)
+!>   hess    = projected hessian
+!-----------------------------------------------------------------
+  subroutine gtrprojm_frozen(natoms,nat3,xyzucm,hess,ldebug,freezelist)
+    implicit none
+    !> Input
+    logical,intent(in) :: ldebug
+    integer,intent(in) :: natoms,nat3
+    logical,intent(in) :: freezelist(natoms)
+    real(wp),dimension(3,natoms) :: xyzucm
+    !> Ouput
+    real(wp),dimension(nat3*(nat3 + 1)/2) :: hess
+    !> Local
+    integer :: i,ii,iii,f
+    real(wp),allocatable :: fmat(:,:)
+    integer :: nprj,nfrozen
+   
+    nfrozen = count(freezelist,1)
+    nprj = 6
+    nprj = nprj + nfrozen * 3  !> correct dimension with frozen deg. of freedom
+    allocate (fmat(nat3,nprj))
+    fmat(:,:) = 0.0_wp
+
+    !> exact fixing version
+      do i = 1,natoms
+        !> rotational vectors
+        fmat(3 * (i - 1) + 1,1) = 0.0_wp
+        fmat(3 * (i - 1) + 2,1) = -xyzucm(3,i)
+        fmat(3 * (i - 1) + 3,1) = xyzucm(2,i)
+        fmat(3 * (i - 1) + 1,2) = xyzucm(3,i)
+        fmat(3 * (i - 1) + 2,2) = 0.0_wp
+        fmat(3 * (i - 1) + 3,2) = -xyzucm(1,i)
+        fmat(3 * (i - 1) + 1,3) = -xyzucm(2,i)
+        fmat(3 * (i - 1) + 2,3) = xyzucm(1,i)
+        fmat(3 * (i - 1) + 3,3) = 0.0_wp
+      end do
+      i = 0
+      do f = 1,natoms
+        if(freezelist(f))then
+         i = i + 1
+         iii = f
+         do ii = 1,3
+           fmat(3 * (iii - 1) + ii,3 + (i - 1) * 3 + ii) = 1.0_wp
+         end do
+        endif
+      end do
+
+    if (ldebug) then
+      write (*,'(a)')
+      write (*,'(a)') ' Basis vectors before orthonormalization'
+      write (*,'(3e22.14)') fmat
+    end if
+
+    !> do Gramm-Schmidt orthogonalization
+    call dblckmgs(nat3,nprj,nat3,fmat)
+
+    !> do projection
+    call dsyprj(nat3,nprj,fmat,nat3,hess)
+
+    deallocate (fmat)
+    return
+  end subroutine gtrprojm_frozen
 
 !========================================================================================!
 !> expand trigonal matrix b to full matrix a

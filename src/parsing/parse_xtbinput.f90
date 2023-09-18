@@ -19,8 +19,9 @@
 
 !> This is the fallback reader for xtb input files.
 !> Defining constrains in this format is a bit easier than with toml
-!> Furthermore, it should provide some degree of compatibility
+!> Furthermore, it should provide some higher degree of compatibility
 !> between CREST and xTB.
+!> The xtb-style keywords in CREST are limited to geometrical constraints
 !> These are files that can be read with the --cinp option
 
 module parse_xtbinput
@@ -33,6 +34,7 @@ module parse_xtbinput
   use filemod
   use iomod
   use strucrd
+  use wall_setup 
   use constraints,only:constraint
   implicit none
   private
@@ -77,12 +79,16 @@ contains  !> MODULE PROCEDURES START HERE
     !> iterate through the blocks and save the necessary information
     do i = 1,dict%nblk
       blk = dict%blk_list(i)
-      hdr = blk%header
+      hdr = trim(blk%header)
       select case (hdr)
       case ('constrain')
         call get_xtb_constraint_block(env,blk)
+      case ('wall')
+        call get_xtb_wall_block(env,blk)
+      case ('fix')
+        call get_xtb_fix_block(env,blk)
       case default
-        write (stdout,'(a,a)') 'unrecognized xtb-style input block: $',hdr
+        write (stdout,'(a,a,a)') 'xtb-style input block: "$',trim(hdr),'" not defined for CREST'
       end select
     end do
 
@@ -104,21 +110,38 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: force_constant,dist,angl
     real(wp) :: rdum
     type(coord) :: mol
+    type(coord) :: molref
+    logical :: useref
     logical,allocatable :: pairwise(:)
+    logical,allocatable :: atlist(:)
     integer :: i1,i2,i3,i4
     type(constraint) :: cons
 
+    useref = .false.
 !>--- a default xtb force constant (in Eh), must be read first, if present
     force_constant = 0.05
     do i = 1,blk%nkv
       kv = blk%kv_list(i)
       select case (kv%key)
+
       case ('force constant')
         read (kv%rawvalue,*,iostat=io) rdum
         if (io == 0) then
           if (debug) write (stdout,'(a,a,a)') 'read force constant: ',to_str(rdum),' Eh'
           force_constant = rdum
         end if
+
+      case ('reference')
+      !> a reference geometry (must be the same molecule as the input)
+        call molref%open(kv%rawvalue)
+        if(any(mol%at(:) .ne. molref%at(:)))then
+         write (stdout,'(a,/,a)') '**ERROR** while reading xtb-style input:',&
+         & '  Geometry provided as "reference=" appears not to be the same molecule as CREST input!'
+         error stop
+        endif 
+        useref = .true.
+        if(debug) write(stdout,'(a,a,a)') '> Using reference geometry "',kv%rawvalue,'"'
+
       end select
     end do
 
@@ -129,7 +152,7 @@ contains  !> MODULE PROCEDURES START HERE
     do i = 1,blk%nkv
       kv = blk%kv_list(i)
       select case (kv%key)
-      case ('force constant')
+      case ('force constant','reference')
         !> already read above
 
       case ('distance','bond')
@@ -138,7 +161,11 @@ contains  !> MODULE PROCEDURES START HERE
           if (io == 0) read (kv%value_rawa(2),*,iostat=io) i2
           if (io == 0) then
             if (trim(kv%value_rawa(3)) .eq. 'auto') then
-              dist = mol%dist(i1,i2)
+              if(useref)then
+                dist = molref%dist(i1,i2)
+              else 
+                dist = mol%dist(i1,i2)
+              endif
             else
               read (kv%value_rawa(3),*) dist
               dist = dist*aatoau
@@ -157,7 +184,11 @@ contains  !> MODULE PROCEDURES START HERE
           if (io == 0) read (kv%value_rawa(3),*,iostat=io) i3
           if (io == 0) then
             if (trim(kv%value_rawa(4)) .eq. 'auto') then
-              angl = mol%angle(i1,i2,i3)*radtodeg
+              if(useref)then
+                angl = molref%angle(i1,i2,i3)*radtodeg
+              else
+                angl = mol%angle(i1,i2,i3)*radtodeg
+              endif
             else
               read (kv%value_rawa(4),*) angl
             end if
@@ -176,7 +207,11 @@ contains  !> MODULE PROCEDURES START HERE
           if (io == 0) read (kv%value_rawa(4),*,iostat=io) i4
           if (io == 0) then
             if (trim(kv%value_rawa(5)) .eq. 'auto') then
-              angl = mol%dihedral(i1,i2,i3,i4)*radtodeg
+              if(useref)then
+                angl = molref%dihedral(i1,i2,i3,i4)*radtodeg
+              else
+                angl = mol%dihedral(i1,i2,i3,i4)*radtodeg
+              endif
             else
               read (kv%value_rawa(5),*) angl
             end if
@@ -189,20 +224,11 @@ contains  !> MODULE PROCEDURES START HERE
 
       case ('atoms')
         if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
-        if (kv%id == valuetypes%raw_array) then
-          do j = 1,kv%na
-            read (kv%value_rawa(j),*,iostat=io) i1
-            if (io == 0) then
-              if (i1 <= mol%nat) pairwise(i1) = .true.
-            end if
-          end do
-        else
-          read (kv%rawvalue,*,iostat=io) i1
-          if (io == 0) then
-            if (i1 <= mol%nat) pairwise(i1) = .true.
-          end if
-        end if
-
+        call get_atlist(mol%nat, atlist, kv%rawvalue, mol%at)
+        do j=1,mol%nat
+          if(atlist(j)) pairwise(j) = .true.
+        enddo
+    
       case ('elements')
         if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
         if (kv%id == valuetypes%raw_array) then
@@ -221,7 +247,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 
       case default
-        write (stdout,'(a,a)') 'unrecognized xtb-style input key: ',kv%key
+        write (stdout,'(a,a,a)') 'xtb-style input key: "',kv%key,'" not defined for CREST'
 
       end select
     end do
@@ -231,7 +257,11 @@ contains  !> MODULE PROCEDURES START HERE
       do i = 1,mol%nat
         do j = 1,i-1
           if (pairwise(i).and.pairwise(j)) then
-            dist = mol%dist(j,i)
+            if(useref)then
+              dist = molref%dist(j,i)
+            else 
+              dist = mol%dist(j,i)
+            endif
             call cons%deallocate()
             call cons%bondconstraint(j,i,dist,force_constant)
             if (debug) call cons%print(stdout)
@@ -243,6 +273,208 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
   end subroutine get_xtb_constraint_block
+
+  subroutine get_xtb_wall_block(env,blk)
+!**************************************
+!* This is a reader for the $wall block
+!***************************************
+    implicit none
+    type(systemdata),intent(inout) :: env
+    type(filetype) :: file
+    integer :: i,j,k,io
+    type(keyvalue) :: kv
+    type(datablock),intent(in) :: blk
+    real(wp) :: force_constant,dist,angl
+    real(wp) :: T,alpha,beta
+    real(wp) :: rdum,rabc(3),r1,r2,r3
+    type(coord) :: mol
+    logical,allocatable :: pairwise(:)
+    logical,allocatable :: atlist(:)
+    integer :: i1,i2,i3,i4
+    integer :: pot
+    type(constraint) :: cons
+
+!>--- asome defaults
+    force_constant = 1.0_wp
+    alpha = 30
+    beta  = 6.0_wp
+    T     = 300.0_wp
+    pot = 1 !> 1= polynomial, 2= logfermi
+
+!>--- get reference input geometry
+    call env%ref%to(mol)
+
+!>--- get the parameters first
+    do i = 1,blk%nkv
+      kv = blk%kv_list(i)
+      select case (kv%key)
+      case ('force constant')
+        !> already read above
+        read (kv%rawvalue,*,iostat=io) rdum
+        if (io == 0) force_constant = rdum
+
+      case('potential')
+        if(trim(kv%rawvalue).eq.'logfermi')then
+          pot = 2
+        else
+          pot = 1 
+        endif
+
+      case('alpha')
+         read(kv%rawvalue,*,iostat=io) i1
+         if(io == 0) alpha = i1
+
+      case('beta')
+         read(kv%rawvalue,*,iostat=io) i1
+         if(io == 0) beta = i1
+
+      case('temp')
+         read(kv%rawvalue,*,iostat=io) i1
+         if(io == 0) T = i1
+
+      end select
+   enddo
+
+!>--- create the potentials
+   do i = 1,blk%nkv
+      kv = blk%kv_list(i)
+      select case (kv%key)
+      case('force constant','potential','alpha','beta','temp')
+      !> created in higher prio loop already 
+
+      case ('sphere')
+      !> the sphere constraint si technically identical to the ellipsoid one, but
+      !> with equal axis lengths in all 3 directions
+         if (kv%na > 0)then
+            if(trim(kv%value_rawa(1)) .eq. 'auto')then
+               !> determine sphere
+               call wallpot_core(mol,rabc, potscal=env%potscal)
+               rdum = maxval(rabc(:))
+               rabc(:) = rdum
+            else            
+              read(kv%rawvalue,*,iostat=io) rdum
+              if(io == 0) rabc(:) = rdum
+            endif
+            call get_atlist(mol%nat, atlist, kv%rawvalue, mol%at)
+            call cons%deallocate()
+            select case( pot ) 
+            case ( 1 ) !> polynomial
+              call cons%ellipsoid( mol%nat, atlist, rabc, force_constant, alpha, .false.)
+            case ( 2 ) !> logfermi
+              call cons%ellipsoid( mol%nat, atlist, rabc, T, beta, .true.) 
+            end select
+            if (debug) call cons%print(stdout)
+            call env%calc%add(cons)
+         endif
+
+      case('ellipsoid') 
+         if (kv%na > 0)then
+            if(trim(kv%value_rawa(1)) .eq. 'auto')then
+               !> determine ellipsoid
+              call wallpot_core(mol,rabc, potscal=env%potscal)
+            else
+              read (kv%value_rawa(1),*,iostat=io) r1
+              if (io == 0) read (kv%value_rawa(2),*,iostat=io) r2
+              if (io == 0) read (kv%value_rawa(3),*,iostat=io) r3
+              if (io == 0)then
+                 rabc(1) = r1
+                 rabc(2) = r2
+                 rabc(3) = r3
+              endif 
+            endif
+            call get_atlist(mol%nat, atlist, kv%rawvalue, mol%at)
+            call cons%deallocate() 
+            select case( pot )
+            case ( 1 ) !> polynomial
+              call cons%ellipsoid( mol%nat, atlist, rabc, force_constant, alpha, .false.)
+            case ( 2 ) !> logfermi
+              call cons%ellipsoid( mol%nat, atlist, rabc, T, beta, .true.) 
+            end select
+            if (debug) call cons%print(stdout)
+            call env%calc%add(cons)
+         endif
+
+      case default
+        write (stdout,'(a,a,a)') 'xtb-style input key: "',kv%key,'" not defined for CREST'
+
+      end select
+    end do
+
+  end subroutine get_xtb_wall_block
+
+  subroutine get_xtb_fix_block(env,blk)
+!**************************************
+!* This is a reader for the $fix block
+!***************************************
+    implicit none
+    type(systemdata),intent(inout) :: env
+    type(filetype) :: file
+    integer :: i,j,k,io
+    type(keyvalue) :: kv
+    type(datablock),intent(in) :: blk
+    real(wp) :: force_constant,dist,angl
+    real(wp) :: T,alpha,beta
+    real(wp) :: rdum,rabc(3),r1,r2,r3
+    type(coord) :: mol
+    logical,allocatable :: pairwise(:)
+    logical,allocatable :: atlist(:)
+    integer :: i1,i2,i3,i4
+    integer :: pot
+
+
+!>--- get reference input geometry
+    call env%ref%to(mol)
+
+!>--- get the parameters first
+    do i = 1,blk%nkv
+      kv = blk%kv_list(i)
+      select case (kv%key)
+
+      case ('atoms')
+      !> define frozen atoms via indices
+        if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
+        call get_atlist(mol%nat, atlist, kv%rawvalue, mol%at)
+        do j=1,mol%nat
+          if(atlist(j)) pairwise(j) = .true.
+        enddo
+
+      case ('elements')
+      !> define frozen atoms via elements
+        if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
+        if (kv%id == valuetypes%raw_array) then
+          do j = 1,kv%na
+            i1 = e2i(kv%value_rawa(j))
+            do k=1,mol%nat
+             if (i1 == mol%at(k)) pairwise(k) = .true.
+            enddo
+          enddo
+        else
+          i1 = e2i(kv%rawvalue)
+          do j=1,mol%nat
+            if (i1 == mol%at(j)) pairwise(j) = .true.
+          enddo
+        end if
+
+      case default
+        write (stdout,'(a,a,a)') 'xtb-style input key: "',kv%key,'" not defined for CREST'
+
+      end select
+    end do
+
+    if(allocated(pairwise))then
+       i1 = count(pairwise)
+       env%calc%nfreeze = i1
+       if(debug)then
+         write(stdout,'("> ",a)') 'Frozen atoms:'
+         do i=1,mol%nat
+           if(pairwise(i))write(stdout,'(1x,i0)',advance='no') i
+         enddo
+         write(stdout,*) 
+       endif
+       call move_alloc(pairwise,env%calc%freezelist)
+    endif
+
+  end subroutine get_xtb_fix_block
 
 !========================================================================================!
 

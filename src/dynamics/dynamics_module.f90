@@ -163,6 +163,7 @@ contains  !> MODULE PROCEDURES START HERE
     term = 0
     tstep_au = dat%tstep*fstoau
     nfreedom = 3*mol%nat
+!> TODO fix frozen-atom degrees of freedom and SHAKE
     if (dat%shake) then
       call init_shake(mol%nat,mol%at,mol%xyz,dat%shk,pr)
       dat%nshake = dat%shk%ncons
@@ -243,6 +244,16 @@ contains  !> MODULE PROCEDURES START HERE
     edum = f*dat%tsoll*0.5_wp*kB*float(nfreedom)
     call mdinitu(mol,dat,velo,mass,edum,pr)
     call ekinet(mol%nat,velo,mass,ekin)
+    if(calc%nfreeze > 0)then
+       do i = 1,mol%nat
+         if(calc%freezelist(i))then
+           acc(:,i) = 0.0_wp
+           grd(:,i) = 0.0_wp
+           velo(:,i) = 0.0_wp
+         endif
+       end do
+     endif
+
 
 !>--- initialize MTDs (if required)
     !$omp critical
@@ -344,6 +355,16 @@ contains  !> MODULE PROCEDURES START HERE
         acc(:,i) = -grd(:,i)/mass(i)
       end do
 
+      !>--- special setup for frozen atoms
+      if(calc%nfreeze > 0)then
+       do i = 1,mol%nat
+         if(calc%freezelist(i))then
+           acc(:,i) = 0.0_wp
+           grd(:,i) = 0.0_wp
+         endif
+       end do
+      endif
+
       !>--- store positions (at t); velocities are at t-1/2dt
       !$omp critical
       molo%nat = mol%nat
@@ -366,8 +387,18 @@ contains  !> MODULE PROCEDURES START HERE
       !>--- update velocities to t
       ! I think the factor of 1/2 for the acc is missing in the xtb version
       vel = thermoscal*(velo+0.5_wp*acc*tstep_au)
-      !>--- update positions to t+dt
-      mol%xyz = molo%xyz+vel*tstep_au
+      !>--- update positions to t+dt, except for frozen atoms
+      if(calc%nfreeze > 0)then
+       do i = 1,mol%nat
+         if(.not.calc%freezelist(i))then
+           mol%xyz(:,i) = molo%xyz(:,i)+vel(:,i)*tstep_au
+         else
+           vel(:,i) = 0.0_wp
+         endif
+       end do
+      else  
+        mol%xyz = molo%xyz+vel*tstep_au
+      endif
 
       !>--- estimate new velocities at t
       veln = 0.5_wp*(velo+vel)

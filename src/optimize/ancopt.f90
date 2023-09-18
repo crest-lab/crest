@@ -159,15 +159,15 @@ contains
     linear = rot(3) .lt. 1.d-10
 
     !> set degrees of freedom
-    nat3 = 3 * mol%nat
+    nat3 = 3 * mol%nat 
     nvar = nat3 - 6
     if (linear) then
       nvar = nat3 - 5
     end if
-    !if (fixset%n .gt. 0) then ! exact fixing
-    !  nvar = nat3 - 3 * fixset%n - 3
-    !  if (nvar .le. 0) nvar = 1
-    !end if
+    if (calc%nfreeze .gt. 0) then ! exact fixing
+      nvar = nat3 - 3 * calc%nfreeze - 3
+      if (nvar .le. 0) nvar = 1
+    end if
     
     !$omp critical
     allocate (pmode(nat3,1),grmsd(3,mol%nat)) ! dummy allocated
@@ -249,7 +249,11 @@ contains
 
 !>--- project trans. and rot. from Hessian
       if (.not. linear) then
-        call trproj(molopt%nat,nat3,molopt%xyz,hess,.false.,0,pmode,1) ! normal
+        if(calc%nfreeze == 0)then
+          call trproj(molopt%nat,nat3,molopt%xyz,hess,.false.,0,pmode,1)  !> normal
+        else
+          call trproj(molopt%nat,nat3,molopt%xyz,hess,.false.,calc%freezelist) !> fozen atoms
+        endif
       end if
 
 !>--- ANC generation (requires blowup)
@@ -387,7 +391,7 @@ contains
     logical :: econverged
     logical :: gconverged
     logical :: lowered
-    integer :: i,j,ii,jj,k,lwork,info,m,idum,imax(3)
+    integer :: i,j,ii,jj,jjj,iii,k,lwork,info,m,idum,imax(3)
     real(wp) :: energy,dsnrm,maxdispl,t0,w0,t1,w1
     real(wp) :: lambda,gnorm,dnorm,ddot,eold,xdum,estart,acc,e_in
     real(wp) :: depred,echng,dummy,maxd,alp,gchng,gnold

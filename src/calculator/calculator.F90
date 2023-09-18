@@ -97,14 +97,15 @@ contains  !> MODULE PROCEDURES START HERE
     type(coord),pointer :: molptr
     integer :: pnat
     logical :: useONIOM
-!==========================================================!
-    call initsignal()
 
-    !>--- reset
+!>--- reset
+    call initsignal()
     energy = 0.0_wp
     gradient(:,:) = 0.0_wp
-!==========================================================!
-    !>--- check for sane input
+
+!**********************************
+!>--- check for sane input
+!**********************************
     dum1 = sum(mol%xyz)
     if (dum1 .ne. dum1) then !> NaN catch, we don't want to calculate garbage.
       iostatus = 1           !> For some builds I found this necessary because
@@ -144,8 +145,9 @@ contains  !> MODULE PROCEDURES START HERE
     calc%grdtmp = 0.0_wp
     !$omp end critical
 
-!==========================================================!
-    !>--- Calculation
+!**************************************
+!>--- Calculation of potentials
+!**************************************
     if (n > 0) then
       if (calc%id > 0.and.calc%id > n) error stop 'Invalid calculator setup'
 
@@ -234,8 +236,9 @@ contains  !> MODULE PROCEDURES START HERE
       end if
       !$omp end critical
 
-      !==================================================================================!
-      !>--- switch case for what-to-do with the energies
+!***************************************************
+!>--- Select energy and gradient construction
+!***************************************************
       !$omp critical
        !write(*,*) calc%id,n,calc%ewight(:)
       !$omp end critical
@@ -290,8 +293,9 @@ contains  !> MODULE PROCEDURES START HERE
       call calc_eprint(calc,energy,calc%etmp)
     end if
 
-!==========================================================!
-    !>--- Constraints
+!**********************************************
+!>--- Constraints
+!**********************************************
     if (calc%nconstraints > 0) then
       !$omp critical
       if (.not.allocated(calc%grdfix)) then
@@ -319,6 +323,11 @@ contains  !> MODULE PROCEDURES START HERE
         gradient = gradient+calc%grdfix
       end do
     end if
+
+!**********************************************
+!>--- Frozen atoms
+!**********************************************
+    call calc%freezegrad(gradient)
 
     return
   end subroutine engrad_mol

@@ -126,7 +126,6 @@ module calc_type
     type(tblite_calculator),allocatable  :: tbcalc
     type(tblite_ctx),allocatable         :: ctx
     type(tblite_resultstype),allocatable :: tbres
-    type(wavefunction_type),allocatable  :: wfn_backup
 
     type(tblite_data),allocatable :: tblite
 
@@ -194,6 +193,10 @@ module calc_type
     real(wp) :: scansforce = 0.5_wp
     type(scantype),allocatable :: scans(:)
 
+!>--- frozen atoms
+    integer :: nfreeze = 0
+    logical,allocatable :: freezelist(:)
+
 !>--- results/property requests
     real(wp) :: epot
     real(wp) :: efix
@@ -239,6 +242,7 @@ module calc_type
     procedure :: ONIOMexpand => calculation_ONIOMexpand
     procedure :: active => calc_set_active
     procedure :: active_restore => calc_set_active_restore
+    procedure :: freezegrad => calculation_freezegrad
   end type calcdata
 
 !========================================================================================!
@@ -311,7 +315,6 @@ contains  !>--- Module routines start here
     if (allocated(self%tbcalc)) deallocate (self%tbcalc)
     if (allocated(self%ctx)) deallocate (self%ctx)
     if (allocated(self%tbres)) deallocate (self%tbres)
-    if (allocated(self%wfn_backup)) deallocate (self%wfn_backup)
     if (allocated(self%g0calc)) deallocate (self%g0calc)
     if (allocated(self%ff_dat)) deallocate (self%ff_dat)
     if (allocated(self%xhcff)) deallocate (self%xhcff)
@@ -535,6 +538,24 @@ contains  !>--- Module routines start here
 
 !=========================================================================================!
 
+  subroutine calculation_freezegrad(self,grad)
+    class(calcdata) :: self
+    real(wp),intent(inout) :: grad(:,:)
+    integer :: nat,i
+    if (self%nfreeze > 0) then
+       nat = size(grad,2)
+       if(nat == self%nfreeze)then
+         error stop '**ERROR** Must not freeze all atoms!'
+       endif 
+       do i =1,nat
+         if(self%freezelist(i)) grad(:,i) = 0.0_wp
+       enddo
+    end if
+  end subroutine calculation_freezegrad
+
+
+!=========================================================================================!
+
   subroutine calculation_settings_addconfig(self,config)
     implicit none
     class(calculation_settings) :: self
@@ -751,10 +772,11 @@ contains  !>--- Module routines start here
     implicit none
     class(calcdata) :: self
     integer,intent(in) :: iunit
-    integer :: i
+    integer :: i,j
     character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
     character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
     character(len=20) :: atmp
+    integer :: constraintype(7)
 
     write (iunit,'(1x,a)') '----------------'
     write (iunit,'(1x,a)') 'Calculation info'
@@ -774,9 +796,24 @@ contains  !>--- Module routines start here
 
     if (self%nconstraints > 0) then
       write (iunit,'("> ",a)') 'User-defined constraints:'
-      do i = 1,self%nconstraints
-        call self%cons(i)%print(iunit)
-      end do
+      if(self%nconstraints <= 20)then
+        do i = 1,self%nconstraints
+          call self%cons(i)%print(iunit)
+        end do
+      else
+         constraintype(:) = 0
+         do i = 1,self%nconstraints
+          j = self%cons(i)%type
+          if(j > 0 .and. j < 8)then
+            constraintype(j) = constraintype(j) + 1
+          endif 
+         end do
+         if(constraintype(1) > 0) write (iunit,'(2x,a,i0)') '# bond constraints    : ',constraintype(1)
+         if(constraintype(2) > 0) write (iunit,'(2x,a,i0)') '# angle constraints   : ',constraintype(2)
+         if(constraintype(3) > 0) write (iunit,'(2x,a,i0)') '# dihedral constraints: ',constraintype(3)
+         if(constraintype(4) > 0) write (iunit,'(2x,a,i0)') '# wall potential      : ',constraintype(4)
+         if(constraintype(5) > 0) write (iunit,'(2x,a,i0)') '# wall(logfermi) potential  : ',constraintype(5)
+      endif 
       write (iunit,*)
     end if
 

@@ -82,6 +82,7 @@ srcs += files(
   'timer.f90',
   'trackorigin.f90',
   'utilmod.f90',
+  'wallsetup.f90',
   'zdata.f90',
   'ztopology.f90',
 )

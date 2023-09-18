@@ -31,11 +31,6 @@ module tblite_api
   use tblite_context_type,only:tblite_ctx => context_type
   use tblite_wavefunction_type,only:wavefunction_type,new_wavefunction
   use tblite_wavefunction,only:sad_guess,eeq_guess
-  !use tblite_xtb_calculator,only:tblite_calculator => xtb_calculator
-  !use tblite_xtb_gfn2,only:new_gfn2_calculator
-  !use tblite_xtb_gfn1,only:new_gfn1_calculator
-  !use tblite_xtb_ipea1,only:new_ipea1_calculator
-  !use tblite_xtb_singlepoint,only:xtb_singlepoint
   use tblite_xtb, tblite_calculator => xtb_calculator 
   use tblite_results,only:tblite_resultstype => results_type
 #endif

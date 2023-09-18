@@ -37,8 +37,10 @@
 module strucrd
   use iso_fortran_env,only:wp => real64
   use iso_c_binding
-  use geo !> simple geomerty and vector operations
-  use miscdata, only: PSE
+!> simple geomerty and vector operations
+  use geo
+!> element symbols
+  use miscdata,only:PSE
   implicit none
 
 !=========================================================================================!
@@ -131,7 +133,7 @@ module strucrd
     module procedure rdensemble_conf3
 
     module procedure rdensemble_mixed2
-    
+
     module procedure rdensemble_coord_type
   end interface rdensemble
 
@@ -146,6 +148,7 @@ module strucrd
   public :: coord
   public :: ensemble
   public :: coordline
+  public :: get_atlist
 
 !=========================================================================================!
   !coord class. contains a single structure in the PDB format.
@@ -179,8 +182,6 @@ module strucrd
     !********************************************!
     !>-- number of atoms
     integer :: nat = 0
-    !>-- energy
-    real(wp) :: energy = 0.0_wp
     !>-- atom types as integer, dimension will be at(nat)
     integer,allocatable  :: at(:)
     !>-- atomic coordinates, by convention in Bohrs
@@ -189,6 +190,8 @@ module strucrd
     !**************************************!
     !> (optional) data, often not present <!
     !**************************************!
+    !>-- energy
+    real(wp) :: energy = 0.0_wp
     !>-- a comment line
     character(len=:),allocatable :: comment
     !>-- molecular charge
@@ -202,7 +205,7 @@ module strucrd
     !>-- lattice vectors
     real(wp),allocatable :: lat(:,:)
 
-    !--- (optional) PDB data
+    !>-- (optional) PDB data
     type(pdbdata) :: pdb
 
   contains
@@ -215,6 +218,7 @@ module strucrd
     procedure :: dist => coord_getdistance      !> calculate distance between two atoms
     procedure :: angle => coord_getangle        !> calculate angle between three atoms
     procedure :: dihedral => coord_getdihedral  !> calculate dihedral angle between four atoms
+    procedure :: cutout => coord_getcutout      !> create a substructure 
   end type coord
 !=========================================================================================!
   !ensemble class. contains all structures of an ensemble
@@ -329,12 +333,12 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: dum
     character(len=512) :: line
     character(len=6) :: sym
-    if(.not.allocated(xyz).or. .not.allocated(at))then
+    if (.not.allocated(xyz).or..not.allocated(at)) then
       call rdensembleparam(fname,nat,nall)
-    endif
-    if(.not.allocated(xyz)) allocate(xyz(3,nat,nall))
-    if(.not.allocated(at)) allocate(at(nat))
-    if(.not.allocated(eread)) allocate(eread(nall))
+    end if
+    if (.not.allocated(xyz)) allocate (xyz(3,nat,nall))
+    if (.not.allocated(at)) allocate (at(nat))
+    if (.not.allocated(eread)) allocate (eread(nall))
 
     eread = 0.0_wp
     xyz = 0.0_wp
@@ -388,11 +392,11 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: dum,nallnew
     character(len=512) :: line
     character(len=6) :: sym
-    if(.not.allocated(xyz).or. .not.allocated(at))then
+    if (.not.allocated(xyz).or..not.allocated(at)) then
       call rdensembleparam(fname,nat,nall)
-    endif
-    if(.not.allocated(xyz)) allocate(xyz(3,nat,nall))
-    if(.not.allocated(at)) allocate(at(nat))
+    end if
+    if (.not.allocated(xyz)) allocate (xyz(3,nat,nall))
+    if (.not.allocated(at)) allocate (at(nat))
     io = 0
     xyz = 0.0_wp
     open (newunit=ich,file=fname)
@@ -569,18 +573,18 @@ contains  !> MODULE PROCEDURES START HERE
     !>--- Important: coord types must be in Bohrs
     xyz = xyz/bohr
     !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
- 
-    allocate (ensemble(nall)) 
-    do i=1,nall
-      ensemble(i)%nat = nat 
-      allocate(ensemble(i)%at(nat))
+
+    allocate (ensemble(nall))
+    do i = 1,nall
+      ensemble(i)%nat = nat
+      allocate (ensemble(i)%at(nat))
       ensemble(i)%at(:) = at(:)
-      allocate(ensemble(i)%xyz(3,nat))
+      allocate (ensemble(i)%xyz(3,nat))
       ensemble(i)%xyz(:,:) = xyz(:,:,i)
       ensemble(i)%energy = eread(i)
-    enddo
+    end do
 
-    deallocate(eread,at,xyz)
+    deallocate (eread,at,xyz)
   end subroutine rdensemble_coord_type
 
 !=================================================================!
@@ -1408,6 +1412,38 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end function coord_getdihedral
 
+!==================================================================!
+! function coord_getgutout
+! create a cutout mol object
+!==================================================================!
+  function coord_getcutout(self,atlist) result(molout)
+    implicit none
+    class(coord) :: self
+    logical,intent(in) :: atlist(self%nat)
+    type(coord) :: molout
+    integer :: newnat,i,j,k,l
+    
+    newnat = count(atlist,1)
+    if(newnat == self%nat)then
+       molout = self
+    else
+      allocate(molout%at( newnat ), source = 0)
+      allocate(molout%xyz(3,newnat), source = 0.0_wp)
+      k = 0
+      do i=1,self%nat
+        if(atlist(i))then
+          k = k + 1 
+          molout%at(k) = self%at( i )
+          molout%xyz(1:3,k) = self%xyz(1:3, i) 
+        endif
+      enddo
+    endif
+    return
+  end function coord_getcutout
+
+
+
+
 !=========================================================================================!
 !=========================================================================================!
 !  3. ROUTINES FOR WRITING STRUCTURES AND CONVERTING THEM
@@ -1984,8 +2020,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i,j,k,ich,io,Z
     logical :: ex
     c = trim(convertlable(cin))
-    read(cin,*,iostat=io) j
-    if(io == 0) Z = j
+    read (cin,*,iostat=io) j
+    if (io == 0) Z = j
     if (any(PSE(:) .eq. c)) then
       do i = 1,118
         if (trim(PSE(i)) .eq. c) then
@@ -1993,7 +2029,7 @@ contains  !> MODULE PROCEDURES START HERE
           exit
         end if
       end do
-    else if(io==0 .and. Z <= 118)then
+    else if (io == 0.and.Z <= 118) then
       iout = Z
     else !> special cases
       select case (trim(c))
@@ -2124,6 +2160,90 @@ contains  !> MODULE PROCEDURES START HERE
     end do
     return
   end function countbonds
+
+!=========================================================================================!
+
+  subroutine get_atlist(nat,atlist,line,at)
+!******************************************************
+!* Analyze a string containing atom specifications.
+!* "atlist" is a array of booleans for each atom,
+!* which is set to .true. should the atom be contained
+!* in atlist.
+!******************************************************
+    implicit none
+    integer,intent(in) :: nat
+    logical,intent(out),allocatable :: atlist(:)
+    character(len=*),intent(in) :: line
+    integer,intent(in),optional :: at(nat)
+    character(len=:),allocatable :: substr(:)
+    integer :: i,j,k,l,io,ns,ll,i1,i2,io1,io2,i3,i4
+    character(len=:),allocatable :: atmp,btmp
+
+    allocate (atlist(nat),source=.false.)
+!>-- count stuff
+    ll = len_trim(line)
+    ns = 1
+    do i = 1,ll
+      if (line(i:i) .eq. ',') ns = ns+1
+    end do
+    allocate (substr(ns),source=repeat(' ',ll))
+!>-- cut stuff
+    if (ns > 1) then
+      j = 1
+      k = 1
+      do i = 1,ll
+        if (k == ns) then
+          substr(k) = lowercase(adjustl(line(j:)))
+          exit
+        end if
+        if (line(i:i) .eq. ',') then
+          substr(k) = lowercase(adjustl(line(j:i-1)))
+          k = k+1
+          j = i+1
+        end if
+      end do
+    else
+      substr(1) = trim(line)
+    end if
+!>--- analyze stuff
+    do i = 1,ns
+      atmp = trim(substr(i))
+      if(atmp.eq.'all')then
+         atlist(:) = .true.
+         exit
+      endif
+      if(index(atmp,'.').ne.0) cycle !> exclude floats
+      l = index(atmp,'-')
+      if (l .eq. 0) then
+        read (atmp,*,iostat=io) i1
+        !> check if it is an element symbol
+        if (io /= 0) then
+          if(len_trim(atmp) > 2) cycle !> exclude non-elements
+          k = e2i(atmp)
+          if (present(at)) then
+            do j = 1,nat
+              if (at(j) == k) atlist(j) = .true.
+            end do
+          end if
+        else
+          atlist(i1) = .true.
+        end if
+      else
+        btmp = atmp(:l-1)
+        read (btmp,*,iostat=io1) i1
+        btmp = atmp(l+1:)
+        read (btmp,*,iostat=io2) i2
+        if (io1 .eq. 0.and.io2 .eq. 0) then
+          i4 = max(i1,i2)
+          i3 = min(i1,i2)
+          do j = 1,nat
+            if (i3 <= j.and.j <= i4) atlist(j) = .true.
+          end do
+        end if
+      end if
+    end do
+    deallocate(substr)
+  end subroutine get_atlist
 
 !=========================================================================================!
 !=========================================================================================!
