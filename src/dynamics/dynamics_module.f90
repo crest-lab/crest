@@ -387,6 +387,7 @@ contains  !> MODULE PROCEDURES START HERE
       !>--- update velocities to t
       ! I think the factor of 1/2 for the acc is missing in the xtb version
       vel = thermoscal*(velo+0.5_wp*acc*tstep_au)
+
       !>--- update positions to t+dt, except for frozen atoms
       if(calc%nfreeze > 0)then
        do i = 1,mol%nat

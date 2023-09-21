@@ -35,6 +35,7 @@ module lwoniom_module
     integer :: id = 0
     integer :: calcids(2,2)
     integer :: nfrag = 0
+    integer :: ncalcs = 0
   end type lwoniom_data
 #endif
 
@@ -76,9 +77,10 @@ contains  !> MODULE PROCEDURES START HERE
     allocate(ONIOM_input)
     call lwoniom_parse_inputfile(tomlfile,ONIOM_input,required = .false., natoms=nat)
     ONIOM_input%at = at
-    ONIOM_input%xyz = xyz
-    call lwoniom_new_calculator( ONIOM_input, ONIOM_data )
+    ONIOM_input%xyz = xyz*autoaa !> ONIOM_input needs to stor coords in Angstroem rather than bohr
+    call lwoniom_new_calculator( ONIOM_input, ONIOM_data ) !> because this converts to Bohr
     deallocate(ONIOM_input)
+    call ONIOM_data%dump_fragments()
 #else
     call ONIOM_compile_error()
 #endif
@@ -88,7 +90,7 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 
 
-  subroutine ONIOM_update_geo(ONIOM,mol,mollist)
+  subroutine ONIOM_update_geo(ONIOM,mol,mollist,cmap)
 !**********************************************************
 !* Update all fragments of a previously set up ONIOM setup
 !**********************************************************
@@ -96,15 +98,22 @@ contains  !> MODULE PROCEDURES START HERE
     !> INPUT
     type(lwoniom_data),intent(inout) :: ONIOM
     type(coord),intent(in)  :: mol
-    type(coord),intent(inout),optional :: mollist(ONIOM%nfrag)
-    integer :: i
+    type(coord),intent(inout),optional :: mollist(ONIOM%ncalcs)
+    integer,intent(in),optional :: cmap(ONIOM%ncalcs) !> calculation index mapping
+    integer :: i,highlow,fragid,j
 #ifdef WITH_LWONIOM
     call ONIOM%update( mol%xyz )  !> no point charge version
 
     !> optional, update a given list of coord-type molecules (the fragments)
-    if(present(mollist))then
-      do i=1,ONIOM%nfrag
-       call ONIOM_get_mol(ONIOM,i,mollist(i))
+    if(present(mollist).and.present(cmap))then
+      !do i=1,ONIOM%nfrag
+      ! call ONIOM_get_mol(ONIOM,i,mollist(i))
+      !enddo
+      do i=1,ONIOM%ncalcs
+          j = cmap(i)
+          call ONIOM_get_mapping(j, ONIOM%calcids, highlow, fragid)
+          !write(*,*) fragid, highlow
+          call ONIOM_get_mol(ONIOM,fragid,mollist(i),highlow)
       enddo
     endif
 #else
@@ -128,10 +137,9 @@ contains  !> MODULE PROCEDURES START HERE
 
     real(wp),intent(inout) :: energy
     real(wp),intent(inout) :: gradient(3,mol%nat)
-    integer :: i
+    integer :: i,l
 #ifdef WITH_LWONIOM
     call lwoniom_singlepoint(mol%nat,ONIOM,energy,gradient)
- 
 #else
     call ONIOM_compile_error()
 #endif
@@ -142,7 +150,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine ONIOM_get_mol(ONIOM,F,mol)
+  subroutine ONIOM_get_mol(ONIOM,F,mol,highlow)
 !*****************************************
 !* transfer data from fragment F into mol
 !*****************************************
@@ -151,6 +159,7 @@ contains  !> MODULE PROCEDURES START HERE
     type(lwoniom_data),intent(inout) :: ONIOM
     type(coord),intent(inout)  :: mol
     integer,intent(in) :: F 
+    integer,intent(in),optional :: highlow
     integer :: natf   
 #ifdef WITH_LWONIOM
     if(F > ONIOM%nfrag ) error stop 'ONIOM fragment mismatch'
@@ -159,9 +168,17 @@ contains  !> MODULE PROCEDURES START HERE
     if(mol%nat /=  natf) call mol%deallocate()
 
     mol%nat = natf
+    !if(present(highlow) .and. (ONIOM%fragment(F)%replace_at))then
+    !  if(highlow .eq. 1)then
+    !     mol%at = reshape( [ONIOM%fragment(F)%at_high,ONIOM%fragment(F)%linkat], [natf])
+    !  else if(highlow.eq.2)then
+    !     mol%at = reshape( [ONIOM%fragment(F)%at_low,ONIOM%fragment(F)%linkat], [natf])
+    !  endif  
+    !else
     mol%at = reshape( [ONIOM%fragment(F)%at,ONIOM%fragment(F)%linkat], [natf])
+    !endif
     mol%xyz = reshape( [ONIOM%fragment(F)%xyz,ONIOM%fragment(F)%linkxyz], [3,natf]) 
-
+    
 #else
     call ONIOM_compile_error()
 #endif
@@ -180,15 +197,15 @@ contains  !> MODULE PROCEDURES START HERE
     type(lwoniom_data),intent(inout) :: ONIOM
     integer,intent(in) :: F
     real(wp),intent(out) :: gradient(:,:)
-    character(len=*),intent(in) :: highlow
+    integer,intent(in) :: highlow
     real(wp),intent(out),optional :: energy
     integer :: natf,root_id
 #ifdef WITH_LWONIOM
     if(F > ONIOM%nfrag ) error stop 'ONIOM fragment mismatch'
     select case(highlow)
-    case("high")
+    case(1)
        gradient = ONIOM%fragment(F)%gradient_high
-    case("low")
+    case default
        gradient = ONIOM%fragment(F)%gradient_low
     end select
     if(present(energy))then
@@ -208,6 +225,28 @@ contains  !> MODULE PROCEDURES START HERE
     type(coord),pointer,intent(out) :: molptr
     molptr => mol
   end subroutine ONIOM_associate_mol
+
+
+!========================================================================================!
+
+  subroutine ONIOM_get_mapping(id, calcids, highlow, fragid)
+     implicit none
+     integer,intent(in) :: id !> calculation ID in CREST
+     integer,intent(in) :: calcids(:,:) !> mappings form calculator setup
+     integer,intent(out) :: highlow,fragid
+     integer :: i,j,k,l
+     highlow = 0
+     fragid = 0
+     iloop : do i=1,size(calcids,2)
+       do j=1,2
+         if( calcids(j,i) == id)then
+           highlow = j
+           fragid = i
+           exit iloop
+         endif
+       enddo
+     enddo iloop
+   end subroutine ONIOM_get_mapping
 
 !========================================================================================!
 

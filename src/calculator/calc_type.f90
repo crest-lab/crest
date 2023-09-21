@@ -227,7 +227,8 @@ module calc_type
 !>--- ONIOM calculator data
     type(lwoniom_data),allocatable :: ONIOM
     type(coord),allocatable :: ONIOMmols(:)
-    integer,allocatable :: ONIOMmap(:) !> map calculation_settings to ONIOM fragments
+    integer,allocatable :: ONIOMmap(:) !> map ONIOM fragments to calculation_settings
+    integer,allocatable :: ONIOMrevmap(:) !> map calculation settings to ONIOM frags (or zero)
 
 !>--- Type procedures
   contains
@@ -660,7 +661,7 @@ contains  !>--- Module routines start here
           k = k+1
           self%ONIOMmap(k) = newid
         else
-          !> otherwise (it's not yet present), we can simply add it
+          !> otherwise (i.e. it's not yet present), we can simply add it
           k = k+1
           newid = j
           self%ONIOMmap(k) = newid
@@ -676,6 +677,17 @@ contains  !>--- Module routines start here
     end do
     self%ONIOM%calcids = newids
     deallocate(newids)
+
+    if(allocated(self%ONIOMrevmap)) deallocate(self%ONIOMrevmap)
+    allocate(self%ONIOMrevmap( self%ncalculations ), source=0)
+    do i =1,self%ncalculations
+       do j =1,self%ONIOM%ncalcs
+         if( self%ONIOMmap(j) == i)then
+            self%ONIOMrevmap(i) = j
+         endif
+       enddo
+    enddo
+
     write(stdout,*) 'done.'
   end subroutine calculation_ONIOMexpand
 
@@ -785,7 +797,11 @@ contains  !>--- Module routines start here
       write (iunit,'("> ",a)') 'No calculation levels set up!'
     else if (self%ncalculations > 1) then
       do i = 1,self%ncalculations
+        if(self%calcs(i)%ONIOM_id > 0 )then
+        write (iunit,'("> ",a,i0,a)') 'Automatic ONIOM setup calculation level ',i,':'
+        else
         write (iunit,'("> ",a,i0,a)') 'User-defined calculation level ',i,':'
+        endif
         call self%calcs(i)%info(iunit)
       end do
     else

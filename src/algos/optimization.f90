@@ -126,7 +126,7 @@ subroutine crest_optimization(env,tim)
    write(stdout,*)
    write(stdout,'(a)') '> Individual energies and gradient norms:'
      do k=1,calc%ncalculations
-       write(stdout,'(1x,a,i0,2f18.8)') 'calculation ',k,calc%etmp(k),norm2(calc%grdtmp(:,:,k))
+       write(stdout,'(1x,a,i3,2f18.8)') 'calculation ',k,calc%etmp(k),norm2(calc%grdtmp(:,:,k))
      enddo
      if(calc%nconstraints > 0)then
        write(stdout,'(1x,a)') '(+ constraints contribution)'

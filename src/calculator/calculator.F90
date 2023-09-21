@@ -58,7 +58,6 @@ module crest_calculator
   public :: engrad
   interface engrad
     module procedure :: engrad_mol
-    module procedure :: engrad_xyz
   end interface engrad
 
   public :: calc_eprint
@@ -112,7 +111,7 @@ contains  !> MODULE PROCEDURES START HERE
       return                 !> OpenMP can get picky...
     end if
 
-    !>--- Calculation setup
+!>--- Calculation setup
     n = calc%ncalculations
 
     !$omp critical
@@ -129,13 +128,13 @@ contains  !> MODULE PROCEDURES START HERE
       engrad_total = engrad_total+1
     end if
 
-    !>--- update ONIOM geometries
+!>--- update ONIOM geometries
     useONIOM = allocated(calc%ONIOM)
     if (useONIOM) then
       if (.not.allocated(calc%ONIOMmols)) then
-        allocate (calc%ONIOMmols(calc%ONIOM%nfrag))
+        allocate (calc%ONIOMmols(calc%ONIOM%ncalcs))
       end if
-      call ONIOM_update_geo(calc%ONIOM,mol,calc%ONIOMmols)
+      call ONIOM_update_geo(calc%ONIOM,mol,calc%ONIOMmols,calc%ONIOMmap)
     end if
 
     iostatus = 0
@@ -160,7 +159,8 @@ contains  !> MODULE PROCEDURES START HERE
 
         !> Assign the molecule (necessary for ONIOM stuff)
         if (calc%calcs(i)%ONIOM_id /= 0) then
-          j = calc%calcs(i)%ONIOM_id
+          !j = calc%calcs(i)%ONIOM_id
+          j = calc%ONIOMrevmap(i)
           call ONIOM_associate_mol(calc%ONIOMmols(j),molptr)
         else
           molptr => mol
@@ -171,7 +171,8 @@ contains  !> MODULE PROCEDURES START HERE
         if (calc%id > 0.and. i .ne. calc%id .and. .not.useONIOM) cycle
         if (.not.calc%calcs(i)%active) cycle
 
-        !>--- select the calculation type
+      !==================================================================================!
+      !>--- select the calculation type
         select case (calc%calcs(i)%id)
 
         case (jobtype%xtbsys)
@@ -228,6 +229,9 @@ contains  !> MODULE PROCEDURES START HERE
         end if
       end do
 
+!***************************************************
+!>--- Select energy and gradient construction
+!***************************************************
       !>--- for ONIOM calculations, copy gradients to right positions
       !>--- and project with Jacobian
       !$omp critical
@@ -236,12 +240,6 @@ contains  !> MODULE PROCEDURES START HERE
       end if
       !$omp end critical
 
-!***************************************************
-!>--- Select energy and gradient construction
-!***************************************************
-      !$omp critical
-       !write(*,*) calc%id,n,calc%ewight(:)
-      !$omp end critical
       select case (calc%id)
       case (0) !> the DEFAULT
         !>--- an option to add multiple energies and gradients accodring to weights
@@ -262,11 +260,8 @@ contains  !> MODULE PROCEDURES START HERE
         if (j <= calc%ncalculations) then
           if (useONIOM.and.calc%calcs(j)%ONIOM_id /= 0) then
             k = calc%calcs(j)%ONIOM_id  
-            if(calc%calcs(j)%ONIOM_highlowroot == 1)then
-              call ONIOM_get_fraggrad(calc%ONIOM,k,gradient,"high",energy)
-            else
-              call ONIOM_get_fraggrad(calc%ONIOM,k,gradient,"low",energy)
-            endif
+            l = calc%calcs(j)%ONIOM_highlowroot 
+            call ONIOM_get_fraggrad(calc%ONIOM,k,gradient,l,energy)
           else
             energy = calc%etmp(j)
             gradient = calc%grdtmp(:,:,j)
@@ -332,37 +327,10 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end subroutine engrad_mol
 
-!=========================================================================================!
-  subroutine engrad_xyz(n,xyz,at,calc,energy,gradient,iostatus)
-!**********************************************************
-!* subroutine engrad_xyz
-!* A wrapper for the engrad_mol routine.
-!*
-!* *WARNING* should >>NOT<< be used as a call in parallel
-!* sections of the code, due to allocation overhead of mol
-!**********************************************************
-    implicit none
-    integer,intent(in) :: n
-    real(wp),intent(in) :: xyz(3,n) ! coordinates should be in Bohr (a.u.)
-    integer,intent(in) :: at(n)
-    type(calcdata) :: calc
-    type(coord) :: mol
+!========================================================================================!
+!========================================================================================!
+!========================================================================================!
 
-    real(wp),intent(inout) :: energy
-    real(wp),intent(inout) :: gradient(3,n)
-    integer,intent(out) :: iostatus
-
-    real(wp) :: dum1,dum2
-
-    !$omp critical
-    mol%nat = n
-    mol%at = at
-    mol%xyz = xyz
-    !$omp end critical
-    call engrad_mol(mol,calc,energy,gradient,iostatus)
-
-    return
-  end subroutine engrad_xyz
 
 !========================================================================================!
 !========================================================================================!
@@ -391,10 +359,10 @@ contains  !> MODULE PROCEDURES START HERE
     do i = 1,mol%nat
       do j = 1,3
         mol%xyz(j,i) = mol%xyz(j,i)+step
-        call engrad(mol%nat,mol%xyz,mol%at,calc,er,grad,io)
+        call engrad(mol,calc,er,grad,io)
 
         mol%xyz(j,i) = mol%xyz(j,i)-2*step
-        call engrad(mol%nat,mol%xyz,mol%at,calc,el,grad,io)
+        call engrad(mol,calc,el,grad,io)
 
         mol%xyz(j,i) = mol%xyz(j,i)+step
         numgrd(j,i) = step2*(er-el)
@@ -528,13 +496,13 @@ contains  !> MODULE PROCEDURES START HERE
         ii = (i-1)*3+j
         !gradr = 0.0_wp
         mol%xyz(j,i) = mol%xyz(j,i)+step
-        call engrad(mol%nat,mol%xyz,mol%at,calc,er,gradr,io)
+        call engrad(mol,calc,er,gradr,io)
 
         gradr_tmp = calc%grdtmp
 
         !gradl = 0.0_wp
         mol%xyz(j,i) = mol%xyz(j,i)-2.0_wp*step
-        call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io)
+        call engrad(mol,calc,el,gradl,io)
 
         gradl_tmp = calc%grdtmp
 
@@ -562,7 +530,7 @@ contains  !> MODULE PROCEDURES START HERE
       end do
     end do
 
-    call engrad(mol%nat,mol%xyz,mol%at,calc,el,gradl,io) !>- to get the gradient of the non-displaced s
+    call engrad(mol,calc,el,gradl,io) !>- to get the gradient of the non-displaced s
 
     deallocate (gradl_tmp,gradr_tmp)
     deallocate (gradl,gradr)
@@ -656,7 +624,6 @@ contains  !> MODULE PROCEDURES START HERE
 !***************************************************************************
 !* A subroutine that adds (further) energies and gradients to
 !* e and grd, according to given weights.
-!* Might be useful for additive contributions or schemes like QMMM or ONIOM
 !***************************************************************************
     implicit none
     !> INPUT
@@ -686,14 +653,14 @@ contains  !> MODULE PROCEDURES START HERE
     type(calcdata),intent(inout) :: calc
     integer :: n,i,j,k,l,l1,l2
     integer :: natp,trunat
-
+#ifdef WITH_LWONIOM
     if (allocated(calc%ONIOM).and.calc%ncalculations > 0) then
       trunat = maxval(calc%ONIOMmols(:)%nat)
       do i = 1,calc%ONIOM%nfrag
         l1 = calc%ONIOM%calcids(1,i)
         l2 = calc%ONIOM%calcids(2,i)
-        j = calc%calcs(l1)%ONIOM_id
-        natp = calc%ONIOMmols(j)%nat
+        !j = calc%calcs(l1)%ONIOM_id
+        natp = calc%ONIOMmols(l1)%nat
 
         call calc%ONIOM%fragment(i)%gradient_distribution(  &
         &    calc%etmp(l1),calc%grdtmp(1:3,1:natp,l1), &
@@ -701,6 +668,7 @@ contains  !> MODULE PROCEDURES START HERE
         call calc%ONIOM%fragment(i)%jacobian(trunat)
       end do
     end if
+#endif
   end subroutine calc_ONIOM_projection
 
 !==========================================================================================!

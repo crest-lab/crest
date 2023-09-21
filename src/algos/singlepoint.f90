@@ -34,6 +34,7 @@ subroutine crest_singlepoint(env,tim)
   use crest_data
   use crest_calculator
   use strucrd
+  use gradreader_module, only: write_engrad
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -132,7 +133,7 @@ subroutine crest_singlepoint(env,tim)
     write (stdout,*)
     write (stdout,'(a)') '> Individual energies and gradient norms:'
     do k = 1,calc%ncalculations
-      write (stdout,'(1x,a,i0,2f18.8)') 'calculation ',k,calc%etmp(k),norm2(calc%grdtmp(:,:,k))
+      write (stdout,'(1x,a,i3,2f18.8)') 'calculation ',k,calc%etmp(k),norm2(calc%grdtmp(:,:,k))
     end do
     if (calc%nconstraints > 0) then
       write (stdout,'(1x,a)') '(+ constraints contribution)'
@@ -144,6 +145,9 @@ subroutine crest_singlepoint(env,tim)
   write (stdout,'(1x,a,f20.10,a)') 'TOTAL ENERGY ',energy,' Eh'
   write (stdout,'(1x,a,f20.10,a)') 'GRADIENT NORM',norm2(grad),' Eh/α'
   write (stdout,'(a)') repeat('=',40)
+
+  write(stdout,'(1x,a)') 'Writing crest.engrad ...' 
+  call write_engrad('crest.engrad',energy,grad)
 
   deallocate (grad)
 !========================================================================================!

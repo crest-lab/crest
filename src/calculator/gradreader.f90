@@ -39,11 +39,47 @@ module gradreader_module
   public :: rd_grad_engrad
   public :: rd_grad_generic
   public :: rd_grad_tm
+  public :: write_engrad
 
 !========================================================================================!
 !========================================================================================!
 contains  !>--- Module routines start here
 !========================================================================================!
+!========================================================================================!
+
+  subroutine write_engrad(fname,energy,grad)
+!***************************************************
+!* subroutine write_engrad
+!* write energy and gradient in the .engrad format
+!***************************************************
+    implicit none
+    character(len=*),intent(in) :: fname
+    real(wp),intent(in) :: energy
+    real(wp),intent(in) :: grad(:,:)
+    integer :: c,ich,n,i,j
+    real(wp) :: dum
+
+    n = size(grad,2)
+    open (newunit=ich,file=fname)
+    write(ich,'(a)') '#'
+    write(ich,'(a)') '# Atoms'
+    write(ich,'(a)') '#'
+    write(ich,'(5x,i0)') n
+    write(ich,'(a)') '#'
+    write(ich,'(a)') '# Energy ( Eh )'
+    write(ich,'(a)') '#'
+    write(ich,'(f25.15)') energy
+    write(ich,'(a)') '#'
+    write(ich,'(a)') '# Gradient ( Eh/a0 )'
+    write(ich,'(a)') '#'
+    do i=1,n
+      do j=1,3
+        write(ich,'(f25.15)') grad(j,i)
+      enddo
+    enddo
+    close (ich)
+  end subroutine write_engrad
+
 !========================================================================================!
 
   subroutine rd_efile(fname,energy,iostatus)

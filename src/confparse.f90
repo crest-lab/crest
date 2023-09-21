@@ -2145,6 +2145,7 @@ subroutine parseflags(env,arg,nra)
     call ONIOM_read_toml(env%ONIOM_toml,env%nat,env%ref%at,env%ref%xyz,env%calc%ONIOM)     
     call env%calc%ONIOMexpand()
     !call env%calc%info(stdout)
+    !call env%calc%ONIOM%dump_fragments() 
     !stop 'ONIOM read'
   endif
 
