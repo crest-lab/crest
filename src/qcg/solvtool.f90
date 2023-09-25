@@ -170,7 +170,9 @@ subroutine qcg_setup(env, solu, solv)
    logical :: e_there, tmp, used_tmp
    character(len=512) :: thispath, tmp_grow
    character(len=40)  :: solv_tmp
-   character(len=80) :: atmp
+   character(len=80)  :: atmp
+   character(len=20)  :: gfnver_tmp
+
 
    call getcwd(thispath)
 
@@ -224,6 +226,11 @@ subroutine qcg_setup(env, solu, solv)
    env%ref%xyz = solu%xyz
 
 !---- Geometry preoptimization solute
+   if (env%final_gfn2_opt) then !If GFN2 final opt, solute also GFN2 optimized
+      gfnver_tmp = env%gfnver
+      env%gfnver = '--gfn2'
+   end if
+
    if ((.not. env%nopreopt) .and. (solu%nat /= 1)) then
       call wrc0('coord', solu%nat, solu%at, solu%xyz) !write coord for xtbopt routine
       if (env%cts%used) then
@@ -261,6 +268,10 @@ subroutine qcg_setup(env, solu, solv)
       call xtb_lmo(env, 'solute')!,solu%chrg)
    else
       call xtbsp3(env, 'solute')
+   end if
+
+   if (env%final_gfn2_opt) then !If GFN2 final opt, solute also GFN2 optimized
+      env%gfnver = gfnver_tmp
    end if
 
    call grepval('xtb.out', '| TOTAL ENERGY', e_there, solu%energy)
@@ -358,9 +369,9 @@ subroutine read_qcg_input(env, solu, solv)
    type(systemdata)               :: env
    type(zmolecule), intent(inout) :: solu, solv
    logical                        :: pr
-   real(wp), parameter             :: amutokg = 1.66053886E-27
-   real(wp), parameter             :: third = 1.0d0/3.0d0
-   integer                        :: i
+   real(wp), parameter            :: amutokg = 1.66053886E-27
+   real(wp), parameter            :: third = 1.0d0/3.0d0
+   integer                        :: i, ich
    real(wp)                       :: r_solu, r_solv
 
    pr = .true.
@@ -403,7 +414,88 @@ subroutine read_qcg_input(env, solu, solv)
    solu%mass = solu%mass*amutokg
    solv%mass = solv%mass*amutokg
 
+!--- If directed docking is requested, it is read in here:
+   if(allocated(env%directed_file)) then
+      if (env%use_xtbiff) error stop 'xTB-IFF does not support directed docking. &
+              &Please use the aISS algorithm of xtb.'
+      call read_directed_input(env)
+   end if
+
+
 end subroutine read_qcg_input
+
+!> Read input for directed docking
+subroutine read_directed_input(env)
+   use iso_fortran_env, wp => real64
+   use crest_data
+   implicit none
+
+   type(systemdata)           :: env
+
+   integer                    :: nlines
+   integer                    :: io, ich, i, i_check
+   integer                    :: index
+   character(len=512)         :: dum
+   character(len=1), parameter :: delim_space = ' ', delim_tab = achar(9)
+
+     open (newunit=ich, file=env%directed_file) 
+        !First check number of lines
+        nlines = 0
+        do
+           read(ich,*,iostat=io)
+           if (io /= 0) exit
+           nlines = nlines + 1
+        end do
+        !Allocate directed list 
+        !First entry is the atom number, Second how many solvents to add to this atom
+        allocate(env%directed_list(nlines,2))
+        allocate(env%directed_number(nlines), source = 0)
+        !Now read lines into directed_list
+        rewind(ich)
+        do i=1, nlines
+           read(ich,'(A)') dum
+           !> Remove leading tab and spaces first
+           dum = adjustl(dum) !Leading spaces are removed
+           index = SCAN(trim(dum), delim_tab) 
+           if (index == 1) then !Leading tab -> remove it
+              dum = dum(2:)
+           end if
+           index = SCAN(trim(dum), delim_space)
+           if (index == 0) then !No space = check for tab
+              index = SCAN(trim(dum), delim_tab)
+           end if
+           if (index == 0) then  !Second value is missing
+              write(*,'(a,1x,i0)') "No second value found in directed list on line", i
+              error stop
+           end if
+           env%directed_list(i, 1) = dum(1:index-1)
+           env%directed_list(i, 2) = dum(index+1:)
+           !Remove multiple spaces
+           env%directed_list(i, 2) = adjustl(env%directed_list(i, 2))
+           !Check, if spaces are still in second argument (e.g. a third number is giveb)
+           index = SCAN(trim(env%directed_list(i, 2)), delim_space)
+           if (index == 0) index = SCAN(trim(dum), delim_tab)
+           if (index /= 0) then
+              write(*,'(a,1x,i0)') "Too many values at line", i
+              error stop
+           end if
+           !> Make array with which solvent molecule at which atom to add
+           read(env%directed_list(i,2), *, iostat=io) env%directed_number(i)
+           env%directed_number(i) = sum(env%directed_number)
+           if (io/= 0) then
+              write(*,'(a,1x,i0)') "Second value is no number in line", i
+              error stop
+           end if
+        end do
+     close(ich)
+     write(*,*) 'Performing directed docking'
+     do i=1, nlines
+        write(*,'(a,1x,a,1x,a,1x,a)') 'Docking', trim(env%directed_list(i,2)),&
+               & 'solvent molecules at', trim(env%directed_list(i,1))
+     end do
+
+end subroutine read_directed_input
+
 
 subroutine qcg_grow(env, solu, solv, clus, tim)
    use iso_fortran_env, wp => real64
