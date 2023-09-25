@@ -1650,7 +1650,6 @@ subroutine parseflags(env,arg,nra)
         env%qcg_flag = .true.
         ctmp = trim(arg(i + 1))
         if (ctmp(1:1) .ne. '-') then
-!          allocate(env%directed_file(512))
           env%directed_file = trim(ctmp)
           write (*,'(2x,a,1x,a)') trim(argument)//' :',trim(ctmp)
         end if
