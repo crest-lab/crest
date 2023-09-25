@@ -120,7 +120,7 @@ subroutine crest_optimization(env,tim)
    do i = 1,mol%nat
       write (stdout,'(3f18.8)') grad(1:3,i)
    end do
-   write(stdout,'(a,f18.8,a)') '> Gradient norm:',norm2(grad),' Eh/α'
+   write(stdout,'(a,f18.8,a)') '> Gradient norm:',norm2(grad),' Eh/a0'
 
    if(calc%ncalculations > 1)then
    write(stdout,*)
@@ -136,7 +136,7 @@ subroutine crest_optimization(env,tim)
    write(stdout,*)
    write(stdout,'(a)') repeat('=',40)
    write(stdout,'(1x,a,f20.10,a)') 'TOTAL ENERGY ',energy,' Eh'
-   write(stdout,'(1x,a,f20.10,a)') 'GRADIENT NORM',norm2(grad),' Eh/α'
+   write(stdout,'(1x,a,f20.10,a)') 'GRADIENT NORM',norm2(grad),' Eh/a0'
    write(stdout,'(a)') repeat('=',40)
    
    if(io /= 0)then

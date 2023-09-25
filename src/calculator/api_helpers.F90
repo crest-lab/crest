@@ -139,22 +139,26 @@ contains    !> MODULE PROCEDURES START HERE
     type(calculation_settings),intent(inout) :: calc
     logical,intent(out) :: loadnew
     loadnew = .false.
-    if (.not.allocated(calc%wfn)) then
-      allocate (calc%wfn)
+    if (.not.allocated(calc%tblite)) then
+      allocate (calc%tblite)
       loadnew = .true.
     end if
-    if (.not.allocated(calc%tbcalc)) then
-      allocate (calc%tbcalc)
-      loadnew = .true.
-    end if
-    if (.not.allocated(calc%ctx)) then
-      allocate (calc%ctx)
-      loadnew = .true.
-    end if
-    if (.not.allocated(calc%tbres)) then
-      allocate (calc%tbres)
-      loadnew = .true.
-    end if
+    !if (.not.allocated(calc%tblite%wfn)) then
+    !  allocate (calc%tblite%wfn)
+    !  loadnew = .true.
+    !end if
+    !if (.not.allocated(calc%tblite%calc)) then
+    !  allocate (calc%tblite%calc)
+    !  loadnew = .true.
+    !end if
+    !if (.not.allocated(calc%tblite%ctx)) then
+    !  allocate (calc%tblite%ctx)
+    !  loadnew = .true.
+    !end if
+    !if (.not.allocated(calc%tblite%res)) then
+    !  allocate (calc%tblite%res)
+    !  loadnew = .true.
+    !end if
     if (calc%apiclean) loadnew = .true.
   end subroutine tblite_init
   subroutine tblite_wbos(calc,mol,iostatus)
@@ -166,7 +170,7 @@ contains    !> MODULE PROCEDURES START HERE
     if (.not.calc%rdwbo) return
     if (allocated(calc%wbo)) deallocate (calc%wbo)
     allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
-    call tblite_getwbos(calc%tbcalc,calc%wfn,calc%tbres,mol%nat,calc%wbo)
+    call tblite_getwbos(calc%tblite%calc,calc%tblite%wfn,calc%tblite%res,mol%nat,calc%wbo)
   end subroutine tblite_wbos
 
 !========================================================================================!

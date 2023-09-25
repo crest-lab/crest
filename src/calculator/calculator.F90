@@ -36,10 +36,6 @@ module crest_calculator
 !>--- private module variables and parameters
   private
 
-!>--- some constants and name mappings
-  real(wp),parameter :: bohr = 0.52917726_wp
-  real(wp),parameter :: autokcal = 627.509541_wp
-
 !=========================================================================================!
 !>--- RE-EXPORTS of module calc_type
   public :: calcdata              !> calculator main object
@@ -59,6 +55,7 @@ module crest_calculator
   interface engrad
     module procedure :: engrad_mol
   end interface engrad
+  public :: numgrad
 
   public :: calc_eprint
   interface calc_eprint
@@ -150,8 +147,8 @@ contains  !> MODULE PROCEDURES START HERE
     if (n > 0) then
       if (calc%id > 0.and.calc%id > n) error stop 'Invalid calculator setup'
 
-      !==================================================================================!
-      !>--- loop over all calculations to be done
+!==================================================================================!
+!>--- loop over all calculations to be done
       do i = 1,calc%ncalculations
 
         !> skip through calculations we do not want
@@ -168,66 +165,21 @@ contains  !> MODULE PROCEDURES START HERE
         pnat = molptr%nat
 
         !> also skip through if only one level was requested
-        if (calc%id > 0.and. i .ne. calc%id .and. .not.useONIOM) cycle
+        if (calc%id > 0.and.i .ne. calc%id.and..not.useONIOM) cycle
         if (.not.calc%calcs(i)%active) cycle
 
-      !==================================================================================!
-      !>--- select the calculation type
-        select case (calc%calcs(i)%id)
+        !==========================================!
+        !> the actual potential call
+        !==========================================!
+        call potential_core(molptr,calc,i,iostatus)
+        !==========================================!
+        !==========================================!
 
-        case (jobtype%xtbsys)
-        !> xtb system call
-          call xtb_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
-
-        case (jobtype%generic) 
-        !> generic script/program call
-          call generic_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
-
-        case (jobtype%tblite)
-        !> tblite api call
-          call tblite_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
-
-        case (jobtype%gfn0) 
-        !> GFN0-xTB api
-          call gfn0_engrad(molptr,calc%calcs(i),calc%calcs(i)%g0calc,calc%etmp(i), &
-          &                calc%grdtmp(:,1:pnat,i),iostatus)
-
-        case (jobtype%gfn0occ) 
-        !> Special GFN0-xTB api given orbital population
-        !> note the use of calc%g0calc instead of calc%calcs(i)%g0calc !
-          call gfn0occ_engrad(molptr,calc%calcs(i),calc%g0calc,calc%etmp(i), &
-          &                   calc%grdtmp(:,1:pnat,i),iostatus)
-
-        case (jobtype%gfnff) 
-        !> GFN-FF api
-          call gfnff_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
-
-        case (jobtype%xhcff) 
-        !> XHCFF-lib
-          call xhcff_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
-
-        case (jobtype%turbomole) 
-        !> Turbomole-style SPs
-          call turbom_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
-
-        case (jobtype%orca)
-        !> ORCA-style SPs
-           call orca_engrad(molptr,calc%calcs(i),calc%etmp(i),calc%grdtmp(:,1:pnat,i),iostatus)
-
-        case (99) !-- Lennard-Jones dummy calculation
-          if (allocated(calc%calcs(i)%other)) then
-            read (calc%calcs(i)%other,*) dum1,dum2
-          end if
-          call lj_engrad(mol%nat,mol%xyz,dum1,dum2,calc%etmp(i),calc%grdtmp(:,1:pnat,i))
-
-        case default
-          calc%etmp(i) = 0.0_wp
-          calc%grdtmp(:,:,i) = 0.0_wp
-        end select
         if (iostatus /= 0) then
           return
         end if
       end do
+!==================================================================================!
 
 !***************************************************
 !>--- Select energy and gradient construction
@@ -259,8 +211,8 @@ contains  !> MODULE PROCEDURES START HERE
         j = calc%id
         if (j <= calc%ncalculations) then
           if (useONIOM.and.calc%calcs(j)%ONIOM_id /= 0) then
-            k = calc%calcs(j)%ONIOM_id  
-            l = calc%calcs(j)%ONIOM_highlowroot 
+            k = calc%calcs(j)%ONIOM_id
+            l = calc%calcs(j)%ONIOM_highlowroot
             call ONIOM_get_fraggrad(calc%ONIOM,k,gradient,l,energy)
           else
             energy = calc%etmp(j)
@@ -331,6 +283,86 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
+  subroutine potential_core(molptr,calc,id,iostatus)
+!***************************************************************
+!* subroutine porential_core
+!*
+!* wrapped main potential calls.
+!* enrgies and gradients are saved to calc
+!* id is used to select the calculation
+!***************************************************************
+    implicit none
+    type(coord),intent(in)       :: molptr
+    type(calcdata),intent(inout) :: calc
+    integer,intent(in)           :: id
+    integer,intent(out)          :: iostatus
+    integer :: pnat
+    real(wp) :: dum1,dum2
+
+    if (id > calc%ncalculations) return
+
+    pnat = molptr%nat
+
+    !>--- select the calculation type
+    select case (calc%calcs(id)%id)
+
+    case (jobtype%xtbsys)
+      !> xtb system call
+      call xtb_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%generic)
+      !> generic script/program call
+      call generic_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%tblite)
+      !> tblite api call
+      call tblite_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%gfn0)
+      !> GFN0-xTB api
+      call gfn0_engrad(molptr,calc%calcs(id),calc%calcs(id)%g0calc,calc%etmp(id), &
+      &                calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%gfn0occ)
+      !> Special GFN0-xTB api given orbital population
+      !> note the use of calc%g0calc instead of calc%calcs(id)%g0calc !
+      call gfn0occ_engrad(molptr,calc%calcs(id),calc%g0calc,calc%etmp(id), &
+      &                   calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%gfnff)
+      !> GFN-FF api
+      call gfnff_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%xhcff)
+      !> XHCFF-lib
+      call xhcff_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%turbomole)
+      !> Turbomole-style SPs
+      call turbom_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%orca)
+      !> ORCA-style SPs
+      call orca_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%lj) 
+      !> Lennard-Jones potential calculation
+      if (allocated(calc%calcs(id)%other)) then
+        read (calc%calcs(id)%other,*) dum1,dum2
+      else
+        dum1 = 1.0_wp
+        dum2 = 1.0_wp   
+      end if
+      call lj_engrad(molptr%nat,molptr%xyz*autoaa,dum1,dum2, &
+      &              calc%etmp(id),calc%grdtmp(:,1:pnat,id))
+      calc%grdtmp(:,:,id) = calc%grdtmp(:,:,id)*autoaa
+
+    case default
+      calc%etmp(id) = 0.0_wp
+      calc%grdtmp(:,:,id) = 0.0_wp
+    end select
+
+  end subroutine potential_core
 
 !========================================================================================!
 !========================================================================================!
@@ -369,15 +401,16 @@ contains  !> MODULE PROCEDURES START HERE
       end do
     end do
 
-    write (*,*) 'Numerical Gradient:'
+    write (stdout,*)
+    write (stdout,*) 'Numerical Gradient:'
     do i = 1,mol%nat
       write (*,'(3f18.8)') numgrd(1:3,i)
     end do
 
-    write (*,*)
-    write (*,*) 'Gradient Difference:'
+    write (stdout,*)
+    write (stdout,*) 'Gradient Difference:'
     do i = 1,mol%nat
-      write (*,'(3f18.8)') numgrd(1:3,i)-angrad(1:3,i)
+      write (stdout,'(3f18.8)') numgrd(1:3,i)-angrad(1:3,i)
     end do
 
     deallocate (numgrd,grad)

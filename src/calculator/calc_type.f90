@@ -48,10 +48,11 @@ module calc_type
     integer :: gfn0occ   = 8
     integer :: gfnff     = 9
     integer :: xhcff     = 10
+    integer :: lj        = 11
   end type enum_jobtype
   type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
 
-  character(len=45),parameter,private :: jobdescription(11) = [ &
+  character(len=45),parameter,private :: jobdescription(12) = [ &
      & 'Unknown calculation type                    ', &
      & 'xTB calculation via external binary         ', &
      & 'Generic script execution                    ', &
@@ -62,7 +63,8 @@ module calc_type
      & 'GFN0-xTB calculation via GFN0 lib           ', &
      & 'GFN0*-xTB calculation via GFN0 lib          ', &
      & 'GFN-FF calculation via GFNFF lib            ', &
-     & 'XHCFF calculation via XHCFF-lib             ' ]
+     & 'XHCFF calculation via XHCFF-lib             ', &
+     & 'Lennard-Jones potential calculation         ' ]
 !&>
 
 !=========================================================================================!
@@ -122,11 +124,6 @@ module calc_type
     character(len=:),allocatable :: solvent
 
     !> tblite data
-    type(wavefunction_type),allocatable  :: wfn
-    type(tblite_calculator),allocatable  :: tbcalc
-    type(tblite_ctx),allocatable         :: ctx
-    type(tblite_resultstype),allocatable :: tbres
-
     type(tblite_data),allocatable :: tblite
 
     !> GFN0-xTB data
@@ -312,10 +309,11 @@ contains  !>--- Module routines start here
     if (allocated(self%efile)) deallocate (self%efile)
     if (allocated(self%solvmodel)) deallocate (self%solvmodel)
     if (allocated(self%solvent)) deallocate (self%solvent)
-    if (allocated(self%wfn)) deallocate (self%wfn)
-    if (allocated(self%tbcalc)) deallocate (self%tbcalc)
-    if (allocated(self%ctx)) deallocate (self%ctx)
-    if (allocated(self%tbres)) deallocate (self%tbres)
+    !if (allocated(self%wfn)) deallocate (self%wfn)
+    !if (allocated(self%tbcalc)) deallocate (self%tbcalc)
+    !if (allocated(self%ctx)) deallocate (self%ctx)
+    !if (allocated(self%tbres)) deallocate (self%tbres)
+    if (allocated(self%tblite)) deallocate(self%tblite)
     if (allocated(self%g0calc)) deallocate (self%g0calc)
     if (allocated(self%ff_dat)) deallocate (self%ff_dat)
     if (allocated(self%xhcff)) deallocate (self%xhcff)
@@ -621,6 +619,7 @@ contains  !>--- Module routines start here
     integer :: i,j,k,l,newid,j2
     type(calculation_settings) :: calculator
     integer,allocatable :: newids(:,:)
+    character(len=40) :: atmp
     if (.not.allocated(self%ONIOM)) return
     ncalcs = self%ONIOM%ncalcs
     maxid = maxval(self%ONIOM%calcids(1,:),1)
@@ -670,6 +669,15 @@ contains  !>--- Module routines start here
 
         self%calcs(newid)%ONIOM_highlowroot = l
         self%calcs(newid)%ONIOM_id = i
+        select case(l)
+        case( 1 ) 
+        write(atmp,'(a,i0,a)') 'ONIOM.',i,'.high'
+        case( 2 )
+        write(atmp,'(a,i0,a)') 'ONIOM.',i,'.low'
+        case( 3 )
+        write(atmp,'(a,i0,a)') 'ONIOM.',i,'.root'
+        end select
+        self%calcs(newid)%calcspace = trim(atmp)
 
         !> ALWAYS set the weight of ONIOM calcs to 0!
         self%calcs(newid)%weight = 0.0_wp

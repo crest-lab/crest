@@ -126,7 +126,7 @@ subroutine crest_singlepoint(env,tim)
   do i = 1,mol%nat
     write (stdout,'(3f18.8)') grad(1:3,i)
   end do
-  write (stdout,'(a,f18.8,a)') '> Gradient norm:',norm2(grad),' Eh/α'
+  write (stdout,'(a,f18.8,a)') '> Gradient norm:',norm2(grad),' Eh/a0'
   endif
 
   if (calc%ncalculations > 1) then
@@ -143,11 +143,13 @@ subroutine crest_singlepoint(env,tim)
   write (stdout,*)
   write (stdout,'(a)') repeat('=',40)
   write (stdout,'(1x,a,f20.10,a)') 'TOTAL ENERGY ',energy,' Eh'
-  write (stdout,'(1x,a,f20.10,a)') 'GRADIENT NORM',norm2(grad),' Eh/α'
+  write (stdout,'(1x,a,f20.10,a)') 'GRADIENT NORM',norm2(grad),' Eh/a0'
   write (stdout,'(a)') repeat('=',40)
 
   write(stdout,'(1x,a)') 'Writing crest.engrad ...' 
   call write_engrad('crest.engrad',energy,grad)
+
+  !call numgrad(mol,calc,grad)
 
   deallocate (grad)
 !========================================================================================!

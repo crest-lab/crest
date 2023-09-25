@@ -22,7 +22,6 @@
 !> this builds the communication between CRESTs
 !> "calculation_settings" and the respective API setups
 
-!=========================================================================================!
 module api_engrad
 
   use iso_fortran_env,only:wp => real64,stdout => output_unit
@@ -51,6 +50,9 @@ contains    !> MODULE PROCEDURES START HERE
 !=========================================================================================!
 
   subroutine tblite_engrad(mol,calc,energy,grad,iostatus)
+!******************************************************
+!* Interface singlepoint call between CREST and tblite
+!******************************************************
     implicit none
     type(coord) :: mol
     type(calculation_settings) :: calc
@@ -74,18 +76,19 @@ contains    !> MODULE PROCEDURES START HERE
     call api_handle_output(calc,'tblite.out',mol,pr)
     if(pr)then
        !> tblite uses its context (ctx)( type, rather than calc%prch
-       calc%ctx%unit = calc%prch
-       calc%ctx%verbosity = 1 
+       calc%tblite%ctx%unit = calc%prch
+       calc%tblite%ctx%verbosity = 1 
     else
-       calc%ctx%verbosity = 0
+       calc%tblite%ctx%verbosity = 0
     endif
 
 !>-- populate parameters and wavefunction
     if (loadnew) then
       call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp, &
-      &    calc%ctx,calc%wfn,calc%tbcalc)
-      call tblite_addsettings(calc%tbcalc,calc%maxscc,calc%rdwbo,calc%saveint)
-      call tblite_add_solv(mol,calc%chrg,calc%uhf,calc%ctx,calc%wfn,calc%tbcalc, &
+      &    calc%tblite%ctx,calc%tblite%wfn,calc%tblite%calc)
+      call tblite_addsettings(calc%tblite%calc,calc%maxscc,calc%rdwbo,calc%saveint)
+      call tblite_add_solv(mol,calc%chrg,calc%uhf, &
+      &    calc%tblite%ctx,calc%tblite%wfn,calc%tblite%calc, &
       &    calc%solvmodel,calc%solvent)
     end if
     !$omp end critical
@@ -93,9 +96,10 @@ contains    !> MODULE PROCEDURES START HERE
 !>--- do the engrad call
     call initsignal()
     call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%accuracy, &
-    & calc%ctx,calc%wfn,calc%tbcalc,energy,grad,calc%tbres,iostatus)
+    & calc%tblite%ctx,calc%tblite%wfn,calc%tblite%calc, &
+    & energy,grad,calc%tblite%res,iostatus)
     if (iostatus /= 0) return
-    call api_print_e_grd(pr,calc%ctx%unit,mol,energy,grad)
+    call api_print_e_grd(pr,calc%tblite%ctx%unit,mol,energy,grad)
 
 !>--- postprocessing, getting other data
     !$omp critical
@@ -108,7 +112,10 @@ contains    !> MODULE PROCEDURES START HERE
 !========================================================================================!
 
   subroutine gfn0_engrad(mol,calc,g0calc,energy,grad,iostatus)
-!> This is the GFN0 engrad call that uses the standard implementation
+!************************************************
+!* Interface singlepoint call between CREST and 
+!* the GFN0 engrad standard implementation
+!************************************************
     implicit none
     !> INPUT
     type(coord) :: mol
@@ -161,7 +168,10 @@ contains    !> MODULE PROCEDURES START HERE
 !========================================================================================!
 
   subroutine gfn0occ_engrad(mol,calc,g0calc,energy,grad,iostatus)
-!> This is the GFN0 engrad call in which a config can be specified
+!************************************************
+!* Interface singlepoint call between CREST and 
+!* the GFN0 multi-occupation implementation 
+!************************************************
     implicit none
     !> INPUT
     type(coord) :: mol
@@ -211,7 +221,11 @@ contains    !> MODULE PROCEDURES START HERE
   end subroutine gfn0occ_engrad
 
 !========================================================================================!
+
   subroutine gfnff_engrad(mol,calc,energy,grad,iostatus)
+!******************************************************************
+!* Interface singlepoint call between CREST and GFN-FF force field
+!******************************************************************
     implicit none
     type(coord) :: mol
     type(calculation_settings) :: calc
@@ -259,7 +273,11 @@ contains    !> MODULE PROCEDURES START HERE
   end subroutine gfnff_engrad
 
 !========================================================================================!
+
   subroutine xhcff_engrad(mol,calc,energy,grad,iostatus)
+!***************************************************************
+!* Interface singlepoint call between CREST and XHC force field
+!***************************************************************
     implicit none
     type(coord) :: mol
     type(calculation_settings) :: calc
@@ -304,5 +322,6 @@ contains    !> MODULE PROCEDURES START HERE
     return
   end subroutine xhcff_engrad
 
+!========================================================================================!
 !========================================================================================!
 end module api_engrad

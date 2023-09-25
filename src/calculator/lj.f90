@@ -17,30 +17,23 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!====================================================!
-! a small module containing Lennard-Jones potentials
-! (mainly for testing other implementations)
-!====================================================!
+!> a small module containing the Lennard-Jones potential
+!> (mainly for testing other implementations)
 
 module lj
 
   use iso_fortran_env,only:wp => real64
 
   implicit none
-
-  !=========================================================================================!
-  !--- private module variables and parameters
   private
-  integer :: i,j,k,l,ich,och,io
-  logical :: ex
-
-  !--- some constants and name mappings
-  real(wp),parameter :: bohr = 0.52917726_wp
-  real(wp),parameter :: autokcal = 627.509541_wp
 
   public :: lj_engrad
 
-contains
+!========================================================================================!
+!========================================================================================!
+contains  !> MODULE PROCEDURES START HERE
+!========================================================================================!
+!========================================================================================!
 
   subroutine lj_engrad(n,xyz,epsi,sigma,energy,grad)
     implicit none
@@ -52,6 +45,9 @@ contains
     real(wp),intent(inout) :: energy
     real(wp),intent(inout) :: grad(3,n)
 
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
+
     real(wp) :: rij
     real(wp) :: U,dU,dx,dy,dz
 
@@ -59,31 +55,33 @@ contains
     grad = 0.0_wp
 
     do i = 1,n
-      do j = 1,i - 1
-        rij = (xyz(1,i) - xyz(1,j))**2   &
-        &   + (xyz(2,i) - xyz(2,j))**2   &
-        &   + (xyz(3,i) - xyz(3,j))**2
+      do j = 1,i-1
+        rij = (xyz(1,i)-xyz(1,j))**2   &
+        &   +(xyz(2,i)-xyz(2,j))**2   &
+        &   +(xyz(3,i)-xyz(3,j))**2
         rij = sqrt(rij)
-        !--- energy
-        U = 4.0_wp * epsi * ((sigma / rij)**12 - (sigma / rij)**6)
-        energy = energy + U
-        !--- Cartesian derivative
-        dU = 4.0_wp * epsi * (6.0_wp * (sigma**6) * &
-        & (rij**-7) - 12.0_wp * (sigma**12) * (rij**(-13)))
-        dU = dU / rij
-        dx = dU * (xyz(1,i) - xyz(1,j))
-        dy = dU * (xyz(2,i) - xyz(2,j))
-        dz = dU * (xyz(3,i) - xyz(3,j))
-        grad(1,i) = grad(1,i) + dx
-        grad(1,j) = grad(1,j) - dx
-        grad(2,i) = grad(2,i) + dy
-        grad(2,j) = grad(2,j) - dy
-        grad(3,i) = grad(3,i) + dz
-        grad(3,j) = grad(3,j) - dz
+        !>--- energy
+        U = 4.0_wp*epsi*((sigma/rij)**12-(sigma/rij)**6)
+        energy = energy+U
+        !>--- Cartesian derivative
+        dU = 4.0_wp*epsi*(6.0_wp*(sigma**6)* &
+        & (rij**-7)-12.0_wp*(sigma**12)*(rij**(-13)))
+        dU = dU/rij
+        dx = dU*(xyz(1,i)-xyz(1,j))
+        dy = dU*(xyz(2,i)-xyz(2,j))
+        dz = dU*(xyz(3,i)-xyz(3,j))
+        grad(1,i) = grad(1,i)+dx
+        grad(1,j) = grad(1,j)-dx
+        grad(2,i) = grad(2,i)+dy
+        grad(2,j) = grad(2,j)-dy
+        grad(3,i) = grad(3,i)+dz
+        grad(3,j) = grad(3,j)-dz
       end do
     end do
 
     return
   end subroutine lj_engrad
 
+!========================================================================================!
+!========================================================================================!
 end module lj

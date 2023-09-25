@@ -220,7 +220,7 @@ contains !> MODULE PROCEDURES START HERE
       job%tblitelvl = val
     case ('lebedev')
       job%ngrid = val
-    case('vdwSet')
+    case('vdwset')
       job%vdwset = val
     end select
     return
@@ -262,6 +262,8 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%xhcff
       case ('none')
         job%id = jobtype%unknown
+      case ('lj','lennard-jones')
+        job%id = jobtype%lj
       case default
         job%id = jobtype%unknown
       end select
