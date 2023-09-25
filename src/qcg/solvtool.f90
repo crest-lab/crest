@@ -728,7 +728,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 
    if (env%nsolv .eq. 0) env%nsolv = iter !if no env%solv was given
 
-   if (env%gfnver .ne. '--gfn2') then
+   if (env%gfnver .ne. '--gfn2' .and. env%final_gfn2_opt) then
       gfnver_tmp = env%gfnver
       env%gfnver = '--gfn2'
       write (*, '(2x,''Final gfn2 optimization'')')
@@ -748,7 +748,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 
 !--- One optimization without Wall Potential and with implicit model
    gfnver_tmp = env%gfnver
-   env%gfnver = '--gfn2'
+   if (env%final_gfn2_opt) env%gfnver = '--gfn2'
    call opt_cluster(env, solu, clus, 'cluster.xyz', .true.)
    env%gfnver = gfnver_tmp
    call rename('xtbopt.xyz', 'cluster_optimized.xyz')
@@ -1172,15 +1172,17 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
 
 !--- Optimization
       call print_qcg_opt
-      if (env%gfnver .eq. '--gfn2') call multilevel_opt(env, 99)
+      !if (env%gfnver .eq. '--gfn2') 
+      call multilevel_opt(env, 99)
 
    end select
 
    env%QCG = .true.
 
 !--- Optimization with gfn2 if necessary
-   gfnver_tmp = env%gfnver
-   if (env%gfnver .ne. '--gfn2') then
+      if (env%final_gfn2_opt) then
+      gfnver_tmp = env%gfnver
+!      if (env%gfnver .ne. '--gfn2') then
       write (*, '(2x,a)') 'GFN2-xTB optimization'
       env%gfnver = '--gfn2'
       call rmrf('OPTIM')
@@ -1520,8 +1522,11 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
    optlev_tmp = env%optlev
    env%optlev = 1.0d0    !Increaseing percision for ensemble search to minimze scattering
    gfnver_tmp = env%gfnver
-   env%gfnver = '--gfn2' !CFF always gfn2
-   write (*, *) 'Method for CFF: GFN2-xTB'
+   if (env%final_gfn2_opt) then
+      env%gfnver = '--gfn2'
+   else
+      env%gfnver = env%ensemble_opt !CFF always with ensemble method
+   end if
    nothing_added = .false.
 
    dum = 0
