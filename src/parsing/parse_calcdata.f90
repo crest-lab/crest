@@ -19,7 +19,7 @@
 
 !> NOTE: This is work in progress, not all input conventions have been set yet
 !========================================================================================!
-!> Routines contained here are for parsing calculation and simulation settings that will 
+!> Routines contained here are for parsing calculation and simulation settings that will
 !> enter separate setup objects.
 !> This concerns mainly [calculation]/[calculation. ...] and [dynamics] blocks
 
@@ -39,7 +39,7 @@ module parse_calcdata
   private
 
 !>-- routines for parsing a calculation_settings object
-  interface parse_setting  
+  interface parse_setting
     module procedure :: parse_setting_auto
     module procedure :: parse_setting_float
     module procedure :: parse_setting_int
@@ -55,7 +55,6 @@ module parse_calcdata
     module procedure :: parse_calc_c
     module procedure :: parse_calc_bool
   end interface parse_calc
-
 
 !>-- routines for parsing a mddata object
   interface parse_md
@@ -220,7 +219,7 @@ contains !> MODULE PROCEDURES START HERE
       job%tblitelvl = val
     case ('lebedev')
       job%ngrid = val
-    case('vdwset')
+    case ('vdwset')
       job%vdwset = val
     end select
     return
@@ -251,7 +250,7 @@ contains !> MODULE PROCEDURES START HERE
         job%tblitelvl = 2
       case ('gfn1','gfn1-xtb')
         job%id = jobtype%tblite
-        job%tblitelvl = 1 
+        job%tblitelvl = 1
       case ('gfn0','gfn0-xtb')
         job%id = jobtype%gfn0
       case ('gfn0*','gfn0*-xtb')
@@ -317,13 +316,13 @@ contains !> MODULE PROCEDURES START HERE
         job%tblitelvl = xtblvl%unknown
       end select
 
-    case('orca_cmd')
+    case ('orca_cmd')
       job%id = jobtype%orca
       job%ORCA%cmd = val
       job%binary = val
-    case('orca_template')
+    case ('orca_template')
       job%id = jobtype%orca
-      call job%ORCA%read( val )
+      call job%ORCA%read(val)
 
     case ('gbsa','alpb','cpcm')
       job%solvmodel = key
@@ -340,7 +339,6 @@ contains !> MODULE PROCEDURES START HERE
       case default
         job%refine_lvl = refine%non
       end select
-
 
     end select
     return
@@ -510,7 +508,7 @@ contains !> MODULE PROCEDURES START HERE
     type(keyvalue) :: kv
     type(constraint) :: constr
     logical,intent(out) :: success
-    real(wp) :: dum1,dum2,dum3
+    real(wp) :: dum1,dum2,dum3,dum4
     integer :: atm1,atm2,atm3,atm4
     success = .false.
     select case (kv%key)
@@ -522,7 +520,7 @@ contains !> MODULE PROCEDURES START HERE
           call constr%dummyconstraint(11)
           success = .true.
         end select
-      case(5)  !> regular array
+      case (5)  !> regular array
         call constr%rdbondconstraint(kv%na,kv%value_fa)
         success = .true.
       case (9) !> unspecified array
@@ -577,6 +575,28 @@ contains !> MODULE PROCEDURES START HERE
         dum3 = kv%value_fa(3)
       end if
       call constr%gapdiffconstraint2(dum1,dum2,dum3)
+    case ('bondrange')
+      atm1 = nint(kv%value_fa(1)) 
+      atm2 = nint(kv%value_fa(2))
+      dum1 = kv%value_fa(3)*aatoau
+      dum1 = max(0.0_wp,dum1) !> can't be negative
+      select case(kv%na)
+      case(3)
+        dum2 = huge(dum2)/3.0_wp !> some huge value
+        call constr%bondrangeconstraint(atm1,atm2,dum1,dum2)
+      case(4)
+        dum2 = kv%value_fa(4)*aatoau
+        call constr%bondrangeconstraint(atm1,atm2,dum1,dum2)
+      case(5)
+        dum3 = kv%value_fa(5)
+        call constr%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3)
+      case(6)
+        dum4 = kv%value_fa(6)
+        call constr%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3,T=dum4)
+      case default
+        error stop '**ERROR** wrong number of arguments in bondrange constraint'
+      end select
+      success = .true.
     case default
       return
     end select
@@ -720,10 +740,10 @@ contains !> MODULE PROCEDURES START HERE
     case (4) !> string
       call parse_md(mddat,kv%key,kv%value_c)
     case default
-      select case ( kv%key )
-      case ('active','active_levels') 
+      select case (kv%key)
+      case ('active','active_levels')
         mddat%active_potentials = kv%value_ia
-      end select 
+      end select
     end select
   end subroutine parse_md_auto
   subroutine parse_md_float(mddat,key,val)
@@ -740,9 +760,9 @@ contains !> MODULE PROCEDURES START HERE
       mddat%md_hmass = val
     case ('tstep')
       mddat%tstep = val
-    case ('t','temp','temperature' )
+    case ('t','temp','temperature')
       mddat%tsoll = val
-      mddat%thermostat =.true.
+      mddat%thermostat = .true.
     case default
       return
     end select
@@ -759,17 +779,17 @@ contains !> MODULE PROCEDURES START HERE
       fval = float(val)
       call parse_md(mddat,key,fval)
     case ('shake')
-      if( val <= 0 )then
-         mddat%shake = .false.
+      if (val <= 0) then
+        mddat%shake = .false.
       else
-         mddat%shake = .true.
-         mddat%shk%shake_mode = min(val,2)
-      endif
+        mddat%shake = .true.
+        mddat%shk%shake_mode = min(val,2)
+      end if
     case ('printstep')
-       mddat%printstep = val
-    case ('t','temp','temperature' )
+      mddat%printstep = val
+    case ('t','temp','temperature')
       mddat%tsoll = float(val)
-      mddat%thermostat =.true.
+      mddat%thermostat = .true.
     case default
       return
     end select
@@ -793,8 +813,8 @@ contains !> MODULE PROCEDURES START HERE
     logical :: val
     select case (key)
     case ('shake')
-       mddat%shake = val
-       if(val) mddat%shk%shake_mode=1
+      mddat%shake = val
+      if (val) mddat%shk%shake_mode = 1
     case default
       return
     end select
@@ -894,8 +914,8 @@ contains !> MODULE PROCEDURES START HERE
         mtd%mtdtype = 0
       end select
     case ('biasfile')
-       mtd%mtdtype = cv_rmsd_static
-       mtd%biasfile = val
+      mtd%mtdtype = cv_rmsd_static
+      mtd%biasfile = val
     case default
       return
     end select

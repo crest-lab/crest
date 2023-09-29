@@ -22,6 +22,7 @@ srcs += files(
   'parse_datastruct.f90',
   'parse_maindata.f90',
   'parse_xtbinput.f90',
+  'parse_csv.f90',
   'parse_toml.F90',
   'parse_inputfile.F90',
   'parse_keyvalue.f90',

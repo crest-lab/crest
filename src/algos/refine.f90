@@ -89,10 +89,13 @@ subroutine crest_refine(env,input,output)
         call crest_oloop(env,nat,nall,at,xyz,eread,.false.)
 
       case(refine%confsolv)
-        write (stdout,'("> ConfSolv: δΔGsolv estimation from 3D directed message passing neural networks (D-MPNN)")')
-        call confsolv_request( input, nall, etmp)
-        eread(:) = eread(:) + etmp(:)
-   
+        write (stdout,'("> ConfSolv: ΔΔGsoln estimation from 3D directed message passing neural networks (D-MPNN)")')
+        call confsolv_request( input, nall, env%threads, etmp, io)
+        !eread(:) = eread(:) + etmp(:)
+        if(io == 0)then
+        eread(:) = etmp(:)*kcaltoau  !> since CREGEN deals with Eh energies
+        endif   
+
       end select
       write(stdout,*) 
     end do

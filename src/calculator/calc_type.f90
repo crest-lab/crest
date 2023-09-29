@@ -796,7 +796,7 @@ contains  !>--- Module routines start here
     character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
     character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
     character(len=20) :: atmp
-    integer :: constraintype(7)
+    integer :: constraintype(8)
 
     write (iunit,'(1x,a)') '----------------'
     write (iunit,'(1x,a)') 'Calculation info'
@@ -828,7 +828,7 @@ contains  !>--- Module routines start here
          constraintype(:) = 0
          do i = 1,self%nconstraints
           j = self%cons(i)%type
-          if(j > 0 .and. j < 8)then
+          if(j > 0 .and. j < 9)then
             constraintype(j) = constraintype(j) + 1
           endif 
          end do
@@ -837,6 +837,7 @@ contains  !>--- Module routines start here
          if(constraintype(3) > 0) write (iunit,'(2x,a,i0)') '# dihedral constraints: ',constraintype(3)
          if(constraintype(4) > 0) write (iunit,'(2x,a,i0)') '# wall potential      : ',constraintype(4)
          if(constraintype(5) > 0) write (iunit,'(2x,a,i0)') '# wall(logfermi) potential  : ',constraintype(5)
+         if(constraintype(8) > 0) write (iunit,'(2x,a,i0)') '# bondrange constraints    : ',constraintype(8)
       endif 
       write (iunit,*)
     end if

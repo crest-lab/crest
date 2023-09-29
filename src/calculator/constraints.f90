@@ -50,6 +50,7 @@ module constraints
   integer,parameter :: wall_fermi = 5
   integer,parameter :: box = 6
   integer,parameter :: box_fermi = 7
+  integer,parameter :: bondrange = 8
 
   integer,public,parameter :: na_gapdiff = -1
   integer,public,parameter :: na_gapdiff2 = -2
@@ -57,8 +58,9 @@ module constraints
   integer,parameter :: pharmonic = 1
   integer,parameter :: plogfermi = 2
 
-  public :: constraint
   !=====================================================!
+
+  public :: constraint
   type :: constraint
 
     integer :: type = 0
@@ -83,11 +85,12 @@ module constraints
     procedure :: dummyconstraint => create_dummy_constraint
     procedure :: analyzedummy => analyze_dummy_bond_constraint
     procedure :: rdbondconstraint => analyze_dummy_bond_constraint2
+    procedure :: bondrangeconstraint => create_bondrange_constraint
   end type constraint
-  !=====================================================!
+
+  !=====================================================! 
 
   public :: scantype
-  !=====================================================!
   type :: scantype
 
     integer :: type = 0  !> 0=nothing, 1=distance, 3=dihedral
@@ -143,6 +146,8 @@ contains  !>--- Module routines start here
 
     case (box_fermi)
 
+    case (bondrange)
+      call bondrange_constraint(n,xyz,constr,energy,grd)
     case default
       return
     end select
@@ -191,6 +196,10 @@ contains  !>--- Module routines start here
       art = 'nonadiabatic gap'
       write (atoms,'(1x,"[",a,"]")') 'σ*(exp(-β|ΔE|)+C) * ΔE²/(|ΔE|+α)'
       write (values,'(" σ=",f8.5," α=",f8.5," C=",f8.5," β=",f8.5)') self%fc(1:3),27.2114_wp
+    case (bondrange)
+      art = 'bondrange'
+      write (atoms,'(1x,"atoms:",1x,i0,",",i0)') self%atms(1:2)
+      write (values,'(" upper=",f8.2,1x,"lower=",f8.2)') self%ref(1)*bohr,self%ref(2)*bohr
     case default
       art = 'none'
       atoms = 'none'
@@ -370,9 +379,9 @@ contains  !>--- Module routines start here
     grd = 0.0_wp
 
     if (constr%n /= 2) return
-    if (.not.allocated(constr%atms)) return
-    if (.not.allocated(constr%ref)) return
-    if (.not.allocated(constr%fc)) return
+    !if (.not.allocated(constr%atms)) return
+    !if (.not.allocated(constr%ref)) return
+    !if (.not.allocated(constr%fc)) return
 
     iat = constr%atms(1)
     jat = constr%atms(2)
@@ -402,6 +411,146 @@ contains  !>--- Module routines start here
 
     return
   end subroutine bond_constraint
+
+!========================================================================================!
+
+  subroutine create_bondrange_constraint(self,i,j,dup,dlow,beta,T)
+    implicit none
+    class(constraint) :: self
+    integer,intent(in) :: i,j
+    real(wp),intent(in) :: dup,dlow
+    real(wp),optional :: beta
+    real(wp),optional :: T
+
+    call self%deallocate()
+    self%type = bondrange
+    self%n = 2
+    allocate (self%atms(2))
+    allocate (self%fc(2),source=fcdefault)
+    allocate (self%ref(2))
+    self%atms(1) = i
+    self%atms(2) = j
+    self%ref(1) = max(dup,dlow)
+    self%ref(2) = min(dup,dlow)
+    if (present(T)) then
+      self%fc(1) = T/kb
+    else
+      self%fc(1) = 0.1_wp/kb
+    end if
+    self%fc(1) = abs(self%fc(1))
+    if (present(beta))then
+      self%fc(2) = beta 
+    else
+      self%fc(2) = 50.0_wp
+    endif
+    return
+  end subroutine create_bondrange_constraint
+
+
+
+  subroutine bondrange_constraint(n,xyz,constr,energy,grd)
+!************************************************************
+!* constrain the distance between two atoms A...B
+!* via two logfermi potentials V(r) = kb*T*log(1+e^(beta*r))
+!* This potential allows to define an upper and lower bound
+!* for the AB distance
+!************************************************************
+    implicit none
+    integer,intent(in) :: n
+    real(wp),intent(in) :: xyz(3,n)
+    type(constraint) :: constr
+
+    real(wp),intent(out) :: energy
+    real(wp),intent(out) :: grd(3,n)
+    integer :: iat,jat
+    real(wp) :: a,b,c,x
+    real(wp) :: dist,ref,k,dum
+    real(wp) :: ref_upper, ref_lower
+    real(wp) :: T,beta
+    real(wp) :: dr(3)
+
+    energy = 0.0_wp
+    grd = 0.0_wp
+
+    if (constr%n /= 2) return
+    !if (.not.allocated(constr%atms)) return
+    !if (.not.allocated(constr%ref)) return
+    !if (size(constr%ref,1) < 2) return
+    !if (.not.allocated(constr%fc)) return
+    !if (size(constr%fc,1) < 2) return
+
+    iat = constr%atms(1)
+    jat = constr%atms(2)
+    a = xyz(1,iat)-xyz(1,jat)
+    b = xyz(2,iat)-xyz(2,jat)
+    c = xyz(3,iat)-xyz(3,jat)
+    dist = sqrt(a**2+b**2+c**2)
+    ref_upper = constr%ref(1)
+    ref_lower = constr%ref(2)
+    T = constr%fc(1)
+    beta = constr%fc(2)
+
+    !> upper bound contribution
+    x = dist-ref_upper
+    !energy = kb*T*log(1.0_wp+exp(beta*x))
+    energy = logfermi(T,beta,x)
+    !dum = (kb*T*beta*exp(beta*x))/(exp(beta*x)+1.0_wp)
+    dum = dlogfermi(T,beta,x)
+    grd(1,iat) = dum*(a/dist)
+    grd(2,iat) = dum*(b/dist)
+    grd(3,iat) = dum*(c/dist)
+    grd(1,jat) = -grd(1,iat)
+    grd(2,jat) = -grd(2,iat)
+    grd(3,jat) = -grd(3,iat)
+
+    !> lower bound contribution
+    x = ref_lower - dist
+    !energy = energy +  kb*T*log(1.0_wp+exp(beta*x))
+    energy = energy + logfermi(T,beta,x)
+    !dum = (kb*T*beta*exp(beta*x))/(exp(beta*x)+1.0_wp)
+    dum = dlogfermi(T,beta,x) 
+    dr(1) = -dum*(a/dist)
+    dr(2) = -dum*(b/dist)
+    dr(3) = -dum*(c/dist)
+    grd(1,iat) = grd(1,iat) + dr(1)
+    grd(2,iat) = grd(2,iat) + dr(2) 
+    grd(3,iat) = grd(3,iat) + dr(3)
+    grd(1,jat) = grd(1,jat) - dr(1)
+    grd(2,jat) = grd(2,jat) - dr(2)
+    grd(3,jat) = grd(3,jat) - dr(3)
+
+    !> energy shift (no gard contribution)
+    !> if ref_upper == ref_lower, this will transform the
+    !> bondrange constraint into something close to a harmonic potential
+    !> and the shift shifts the potential to zero at the minimum
+    ref = (ref_upper + ref_lower)/2.0_wp
+    x = ref - ref_upper
+    dum = logfermi(T,beta,x)
+    x = ref_lower - ref
+    dum = dum + logfermi(T,beta,x)
+    energy = energy - dum
+
+    return 
+  end subroutine bondrange_constraint
+
+  function logfermi(T,beta,x) result(energy)
+    implicit none
+    real(wp) :: energy
+    real(wp),intent(in) :: T
+    real(wp),intent(in) :: beta
+    real(wp),intent(in) :: x
+    energy = kb*T*log(1.0_wp+exp(beta*x))
+  end function logfermi
+
+  function dlogfermi(T,beta,x) result(dldx)
+    implicit none
+    real(wp) :: dldx
+    real(wp),intent(in) :: T
+    real(wp),intent(in) :: beta
+    real(wp),intent(in) :: x
+    dldx = (kb*T*beta*exp(beta*x))/(exp(beta*x)+1.0_wp)
+  end function dlogfermi
+
 
 !========================================================================================!
 !> subroutien create_angle_constraint
@@ -718,7 +867,7 @@ contains  !>--- Module routines start here
   end subroutine dihedral_constraint
 
 !========================================================================================!
-!> subroutien create_sphere_constraint
+!> subroutine create_sphere_constraint
 
   subroutine create_sphere_constraint_all(self,n,r,k,alpha,logfermi)
     implicit none

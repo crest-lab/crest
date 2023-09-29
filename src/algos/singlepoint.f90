@@ -149,7 +149,9 @@ subroutine crest_singlepoint(env,tim)
   write(stdout,'(1x,a)') 'Writing crest.engrad ...' 
   call write_engrad('crest.engrad',energy,grad)
 
-  !call numgrad(mol,calc,grad)
+  if(env%testnumgrad)then
+    call numgrad(mol,calc,grad)
+  endif 
 
   deallocate (grad)
 !========================================================================================!

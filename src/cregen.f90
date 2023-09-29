@@ -805,13 +805,15 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
 
     llan = nall - newnall
     write (ch,'('' number of topology mismatches  :'',i6)') llan
+    !>--- report the removals during a run
+    if(ch.ne.stdout)then
+    write (stdout,'("CREGEN> number of topology-based structure removals: ",i0)') llan
+    endif
     if (checkez .and. ccfail > 0) then
       write (ch,'(''  => discared due to E/Z isom.  :'',i6)') ccfail
     end if
   end if
   !>--- otherwise the ensemble is ok
-
-  !write(ch,'('' number of reliable points      :'',i6)')newnall
 
   deallocate (c1)
   deallocate (orderref,order)

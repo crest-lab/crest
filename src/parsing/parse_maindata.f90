@@ -98,6 +98,10 @@ contains   !> MODULE PROCEDURES START HERE
       case ('singlepoint','sp')
         env%preopt = .false.
         env%crestver = crest_sp
+      case ('numgrad')
+        env%preopt = .false.
+        env%crestver = crest_sp
+        env%testnumgrad = .true.
       case ('ancopt','optimize')
         env%preopt = .false.
         env%crestver = crest_optimize
@@ -149,7 +153,7 @@ contains   !> MODULE PROCEDURES START HERE
       case default
         env%crestver = crest_imtd
       end select
-    case ('ensemble_input','ensemble')
+    case ('ensemble_input','ensemble','input_ensemble')
       env%ensemblename = val
       env%inputcoords = val
     case ('input')
@@ -228,7 +232,7 @@ contains   !> MODULE PROCEDURES START HERE
     type(datablock) :: blk
     type(keyvalue) :: kv
     integer :: i    
-!>--- add ConfSolv as refinement level to give a δΔGsolv
+!>--- add ConfSolv as refinement level to give a ΔΔGsoln
     call env%addrefine(refine%ConfSolv)
 
 !>--- parse the arguments
@@ -243,9 +247,19 @@ contains   !> MODULE PROCEDURES START HERE
     case ( 'port')
        if(.not.allocated(cs_port)) allocate(cs_port)
        cs_port = kv%value_i
-    case ('solvent')
+    case ('solvent') 
+    !> to define a single solvent like: solvent = ['water','O']
+       if(kv%na == 2)then
+         cs_solvent = trim(kv%value_rawa(1))
+         cs_smiles = trim(kv%value_rawa(2)) 
+       else
+         cs_solvent = kv%value_c
+       endif
+    case ('solvent_name')
        cs_solvent = kv%value_c
-    case ('param','checkpoint')
+    case ('solvent_smiles')
+       cs_smiles = kv%value_c
+    case ('model_path','param','checkpoint')
        cs_param = kv%value_c
     end select
     enddo

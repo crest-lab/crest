@@ -29,7 +29,7 @@ program CREST
   type(systemdata) :: env  !> MAIN STORAGE OF SYSTEM DATA
   type(timer)   :: tim     !> timer object
 
-  integer :: i,j,l,args
+  integer :: i,j,l,args,io
   character(len=:),allocatable :: arg(:)
   character(len=:),allocatable :: infile
   character(len=512) :: thisdir
@@ -338,6 +338,13 @@ program CREST
     call chdir(thisdir)
     call scrend(env)
   end if
+
+!=========================================================================================!
+!> shout down hosted subprocesses
+  block
+  use ConfSolv_module
+  call cs_shutdown(io)
+  end block
 
 !=========================================================================================!
 !> Evaluate and print timings

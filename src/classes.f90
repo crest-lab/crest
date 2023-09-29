@@ -542,6 +542,7 @@ module crest_data
     logical :: superquick            !> very crude quick-run option
     logical :: threadssetmanual      !> are #CPUs set with the '-T' flag ?
     logical :: trackorigin           !> track the origin of a conformation?
+    logical :: testnumgrad = .false. !> test numerical gradient in singlepoint
     logical :: use_xtbiff = .false.  !> use xtbiff for QCG?
     logical :: user_enslvl = .false. !> true if user set qcg enslvl
     logical :: user_temp = .false.   !> true if user set the MD temp

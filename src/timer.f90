@@ -275,10 +275,11 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=128) :: msg
     character(len=256) :: atmp
     real(wp) :: cputime,walltime,partsum,iowall
-    real(wp) :: cpusecs,wallsecs
+    real(wp) :: cpusecs,wallsecs,wallsecs_abs
     integer  :: i
     integer(int64) ::  cpudays,cpuhours,cpumins
     integer(int64) :: walldays,wallhours,wallmins
+    integer(int64) :: walldays_abs,wallhours_abs,wallmins_abs
     integer :: lmax,barlen
     logical :: verbose_local
 
@@ -320,12 +321,16 @@ contains  !> MODULE PROCEDURES START HERE
     ! convert overall elapsed wall time into days, hours, minutes !
     walltime = self%twall(0)
     walldays = int(walltime/86400._wp)
+    walldays_abs = walldays
     walltime = walltime-walldays*86400._wp
     wallhours = int(walltime/3600._wp)
+    wallhours_abs = wallhours
     walltime = walltime-wallhours*3600._wp
     wallmins = int(walltime/60._wp)
+    wallmins_abs = wallmins
     walltime = walltime-wallmins*60._wp
     wallsecs = walltime
+    wallsecs_abs = wallsecs
 
     !----------!
     ! printout !
@@ -361,8 +366,9 @@ contains  !> MODULE PROCEDURES START HERE
     !> and finally, again the total cpu and wall time
     if (verbose_local) then
       write (iunit,'(1x,a)') repeat('-',barlen)
+      
       write (iunit,'(" * wall-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
-        walldays,wallhours,wallmins,wallsecs
+        walldays_abs,wallhours_abs,wallmins_abs,wallsecs_abs
       write (iunit,'(" *  cpu-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
         cpudays,cpuhours,cpumins,cpusecs
       write (iunit,'(1x,"*",1x,"ratio c/w:",1x,f9.3,1x,"speedup")') self%tcpu(0)/self%twall(0)

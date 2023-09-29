@@ -24,6 +24,7 @@ list(APPEND srcs
    "${dir}/parse_maindata.f90"
    "${dir}/parse_datastruct.f90"
    "${dir}/parse_xtbinput.f90"
+   "${dir}/parse_csv.f90"
    "${dir}/parse_toml.F90"
    "${dir}/parse_inputfile.F90"
    "${dir}/parse_keyvalue.f90"
