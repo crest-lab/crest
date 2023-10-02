@@ -18,7 +18,8 @@ option(
   'la_backend',
   type: 'combo',
   value: 'mkl-static',
-  choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom'],
+  yield: true,
+  choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom','none'],
   description: 'Linear algebra backend for program.',
 )
 option(
@@ -31,5 +32,44 @@ option(
   'openmp',
   type: 'boolean',
   value: true,
+  yield: true,
   description: 'use OpenMP parallelisation',
 )
+option(
+  'WITH_TBLITE',
+  type: 'boolean',
+  value: false,
+  description: 'build with tblite integration',
+)
+option(
+  'WITH_GFN0',
+  type: 'boolean',
+  value: true,
+  description: 'build with GFN0-xTB integration',
+)
+option(
+  'WITH_GFNFF',
+  type: 'boolean',
+  value: true,
+  description: 'build with GFN-FF integration',
+)
+option(
+  'WITH_TOMLF',
+  type: 'boolean',
+  value: true,
+  description: 'build with toml-f integration',
+)
+option(
+  'WITH_XHCFF',
+  type: 'boolean',
+  value: false,
+  description: 'build with XHCFF integration',
+)
+
+option(
+  'WITH_LWONIOM',
+  type: 'boolean',
+  value: false,
+  description: 'build with lwONIOM integration',
+)
+

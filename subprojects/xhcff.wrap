@@ -1,0 +1,4 @@
+[wrap-git]
+directory = xhcff
+url = https://github.com/zellerf/xhcff-lib
+revision = head

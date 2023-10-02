@@ -23,7 +23,7 @@
 ! read and the calculation is started.
 !==============================================================!
 subroutine msreact_handler(env,tim)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use crest_data
     use msmod
     use strucrd
@@ -87,10 +87,11 @@ end subroutine msreact_handler
 ! the main implementation of the msreact algo should go here
 !==============================================================!
 subroutine msreact(mso,mol,nat,pair,nbonds)
-      use iso_fortran_env, wp => real64
+      use crest_parameters
       use msmod
-      use crest_data, only : bohr
       use iomod
+      use miscdata, only: rcov
+      use utilities, only: lin
       implicit none
 
       type(msobj) :: mso    !main storage object
@@ -100,7 +101,6 @@ subroutine msreact(mso,mol,nat,pair,nbonds)
       integer :: pair(nat*(nat+1)/2)
       !integer :: paths(nat*(nat+1)/2,nat)
       integer :: nbonds
-      integer :: lin !this is a function
       integer :: i,j,k
       integer :: p
       integer :: np
@@ -110,10 +110,6 @@ subroutine msreact(mso,mol,nat,pair,nbonds)
       character(len=40) :: pdir
       character(len=512) :: thisdir
       real(wp)             :: constr_dist
-      real(wp),allocatable :: rcov(:)
-
-      allocate(rcov(94))
-      call setrcov(rcov)
 
       !-- main subdirectory handling
       call getcwd(thisdir)
@@ -157,7 +153,7 @@ end subroutine msreact
 ! will be written into the directory
 !============================================================!
 subroutine isodir(mso,dirname,mol,A,B,D)
-    use iso_fortran_env, only : wp => real64
+    use crest_parameters
     use msmod
     use iomod
     use strucrd, only : wrxyz
@@ -214,7 +210,7 @@ end subroutine isodir
 ! (will have to be modified later, for now it is for testing)
 !=====================================================================!
 subroutine msreact_jobber(ndirs,base,niceprint)
-     use iso_fortran_env, only : wp => real64
+    use crest_parameters
     use msmod
     use iomod
     implicit none
@@ -246,10 +242,11 @@ end subroutine msreact_jobber
 ! MSREACT subprogram
 !=====================================================================!
 subroutine msreact_topowrap(mol,pair,paths,wboname)
-    use iso_fortran_env, only : wp => real64
+    use crest_parameters
     use msmod
     use zdata
-    use crest_data, only : bohr
+    use adjacency
+    use utilities, only: lin
     implicit none
     type(msmol) :: mol
     integer :: pair(mol%nat*(mol%nat+1)/2)
@@ -264,7 +261,6 @@ subroutine msreact_topowrap(mol,pair,paths,wboname)
     real(wp),allocatable :: dist(:,:)
 
     integer :: lpath,i,j,k
-    integer :: lin !this is a function
     integer,allocatable :: path(:)
     logical :: ex
 
@@ -282,7 +278,7 @@ subroutine msreact_topowrap(mol,pair,paths,wboname)
     endif 
 
     allocate(A(mol%nat,mol%nat),E(mol%nat,mol%nat))
-    call zadjacent(zmol,A,E)
+    call zmol%adjacency(A,E)
 
     allocate(prev(mol%nat,mol%nat),dist(mol%nat,mol%nat))
 
@@ -311,9 +307,8 @@ end subroutine msreact_topowrap
 ! xyz files should still have the same number and order of atoms
 !========================================================================!
 subroutine msreact_collect(nat,np,outfile)
-    use iso_fortran_env, wp => real64
+    use crest_parameters
     use strucrd
-    use crest_data, only : bohr
     implicit none
     integer :: nat
     integer :: np

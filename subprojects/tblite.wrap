@@ -1,0 +1,5 @@
+[wrap-git]
+directory = tblite
+url = https://github.com/tblite/tblite
+revision = head
+diff_files = tblite/tblite_patch.patch

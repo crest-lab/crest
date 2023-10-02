@@ -1,0 +1,4 @@
+[wrap-git]
+directory = gfnff
+url = https://github.com/pprcht/gfnff
+revision = head

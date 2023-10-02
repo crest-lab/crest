@@ -283,7 +283,7 @@ contains
       end do
     end do
 
-    deallocate (coordtmp)
+    deallocate (z,y,x,coordtmp)
 
     return
   end subroutine axis_3

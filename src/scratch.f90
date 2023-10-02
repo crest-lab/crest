@@ -17,85 +17,69 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!===================================================================================================!
-!c scratch dir handling
-!===================================================================================================!
+!> scratch directory handling (for simplicity just use shell commands)
+
+!=========================================================================================!
 subroutine scrdir(env)
-      use iso_fortran_env, wp => real64
-      use crest_data
-      use iomod
+  use crest_parameters
+  use crest_data
+  use iomod
+  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  integer :: ich,io
 
-      type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  if (len_trim(env%scratchdir) .lt. 1) then
+    call command('mktemp -d > tmpconf 2>/dev/null',io)
+    open (newunit=ich,file='tmpconf')
+    read (ich,'(a)',iostat=io) env%scratchdir
+    if (io < 0) then   ! if mktemp failed and tmpconf is empty
+      env%scratchdir = ''
+      error stop 'Failed to create scratch directory!'
+      return
+    end if
+    close (ich,status='delete')
+  end if
 
-      integer :: ich,io
+  write (stdout,'(a,a)') 'Home directory          : ',trim(env%homedir)
+  write (stdout,'(a,a)') 'Using scratch directory : ',trim((env%scratchdir))
+  io = makedir(trim(env%scratchdir))
 
-      if(len_trim(env%scratchdir).lt.1)then
-         call execute_command_line('mktemp -d > tmpconf 2>/dev/null', exitstat=io)
-         open(newunit=ich,file='tmpconf')
-         read(ich,'(a)',iostat=io) env%scratchdir
-         if(io < 0 ) then   ! if mktemp failed and tmpconf is empty
-            env%scratchdir=''
-            return
-         endif
-         close(ich,status='delete')
-      endif
+  call copy('.CHRG',trim(env%scratchdir)//'/'//'.CHRG')
+  call copy('.UHF',trim(env%scratchdir)//'/'//'.UHF')
 
-      write(*,'(a,a)') 'Using scratch directory: ',trim((env%scratchdir))
+  write(stdout,'(a)',advance='no') 'Copying data to scratch directory ...'
+  flush(stdout)
+  call command('scp -r ./* '//trim(env%scratchdir)//'/') 
+  write(stdout,*) 'done.'
 
-      io = makedir(trim(env%scratchdir))
 
-      if (env%crestver .eq. crest_solv) then
-         call copy('solute',trim(env%scratchdir)//'/'//'solute')
-         call copy('solvent',trim(env%scratchdir)//'/'//'solvent')
-      else
-         call copy('coord',trim(env%scratchdir)//'/'//'coord')
-      end if
-      call copy('.CHRG',trim(env%scratchdir)//'/'//'.CHRG')
-      call copy('.UHF',trim(env%scratchdir)//'/'//'.UHF')
-      call copy(env%fixfile,trim(env%scratchdir)//'/'//trim(env%fixfile))
-      call copy(env%ensemblename,trim(env%scratchdir)//'/'//trim(env%ensemblename))
-      call copy(env%constraints,trim(env%scratchdir)//'/'//trim(env%constraints))
-      call copy(trim(env%fixfile),trim(env%scratchdir)//'/'//trim(env%fixfile))
 
-      io = sylnk(trim(env%scratchdir),'./scratch')
-
-      call chdir(trim(env%scratchdir))
+  call chdir(trim(env%scratchdir))
 
 end subroutine scrdir
 
 subroutine scrend(env)
-      use iso_fortran_env, wp => real64
-      use crest_data
-      use iomod
+  use crest_parameters
+  use crest_data
+  use iomod
+  type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
+  character(len=1024) :: crefi,crefi2
+  logical :: ex
 
-      type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
-      character(len=1024) :: crefi,crefi2
-      logical :: ex
+  if (len_trim(env%scratchdir) .lt. 1) then
+    return
+  end if
 
-      if(len_trim(env%scratchdir).lt.1)then
-         return
-      endif
+  write(stdout,'(/,a)',advance='no') 'Retrieving data from scratch directory ...'
+  flush(stdout) 
+  call command('scp -r '//trim(env%scratchdir)//'/* '//trim(env%homedir)//'/')
+  write(stdout,*) 'done.'
 
-      call copy(trim(env%scratchdir)//'/'//'coord','coord')
-      call copy(trim(env%scratchdir)//'/'//conformerfile,conformerfile)
-      call checkname_xyz(trim(env%scratchdir)//'/'//crefile,crefi,crefi2)
-      call copy(trim(crefi),crefile//'.xyz')
+  if (.not.env%keepScratch) then
+    write(stdout,'(a)',advance='no') 'Removing scratch directory ...'
+    flush(stdout)
+    call rmrf(env%scratchdir)
+    write(stdout,*) 'done.'
+  end if
 
-      inquire(file=trim(env%scratchdir)//'/'//conformerfilebase//'.sdf',exist=ex)
-      if(ex)then
-        call copy(trim(env%scratchdir)//'/'//conformerfilebase//'.sdf',conformerfilebase//'.sdf')
-      endif
-
-      inquire(file=trim(env%scratchdir)//'/'//'crest_ensemble.xyz',exist=ex)
-      if(ex)then
-        call copy(trim(env%scratchdir)//'/'//'crest_ensemble.xyz','crest_ensemble.xyz')
-      endif
-
-      call system('cp -r '//trim(env%scratchdir)//'/* ./')
-
-      if(.not.env%keepScratch)then
-      call rmrf(env%scratchdir)
-      endif
- 
-      return 
+  return
 end subroutine scrend

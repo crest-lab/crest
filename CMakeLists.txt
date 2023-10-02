@@ -16,25 +16,32 @@ cmake_minimum_required(VERSION 3.14)
 project(
   "crest"
   LANGUAGES "Fortran" "C"
-  VERSION "2.12.0"
+  VERSION "3.0"
 )
+set(SOVERSION "dev")
 
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
 
 # General configuration information
-set(exe-deps)
+set(libs)
 add_subdirectory("config")
 
+
+#
+# Libraries
+#
+
 # OpenMP dependency
-if(NOT TARGET OpenMP::OpenMP_Fortran)
+if(NOT TARGET OpenMP::OpenMP_Fortran AND WITH_OpenMP)
   find_package(OpenMP REQUIRED)
   list(
-    APPEND exe-deps
+    APPEND libs
     OpenMP::OpenMP_Fortran
   )
 endif()
 
+# BLAS and LAPACK
 if(NOT TARGET BLAS::BLAS)
   find_package(BLAS REQUIRED)
   if(NOT TARGET BLAS::BLAS AND BLAS_FOUND)
@@ -52,32 +59,101 @@ if(NOT TARGET LAPACK::LAPACK)
   endif()
 endif()
 list(
-  APPEND exe-deps
+  APPEND libs
   LAPACK::LAPACK
   BLAS::BLAS
 )
 
-# General configuration information
+# tblite
+if(WITH_TBLITE)
+  find_package("tblite" REQUIRED)
+  add_definitions(-DWITH_TBLITE)
+  list(
+    APPEND libs
+    tblite::tblite
+  )
+endif()
+
+
+# toml-f
+if(WITH_TOMLF)
+  find_package("toml-f" REQUIRED)
+  add_definitions(-DWITH_TOMLF)
+  list(
+    APPEND libs
+    toml-f::toml-f
+  )
+endif()
+
+
+# GFN0-xTB
+if(WITH_GFN0)
+  find_package("gfn0" REQUIRED)
+  add_definitions(-DWITH_GFN0)
+  list(
+    APPEND libs
+    gfn0::gfn0
+  )
+endif()
+
+
+# GFN-FF
+if(WITH_GFNFF)
+  find_package("gfnff" REQUIRED)
+  add_definitions(-DWITH_GFNFF)
+  list(
+    APPEND libs
+    gfnff::gfnff
+  )
+endif()
+
+# XHCFF
+if(WITH_XHCFF)
+  find_package("xhcff" REQUIRED)
+  add_definitions(-DWITH_XHCFF)
+  list(
+    APPEND libs
+    xhcff::xhcff
+  )
+endif()
+
+
+
+
+#
+# CREST sources
+#
 set(prog)
 set(srcs)
 add_subdirectory("src")
 
+
+#
+# Executables
+#
 add_executable(
-  "${PROJECT_NAME}-exe"
+  ${PROJECT_NAME}-exe
   "${srcs}" "${prog}"
 )
 set_target_properties(
-  "${PROJECT_NAME}-exe"
+  ${PROJECT_NAME}-exe
   PROPERTIES
+  Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include
+  RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}
   OUTPUT_NAME "${PROJECT_NAME}"
-  Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include"
 )
 target_link_libraries(
-  "${PROJECT_NAME}-exe"
+  ${PROJECT_NAME}-exe
   PRIVATE
-  "${exe-deps}"
+  "${libs}"
 )
 
+get_target_property(OUT ${PROJECT_NAME}-exe LINK_LIBRARIES)
+message(STATUS ${OUT})
+
+#
+# Binary installing option
+#
 install(
   TARGETS
   "${PROJECT_NAME}-exe"

@@ -36,7 +36,7 @@ subroutine crest_solvtool(env, tim)
    type(zmolecule) :: solute, solvent, cluster, cluster_backup 
    type(ensemble) :: full_ensemble, solvent_ensemble
 
-   integer :: progress
+   integer :: progress,io
    character(len=512) :: thispath
 
    real(wp), parameter         :: eh = 627.509541d0
@@ -52,6 +52,11 @@ subroutine crest_solvtool(env, tim)
    !>-----------------------------------
    call qcg_head()
    !>-----------------------------------
+
+!> Check, if xtb is present
+   call checkprog_silent(env%ProgName,.true.,iostat=io)
+   if(io /= 0 ) error stop
+
 !> Check, if xtbiff is present
    if (env%use_xtbiff) then
       call check_prog_path_iff(env)
@@ -253,7 +258,8 @@ subroutine qcg_setup(env, solu, solv)
       write (ich, '(a)') '$end'
       close (ich)
 
-      call xtbopt(env)
+      !call xtbopt(env)
+      call trialOPT(env)
       call rdcoord('coord', solu%nat, solu%at, solu%xyz)
       call remove('coord')
    end if
@@ -304,7 +310,8 @@ subroutine qcg_setup(env, solu, solv)
 !---- Geometry preoptimization solvent
    if ((.not. env%nopreopt) .and. (solv%nat /= 1)) then
       call wrc0('coord', solv%nat, solv%at, solv%xyz) !write coord for xtbopt routine
-      call xtbopt(env)
+      !call xtbopt(env)
+      call trialOPT(env)
       call rdcoord('coord', solv%nat, solv%at, solv%xyz)
       call remove('coord')
    end if
@@ -498,7 +505,7 @@ end subroutine read_directed_input
 
 
 subroutine qcg_grow(env, solu, solv, clus, tim)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -883,12 +890,12 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 end subroutine qcg_grow
 
 subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
    use strucrd
-
+   use utilities
    implicit none
 
    type(systemdata)           :: env
@@ -1013,7 +1020,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    !For newcregen: If env%crestver .eq. crest_solv .and. .not. env%QCG then conffile .eq. .true.
    env%QCG = .false. 
    call inputcoords(env, 'crest_input')
-   call iV2defaultGF(env)         !Setting MTD parameter
+   call defaultGF(env)         !Setting MTD parameter
 
 !--- Special constraints for gff to safeguard stability
    if (env%ensemble_opt .eq. '--gff') then
@@ -1180,7 +1187,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
          call copy('coord', 'ref.coord')
          call chdir(tmppath2)
 
-         call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
 
          inquire (file=trim(tmppath)//'/'//'xtb.trj', exist=ex)
          if (.not. ex .or. io .ne. 0) then
@@ -1216,7 +1223,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
 
          call chdir(tmppath2)
 
-         call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
 
          inquire (file=trim(tmppath)//'/'//'xtb.trj', exist=ex)
          if (.not. ex .or. io .ne. 0) then
@@ -1531,7 +1538,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
 end subroutine qcg_ensemble
 
 subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -1997,7 +2004,7 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
 end subroutine qcg_cff
 
 subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -2443,7 +2450,7 @@ subroutine write_qcg_setup(env)
 end subroutine write_qcg_setup
 
 subroutine get_sphere(pr, zmol, r_logical)
-   use iso_fortran_env, wp => real64
+   use crest_parameters, only : wp
    use zdata
 
    implicit none
@@ -2635,7 +2642,7 @@ subroutine get_ellipsoid(env, solu, solv, clus, pr1)
 end subroutine get_ellipsoid
 
 subroutine getmaxrad(n, at, xyz, r)
-   use iso_fortran_env, wp => real64
+   use crest_parameters, only : wp
    implicit none
    real(wp) :: xyz(3, n), r
    integer :: n, at(n)
@@ -3326,6 +3333,7 @@ end subroutine qcg_cleanup
 
 subroutine check_prog_path_iff(env)
    use crest_data
+   use iomod, only: command,checkprog_silent
    implicit none
    type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
    character(len=512)           :: prog
@@ -3334,12 +3342,13 @@ subroutine check_prog_path_iff(env)
    integer                      :: ios, io
 
    prog = env%ProgIFF
-   write (str, '("which ",a," > ",a,"_path 2>/dev/null")') trim(prog), trim(prog)
-   call execute_command_line(trim(str), exitstat=io)
-   write (str, '(a,"_path")') trim(prog)
-   str = trim(str)
-   open (unit=27, file=str, iostat=ios)
-   read (27, '(a)', iostat=ios) path
+   !write (str, '("which ",a," > ",a,"_path 2>/dev/null")') trim(prog), trim(prog)
+   !call command(trim(str), io)
+   !write (str, '(a,"_path")') trim(prog)
+   !str = trim(str)
+   !open (unit=27, file=str, iostat=ios)
+   !read (27, '(a)', iostat=ios) path
+   call checkprog_silent( prog, iostat=ios)
    if (ios .ne. 0) then
       write (0, *) 'No xtb-IFF found. This is currently required for ', &
       & 'QCG and available at https:/github.com/grimme-lab/xtbiff/'
