@@ -42,6 +42,10 @@ elif fc_id == 'intel'
     '-Wl,--allow-multiple-definition',
     language: 'fortran',
   )
+  add_global_link_arguments(
+    '-Wl,--allow-multiple-definition',
+    language: 'fortran',
+  )
   add_project_arguments(
     '-traceback',
     language: 'fortran',
