@@ -38,7 +38,7 @@ option(
 option(
   'WITH_TBLITE',
   type: 'boolean',
-  value: false,
+  value: true,
   description: 'build with tblite integration',
 )
 option(

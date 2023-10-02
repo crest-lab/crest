@@ -490,6 +490,7 @@ module crest_data
     logical :: esort = .false.       !> legacy option in old cregen
     logical :: ext                   !> external
     logical :: extLFER = .false.     !> read in external LFER parameters
+    logical :: FINAL_GFN2_OPT = .false.
     logical :: fullcre = .false.     !> calculate exact rotamer degeneracies
     logical :: gbsa                  !> use gbsa
     logical :: gcmultiopt            !> 2 level optimization for GC in V2

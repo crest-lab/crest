@@ -200,6 +200,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: highlow
     real(wp),intent(out),optional :: energy
     integer :: natf,root_id
+    gradient = 0.0_wp 
 #ifdef WITH_LWONIOM
     if(F > ONIOM%nfrag ) error stop 'ONIOM fragment mismatch'
     select case(highlow)

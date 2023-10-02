@@ -51,7 +51,7 @@ check_minimal_compiler_version("Fortran" "${fortran_minimal_versions}")
 
 option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP" TRUE)
 
-option(WITH_TBLITE "Enable build with the lightweight tight-binding library" FALSE)
+option(WITH_TBLITE "Enable build with the lightweight tight-binding library" TRUE)
 
 option(WITH_TOMLF "Enable build with toml-f support" TRUE)
 
