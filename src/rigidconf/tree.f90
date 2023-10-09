@@ -58,7 +58,7 @@ subroutine rigidconf_tree(env,mol)
   use adjacency
   use INTERNALS_mod
   use rigidconf_analyze
-  use miscdata, only: rcov
+  use miscdata,only:rcov
   implicit none
   !> INPUT/OUTPUT
   type(systemdata),intent(inout) :: env
@@ -68,7 +68,8 @@ subroutine rigidconf_tree(env,mol)
   integer,allocatable  :: na(:),nb(:),nc(:)
   real(wp),allocatable :: zmat(:,:),zmat_new(:,:)
   integer,allocatable  :: Amat(:,:)
-  integer :: i,j,k,l,ich
+  integer :: i,j,k,l,ich,ich2
+  logical :: ex 
   character(len=124) :: stmp
   !> number of dihedral angles that are adjusted
   !> this defines the overall number of conformers
@@ -92,19 +93,19 @@ subroutine rigidconf_tree(env,mol)
   integer(int8),allocatable :: combi(:,:)
   !> work space array for the recursive routine and iteration variables
   integer(int8),allocatable :: wcombi(:)
-  integer :: iteratord, iteratork
+  integer :: iteratord,iteratork
 
   !> data for new structure and reference checks
   logical,allocatable :: sane(:)
   type(coord) :: newmol
   real(wp),allocatable :: cnref(:)
-  real(wp) :: cthr,p 
+  real(wp) :: cthr,p
   integer :: nremain
 
   character(len=19),parameter :: outputfile = "crest_rigidconf.xyz"
 
 !========================================================================================!
-   cthr = 0.3d0 !> CN clash threshold
+  cthr = 0.3d0 !> CN clash threshold
 
 !========================================================================================!
 !>--- generate the topology information
@@ -132,6 +133,11 @@ subroutine rigidconf_tree(env,mol)
 !--- Note: zmat angles (columns 2 and 3) are in Radians
 
 !========================================================================================!
+
+  write (stdout,*)
+  call smallhead('Rule-based conformer genration')
+
+!========================================================================================!
 !>--- analyze dihedral angles encoded in the zmatrix to select the ones to vary
 !>    and how to vary them
 
@@ -139,9 +145,22 @@ subroutine rigidconf_tree(env,mol)
   !> IMPLEMENTATION (or subroutine call) GOES HERE <!
   !=================================================!
 
+  !inquire(file='rigidconf.data', exist=ex)
+  !if ( ex ) then
+  if(allocated(env%rigidconf_userfile))then
+ !>--- user-defined file readout
+   ! call rigidconf_count_fallback(mol%nat,na,nb,nc,wbo,ndieder)
+   ! if (ndieder < 1) stop 'no dihedral angles selected!'
+   ! allocate (dvalues(ndieder),source=0)
+   ! allocate (dstep(ndieder),source=0.0_wp)
+   ! allocate (ztod(mol%nat),source=0)
+    !call rigidconf_user_file( 'rigidconf.data', mol%nat, na,nb,nc, &
+    call rigidconf_user_file( env%rigidconf_userfile, mol%nat, na,nb,nc, &
+    &    wbo,ndieder,ztod,dvalues,dstep)
+
+  else !if (.true.) then
 !>--- fallback implementation for testing: All single-bonds with a corresponding
 !>    entry in the zmatrix (this excludes terminal atoms, e.g. H)
-  if (.true.) then
     call rigidconf_count_fallback(mol%nat,na,nb,nc,wbo,ndieder)
     if (ndieder < 1) stop 'no dihedral angles selected!'
     allocate (dvalues(ndieder),source=0)
@@ -149,23 +168,20 @@ subroutine rigidconf_tree(env,mol)
     allocate (ztod(mol%nat),source=0)
     call rigidconf_analyze_fallback(env,mol,zmat,na,nb,nc,wbo, &
     &                               ndieder,dvalues,dstep,ztod)
-    
+
     !call prune_zmat_dihedrals(mol%nat, mol%xyz, zmat, na,nb,nc, ztod )
     !call smallhead('New internal coordinates:')
     !call print_zmat(stdout,mol%nat,mol%at,zmat,na,nb,nc,.true.)
-   end if
 
-
-!========================================================================================!
 !>--- For now, I am limiting the max. number of dihedral angles to 10.
 !>    At some point we will have to think about what to allow.
-  if (ndieder > 10) then
-    error stop 'Too many dihedral angles. '
+    if (ndieder > 10) then
+      error stop 'Too many dihedral angles. '
+    end if
+
   end if
 
 !========================================================================================!
-  write (stdout,*)
-  call smallhead('Rule-based conformer genration')
 
 !>--- Allocate space for combination "fingerprints"
   ncombi_f = float(dvalues(1))
@@ -178,36 +194,36 @@ subroutine rigidconf_tree(env,mol)
     ncombi = nint(ncombi_f)
     allocate (combi(ndieder,ncombi),source=1_int8)
     write (stdout,'(">",1x,i0,a,i0,a)') ndieder,' dihedral angles resulting in ', &
-    &     ncombi,' possible conformers.'
+    &     ncombi,' possible isomers.'
   end if
 
 !>--- Generate combinations recursively
-  write(stdout,'(">",1x,a)',advance='no') 'Generating combination references ...'
-  flush(stdout)
+  write (stdout,'(">",1x,a)',advance='no') 'Generating combination references ...'
+  flush (stdout)
   allocate (wcombi(ndieder),source=1_int8)
   iteratord = 1
   iteratork = 0
   call generate_dihedral_combinations(ndieder,wcombi,ncombi,combi, &
   &                    dvalues,iteratord,iteratork)
-  write(stdout,*) 'done.'
-
+  write (stdout,*) 'done.'
 
 !========================================================================================!
 !>--- Calculate reference CNs
   allocate (cnref(mol%nat),source=0.0_wp)
   call ycoord(mol%nat,rcov,mol%at,mol%xyz,cnref,100.0d0) !> refernce CNs
-  
+
 !>--- Generate all the conformers and check for CN clashes
-  allocate(zmat_new(3,mol%nat), source=0.0_wp)
-  allocate(sane(ncombi), source=.false.)
-  
-  open(newunit=ich, file=outputfile)
-  write(stdout,'(">",1x,a)',advance='no') 'Reconstructing structures and checking for CN clashes ...'
-  flush(stdout)
-  do i=1,ncombi
+  allocate (zmat_new(3,mol%nat),source=0.0_wp)
+  allocate (sane(ncombi),source=.false.)
+
+  open (newunit=ich,file=outputfile)
+  open(newunit=ich2, file='discarded.xyz')
+  write (stdout,'(">",1x,a)',advance='no') 'Reconstructing structures and checking for CN clashes ...'
+  flush (stdout)
+  do i = 1,ncombi
 
 !>--- Generate new zmat from zmat and combi entry
-    call construct_new_zmat(mol%nat,zmat,combi(:,i),ndieder,dvalues,dstep,ztod,zmat_new) 
+    call construct_new_zmat(mol%nat,zmat,combi(:,i),ndieder,dvalues,dstep,ztod,zmat_new)
 
 !>--- Reconstruct Cartesian coordinates for new zmat
     call reconstruct_zmat_to_mol(mol%nat,mol%at,zmat_new,na,nb,nc,newmol)
@@ -217,19 +233,22 @@ subroutine rigidconf_tree(env,mol)
     sane(i) = .not.sane(i)
 
 !>--- Dump to file
-    if(sane(i))then
-    call newmol%append(ich)
-    endif
-    
-  enddo
-  write(stdout,*) 'done.'
-  close(ich) 
+    if (sane(i)) then
+      call newmol%append(ich)
+    else
+      call newmol%append(ich2)
+    end if
+
+  end do
+  write (stdout,*) 'done.'
+  close (ich)
+  close(ich2)
 
   nremain = count(sane,1)
-  p = float(nremain)/float(ncombi) * 100.0_wp
-  write(stdout,'(">",1x,i0,1x,a,1x,i0,1x,a,f5.1,a)') nremain,'of',ncombi, &
+  p = float(nremain)/float(ncombi)*100.0_wp
+  write (stdout,'(">",1x,i0,1x,a,1x,i0,1x,a,f5.1,a)') nremain,'of',ncombi, &
   & 'structures remaining (',p,'%). Clashes discarded.'
-  write(stdout,'(">",1x,a,1x,a)') 'Written to file',outputfile
+  write (stdout,'(">",1x,a,1x,a)') 'Written to file',outputfile//' and discarded.xyz'
 
 !========================================================================================!
 !>--- Post-processing
@@ -239,12 +258,10 @@ subroutine rigidconf_tree(env,mol)
   !=================================================!
 
 !========================================================================================!
-  if (allocated(sane)) deallocate(sane)
-  if (allocated(zmat_new)) deallocate(zmat_new) 
-  if (allocated(wcombi)) deallocate(wcombi)
+  if (allocated(sane)) deallocate (sane)
+  if (allocated(zmat_new)) deallocate (zmat_new)
+  if (allocated(wcombi)) deallocate (wcombi)
   if (allocated(combi)) deallocate (combi)
-  if (allocated(dvalues)) deallocate (dvalues)
-  if (allocated(dstep)) deallocate (dstep)
   if (allocated(ztod)) deallocate (ztod)
   if (allocated(wbo)) deallocate (wbo)
   if (allocated(na)) deallocate (na)
@@ -252,12 +269,12 @@ subroutine rigidconf_tree(env,mol)
   if (allocated(nc)) deallocate (nc)
   if (allocated(zmat)) deallocate (zmat)
   if (allocated(Amat)) deallocate (Amat)
-  return
 !========================================================================================!
 contains
 !========================================================================================!
   recursive subroutine generate_dihedral_combinations(ndieder,wcombi,ncombi,combi, &
   &                    dvalues,iteratord,iteratork)
+    use crest_parameters
     implicit none
     integer,intent(in) :: ndieder
     integer(int8),intent(inout) :: wcombi(ndieder)
@@ -297,4 +314,3 @@ contains
 end subroutine rigidconf_tree
 !========================================================================================!
 !========================================================================================!
-

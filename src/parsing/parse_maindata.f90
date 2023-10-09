@@ -160,6 +160,8 @@ contains   !> MODULE PROCEDURES START HERE
       env%inputcoords = val
     case ('constraints','xtbconstraints','xtbinput') !> equivalent to --cinp
       env%constraints = val
+    case ('rigidconf_file')
+      env%rigidconf_userfile = val
     end select
     return
   end subroutine parse_main_c

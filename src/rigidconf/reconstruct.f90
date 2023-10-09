@@ -29,10 +29,10 @@ subroutine construct_new_zmat(nat,zmat,combi,ndieder,dvalues,dstep,ztod,zmat_new
 !*
 !* Input:
 !*    zmat,ndieder,dvalues,ztod,dstep,combi
-!* 
-!* Output: 
+!*
+!* Output:
 !*    zmat_new
-!*   
+!*
 !************************************************************
   use crest_parameters
   use geo
@@ -41,52 +41,50 @@ subroutine construct_new_zmat(nat,zmat,combi,ndieder,dvalues,dstep,ztod,zmat_new
   integer,intent(in)  :: nat
   real(wp),intent(in) :: zmat(3,nat)
   integer,intent(in)  :: ndieder
-  integer(int8),intent(in) :: combi( ndieder )
-  integer,intent(in)  :: dvalues( ndieder )
-  real(wp),intent(in) :: dstep( ndieder )
-  integer,intent(in)  :: ztod( nat ) 
+  integer(int8),intent(in) :: combi(ndieder)
+  integer,intent(in)  :: dvalues(ndieder)
+  real(wp),intent(in) :: dstep(ndieder)
+  integer,intent(in)  :: ztod(nat)
   !> OUTPUT
   real(wp),intent(out) :: zmat_new(3,nat)
   !> LOCAL
   integer :: V,i,j,k,l,m
-  real(wp) :: xref, xnew
+  real(wp) :: xref,xnew
 !========================================================================================!
 
-  zmat_new(:,:) = zmat(:,:) 
-  do i=1,ndieder
-    do j=1,nat
-       if(ztod(j) == i)then
-         xref = zmat(3,j)+((float(combi(i))-1.0_wp)*dstep(i))
-         xnew = angleshift(xref)
-         zmat_new(3,j) = xnew
-       endif
-    enddo
-  enddo
+  zmat_new(:,:) = zmat(:,:)
+  do i = 1,ndieder
+    do j = 1,nat
+      if (ztod(j) == i) then
+        xref = zmat(3,j)+((float(combi(i))-1.0_wp)*dstep(i))
+        xnew = angleshift(xref)
+        zmat_new(3,j) = xnew
+      end if
+    end do
+  end do
 
   return
 end subroutine construct_new_zmat
 !========================================================================================!
 !========================================================================================!
 subroutine reconstruct_zmat_to_mol(nat,at,zmat,na,nb,nc,mol)
-   use crest_parameters
-   use strucrd
-   use INTERNALS_mod, only: GMETRY2
-   implicit none
-   !> INPUT
-   integer,intent(in)  :: nat
-   integer,intent(in)  :: at(nat)
-   real(wp),intent(in) :: zmat(3,nat)
-   integer,intent(in)  :: na(nat),nb(nat),nc(nat)
-   !> OUTPUT
-   type(coord),intent(out) :: mol
-   
-   call mol%deallocate() 
-   allocate(mol%at(nat))
-   allocate(mol%xyz(3,nat)) 
-   mol%nat = nat
-   mol%at = at
-   call  GMETRY2(nat,zmat,mol%xyz,na,nb,nc)
+  use crest_parameters
+  use strucrd
+  use INTERNALS_mod,only:GMETRY2
+  implicit none
+  !> INPUT
+  integer,intent(in)  :: nat
+  integer,intent(in)  :: at(nat)
+  real(wp),intent(in) :: zmat(3,nat)
+  integer,intent(in)  :: na(nat),nb(nat),nc(nat)
+  !> OUTPUT
+  type(coord),intent(out) :: mol
+
+  call mol%deallocate()
+  allocate (mol%at(nat))
+  allocate (mol%xyz(3,nat))
+  mol%nat = nat
+  mol%at = at
+  call GMETRY2(nat,zmat,mol%xyz,na,nb,nc)
 end subroutine reconstruct_zmat_to_mol
-
-
 

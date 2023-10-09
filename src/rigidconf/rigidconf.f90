@@ -39,13 +39,12 @@ subroutine crest_rigidconf(env,tim)
   !> INPUT/OUTPUT
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
-  !> LOCAL 
+  !> LOCAL
   type(coord) :: start_mol
-
 
 !========================================================================================!
   call this_header()
-  call tim%start(14,'rule-based conf.')
+  call tim%start(14,'rule-based isomer generation')
 
 !>--- some calculation info should be printed out at this point. TODO
 
@@ -54,15 +53,15 @@ subroutine crest_rigidconf(env,tim)
   call env%ref%to(start_mol)
   write (stdout,*)
   call smallhead('Input structure:')
-  call start_mol % append(stdout)
-  write (stdout,*)   
+  call start_mol%append(stdout)
+  write (stdout,*)
 
 !========================================================================================!
 !>--- pass the structure to the desired algorithm
-  select case( env%rigidconf_algo ) 
-  !case ( 1 ) !> "genetic crossing"-type algo
+  select case (env%rigidconf_algo)
+    !case ( 1 ) !> "genetic crossing"-type algo
 
-  !  
+    !
 
   case default !> straight-forward generation ("tree"-type algo)
 
@@ -74,20 +73,20 @@ subroutine crest_rigidconf(env,tim)
   call tim%stop(14)
   return
 !========================================================================================!
-  contains
+contains
 !========================================================================================!
   subroutine this_header
-     implicit none
-      write(stdout,'(/)')
-      write(stdout,'(7x,"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓")')
-      write(stdout,'(7x,"┃          R I G I D C O N F           ┃ ")')
-      write(stdout,'(7x,"┃     (name is work-in-progress)       ┃ ")')
-      !write(stdout,'(7x,"┃               R i C o                ┃")')
-      !write(stdout,'(7x,"┃              ConfAcc                 ┃")')
-      write(stdout,'(7x,"┃    rule-based conformer generator    ┃")')
-      write(stdout,'(7x,"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")')
-      write(stdout,'(12x,"C.Zurek, C.Bannwarth, P.Pracht")')
-      write(stdout,*)
+    implicit none
+    write (stdout,'(/)')
+    write (stdout,'(7x,"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓")')
+    write (stdout,'(7x,"┃          R I G I D C O N F           ┃ ")')
+    write (stdout,'(7x,"┃     (name is work-in-progress)       ┃ ")')
+    !write(stdout,'(7x,"┃               R i C o                ┃")')
+    !write(stdout,'(7x,"┃              ConfAcc                 ┃")')
+    write (stdout,'(7x,"┃    rule-based conformer generator    ┃")')
+    write (stdout,'(7x,"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")')
+    !write(stdout,'(12x,"C.Zurek, C.Bannwarth, P.Pracht")')
+    !write(stdout,*)
   end subroutine this_header
 end subroutine crest_rigidconf
 !========================================================================================!

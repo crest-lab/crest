@@ -150,11 +150,11 @@ contains  !> MODULE PROCEDURES START HERE
       it = 0
     end if
 
-    !if (it > 0) then
+    if (it > 0) then
     running = self%running(it)
-    !else
-    !  running = .true.
-    !end if
+    else
+      running = .true.
+    end if
 
     if (running) then
       call timing(tcpu,twall)
@@ -280,7 +280,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer(int64) ::  cpudays,cpuhours,cpumins
     integer(int64) :: walldays,wallhours,wallmins
     integer(int64) :: walldays_abs,wallhours_abs,wallmins_abs
-    integer :: lmax,barlen
+    integer :: lmax,barlen,ll
     logical :: verbose_local
 
     call self%stop_timing(0)
@@ -301,6 +301,10 @@ contains  !> MODULE PROCEDURES START HERE
     lmax = len_trim(msg)
     lmax = max(lmax,self%ltag)
     lmax = max(lmax,lmax_default)
+    do i=1,self%n
+      ll = len_trim(self%tag(i))
+      if(ll > lmax) lmax = ll
+    enddo
 
     !           DAYS   HOURS   MINUTES   SECONDS
     ! DAYS        1     1/24    1/1440   1/86400

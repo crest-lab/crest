@@ -459,6 +459,7 @@ module crest_data
     !>--- rigidconf data
     integer :: rigidconf_algo = 0
     integer :: rigidconf_toposource = 0
+    character(len=:),allocatable :: rigidconf_userfile
     !>--- refinement queue
     integer,allocatable :: refine_queue(:)
     !>--- lwONIOM input
