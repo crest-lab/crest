@@ -44,7 +44,10 @@ subroutine crest_optimization(env,tim)
   character(len=80) :: atmp
   character(len=*),parameter :: partial = '∂E/∂'
 !========================================================================================!
+  call ompset_max(env%threads)
+  call ompprint_intern()
   call tim%start(14,'Geometry optimization')
+!========================================================================================!
   call env%ref%to(mol)
   write (stdout,*)
   call smallhead('Input structure:')

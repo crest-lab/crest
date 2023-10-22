@@ -81,18 +81,18 @@ end subroutine ompquickset
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !c OMP and MKL parallelization settings, getting the settings with maximum number of OMP threads
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-subroutine ompset_max(omp,maxrun)
+subroutine ompset_max(threads)
       use iomod
       implicit none
-      integer,intent(inout) :: omp,maxrun
+      integer,intent(in) :: threads
       integer :: io
 
-      omp=omp*maxrun
-      maxrun=1
-
-      io = setenv('OMP_NUM_THREADS',omp)
-      io = setenv('MKL_NUM_THREADS',omp)
-
+      io = setenv('OMP_NUM_THREADS',threads)
+      io = setenv('MKL_NUM_THREADS',threads)
+      call OMP_Set_Num_Threads(threads)
+#ifdef WITH_MKL
+      call MKL_Set_Num_Threads(threads)
+#endif
 end subroutine ompset_max
 
 
@@ -148,7 +148,7 @@ subroutine ompautoset(threads,mode,omp,maxrun,factor)
 
       select case( mode )
         case( 1 )   !maximum number of OMP threads
-          call ompset_max(omp,maxrun)
+          call ompset_max(threads)
         case( 2 )   !maximum number of parallel jobs
           call ompset_min(omp,maxrun)
         case( 3 )   !run multiple jobs each on multiple threads

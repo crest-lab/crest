@@ -51,8 +51,6 @@ subroutine crest_singlepoint(env,tim)
 
   character(len=*),parameter :: partial = '∂E/∂'
 !========================================================================================!
-  call tim%start(14,'Singlepoint calculation')
-!========================================================================================!
   write (stdout,*)
   !call system('figlet singlepoint')
   write (stdout,*) "     _             _                  _       _   "
@@ -62,6 +60,10 @@ subroutine crest_singlepoint(env,tim)
   write (stdout,*) "|___/_|_| |_|\__, |_|\___| .__/ \___/|_|_| |_|\__|"
   write (stdout,*) "             |___/       |_|                      "
   write (stdout,*)
+!========================================================================================!
+  call ompset_max(env%threads)
+  call ompprint_intern()
+  call tim%start(14,'Singlepoint calculation')
 !========================================================================================!
   call env%ref%to(mol)
   write (stdout,*)

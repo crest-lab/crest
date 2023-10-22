@@ -34,7 +34,7 @@ module parse_xtbinput
   use filemod
   use iomod
   use strucrd
-  use wall_setup 
+  use wall_setup
   use constraints,only:constraint
   implicit none
   private
@@ -114,7 +114,8 @@ contains  !> MODULE PROCEDURES START HERE
     logical :: useref
     logical,allocatable :: pairwise(:)
     logical,allocatable :: atlist(:)
-    integer :: i1,i2,i3,i4
+    integer :: i1,i2,i3,i4,atm1,atm2
+    real(wp) :: dum1,dum2,dum3,dum4
     type(constraint) :: cons
 
     useref = .false.
@@ -132,15 +133,15 @@ contains  !> MODULE PROCEDURES START HERE
         end if
 
       case ('reference')
-      !> a reference geometry (must be the same molecule as the input)
+        !> a reference geometry (must be the same molecule as the input)
         call molref%open(kv%rawvalue)
-        if(any(mol%at(:) .ne. molref%at(:)))then
-         write (stdout,'(a,/,a)') '**ERROR** while reading xtb-style input:',&
-         & '  Geometry provided as "reference=" appears not to be the same molecule as CREST input!'
-         error stop
-        endif 
+        if (any(mol%at(:) .ne. molref%at(:))) then
+          write (stdout,'(a,/,a)') '**ERROR** while reading xtb-style input:',&
+          & '  Geometry provided as "reference=" appears not to be the same molecule as CREST input!'
+          error stop
+        end if
         useref = .true.
-        if(debug) write(stdout,'(a,a,a)') '> Using reference geometry "',kv%rawvalue,'"'
+        if (debug) write (stdout,'(a,a,a)') '> Using reference geometry "',kv%rawvalue,'"'
 
       end select
     end do
@@ -161,11 +162,11 @@ contains  !> MODULE PROCEDURES START HERE
           if (io == 0) read (kv%value_rawa(2),*,iostat=io) i2
           if (io == 0) then
             if (trim(kv%value_rawa(3)) .eq. 'auto') then
-              if(useref)then
+              if (useref) then
                 dist = molref%dist(i1,i2)
-              else 
+              else
                 dist = mol%dist(i1,i2)
-              endif
+              end if
             else
               read (kv%value_rawa(3),*) dist
               dist = dist*aatoau
@@ -184,11 +185,11 @@ contains  !> MODULE PROCEDURES START HERE
           if (io == 0) read (kv%value_rawa(3),*,iostat=io) i3
           if (io == 0) then
             if (trim(kv%value_rawa(4)) .eq. 'auto') then
-              if(useref)then
+              if (useref) then
                 angl = molref%angle(i1,i2,i3)*radtodeg
               else
                 angl = mol%angle(i1,i2,i3)*radtodeg
-              endif
+              end if
             else
               read (kv%value_rawa(4),*) angl
             end if
@@ -207,11 +208,11 @@ contains  !> MODULE PROCEDURES START HERE
           if (io == 0) read (kv%value_rawa(4),*,iostat=io) i4
           if (io == 0) then
             if (trim(kv%value_rawa(5)) .eq. 'auto') then
-              if(useref)then
+              if (useref) then
                 angl = molref%dihedral(i1,i2,i3,i4)*radtodeg
               else
                 angl = mol%dihedral(i1,i2,i3,i4)*radtodeg
-              endif
+              end if
             else
               read (kv%value_rawa(5),*) angl
             end if
@@ -222,29 +223,55 @@ contains  !> MODULE PROCEDURES START HERE
           end if
         end if
 
+      case ('bondrange')
+        read (kv%value_rawa(1),*,iostat=io) atm1
+        if (io == 0) read (kv%value_rawa(2),*,iostat=io) atm2
+        if (io == 0) read (kv%value_rawa(3),*,iostat=io) dum1
+        if(io==0)then
+        dum1 = dum1*aatoau
+        dum1 = max(0.0_wp,dum1) !> can't be negative
+        select case (kv%na)
+        case (3)
+          dum2 = huge(dum2)/3.0_wp !> some huge value
+          call cons%bondrangeconstraint(atm1,atm2,dum1,dum2)
+        case (4)
+          if (io == 0) read (kv%value_rawa(4),*,iostat=io) dum2
+          dum2 = dum2*aatoau
+          call cons%bondrangeconstraint(atm1,atm2,dum1,dum2)
+        case (5)
+          if (io == 0) read (kv%value_rawa(5),*,iostat=io) dum3
+          call cons%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3)
+        case (6)
+          if (io == 0) read (kv%value_rawa(6),*,iostat=io) dum4 
+          call cons%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3,T=dum4)
+        case default
+          error stop '**ERROR** wrong number of arguments in bondrange constraint'
+        end select
+        call env%calc%add(cons) 
+        if (debug) call cons%print(stdout)
+        endif
       case ('atoms')
         if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
-        call get_atlist(mol%nat, atlist, kv%rawvalue, mol%at)
-        do j=1,mol%nat
-          if(atlist(j)) pairwise(j) = .true.
-        enddo
-    
+        call get_atlist(mol%nat,atlist,kv%rawvalue,mol%at)
+        do j = 1,mol%nat
+          if (atlist(j)) pairwise(j) = .true.
+        end do
+
       case ('elements')
         if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
         if (kv%id == valuetypes%raw_array) then
           do j = 1,kv%na
             i1 = e2i(kv%value_rawa(j))
-            do k=1,mol%nat
-             if (i1 == mol%at(k)) pairwise(k) = .true.
-            enddo
-          enddo
+            do k = 1,mol%nat
+              if (i1 == mol%at(k)) pairwise(k) = .true.
+            end do
+          end do
         else
           i1 = e2i(kv%rawvalue)
-          do j=1,mol%nat
+          do j = 1,mol%nat
             if (i1 == mol%at(j)) pairwise(j) = .true.
-          enddo
+          end do
         end if
-
 
       case default
         write (stdout,'(a,a,a)') 'xtb-style input key: "',kv%key,'" not defined for CREST'
@@ -257,11 +284,11 @@ contains  !> MODULE PROCEDURES START HERE
       do i = 1,mol%nat
         do j = 1,i-1
           if (pairwise(i).and.pairwise(j)) then
-            if(useref)then
+            if (useref) then
               dist = molref%dist(j,i)
-            else 
+            else
               dist = mol%dist(j,i)
-            endif
+            end if
             call cons%deallocate()
             call cons%bondconstraint(j,i,dist,force_constant)
             if (debug) call cons%print(stdout)
@@ -297,8 +324,8 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- asome defaults
     force_constant = 1.0_wp
     alpha = 30
-    beta  = 6.0_wp
-    T     = 300.0_wp
+    beta = 6.0_wp
+    T = 300.0_wp
     pot = 1 !> 1= polynomial, 2= logfermi
 
 !>--- get reference input geometry
@@ -313,86 +340,86 @@ contains  !> MODULE PROCEDURES START HERE
         read (kv%rawvalue,*,iostat=io) rdum
         if (io == 0) force_constant = rdum
 
-      case('potential')
-        if(trim(kv%rawvalue).eq.'logfermi')then
+      case ('potential')
+        if (trim(kv%rawvalue) .eq. 'logfermi') then
           pot = 2
         else
-          pot = 1 
-        endif
+          pot = 1
+        end if
 
-      case('alpha')
-         read(kv%rawvalue,*,iostat=io) i1
-         if(io == 0) alpha = i1
+      case ('alpha')
+        read (kv%rawvalue,*,iostat=io) i1
+        if (io == 0) alpha = i1
 
-      case('beta')
-         read(kv%rawvalue,*,iostat=io) i1
-         if(io == 0) beta = i1
+      case ('beta')
+        read (kv%rawvalue,*,iostat=io) i1
+        if (io == 0) beta = i1
 
-      case('temp')
-         read(kv%rawvalue,*,iostat=io) i1
-         if(io == 0) T = i1
+      case ('temp')
+        read (kv%rawvalue,*,iostat=io) i1
+        if (io == 0) T = i1
 
       end select
-   enddo
+    end do
 
 !>--- create the potentials
-   do i = 1,blk%nkv
+    do i = 1,blk%nkv
       kv = blk%kv_list(i)
       select case (kv%key)
-      case('force constant','potential','alpha','beta','temp')
-      !> created in higher prio loop already 
+      case ('force constant','potential','alpha','beta','temp')
+        !> created in higher prio loop already
 
       case ('sphere')
-      !> the sphere constraint si technically identical to the ellipsoid one, but
-      !> with equal axis lengths in all 3 directions
-         if (kv%na > 0)then
-            if(trim(kv%value_rawa(1)) .eq. 'auto')then
-               !> determine sphere
-               call wallpot_core(mol,rabc, potscal=env%potscal)
-               rdum = maxval(rabc(:))
-               rabc(:) = rdum
-            else            
-              read(kv%rawvalue,*,iostat=io) rdum
-              if(io == 0) rabc(:) = rdum
-            endif
-            call get_atlist(mol%nat, atlist, kv%rawvalue, mol%at)
-            call cons%deallocate()
-            select case( pot ) 
-            case ( 1 ) !> polynomial
-              call cons%ellipsoid( mol%nat, atlist, rabc, force_constant, alpha, .false.)
-            case ( 2 ) !> logfermi
-              call cons%ellipsoid( mol%nat, atlist, rabc, T, beta, .true.) 
-            end select
-            if (debug) call cons%print(stdout)
-            call env%calc%add(cons)
-         endif
+        !> the sphere constraint si technically identical to the ellipsoid one, but
+        !> with equal axis lengths in all 3 directions
+        if (kv%na > 0) then
+          if (trim(kv%value_rawa(1)) .eq. 'auto') then
+            !> determine sphere
+            call wallpot_core(mol,rabc,potscal=env%potscal)
+            rdum = maxval(rabc(:))
+            rabc(:) = rdum
+          else
+            read (kv%rawvalue,*,iostat=io) rdum
+            if (io == 0) rabc(:) = rdum
+          end if
+          call get_atlist(mol%nat,atlist,kv%rawvalue,mol%at)
+          call cons%deallocate()
+          select case (pot)
+          case (1) !> polynomial
+            call cons%ellipsoid(mol%nat,atlist,rabc,force_constant,alpha,.false.)
+          case (2) !> logfermi
+            call cons%ellipsoid(mol%nat,atlist,rabc,T,beta,.true.)
+          end select
+          if (debug) call cons%print(stdout)
+          call env%calc%add(cons)
+        end if
 
-      case('ellipsoid') 
-         if (kv%na > 0)then
-            if(trim(kv%value_rawa(1)) .eq. 'auto')then
-               !> determine ellipsoid
-              call wallpot_core(mol,rabc, potscal=env%potscal)
-            else
-              read (kv%value_rawa(1),*,iostat=io) r1
-              if (io == 0) read (kv%value_rawa(2),*,iostat=io) r2
-              if (io == 0) read (kv%value_rawa(3),*,iostat=io) r3
-              if (io == 0)then
-                 rabc(1) = r1
-                 rabc(2) = r2
-                 rabc(3) = r3
-              endif 
-            endif
-            call get_atlist(mol%nat, atlist, kv%rawvalue, mol%at)
-            call cons%deallocate() 
-            select case( pot )
-            case ( 1 ) !> polynomial
-              call cons%ellipsoid( mol%nat, atlist, rabc, force_constant, alpha, .false.)
-            case ( 2 ) !> logfermi
-              call cons%ellipsoid( mol%nat, atlist, rabc, T, beta, .true.) 
-            end select
-            if (debug) call cons%print(stdout)
-            call env%calc%add(cons)
-         endif
+      case ('ellipsoid')
+        if (kv%na > 0) then
+          if (trim(kv%value_rawa(1)) .eq. 'auto') then
+            !> determine ellipsoid
+            call wallpot_core(mol,rabc,potscal=env%potscal)
+          else
+            read (kv%value_rawa(1),*,iostat=io) r1
+            if (io == 0) read (kv%value_rawa(2),*,iostat=io) r2
+            if (io == 0) read (kv%value_rawa(3),*,iostat=io) r3
+            if (io == 0) then
+              rabc(1) = r1
+              rabc(2) = r2
+              rabc(3) = r3
+            end if
+          end if
+          call get_atlist(mol%nat,atlist,kv%rawvalue,mol%at)
+          call cons%deallocate()
+          select case (pot)
+          case (1) !> polynomial
+            call cons%ellipsoid(mol%nat,atlist,rabc,force_constant,alpha,.false.)
+          case (2) !> logfermi
+            call cons%ellipsoid(mol%nat,atlist,rabc,T,beta,.true.)
+          end select
+          if (debug) call cons%print(stdout)
+          call env%calc%add(cons)
+        end if
 
       case default
         write (stdout,'(a,a,a)') 'xtb-style input key: "',kv%key,'" not defined for CREST'
@@ -421,7 +448,6 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i1,i2,i3,i4
     integer :: pot
 
-
 !>--- get reference input geometry
     call env%ref%to(mol)
 
@@ -431,28 +457,28 @@ contains  !> MODULE PROCEDURES START HERE
       select case (kv%key)
 
       case ('atoms')
-      !> define frozen atoms via indices
+        !> define frozen atoms via indices
         if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
-        call get_atlist(mol%nat, atlist, kv%rawvalue, mol%at)
-        do j=1,mol%nat
-          if(atlist(j)) pairwise(j) = .true.
-        enddo
+        call get_atlist(mol%nat,atlist,kv%rawvalue,mol%at)
+        do j = 1,mol%nat
+          if (atlist(j)) pairwise(j) = .true.
+        end do
 
       case ('elements')
-      !> define frozen atoms via elements
+        !> define frozen atoms via elements
         if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
         if (kv%id == valuetypes%raw_array) then
           do j = 1,kv%na
             i1 = e2i(kv%value_rawa(j))
-            do k=1,mol%nat
-             if (i1 == mol%at(k)) pairwise(k) = .true.
-            enddo
-          enddo
+            do k = 1,mol%nat
+              if (i1 == mol%at(k)) pairwise(k) = .true.
+            end do
+          end do
         else
           i1 = e2i(kv%rawvalue)
-          do j=1,mol%nat
+          do j = 1,mol%nat
             if (i1 == mol%at(j)) pairwise(j) = .true.
-          enddo
+          end do
         end if
 
       case default
@@ -461,18 +487,18 @@ contains  !> MODULE PROCEDURES START HERE
       end select
     end do
 
-    if(allocated(pairwise))then
-       i1 = count(pairwise)
-       env%calc%nfreeze = i1
-       if(debug)then
-         write(stdout,'("> ",a)') 'Frozen atoms:'
-         do i=1,mol%nat
-           if(pairwise(i))write(stdout,'(1x,i0)',advance='no') i
-         enddo
-         write(stdout,*) 
-       endif
-       call move_alloc(pairwise,env%calc%freezelist)
-    endif
+    if (allocated(pairwise)) then
+      i1 = count(pairwise)
+      env%calc%nfreeze = i1
+      if (debug) then
+        write (stdout,'("> ",a)') 'Frozen atoms:'
+        do i = 1,mol%nat
+          if (pairwise(i)) write (stdout,'(1x,i0)',advance='no') i
+        end do
+        write (stdout,*)
+      end if
+      call move_alloc(pairwise,env%calc%freezelist)
+    end if
 
   end subroutine get_xtb_fix_block
 
