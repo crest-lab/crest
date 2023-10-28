@@ -286,6 +286,9 @@ subroutine trialOPT_calculator(env)
   real(wp),allocatable :: grd(:,:)
   logical :: success,pr,wr
 
+!>--- get all available threads
+  call ompset_max(env%threads)
+
 !>--- small header
   write (stdout,*)
   call smallhead('Initial Geometry Optimization')

@@ -509,7 +509,9 @@ contains !> MODULE PROCEDURES START HERE
     type(constraint) :: constr
     logical,intent(out) :: success
     real(wp) :: dum1,dum2,dum3,dum4
+    real(wp) :: rabc(3)
     integer :: atm1,atm2,atm3,atm4
+    logical,allocatable :: atlist(:)
     success = .false.
     select case (kv%key)
     case ('bond','bonds')
@@ -554,6 +556,22 @@ contains !> MODULE PROCEDURES START HERE
       dum3 = kv%value_fa(2)  !> exponent factor
       call constr%sphereconstraint(0,dum1,dum2,dum3,.true.)
       success = .true.
+    case ('ellipsoid','ellipsoid_logfermi')
+      rabc(1:3) = kv%value_fa(1:3)
+      if (index(kv%key,'logfermi') .ne. 0) then
+        dum1 = 300.0_wp
+        dum2 = 6.0_wp
+        if (kv%na > 3) dum1 = kv%value_fa(4)
+        if (kv%na > 4) dum2 = kv%value_fa(5)
+        call constr%ellipsoid(0,atlist,rabc,dum1,dum2,.true.)
+      else
+        dum1 = 1.0_wp
+        dum2 = 30.0_wp
+        if (kv%na > 3) dum1 = kv%value_fa(4)
+        if (kv%na > 4) dum2 = kv%value_fa(5)
+        call constr%ellipsoid(0,atlist,rabc,dum1,dum2,.false.)
+      end if
+      success = .true.
     case ('gapdiff')
       dum1 = kv%value_fa(1)
       dum2 = kv%value_fa(2)
@@ -576,21 +594,21 @@ contains !> MODULE PROCEDURES START HERE
       end if
       call constr%gapdiffconstraint2(dum1,dum2,dum3)
     case ('bondrange')
-      atm1 = nint(kv%value_fa(1)) 
+      atm1 = nint(kv%value_fa(1))
       atm2 = nint(kv%value_fa(2))
       dum1 = kv%value_fa(3)*aatoau
       dum1 = max(0.0_wp,dum1) !> can't be negative
-      select case(kv%na)
-      case(3)
+      select case (kv%na)
+      case (3)
         dum2 = huge(dum2)/3.0_wp !> some huge value
         call constr%bondrangeconstraint(atm1,atm2,dum1,dum2)
-      case(4)
+      case (4)
         dum2 = kv%value_fa(4)*aatoau
         call constr%bondrangeconstraint(atm1,atm2,dum1,dum2)
-      case(5)
+      case (5)
         dum3 = kv%value_fa(5)
         call constr%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3)
-      case(6)
+      case (6)
         dum4 = kv%value_fa(6)
         call constr%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3,T=dum4)
       case default

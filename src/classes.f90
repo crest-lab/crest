@@ -375,6 +375,7 @@ module crest_data
     real(wp),allocatable :: metadfac(:)
     real(wp),allocatable :: metadexp(:)
     integer,allocatable  :: metadlist(:)
+    real(wp) :: mtd_kscal = 1.0_wp !> globally scale kpush for all metadynamics
 
     character(len=:),allocatable :: mtdstaticfile
     integer :: nstatic
@@ -822,6 +823,7 @@ contains  !> MODULE PROCEDURES START HERE
     if (optlev <= -1.0d0) flag = 'loose'
     if (optlev <= -2.0d0) flag = 'very loose'
     if (optlev <= -3.0d0) flag = 'crude'
+    if (optlev <= -4.0d0) flag = 'lax'
     return
   end function optlevflag
 

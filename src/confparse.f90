@@ -597,10 +597,10 @@ subroutine parseflags(env,arg,nra)
           env%inputcoords = trim(ctmp)
         end if
 
-      case ('-rmsd','-rmsdheavy')
+      case ('-rmsd','-rmsdheavy','-hrmsd')
         ctmp = trim(arg(i+1))
         dtmp = trim(arg(i+2))
-        if (argument == '-rmsdheavy') then
+        if ((argument == '-rmsdheavy').or.(argument=='-hrmsd')) then
           call quick_rmsd_tool(ctmp,dtmp,.true.)
         else
           call quick_rmsd_tool(ctmp,dtmp,.false.)
@@ -668,7 +668,7 @@ subroutine parseflags(env,arg,nra)
         env%legacy = .false.
         exit
 
-      case ('-optimize','-ancopt') !> ANCOPT structure optimization (uses new calculator routines)
+      case ('-opt','-optimize','-ancopt') !> ANCOPT structure optimization (uses new calculator routines)
         env%preopt = .false.
         env%crestver = crest_optimize
         env%legacy = .false.
@@ -1075,7 +1075,7 @@ subroutine parseflags(env,arg,nra)
         env%autozsort = .true.
       case ('-opt','-optlev')              !settings for optimization level of GFN-xTB
         env%optlev = optlevnum(arg(i+1))
-        write (*,'(2x,a,1x,i0)') trim(arg(i)),nint(env%optlev)
+        write (*,'(2x,a,1x,a)') trim(arg(i)),optlevflag(env%optlev)
       case ('-gfn','-gfn1','-gfn2','-gfn0','-gff','-gfnff')
         ctmp = argument
         if (argument == '-gfn') then
@@ -1088,16 +1088,16 @@ subroutine parseflags(env,arg,nra)
         select case (ctmp) !> GFN
         case ('-gfn1')
           env%gfnver = '--gfn1'
-          write (*,'(2x,a,'' : Use of GFN1-xTB requested.'')') ctmp
+          write (*,'(2x,a,'' : Use of GFN1-xTB requested.'')') env%gfnver
         case ('-gfn2')
           env%gfnver = '--gfn2'
-          write (*,'(2x,a,'' : Use of GFN2-xTB requested.'')') ctmp
+          write (*,'(2x,a,'' : Use of GFN2-xTB requested.'')')  env%gfnver
         case ('-gfn0')
           env%gfnver = '--gfn0'
-          write (*,'(2x,a,'' : Use of GFN0-xTB requested.'')') ctmp
+          write (*,'(2x,a,'' : Use of GFN0-xTB requested.'')') env%gfnver
         case ('-gff','-gfnff')
           env%gfnver = '--gff'
-          write (*,'(2x,a,'' : Use of GFN-FF requested.'')') ctmp
+          write (*,'(2x,a,'' : Use of GFN-FF requested.'')') '--gfnff'
           env%mdstep = 1.5d0
           env%hmass = 5.0d0
           !call autoBondConstraint('coord',env%forceconst,env%wbofile)
@@ -1187,6 +1187,9 @@ subroutine parseflags(env,arg,nra)
           read (ctmp,*,iostat=io) rdum
           if (io .eq. 0) env%cts%dscal = rdum
         end if
+      case ('-mtd_kscal','-mtdkscal')
+         call readl(arg(i+1),xx,j)
+         env%mtd_kscal = xx(1)
       case ('-norestart')
         env%allowrestart = .false.
       case ('-readbias')
@@ -1338,7 +1341,7 @@ subroutine parseflags(env,arg,nra)
         ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
           env%constraints = trim(ctmp)
-          write (*,'(2x,a,1x,a)') trim(argument)//' :',trim(ctmp)
+          write (*,'(2x,a,1x,a)') '--cinp :',trim(ctmp)
         end if
       case ('-fc','-forceconstant')
         ctmp = trim(arg(i+1))
@@ -2162,6 +2165,10 @@ subroutine parseflags(env,arg,nra)
     write(stdout,*) 'done.'
     call env%calc%info(stdout)
   end if
+!>--- pass on opt-level to new calculator
+  if(.not.env%legacy)then
+     env%calc%optlev = nint(env%optlev)
+  endif
 
 !>--- ONIOM setup from toml file
   if (allocated(env%ONIOM_toml))then
@@ -2205,24 +2212,9 @@ subroutine parseRC2(env,bondconst)
   logical :: create,atomlistused
   logical :: bondconst
 
-!>--- check for any of the possible constrainement files
+!>--- check for constraint file
   ex1 = .false.
-
-  allocate (cfiles(4))
-
-  cfiles(1) = '.xcontrol'
-  cfiles(2) = '.constrains'
-  cfiles(3) = '.constraints'
-  cfiles(4) = env%constraints  !for user-set option (todo)
-
-  do i = 1,4
-    inquire (file=cfiles(i),exist=ex)
-    if (ex) then
-      env%constraints = trim(cfiles(i))
-      ex1 = .true.
-    end if
-  end do
-  deallocate (cfiles)
+  inquire (file=env%constraints,exist=ex1)
 
 !>--- do we have a user-set constraint to all bonds?
   if (bondconst) then

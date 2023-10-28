@@ -72,7 +72,7 @@ program CREST
   else
     if (.not.env%threadssetmanual) then
       call ompgetauto(env%threads,env%omp,env%MAXRUN)
-      call ompprint()
+      !call ompprint()
     end if
     call ompautoset(env%threads,0,env%omp,env%MAXRUN,0)   !<--- default
   end if

@@ -187,7 +187,7 @@ contains  !>--- Module routines start here
     case (wall_fermi)
       art = 'wall_fermi'
       write (atoms,'(1x,"atoms:",1x,i0,a)') self%n,'/all'
-      write (values,'(" radii(Bohr)=",3f12.5," k=",f8.5,1x,"exp=",f5.2)') self%ref(1:3),self%fc(1:2)
+      write (values,'(" radii(Bohr)=",3f12.5," T=",f8.1,1x,"exp=",f5.2)') self%ref(1:3),self%fc(1:2)
     case (na_gapdiff)
       art = 'nonadiabatic gap'
       write (atoms,'(1x,"[",a,"]")') 'σ*ΔE²/(ΔE+α)'

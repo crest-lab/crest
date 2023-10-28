@@ -231,8 +231,10 @@ module calc_type
   contains
     procedure :: reset => calculation_reset
     procedure :: init => calculation_init
-    generic,public :: add => calculation_add_constraint,calculation_add_settings,calculation_add_scan
-    procedure,private :: calculation_add_constraint,calculation_add_settings,calculation_add_scan
+    generic,public :: add => calculation_add_constraint,calculation_add_settings, &
+    & calculation_add_scan,calculation_add_constraintlist
+    procedure,private :: calculation_add_constraint,calculation_add_settings, &
+    & calculation_add_scan,calculation_add_constraintlist
     procedure :: copy => calculation_copy
     procedure :: printconstraints => calculation_print_constraints
     procedure :: removeconstraint => calculation_remove_constraint
@@ -400,6 +402,32 @@ contains  !>--- Module routines start here
 
     return
   end subroutine calculation_add_constraint
+
+  subroutine calculation_add_constraintlist(self,k,constr)
+    implicit none
+    class(calcdata) :: self
+    integer :: k
+    type(constraint) :: constr(k)
+    type(constraint),allocatable :: conslist(:)
+    integer :: i,j
+
+    if (self%nconstraints < 1) then
+      allocate (self%cons(k))
+      self%nconstraints = k
+      self%cons(1:k) = constr(1:k)
+    else
+      i = self%nconstraints+k
+      j = self%nconstraints
+      allocate (conslist(i))
+      conslist(1:j) = self%cons(1:j)
+      conslist(j+1:i) = constr(1:k)
+      call move_alloc(conslist,self%cons)
+      self%nconstraints = i
+    end if
+
+    return
+  end subroutine calculation_add_constraintlist
+
 
 !=========================================================================================!
 

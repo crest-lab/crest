@@ -87,6 +87,8 @@ contains  !> MODULE PROCEDURES START HERE
         call get_xtb_wall_block(env,blk)
       case ('fix')
         call get_xtb_fix_block(env,blk)
+      case ('metadyn')
+        call get_xtb_metadyn_block(env,blk)
       case default
         write (stdout,'(a,a,a)') 'xtb-style input block: "$',trim(hdr),'" not defined for CREST'
       end select
@@ -117,6 +119,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i1,i2,i3,i4,atm1,atm2
     real(wp) :: dum1,dum2,dum3,dum4
     type(constraint) :: cons
+    type(constraint),allocatable :: conslist(:)
 
     useref = .false.
 !>--- a default xtb force constant (in Eh), must be read first, if present
@@ -281,6 +284,15 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- if the pairwise section was allocated, set the distance constraints up here
     if (allocated(pairwise)) then
+!>--- to reduce overhead, we allocate all of these constraints at once
+      k = 0
+      do i = 1,mol%nat
+        do j = 1,i-1
+          if (pairwise(i).and.pairwise(j)) k = k +1
+        enddo
+      enddo
+      allocate(conslist(k))
+      k = 0
       do i = 1,mol%nat
         do j = 1,i-1
           if (pairwise(i).and.pairwise(j)) then
@@ -289,13 +301,16 @@ contains  !> MODULE PROCEDURES START HERE
             else
               dist = mol%dist(j,i)
             end if
-            call cons%deallocate()
-            call cons%bondconstraint(j,i,dist,force_constant)
-            if (debug) call cons%print(stdout)
-            call env%calc%add(cons)
+            k = k + 1
+            !call cons%deallocate()
+            call conslist(k)%bondconstraint(j,i,dist,force_constant)
+            if (debug) call conslist(k)%print(stdout)
+            !call env%calc%add(cons)
           end if
         end do
       end do
+      call env%calc%add(k,conslist)
+      deallocate (conslist) 
       deallocate (pairwise)
     end if
 
@@ -320,6 +335,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i1,i2,i3,i4
     integer :: pot
     type(constraint) :: cons
+
+    if(debug) write(*,*) 'parsing $wall block'
 
 !>--- asome defaults
     force_constant = 1.0_wp
@@ -395,6 +412,7 @@ contains  !> MODULE PROCEDURES START HERE
         end if
 
       case ('ellipsoid')
+        if(debug) write(*,*) 'parsing ellipsoid',kv%na
         if (kv%na > 0) then
           if (trim(kv%value_rawa(1)) .eq. 'auto') then
             !> determine ellipsoid
@@ -501,6 +519,92 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
   end subroutine get_xtb_fix_block
+
+
+
+  subroutine get_xtb_metadyn_block(env,blk)
+!**************************************
+!* This is a reader for the $metadyn block
+!***************************************
+    implicit none
+    type(systemdata),intent(inout) :: env
+    type(filetype) :: file
+    integer :: i,j,k,io
+    type(keyvalue) :: kv
+    type(datablock),intent(in) :: blk
+    real(wp) :: force_constant,dist,angl
+    real(wp) :: T,alpha,beta
+    real(wp) :: rdum,rabc(3),r1,r2,r3
+    type(coord) :: mol
+    logical,allocatable :: pairwise(:)
+    logical,allocatable :: atlist(:)
+    integer :: i1,i2,i3,i4
+    integer :: pot
+
+!>--- get reference input geometry
+    call env%ref%to(mol)
+
+!>--- get the parameters first
+    do i = 1,blk%nkv
+      kv = blk%kv_list(i)
+      select case (kv%key)
+
+      case ('atoms')
+        !> define atoms in metadynamics via indices
+        if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
+        call get_atlist(mol%nat,atlist,kv%rawvalue,mol%at)
+        do j = 1,mol%nat
+          if (atlist(j)) pairwise(j) = .true.
+        end do
+
+      case ('elements')
+        !> define atoms in metadynamics via elements
+        if (.not.allocated(pairwise)) allocate (pairwise(mol%nat),source=.false.)
+        if (kv%id == valuetypes%raw_array) then
+          do j = 1,kv%na
+            i1 = e2i(kv%value_rawa(j))
+            do k = 1,mol%nat
+              if (i1 == mol%at(k)) pairwise(k) = .true.
+            end do
+          end do
+        else
+          i1 = e2i(kv%rawvalue)
+          do j = 1,mol%nat
+            if (i1 == mol%at(j)) pairwise(j) = .true.
+          end do
+        end if
+  
+      case ('kscal')
+        !> define a global metadynamics k-push scaling factor
+        read(kv%rawvalue,*) r1
+        env%mtd_kscal = r1
+
+
+      case default
+        write (stdout,'(a,a,a)') 'xtb-style input key: "',kv%key,'" not defined for CREST'
+
+      end select
+    end do
+
+    if (allocated(pairwise)) then
+      i1 = count(pairwise)
+      if (debug) then
+        write (stdout,'("> ",a)') 'Metadynamics atoms:'
+        do i = 1,mol%nat
+          if (pairwise(i)) write (stdout,'(1x,i0)',advance='no') i
+        end do
+        write (stdout,*)
+      end if
+      if(.not.allocated(env%includeRMSD)) allocate(env%includeRMSD(mol%nat), source=0)
+      do i=1,mol%nat
+         if(pairwise(i)) env%includeRMSD(i) = 1
+      enddo
+      env%rednat = i1
+    end if
+
+    call mol%deallocate()
+  end subroutine get_xtb_metadyn_block
+
 
 !========================================================================================!
 

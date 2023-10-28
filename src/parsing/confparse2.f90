@@ -141,10 +141,12 @@ subroutine internal_constraint_repair(env)
     case (4,5) !> wall, wall_fermi
       if (env%calc%cons(i)%n == 0) then
         !> if no #atoms have been specified, apply to all atoms
+        write(*,*) 'restoring all atoms' 
         allocate (atms(nat))
         atms = .true.
         call env%calc%cons(i)%sphereupdate(nat,atms)
         deallocate (atms)
+        env%calc%cons(i)%ref = env%calc%cons(i)%ref * env%potscal
       end if
 
     case default

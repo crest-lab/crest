@@ -325,7 +325,7 @@ subroutine defaultGF(env)
         do ik = 1,nk
           m = m+1
           if (m > nmtdynmax) cycle !> skip the last nrem setups
-          env%metadfac(m) = k*env%rednat
+          env%metadfac(m) = k*env%rednat*env%mtd_kscal
           env%metadexp(m) = alp
           k = k/kinc ! increment
         end do
