@@ -51,6 +51,8 @@ subroutine crest_moleculardynamics(env,tim)
   write(stdout,*) "        |___/                                   "
   write(stdout,*)
 !========================================================================================!
+  call ompset_max(env%threads)
+  call ompprint_intern()
   call tim%start(14,'Molecular dynamics (MD)')
   call env%ref%to(mol)
   write (stdout,*)
@@ -61,7 +63,7 @@ subroutine crest_moleculardynamics(env,tim)
 
   !>--- parallelization settings
   !call ompautoset(env%threads,7,env%omp,env%MAXRUN,1)
-  call ompprint_intern()
+  !call ompprint_intern()
 
   pr = .true.
   !>--- default settings from env

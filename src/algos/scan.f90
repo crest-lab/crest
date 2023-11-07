@@ -47,8 +47,7 @@ subroutine crest_scan(env,tim)
 
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
-!========================================================================================!
-  call tim%start(14,'Coordinate scan')
+
 !========================================================================================!
   write (*,*)
   !call system('figlet scan')
@@ -57,7 +56,10 @@ subroutine crest_scan(env,tim)
   write (stdout,*) "\__ \ (_| (_| | | | |"
   write (stdout,*) "|___/\___\__,_|_| |_|"
   write (stdout,*) "                     "
-
+!========================================================================================!
+  call ompset_max(env%threads)
+  call ompprint_intern()
+  call tim%start(14,'Coordinate scan')
 !========================================================================================!
   call env%ref%to(mol)
   write (*,*)
@@ -76,8 +78,8 @@ subroutine crest_scan(env,tim)
   calcclean = env%calc
 
   !>--- initialize scanning
+  io = makedir('scanfiles') 
   call initscans(mol,calc)
-  io = makedir('scanfiles')
 
   !>--- runscan
   i = 1
@@ -143,7 +145,7 @@ contains
         call calc%add(constr)
         calc%scans(i)%constrnmbr = calc%nconstraints
         k = minloc(abs(tmppoints(:) - dref),1)
-        call shiftpoints(nsteps,k,tmppoints,calc%scans(i)%restore,.false.)
+        !call shiftpoints(nsteps,k,tmppoints,calc%scans(i)%restore,.false.)
         calc%scans(i)%points = tmppoints
         !write(*,*) calc%scans(i)%points 
       case (3) !>-- dihedral

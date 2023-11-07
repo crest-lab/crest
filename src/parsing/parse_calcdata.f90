@@ -32,7 +32,7 @@ module parse_calcdata
   use tblite_api,only:xtblvl
 
   use parse_block,only:datablock
-  use parse_keyvalue,only:keyvalue
+  use parse_keyvalue,only:keyvalue,valuetypes
   use parse_datastruct,only:root_object
 
   implicit none
@@ -658,42 +658,81 @@ contains !> MODULE PROCEDURES START HERE
       scn%type = 1
       scn%n = 2
       allocate (scn%atms(2))
-      read (kv%value_rawa(1),*) atm1
-      scn%atms(1) = atm1
-      read (kv%value_rawa(2),*) atm2
-      scn%atms(2) = atm2
-      read (kv%value_rawa(3),*) dum1
-      scn%minval = dum1
-      read (kv%value_rawa(4),*) dum2
-      scn%maxval = dum2
-      if (kv%na > 4) then
-        read (kv%value_rawa(5),*) nsteps
-        scn%steps = nsteps
-      end if
-      success = .true.
+      if(kv%id == valuetypes%float_array ) then
+        scn%atms(1) = nint(kv%value_fa(1))
+        scn%atms(2) = nint(kv%value_fa(2))
+        scn%minval = kv%value_fa(3)
+        scn%maxval = kv%value_fa(4)
+        if (kv%na > 4) then
+         scn%steps = nint(kv%value_fa(5))
+        end if
+        success = .true.
+      else if( kv%id == valuetypes%int_array ) then
+       scn%atms(1) = kv%value_ia(1)
+       scn%atms(2) = kv%value_ia(2)
+       scn%minval = real(kv%value_ia(3))
+       scn%maxval = real(kv%value_ia(4))
+       if (kv%na > 4) then
+        scn%steps = kv%value_ia(5)
+       end if
+       success = .true.
+      endif
+      
     case ('dihedral')
       scn%type = 3
       scn%n = 2
+      write(*,*) kv%value_rawa(:)
+      write(*,*) kv%value_ia(:)
+      write(*,*) kv%value_fa(:)
       allocate (scn%atms(4))
-      read (kv%value_rawa(1),*) atm1
-      scn%atms(1) = atm1
-      read (kv%value_rawa(2),*) atm2
-      scn%atms(2) = atm2
-      read (kv%value_rawa(3),*) atm3
-      scn%atms(3) = atm3
-      read (kv%value_rawa(4),*) atm4
-      scn%atms(4) = atm4
-      if (kv%na > 4) then
-        read (kv%value_rawa(5),*) nsteps
-        scn%steps = nsteps
-      end if
-      if (kv%na > 6) then
-        read (kv%value_rawa(6),*) dum1
-        scn%minval = dum1
-        read (kv%value_rawa(7),*) dum2
-        scn%maxval = dum2
-      end if
-      success = .true.
+       
+      if(kv%id == valuetypes%float_array ) then
+        scn%atms(1) = nint(kv%value_fa(1))
+        scn%atms(2) = nint(kv%value_fa(2))
+        scn%atms(3) = nint(kv%value_fa(3))
+        scn%atms(4) = nint(kv%value_fa(4))
+        if (kv%na > 4) then
+          scn%steps = nint(kv%value_fa(5))
+        end if
+        if (kv%na > 6) then
+          scn%minval = kv%value_fa(6)
+          scn%maxval = kv%value_fa(7)
+        end if
+        success = .true.
+      else if( kv%id == valuetypes%int_array ) then
+        scn%atms(1) = kv%value_ia(1)
+        scn%atms(2) = kv%value_ia(2)
+        scn%atms(3) = kv%value_ia(3)
+        scn%atms(4) = kv%value_ia(4)
+        if (kv%na > 4) then
+          scn%steps = kv%value_ia(5)
+        end if
+        if (kv%na > 6) then
+          scn%minval = real(kv%value_ia(6))
+          scn%maxval = real(kv%value_ia(7))
+        end if
+        success = .true.
+      endif
+
+      !read (kv%value_rawa(1),*) atm1
+      !scn%atms(1) = atm1
+      !read (kv%value_rawa(2),*) atm2
+      !scn%atms(2) = atm2
+      !read (kv%value_rawa(3),*) atm3
+      !scn%atms(3) = atm3
+      !read (kv%value_rawa(4),*) atm4
+      !scn%atms(4) = atm4
+      !if (kv%na > 4) then
+      !  read (kv%value_rawa(5),*) nsteps
+      !  scn%steps = nsteps
+      !end if
+      !if (kv%na > 6) then
+      !  read (kv%value_rawa(6),*) dum1
+      !  scn%minval = dum1
+      !  read (kv%value_rawa(7),*) dum2
+      !  scn%maxval = dum2
+      !end if
+      !success = .true.
     case default
       return
     end select

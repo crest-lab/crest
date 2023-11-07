@@ -56,6 +56,11 @@ contains   !> MODULE PROCEDURES START HERE
     case (valuetypes%string) !> string
       call parse_main_c(env,kv%key,kv%value_c)
     end select
+!> other, with multiple or raw type
+    select case(kv%key)
+    case ('optlev','ancopt_level')
+      env%optlev = optlevnum(kv%rawvalue)
+    end select
   end subroutine parse_main_auto
   subroutine parse_main_float(env,key,val)
     implicit none
@@ -105,9 +110,11 @@ contains   !> MODULE PROCEDURES START HERE
       case ('ancopt','optimize')
         env%preopt = .false.
         env%crestver = crest_optimize
+        env%optlev = 0.0_wp
       case ('ancopt_ensemble','optimize_ensemble','mdopt')
         env%preopt = .false.
         env%crestver = crest_mdopt2
+        env%optlev = 0.0d0
       case ('screen_ensemble','screen')
         env%preopt = .false.
         env%crestver = crest_screen
