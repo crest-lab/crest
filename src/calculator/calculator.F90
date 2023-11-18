@@ -51,6 +51,7 @@ module crest_calculator
   integer(int64),public :: engrad_total = 0
 
 !>--- public module routines
+  public :: potential_core
   public :: engrad
   interface engrad
     module procedure :: engrad_mol
@@ -249,6 +250,10 @@ contains  !> MODULE PROCEDURES START HERE
         allocate (calc%grdfix(3,mol%nat),source=0.0_wp)
       end if
       !$omp end critical
+
+      !!$omp parallel &
+      !!$omp shared(calc%cons,mol,n,energy,gradient) &
+      !!$omp private(efix,i,calc%grdfix) 
       do i = 1,calc%nconstraints
         efix = 0.0_wp
         calc%grdfix = 0.0_wp
@@ -266,9 +271,12 @@ contains  !> MODULE PROCEDURES START HERE
             calc%grdfix = 0.0_wp
           end if
         end if
+        !!$omp critical
         energy = energy+efix
         gradient = gradient+calc%grdfix
+        !!$omp end critical
       end do
+      !!$omp end parallel
     end if
 
 !**********************************************
@@ -350,8 +358,8 @@ contains  !> MODULE PROCEDURES START HERE
       if (allocated(calc%calcs(id)%other)) then
         read (calc%calcs(id)%other,*) dum1,dum2
       else
-        dum1 = 1.0_wp
-        dum2 = 1.0_wp   
+        dum2 = 3.4_wp !> Argon-LJ distance (σ) in Angstroem
+        dum1 = 0.238129_wp/627.50947428_wp !> Argon-LJ energy (ε) in atomic units  
       end if
       call lj_engrad(molptr%nat,molptr%xyz*autoaa,dum1,dum2, &
       &              calc%etmp(id),calc%grdtmp(:,1:pnat,id))

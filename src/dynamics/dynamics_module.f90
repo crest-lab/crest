@@ -120,7 +120,8 @@ contains  !> MODULE PROCEDURES START HERE
 !*************************************************************
 !* subroutine dynamics
 !* perform a molecular dynamics simulation
-!* the coordinate propagation is of the Velocity-Verlet type
+!* the coordinate propagation is made with an 
+!* Leap-Frog algorithm (Velert-type algo)
 !*************************************************************
     implicit none
 
@@ -385,8 +386,7 @@ contains  !> MODULE PROCEDURES START HERE
 
       !>>-- STEP 3: velocity and position update
       !>--- update velocities to t
-      ! I think the factor of 1/2 for the acc is missing in the xtb version
-      vel = thermoscal*(velo+0.5_wp*acc*tstep_au)
+      vel = thermoscal*(velo + acc*tstep_au)
 
       !>--- update positions to t+dt, except for frozen atoms
       if(calc%nfreeze > 0)then
@@ -769,9 +769,9 @@ contains  !> MODULE PROCEDURES START HERE
     case ('berendsen')
       scal = dsqrt(1.0d0+(dat%tstep/dat%thermo_damp) &
                   &     *(dat%tsoll/t-1.0_wp))
-    case default !>-- (also berendsen thermostat)
-      scal = dsqrt(1.0d0+(dat%tstep/dat%thermo_damp) &
-                  &     *(dat%tsoll/t-1.0_wp))
+    case default 
+    !>-- (no scaling, other thermostats require special implementation)
+      scal = 1.0_wp
     end select
 
     return

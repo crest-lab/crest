@@ -34,6 +34,7 @@ module hessian_tools
   use strucrd
   use optimize_module
   use optimize_maths
+  use iomod
 
   public :: frequencies
 
@@ -200,11 +201,16 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*) :: dir
 
     thr = 0.01_wp
-    if (dir .eq. '') then
+    if (len_trim(dir) .eq. 0) then
       open (newunit=ich,file=fname)
     else
+      if(directory_exist(dir))then
       open (newunit=ich,file=dir//'/'//fname)
+      else
+      open (newunit=ich,file=fname)
+      endif
     end if
+
 
     write (ich,'("$vibrational spectrum")')
     write (ich,'("#  mode    symmetry    wave number    IR intensity    selection rules")')
@@ -259,10 +265,14 @@ contains  !> MODULE PROCEDURES START HERE
       end if
     end do
 
-    if (dir .eq. '') then
+    if (len_trim(dir) .eq. 0) then
       open (newunit=gu,file=fname)
     else
+      if(directory_exist(dir))then
       open (newunit=gu,file=dir//'/'//fname)
+      else
+      open (newunit=gu,file=fname) 
+      endif
     end if
 
     write (gu,'('' Entering Gaussian System'')')
@@ -344,19 +354,19 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*) :: fname
     character(len=*) :: dir
 
-    if (dir .eq. '') then
-      write (stdout,'(1x,a)',advance='no') 'Will be written to file "'//fname//'" ...'
-      flush (stdout)
-    else
-      write (stdout,'(1x,a)',advance='no') 'Will be written to file "'//dir//'/'//fname//'" ...'
-      flush (stdout)
-    end if
-
-    if (dir .eq. '') then
+    if (len_trim(dir) .eq. 0) then
       open (newunit=ich,file=fname)
+      write (stdout,'(1x,a)',advance='no') 'Will be written to file "'//fname//'" ...'
     else
+      if(directory_exist(dir))then
       open (newunit=ich,file=dir//'/'//fname)
+      write (stdout,'(1x,a)',advance='no') 'Will be written to file "'//dir//'/'//fname//'" ...'
+      else
+      open (newunit=ich,file=fname)
+      write (stdout,'(1x,a)',advance='no') 'Will be written to file "'//fname//'" ...'
+      endif
     end if
+    flush(stdout)
 
     write (ich,'(1x,a)') '$hessian'
     do i = 1,nat3
@@ -374,6 +384,7 @@ contains  !> MODULE PROCEDURES START HERE
         write (ich,*)
       end if
     end do
+    write (ich,'(1x,a)') '$end'
     close (ich)
 
     write (stdout,*) 'done.'
