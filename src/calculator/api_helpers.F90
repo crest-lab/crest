@@ -104,31 +104,42 @@ contains    !> MODULE PROCEDURES START HERE
     type(coord),intent(inout) :: mol
     logical,intent(out) :: pr
     character(len=:),allocatable :: cpath
-    logical :: ex
+    logical :: ex,reopen,append
     integer :: io
 
     pr = calc%pr
-    if(pr)then
+    append = calc%prappend
+    reopen = .false.
+    if (pr) then
       inquire (unit=calc%prch,opened=ex)
-      if ((calc%prch .ne. stdout).and.ex) then
-       close (calc%prch)
+      if ((calc%prch .ne. stdout).and.ex.and..not.append) then
+        close (calc%prch)
+        reopen = .true.
       end if
-      if (allocated(calc%calcspace)) then
-        ex = directory_exist(calc%calcspace)
-        if (.not.ex) then
-          io = makedir(trim(calc%calcspace))
+      if(.not.ex .and. (calc%prch .ne. stdout)) reopen=.true. !> for the first time the file needs opening
+      !if (.not.ex.and.append) reopen = .true.
+        if (allocated(calc%calcspace)) then
+          ex = directory_exist(calc%calcspace)
+          if (.not.ex) then
+            io = makedir(trim(calc%calcspace))
+          end if
+          cpath = calc%calcspace//sep//fname
+        else
+          cpath = fname
         end if
-        cpath = calc%calcspace//sep//fname
-      else
-        cpath = fname
-      end if
-      if ((calc%prch .ne. stdout)) then
+      if(reopen)then
         !> NOTE: this requires a predifined print channel!
         open (unit=calc%prch,file=cpath)
+
+      else
+        write (calc%prch,'(/,a)') repeat('%',50)
+        write (calc%prch,'(a)') '> new calculation'
+        write (calc%prch,'(a,/)') repeat('%',50)
       end if
-      deallocate (cpath)
+        deallocate (cpath)
+
       call api_print_input_structure(pr,calc%prch,mol)
-    endif
+    end if
 
   end subroutine api_handle_output
 

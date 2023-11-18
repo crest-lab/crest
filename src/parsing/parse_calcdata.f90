@@ -165,6 +165,7 @@ contains !> MODULE PROCEDURES START HERE
     implicit none
     type(calculation_settings) :: job
     type(keyvalue) :: kv
+    !> first, go through settings with fixed type expactations
     select case (kv%id)
     case (1) !> float
       call parse_setting(job,kv%key,kv%value_f)
@@ -176,6 +177,11 @@ contains !> MODULE PROCEDURES START HERE
       call parse_setting(job,kv%key,kv%value_c)
     case (6,7) !> int/float array
       call parse_setting_array(job,kv,kv%key)
+    end select
+    !> then, all others by key, automatic
+    select case (kv%key)
+    case default
+      continue 
     end select
   end subroutine parse_setting_auto
   subroutine parse_setting_float(job,key,val)
@@ -339,6 +345,19 @@ contains !> MODULE PROCEDURES START HERE
       case default
         job%refine_lvl = refine%non
       end select
+
+    case( 'print' ) 
+      select case( val )
+      case ( 'true','yes')
+        job%pr = .true.
+      case ( 'false','no')
+        job%pr = .false.
+      case ( 'append','cont','continuous')
+        job%pr = .true.
+        job%prappend = .true.
+      end select
+      if (job%pr) job%prch = 999  !> the actual ID will be generated automatically
+
 
     end select
     return

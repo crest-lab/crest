@@ -75,6 +75,7 @@ module calc_type
     integer :: id = 0         !> calculation type (see "jobtype" parameter above)
     integer :: prch = stdout  !> printout channel
     logical :: pr = .false.   !> allow the calculation to produce printout? Results in a lot I/O
+    logical :: prappend = .false. !> append printout 
     integer :: refine_lvl = 0 !> to allow defining different refinement levels
 
     integer :: chrg = 0          !> molecular charge
