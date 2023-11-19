@@ -16,9 +16,11 @@
 
 srcs += files(
   'ancopt.f90',
+  'gd.f90',
   'hessupdate.f90',
   'modelhessian.f90',
   'optimize_maths.f90',
   'optimize_module.f90',
   'optimize_type.f90',
+  'optutils.f90',
 )

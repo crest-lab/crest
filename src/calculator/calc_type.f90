@@ -204,10 +204,13 @@ module calc_type
     integer  :: optlev = 0
     integer  :: micro_opt = 20
     integer  :: maxcycle = 0
-    real(wp) :: maxdispl_opt = 1.0_wp
+    real(wp) :: maxdispl_opt = -1.0_wp
+    real(wp) :: ethr_opt = -1.0_wp  !> ΔE convergence
+    real(wp) :: gthr_opt = -1.0_wp  !> RMS force convergence
     real(wp) :: hlow_opt = 0.010_wp
     real(wp) :: hmax_opt = 5.0_wp
     real(wp) :: acc_opt = 1.0_wp
+    real(wp) :: maxerise = 1.0e-5_wp
     logical  :: exact_rf = .false.
     logical  :: average_conv = .false.
     logical  :: tsopt = .false.
@@ -217,7 +220,7 @@ module calc_type
 !>--- GFN0* data, needed for special MECP application
     type(gfn0_data),allocatable  :: g0calc
 
-!>--- printouts and io
+!>--- printouts and IO
     logical :: pr_energies = .false.
     integer :: eout_unit = stdout
     character(len=:),allocatable :: elog
@@ -267,14 +270,18 @@ contains  !>--- Module routines start here
     self%optlev = 0
     self%micro_opt = 20
     self%maxcycle = 0
-    self%maxdispl_opt = 1.0_wp
+    self%maxdispl_opt = -1.0_wp
+    self%ethr_opt = -1.0_wp  !> ΔE convergence
+    self%gthr_opt = -1.0_wp  !> RMS force convergence
     self%hlow_opt = 0.010_wp
     self%hmax_opt = 5.0_wp
     self%acc_opt = 1.0_wp
+    self%maxerise = 1.0e-5_wp
     self%exact_rf = .false.
     self%average_conv = .false.
     self%tsopt = .false.
-    self%iupdat = 0
+    self%iupdat = 0  !> 0=BFGS, 1=Powell, 2=SR1, 3=Bofill, 4=Schlegel
+    self%opt_engine = 0 !> default: ANCOPT
 
     self%pr_energies = .false.
     self%eout_unit = stdout

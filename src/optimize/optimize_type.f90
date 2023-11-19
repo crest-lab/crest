@@ -26,6 +26,7 @@ module optimize_type
    implicit none
 
    public :: optimizer
+   public :: convergence_log
    private
 
    type optimizer
@@ -46,6 +47,21 @@ module optimize_type
    procedure :: new => generate_anc_blowup
    procedure :: get_cartesian
    end type optimizer
+
+
+  type :: convergence_log
+    integer :: nlog
+    real(wp),allocatable :: elog(:)
+    real(wp),allocatable :: glog(:)
+  contains
+    procedure :: set_eg_log
+    procedure :: get_averaged_energy
+    procedure :: get_averaged_gradient
+  end type convergence_log
+  interface convergence_log
+    module procedure new_convergence_log
+  end interface convergence_log
+  
 
 !========================================================================================!
 !========================================================================================!
@@ -384,6 +400,86 @@ subroutine get_cartesian(self,xyz)
    call dgemv('n',self%n3,self%nvar,1.0_wp,self%B,self%n3,self%coord,1,1.0_wp,xyz,1)
    return
 end subroutine get_cartesian
+
+!========================================================================================!
+
+  pure function new_convergence_log(nmax) result(self)
+    integer,intent(in) :: nmax
+    type(convergence_log) :: self
+    self%nlog = 0
+    allocate (self%elog(nmax))
+    allocate (self%glog(nmax))
+  end function new_convergence_log
+
+  pure function get_averaged_energy(self) result(val)
+    class(convergence_log),intent(in) :: self
+    real(wp) :: eav,val
+    integer :: i,j,low
+    integer,parameter :: nav = 5
+
+    ! only apply it if sufficient number of points i.e. a "tail" can exist
+    ! with the censo blockl = 8 default, this can first be effective in the second
+    if (self%nlog .lt. 3 * nav) then
+      val = self%elog(self%nlog)
+    else
+      low = max(1,self%nlog - nav + 1)
+      j = 0
+      eav = 0
+      do i = self%nlog,low,-1
+        j = j + 1
+        eav = eav + self%elog(i)
+      end do
+      val = eav / float(j)
+    end if
+
+  end function get_averaged_energy
+
+  pure function get_averaged_gradient(self) result(deriv)
+    class(convergence_log),intent(in) :: self
+    real(wp) :: gav,deriv
+    integer :: i,j,low
+    integer,parameter :: nav = 5
+
+    ! only apply it if sufficient number of points i.e. a "tail" can exist
+    ! with the censo blockl = 8 default, this can first be effective in the second
+    if (self%nlog .lt. 3 * nav) then
+      deriv = self%glog(self%nlog)
+    else
+      low = max(1,self%nlog - nav + 1)
+      j = 0
+      gav = 0
+      do i = self%nlog,low,-1
+        j = j + 1
+        gav = gav + self%glog(i)
+      end do
+      ! adjust the gradient norm to xtb "conventions" because e.g. a noisy
+      ! DCOSMO-RS gradient for large cases can never (even on average)
+      ! become lower than the "-opt normal" thresholds
+      deriv = gav / float(j) / 2.d0
+    end if
+
+  end function get_averaged_gradient
+
+  pure subroutine set_eg_log(self,e,g)
+    class(convergence_log),intent(inout) :: self
+    real(wp),intent(in) :: e,g
+    real(wp),allocatable :: dum(:)
+    integer :: k,k2
+    k = size(self%elog)
+    if (self%nlog >= k) then
+      k2 = k + 1
+      allocate (dum(k2))
+      dum(1:k) = self%elog(1:k)
+      call move_alloc(dum,self%elog)
+      allocate (dum(k2))
+      dum(1:k) = self%glog(1:k)
+      call move_alloc(dum,self%glog)
+    end if
+    self%nlog = self%nlog + 1
+    self%elog(self%nlog) = e
+    self%glog(self%nlog) = g
+  end subroutine set_eg_log
+
 
 !========================================================================================!
 !========================================================================================!

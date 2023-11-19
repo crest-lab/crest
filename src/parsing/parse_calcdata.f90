@@ -431,6 +431,18 @@ contains !> MODULE PROCEDURES START HERE
     character(len=*) :: key
     real(wp) :: val
     select case (key)
+    case( 'converge_e','ethr_opt' ) 
+      calc%ethr_opt = val  !> optimization ΔE convergenve threshold (Ha)
+
+    case( 'converge_g','gthr_opt','rmsforce' )
+      calc%gthr_opt = val !> optimization RMS convergence threshold (Ha/a0)
+
+    case( 'maxerise' )
+      calc%maxerise = val !> optimization max E rise (Ha)
+
+    case('displ_opt','maxdispl')
+      calc%maxdispl_opt = val !> optimization step size/scaling
+ 
     case default
       return
     end select
@@ -444,8 +456,10 @@ contains !> MODULE PROCEDURES START HERE
     select case (key)
     case ('id','type')
       calc%id = val
+
     case ('maxcycle')
-      calc%maxcycle = val
+      calc%maxcycle = val  !> optimization max cycles
+
     case default
       return
     end select
@@ -462,13 +476,14 @@ contains !> MODULE PROCEDURES START HERE
       case ('mecp')
         calc%id = -1
       case default
-        calc%id = 1
+        calc%id = 0
       end select
     case ('elog')
       calc%elog = val
       calc%pr_energies = .true.
+
     case ('hess_update','hupdate')
-      select case (val)
+      select case (val) !> Hessian updates in geom. Opt.
       case ('bfgs')
         calc%iupdat = 0
       case ('powell')
@@ -482,6 +497,17 @@ contains !> MODULE PROCEDURES START HERE
       case default
         calc%iupdat = 0
       end select
+
+    case( 'opt','opt_engine','opt_algo' )
+      select case(val)
+      case( 'ancopt' ) 
+        calc%opt_engine = 0
+      case( 'lbfgs','l-bfgs' )
+        calc%opt_engine = 1
+      case( 'gd','gradient descent' )
+        calc%opt_engine = -1
+      end select
+
     case default
       return
     end select

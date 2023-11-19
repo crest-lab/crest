@@ -275,6 +275,7 @@ subroutine trialOPT_calculator(env)
   use crest_data
   use crest_calculator
   use optimize_module
+  use strucrd
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env

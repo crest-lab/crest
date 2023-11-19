@@ -18,11 +18,13 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/ancopt.f90"
+  "${dir}/gd.f90"
   "${dir}/hessupdate.f90"
   "${dir}/modelhessian.f90"
   "${dir}/optimize_maths.f90"
   "${dir}/optimize_module.f90"
   "${dir}/optimize_type.f90"
+  "${dir}/optutils.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)
