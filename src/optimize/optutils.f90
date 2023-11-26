@@ -136,6 +136,7 @@ contains  !> MODULE PROCEDURES START HERE
       calc%hlow_opt = max(calc%hlow_opt,0.250d0)
       calc%iupdat = 1
     end if
+
     return
   end subroutine get_optthr
 

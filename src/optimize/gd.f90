@@ -159,7 +159,7 @@ contains  !> MODULE PROCEDURES START HERE
       else
         write (*,chrfmt) "linear?           ",bool2string(linear)
       end if
-      write (*,scifmt) "energy convergence",ethr,"Eh  "
+      write (*,scifmt) "energy convergence",ethr,"Eh   "
       write (*,scifmt) "grad. convergence ",gthr,"Eh/a0"
       write (*,dblfmt) "max step size     ",maxdispl,"    "
 !      write (*,scifmt) "max energy rise   ",ethr,"Eh  "

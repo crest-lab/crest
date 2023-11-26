@@ -24,8 +24,8 @@
 ! identification of isomers
 !================================================================================!
 module zdata
-  use iso_fortran_env,wp => real64,dp => int64
-
+  !use iso_fortran_env,wp => real64,dp => int64
+  use crest_parameters
   implicit none
 
   public :: zatom

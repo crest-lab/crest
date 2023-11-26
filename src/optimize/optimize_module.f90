@@ -21,7 +21,7 @@
 !================================================================================!
 
 module optimize_module
-  use iso_fortran_env,only:wp => real64a
+  use iso_fortran_env,only:wp => real64
   use crest_parameters
   use crest_calculator
   use strucrd
