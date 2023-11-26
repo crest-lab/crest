@@ -204,7 +204,7 @@ module calc_type
     integer  :: optlev = 0
     integer  :: micro_opt = 20
     integer  :: maxcycle = 0
-    real(wp) :: maxdispl_opt = -1.0_wp
+    real(wp) :: maxdispl_opt = 1.0_wp
     real(wp) :: ethr_opt = -1.0_wp  !> ΔE convergence
     real(wp) :: gthr_opt = -1.0_wp  !> RMS force convergence
     real(wp) :: hlow_opt = 0.010_wp
@@ -270,7 +270,7 @@ contains  !>--- Module routines start here
     self%optlev = 0
     self%micro_opt = 20
     self%maxcycle = 0
-    self%maxdispl_opt = -1.0_wp
+    self%maxdispl_opt = 1.0_wp
     self%ethr_opt = -1.0_wp  !> ΔE convergence
     self%gthr_opt = -1.0_wp  !> RMS force convergence
     self%hlow_opt = 0.010_wp

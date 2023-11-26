@@ -113,7 +113,7 @@ contains  !> MODULE PROCEDURES START HERE
     nopt = mol%nat*3
     tight = calc%optlev
     call get_optthr(mol%nat,tight,calc,ethr,gthr)
-    if(calc%maxdispl_opt > 0.0_wp)then
+    if(calc%maxdispl_opt .ne. 1.0_wp)then
       maxdispl = calc%maxdispl_opt
     else
       maxdispl = real(mol%nat)

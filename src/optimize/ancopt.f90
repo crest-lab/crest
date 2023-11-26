@@ -125,13 +125,9 @@ contains  !> MODULE PROCEDURES START HERE
     modef = 0
     call get_optthr(mol%nat,tight,calc,ethr,gthr)
     iupdat = calc%iupdat
-    hlow = calc%hlow_opt !optset%hlow_opt !> 0.01 in ancopt, 0.002 too small
+    hlow = calc%hlow_opt !> 0.01 in ancopt, 0.002 too small
     hmax = calc%hmax_opt
-    !if(calc%maxdispl_opt > 0.0_wp)then
-    !  maxdispl = calc%maxdispl_opt !optset%maxdispl_opt
-    !else
-      maxdispl = 1.0_wp
-    !endif
+    maxdispl = calc%maxdispl_opt 
     s6 = mhset%s6 !> slightly better than 30 for various proteins
 
 !> initial number of steps in relax() routine before
