@@ -79,7 +79,7 @@ contains  !> MODULE PROCEDURES START HERE
   subroutine gfnff_sp(mol,ff_dat,energy,gradient,iostatus)
     implicit none
     !> INPUT
-    type(coord),intent(in)  :: mol
+    type(coord),intent(in) :: mol
     type(gfnff_data),allocatable,intent(inout) :: ff_dat
     !> OUTPUT
     real(wp),intent(out) :: energy

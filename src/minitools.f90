@@ -419,20 +419,20 @@ subroutine testtopo(fname,env,tmode)
     call isstereo(zmol)
 
   case ('back','backchain')
-   if(.not.allocated(Amat))then
-     allocate(Amat(zmol%nat,zmol%nat), source=0)
-   endif
-   if(.not.allocated(path)) allocate(path(zmol%nat), source=0)
-   call zmol%adjacency(Amat)
-   call backchain(zmol%nat,Amat,zmol%at,maxl,path)
-   open(newunit=ich,file='backchain.xyz')
-   write(ich,*) maxl
-   write(ich,*) 
-   do i=1,maxl
-     j=path(i)
-     write(ich,'(a,3F25.15)') i2e(mol%at(j)),mol%xyz(:,j)*autoaa     
-   enddo
-   close(ich)
+    if (.not.allocated(Amat)) then
+      allocate (Amat(zmol%nat,zmol%nat),source=0)
+    end if
+    if (.not.allocated(path)) allocate (path(zmol%nat),source=0)
+    call zmol%adjacency(Amat)
+    call backchain(zmol%nat,Amat,zmol%at,maxl,path)
+    open (newunit=ich,file='backchain.xyz')
+    write (ich,*) maxl
+    write (ich,*)
+    do i = 1,maxl
+      j = path(i)
+      write (ich,'(a,3F25.15)') i2e(mol%at(j)),mol%xyz(:,j)*autoaa
+    end do
+    close (ich)
 
   end select
   deallocate (xyz)
@@ -774,56 +774,55 @@ subroutine backchain(nat,A,at,maxl,path)
 !* path between two heavy (i.e. non-Hydrogen) atoms
 !* that is walkable in the molecular graph
 !*****************************************************
-   use crest_parameters
-   use adjacency
-   implicit none
-   integer,intent(in) :: nat
-   integer,intent(in) :: A(nat,nat)
-   integer,intent(in) :: at(nat)
-   integer,intent(out) :: maxl
-   integer,intent(out) :: path(nat)
-   !> LOCAL
-   real(wp),allocatable :: dist(:,:)
-   integer,allocatable :: prev(:,:)
+  use crest_parameters
+  use adjacency
+  implicit none
+  integer,intent(in) :: nat
+  integer,intent(in) :: A(nat,nat)
+  integer,intent(in) :: at(nat)
+  integer,intent(out) :: maxl
+  integer,intent(out) :: path(nat)
+  !> LOCAL
+  real(wp),allocatable :: dist(:,:)
+  integer,allocatable :: prev(:,:)
 
-   integer :: i,j,k,l
-   integer :: maxi,maxj
+  integer :: i,j,k,l
+  integer :: maxi,maxj
 
-   !call wbo2adjacency(nat,wbo,A,0.02_wp)
+  !call wbo2adjacency(nat,wbo,A,0.02_wp)
 
-   allocate(dist(nat,nat), source=0.0_wp)
-   allocate(prev(nat,nat), source=0)
-   call FloydWarshall_simple(nat,A,dist,prev)
+  allocate (dist(nat,nat),source=0.0_wp)
+  allocate (prev(nat,nat),source=0)
+  call FloydWarshall_simple(nat,A,dist,prev)
 
-   !allocate(path(nat), source=0)
-   maxl = 0
-   maxi = 0
-   maxj = 0
-   do i=1,nat
-     if(at(i) == 1) cycle !> no H
-     do j=1,i-1
-     if(at(j) == 1) cycle !> no H
-     path = 0
-     call getPathFW(nat,prev,i,j,path,l)
-     if( l > maxl ) then
+  !allocate(path(nat), source=0)
+  maxl = 0
+  maxi = 0
+  maxj = 0
+  do i = 1,nat
+    if (at(i) == 1) cycle !> no H
+    do j = 1,i-1
+      if (at(j) == 1) cycle !> no H
+      path = 0
+      call getPathFW(nat,prev,i,j,path,l)
+      if (l > maxl) then
         maxi = i
         maxj = j
         maxl = l
-     endif
-     enddo
-  enddo
+      end if
+    end do
+  end do
 
-  write(*,'(a,i0,a,i0,a,i0)') 'Longest chain identified between atoms ',maxi,' and ', &
+  write (*,'(a,i0,a,i0,a,i0)') 'Longest chain identified between atoms ',maxi,' and ', &
   & maxj,' with a length of ',maxl
   path = 0
   call getPathFW(nat,prev,maxi,maxj,path,maxl)
 
-  do i=maxl,1,-1
-    write(*,*) path(i)
-  enddo
+  do i = maxl,1,-1
+    write (*,*) path(i)
+  end do
 
 end subroutine backchain
-
 
 !=========================================================================================!
 !=========================================================================================!

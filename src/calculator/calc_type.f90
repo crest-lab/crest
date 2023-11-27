@@ -717,6 +717,12 @@ contains  !>--- Module routines start here
 
         !> ALWAYS set the weight of ONIOM calcs to 0!
         self%calcs(newid)%weight = 0.0_wp
+
+        !> Check if the ONIOM fragment has a charge attached!
+        if(allocated(self%ONIOM%fragment(i)%chrg))then
+          self%calcs(newid)%chrg = self%ONIOM%fragment(i)%chrg
+        endif 
+
       end do
     end do
     self%ONIOM%calcids = newids
@@ -805,8 +811,6 @@ contains  !>--- Module routines start here
     write (atmp,*) 'Read dipoles?'
     if (self%rddip) write (iunit,fmt3) atmp,'yes'
 
-    write (atmp,*) 'Weight'
-    write (iunit,fmt2) atmp,self%weight
 
     if(self%ONIOM_highlowroot /= 0)then
       select case(self%ONIOM_highlowroot)
@@ -818,6 +822,9 @@ contains  !>--- Module routines start here
       write (atmp,*) 'ONIOM frag ("root")'
       end select
       write (iunit,fmt1) trim(atmp),self%ONIOM_id
+    else
+      write (atmp,*) 'Weight'
+      write (iunit,fmt2) atmp,self%weight
     endif
 
   end subroutine calculation_settings_info
