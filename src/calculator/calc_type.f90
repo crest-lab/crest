@@ -224,7 +224,7 @@ module calc_type
     logical :: pr_energies = .false.
     integer :: eout_unit = stdout
     character(len=:),allocatable :: elog
-
+    
 !>--- ONIOM calculator data
     type(lwoniom_data),allocatable :: ONIOM
     type(coord),allocatable :: ONIOMmols(:)

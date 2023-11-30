@@ -1133,3 +1133,23 @@ subroutine wrGUIpercent(current,maxv,interval)
   return
 end subroutine wrGUIpercent
 
+!=======================================================================================!
+
+subroutine print_frozen(env)
+   use crest_parameters
+   use crest_data
+   implicit none
+   type(systemdata) :: env
+   integer :: i
+   if( env%calc%nfreeze > 0 .and. allocated(env%calc%freezelist))then
+     write(stdout,'(/,a)') repeat('-',50)
+     write(stdout,'(a)') ' FROZEN ATOMS:'
+     do i=1,env%ref%nat
+       if(env%calc%freezelist(i))then
+       write(stdout,'(1x,i0)',advance='no') i
+       endif 
+     enddo
+     write(stdout,'(/,a)') repeat('-',50)
+   endif
+end subroutine print_frozen
+

@@ -301,7 +301,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
         write (atmp,'(1x,"Etot=",f16.10,1x,"g norm=",f12.8)') energy,gnorm
         molsnew(job)%comment = trim(atmp)
         call molsnew(job)%append(ich)
-        call calc_eprint(calculations(job),energy,calculations(job)%etmp,ich2)
+        call calc_eprint(calculations(job),energy,calculations(job)%etmp,gnorm,ich2)
       end if
       eread(zcopy) = energy
       xyz(:,:,zcopy) = molsnew(job)%xyz(:,:)

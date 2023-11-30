@@ -2180,6 +2180,10 @@ subroutine parseflags(env,arg,nra)
     !stop 'ONIOM read'
   endif
 
+!>--- important printouts
+  if( .not.env%legacy)then
+    call print_frozen(env)
+  endif
 
   return
 end subroutine parseflags

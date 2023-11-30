@@ -274,6 +274,7 @@ module crest_data
   contains
     procedure :: rdcharges => read_charges
     procedure :: to => ref_to_mol
+    procedure :: load => ref_load_mol
   end type refdata
 
 !========================================================================================!
@@ -807,6 +808,18 @@ contains  !> MODULE PROCEDURES START HERE
     mol%uhf = self%uhf
     return
   end subroutine ref_to_mol
+
+  subroutine ref_load_mol(self,mol)
+    implicit none
+    class(refdata) :: self
+    type(coord) :: mol
+    self%nat    = mol%nat 
+    self%at     = mol%at  
+    self%xyz    = mol%xyz 
+    self%ichrg  = mol%chrg
+    self%uhf    = mol%uhf 
+    return
+  end subroutine ref_load_mol
 
 !========================================================================================!
 !========================================================================================!

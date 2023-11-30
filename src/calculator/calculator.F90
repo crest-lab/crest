@@ -90,7 +90,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(out) :: iostatus
     integer :: i,j,k,l,n,io,nocc
     real(wp) :: dum1,dum2
-    real(wp) :: efix
+    real(wp) :: efix,gnorm
     type(coord),pointer :: molptr
     integer :: pnat
     logical :: useONIOM
@@ -237,8 +237,10 @@ contains  !> MODULE PROCEDURES START HERE
         !>--- constraints (see below) will be applied, however.
       end select
 
+      gnorm = norm2(gradient)
+
       !>--- printout (to file or stdout)
-      call calc_eprint(calc,energy,calc%etmp)
+      call calc_eprint(calc,energy,calc%etmp,gnorm)
     end if
 
 !**********************************************
@@ -629,11 +631,12 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine constrhess
 
 !==========================================================================================!
-  subroutine calc_print_energies(calc,energy,energies,chnl)
+  subroutine calc_print_energies(calc,energy,energies,gnorm,chnl)
     implicit none
     type(calcdata),intent(inout) :: calc
     real(wp),intent(in) :: energy
     real(wp),intent(in) :: energies(:)
+    real(wp),intent(in) :: gnorm
     integer,intent(in),optional :: chnl
     integer :: i,j,l
     character(len=20) :: atmp
@@ -651,6 +654,8 @@ contains  !> MODULE PROCEDURES START HERE
       write (atmp,'(f20.12)') energies(i)
       btmp = btmp//atmp
     end do
+    write(atmp,'(e20.5)') gnorm
+    btmp = btmp//atmp
     if (present(chnl)) then
       write (chnl,'(a)') btmp
     else

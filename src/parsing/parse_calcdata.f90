@@ -30,6 +30,7 @@ module parse_calcdata
   use dynamics_module
   use gradreader_module,only:gradtype,conv2gradfmt
   use tblite_api,only:xtblvl
+  use strucrd, only: get_atlist
 
   use parse_block,only:datablock
   use parse_keyvalue,only:keyvalue,valuetypes
@@ -83,8 +84,9 @@ contains !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
-  subroutine parse_calculation_data(calc,dict,included)
+  subroutine parse_calculation_data(env,calc,dict,included)
     implicit none
+    type(systemdata) :: env
     type(calcdata) :: calc
     type(root_object) :: dict
     type(datablock) :: blk
@@ -101,7 +103,7 @@ contains !> MODULE PROCEDURES START HERE
       blk = dict%blk_list(i)
       if (blk%header == 'calculation') then
         included = .true.
-        call parse_calcdat(blk,calc)
+        call parse_calcdat(env,blk,calc)
 
       else if (blk%header == 'calculation.level') then
         call parse_leveldata(blk,newjob)
@@ -127,7 +129,7 @@ contains !> MODULE PROCEDURES START HERE
         included = .true.
 
       else if (blk%header == 'calculation.constraints') then
-        call parse_constraintdat(blk,calc)
+        call parse_constraintdat(env,blk,calc)
         included = .true.
 
       else if (blk%header == 'calculation.scans') then
@@ -399,34 +401,37 @@ contains !> MODULE PROCEDURES START HERE
 !> The following routines are used to
 !> read information into the "calcdata" object
 !>---------------------------------------------------------
-  subroutine parse_calcdat(blk,calc)
+  subroutine parse_calcdat(env,blk,calc)
     implicit none
+    type(systemdata),intent(inout) :: env 
     type(datablock),intent(in) :: blk
     type(calcdata),intent(inout) :: calc
     integer :: i
     if (blk%header .ne. 'calculation') return
     do i = 1,blk%nkv
-      call parse_calc(calc,blk%kv_list(i))
+      call parse_calc(env,calc,blk%kv_list(i))
     end do
     return
   end subroutine parse_calcdat
-  subroutine parse_calc_auto(calc,kv)
+  subroutine parse_calc_auto(env,calc,kv)
     implicit none
+    type(systemdata),intent(inout) :: env
     type(calcdata) :: calc
     type(keyvalue) :: kv
     select case (kv%id)
     case (1) !> float
-      call parse_calc(calc,kv%key,kv%value_f)
+      call parse_calc(env,calc,kv%key,kv%value_f)
     case (2) !> int
-      call parse_calc(calc,kv%key,kv%value_i)
+      call parse_calc(env,calc,kv%key,kv%value_i)
     case (3) !> bool
-      call parse_calc(calc,kv%key,kv%value_b)
+      call parse_calc(env,calc,kv%key,kv%value_b)
     case (4) !> string
-      call parse_calc(calc,kv%key,kv%value_c)
+      call parse_calc(env,calc,kv%key,kv%value_c)
     end select
   end subroutine parse_calc_auto
-  subroutine parse_calc_float(calc,key,val)
+  subroutine parse_calc_float(env,calc,key,val)
     implicit none
+    type(systemdata),intent(inout) :: env
     type(calcdata) :: calc
     character(len=*) :: key
     real(wp) :: val
@@ -448,8 +453,9 @@ contains !> MODULE PROCEDURES START HERE
     end select
     return
   end subroutine parse_calc_float
-  subroutine parse_calc_int(calc,key,val)
+  subroutine parse_calc_int(env,calc,key,val)
     implicit none
+    type(systemdata),intent(inout) :: env 
     type(calcdata) :: calc
     character(len=*) :: key
     integer :: val
@@ -465,11 +471,13 @@ contains !> MODULE PROCEDURES START HERE
     end select
     return
   end subroutine parse_calc_int
-  subroutine parse_calc_c(calc,key,val)
+  subroutine parse_calc_c(env,calc,key,val)
     implicit none
+    type(systemdata),intent(inout) :: env
     type(calcdata) :: calc
     character(len=*) :: key
     character(len=*) :: val
+    logical,allocatable :: atlist(:)
     select case (key)
     case ('type')
       select case (val)
@@ -508,13 +516,19 @@ contains !> MODULE PROCEDURES START HERE
         calc%opt_engine = -1
       end select
 
+    case( 'freeze' )
+        call get_atlist(env%ref%nat,atlist,val,env%ref%at)
+        calc%nfreeze = count(atlist)
+        call move_alloc(atlist,calc%freezelist)
+
     case default
       return
     end select
     return
   end subroutine parse_calc_c
-  subroutine parse_calc_bool(calc,key,val)
+  subroutine parse_calc_bool(env,calc,key,val)
     implicit none
+    type(systemdata),intent(inout) :: env
     type(calcdata) :: calc
     character(len=*) :: key
     logical :: val
@@ -532,19 +546,28 @@ contains !> MODULE PROCEDURES START HERE
 !> read information into the "constraint" object
 !> and add it to a calculation data object
 !>---------------------------------------------------------
-  subroutine parse_constraintdat(blk,calc)
+  subroutine parse_constraintdat(env,blk,calc)
     implicit none
+    type(systemdata),intent(inout) :: env
     type(datablock),intent(in) :: blk
     type(calcdata),intent(inout) :: calc
     logical :: success
     type(constraint) :: constr
     integer :: i
+    logical,allocatable :: atlist(:)
     if (blk%header .ne. 'calculation.constraints') return
     do i = 1,blk%nkv
       call parse_constraint_auto(constr,blk%kv_list(i),success)
       if (success) then
         call calc%add(constr)
       end if
+
+      select case(blk%kv_list(i)%key)
+      case( 'freeze' )
+        call get_atlist(env%ref%nat,atlist,blk%kv_list(i)%rawvalue,env%ref%at)
+        calc%nfreeze = count(atlist)
+        call move_alloc(atlist,calc%freezelist)
+      end select 
     end do
     return
   end subroutine parse_constraintdat

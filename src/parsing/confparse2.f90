@@ -90,7 +90,7 @@ subroutine parseinputfile(env,fname)
 
 !>--- check objects for a calculation setup
 !     i.e., all [calculation] and [[calculation.*]] blocks
-  call parse_calculation_data(newcalc,dict,l1)
+  call parse_calculation_data(env,newcalc,dict,l1)
   if (l1) then
     env%calc = newcalc
     call env_calcdat_specialcases(env)

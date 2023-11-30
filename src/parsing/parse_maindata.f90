@@ -27,6 +27,7 @@ module parse_maindata
   !> modules for data storage in crest
   use crest_data
   use crest_restartlog
+  use strucrd, only: coord
   !> modules used for parsing the root_object
   !>
   use parse_keyvalue,only:keyvalue,valuetypes
@@ -90,6 +91,7 @@ contains   !> MODULE PROCEDURES START HERE
     type(systemdata) :: env
     character(len=*) :: key
     character(len=*) :: val
+    type(coord) :: mol
     select case (key)
     case ('bin','binary')
       env%ProgName = val
@@ -163,8 +165,11 @@ contains   !> MODULE PROCEDURES START HERE
     case ('ensemble_input','ensemble','input_ensemble')
       env%ensemblename = val
       env%inputcoords = val
-    case ('input')
+    case ('input','structure')
       env%inputcoords = val
+      call mol%open(val)
+      call env%ref%load(mol)
+
     case ('constraints','xtbconstraints','xtbinput') !> equivalent to --cinp
       env%constraints = val
     case ('rigidconf_file')
