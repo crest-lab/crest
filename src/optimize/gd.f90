@@ -98,14 +98,6 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: modef
     logical :: ex,converged,linear,econverged,gconverged,lowered
     real(wp) :: esave
-    character(len=*),parameter :: scifmt = &
-                                  '(10x,"│",3x,a,e21.7,1x,a,1x,"│")'
-    character(len=*),parameter :: dblfmt = &
-                                  '(10x,"│",3x,a,f18.7,5x,a,1x,"│")'
-    character(len=*),parameter :: intfmt = &
-                                  '(10x,"│",3x,a,i18,      10x,"│")'
-    character(len=*),parameter :: chrfmt = &
-                                  '(10x,"│",3x,a,a18,      10x,"│")'
 
     iostatus = 0
     if (mol%nat .eq. 1) return
@@ -145,28 +137,12 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- print a summary of settings, if desired
     if (pr) then
-      write (*,'(/,10x,"┍",49("━"),"┑")')
-      write (*,'(10x,"│",11x,a,11x,"│")') "GEOMETRY OPTIMIZATION SETUP"
-      write (*,'(10x,"┝",49("━"),"┥")')
-      write (*,chrfmt) "algorithm         ","Gradient Descent"
-      write (*,intfmt) "optimization level",tight
-      write (*,intfmt) "max. optcycles    ",maxcycle
-      write (*,intfmt) "degrees of freedom",nvar
-      write (*,'(10x,"├",49("─"),"┤")')
-      write (*,chrfmt) "write crestopt.log",bool2string(wr)
-      if (linear) then
-        write (*,chrfmt) "linear (good luck)",bool2string(linear)
-      else
-        write (*,chrfmt) "linear?           ",bool2string(linear)
-      end if
-      write (*,scifmt) "energy convergence",ethr,"Eh   "
-      write (*,scifmt) "grad. convergence ",gthr,"Eh/a0"
-      write (*,dblfmt) "max step size     ",maxdispl,"    "
-!      write (*,scifmt) "max energy rise   ",ethr,"Eh  "
-      write (*,'(10x,"└",49("─"),"┘")')
+      call print_optsummary(calc,tight,nvar,maxcycle,maxmicro, &
+      &                       ethr,gthr,linear,wr)
     end if
 
-!>--- initialize anc object
+
+!>--- initialize storage
     !$omp critical
     allocate (molopt%at(mol%nat),molopt%xyz(3,mol%nat))
     allocate (displ(3,mol%nat),ddispl(3,mol%nat))
@@ -290,7 +266,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- check convergence
         if (pr) then
-          write (*,'(3x,"converged δE/grad :",1x,l," /",l)') econverged,gconverged
+          call print_convd(econverged,gconverged)
         end if
         if (converged) then
           converged = .true.

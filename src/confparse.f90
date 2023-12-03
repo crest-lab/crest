@@ -61,6 +61,7 @@ subroutine parseflags(env,arg,nra)
   integer :: ctype
   logical :: ex,bondconst
   character(len=:),allocatable :: argument
+  logical,external :: isatty
 
   allocate (xx(10),floats(3),strings(3))
   ctmp = ''
@@ -2114,6 +2115,11 @@ subroutine parseflags(env,arg,nra)
   if (.not.env%preopt) then
     if (allocated(env%ref%topo)) deallocate (env%ref%topo)
   end if
+
+!>-- turn off niceprint if we are not writing to terminal
+  if(env%niceprint)then
+    env%niceprint = isatty(output_unit)
+  endif
 
 !>-- driver for optimization along trajectory, additional settings
   if (.not.any((/crest_mfmdgc,crest_imtd,crest_imtd2,crest_compr/) == env%crestver) &

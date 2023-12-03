@@ -20,6 +20,9 @@
 ! under the Open-source software LGPL-3.0 Licencse.
 !================================================================================!
 
+!> This module wrapps the different optimization algorithms, 
+!> i.e., this is what can be called for geometry opt.
+
 module optimize_module
   use iso_fortran_env,only:wp => real64
   use crest_parameters
@@ -97,10 +100,16 @@ contains  !> MODULE PROCEDURES START HERE
 
     write (ich,'(1x,a)',advance='no') 'Optimization engine: '
     select case (calc%opt_engine)
+    case ( 0)
+      write (ich,'(a)') 'ANCOPT'
+    case ( 1)
+      write (ich,'(a)') 'L-BFGS'
+    case ( 2)
+      write (ich,'(a)') 'RFO'
     case (-1)
       write (ich,'(a)') 'Gradient Descent'
     case default
-      write (ich,'(a)') 'ANCOPT'
+      write(ich,'(a)') 'Unknown'
     end select
     if (calc%opt_engine >= 0) then
       write (ich,'(1x,a)',advance='no') 'Hessian update type: '

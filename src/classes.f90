@@ -853,6 +853,8 @@ contains  !> MODULE PROCEDURES START HERE
     if (index(flag,'tight') .ne. 0) optlev = 1.0d0
     if (index(flag,'verytight') .ne. 0) optlev = 2.0d0
     if (index(flag,'vtight') .ne. 0) optlev = 2.0d0
+    if (index(flag,'extreme') .ne. 0) optlev = 3.0d0 
+    if (index(flag,'3') .ne. 0) optlev = 3.0d0
     if (index(flag,'2') .ne. 0) optlev = 2.0d0
     if (index(flag,'1') .ne. 0) optlev = 1.0d0
     if (index(flag,'0') .ne. 0) optlev = 0.0d0

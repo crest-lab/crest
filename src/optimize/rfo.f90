@@ -20,11 +20,10 @@
 ! under the Open-source software LGPL-3.0 Licencse.
 !================================================================================!
 
-!> This module implements a standard RFO algorithm
+!> This module implements a standard RFO algorithm (in Cart. coords)
 
 module rfo_module
   use iso_fortran_env, only: wp=>real64, sp=>real32
-  !use crest_parameters
   use crest_calculator
   use axis_module
   use strucrd
@@ -122,14 +121,6 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),external :: ddot
     real(sp),external :: sdot
 
-    character(len=*),parameter :: scifmt = &
-                                  '(10x,"│",3x,a,e22.7,1x,a,1x,"│")'
-    character(len=*),parameter :: dblfmt = &
-                                  '(10x,"│",3x,a,f18.7,5x,a,1x,"│")'
-    character(len=*),parameter :: intfmt = &
-                                  '(10x,"│",3x,a,i18,      10x,"│")'
-    character(len=*),parameter :: chrfmt = &
-                                  '(10x,"│",3x,a,a18,      10x,"│")'
 
     iostatus = 0
     fail = .false.
@@ -177,47 +168,8 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- print a summary of settings, if desired
     if (pr) then
-      write (*,'(/,10x,"┍",49("━"),"┑")')
-      write (*,'(10x,"│",11x,a,11x,"│")') "GEOMETRY OPTIMIZATION SETUP"
-      write (*,'(10x,"┝",49("━"),"┥")')
-      write (*,chrfmt) "algorithm         ","Rational Function"
-      write (*,intfmt) "optimization level",tight
-      write (*,intfmt) "max. optcycles    ",maxcycle
-      write (*,intfmt) "degrees of freedom",nvar
-      if (modef > 0) then
-        write (*,intfmt) "# mode follow     ",modef
-      end if
-      write (*,'(10x,"├",49("─"),"┤")')
-      if (calc%exact_rf) then
-        write (*,chrfmt) "RF solver         ","spevx"
-      else
-        write (*,chrfmt) "RF solver         ","davidson"
-      end if
-      select case (iupdat)
-      case (0)
-        write (*,chrfmt) "Hessian update    ","bfgs"
-      case (1)
-        write (*,chrfmt) "Hessian update    ","powell"
-      case (2)
-        write (*,chrfmt) "Hessian update    ","sr1"
-      case (3)
-        write (*,chrfmt) "Hessian update    ","bofill"
-      case (4)
-        write (*,chrfmt) "Hessian update    ","schlegel"
-      end select
-      write (*,chrfmt) "write crestopt.log",bool2string(wr)
-      if (linear) then
-        write (*,chrfmt) "linear (good luck)",bool2string(linear)
-      else
-        write (*,chrfmt) "linear?           ",bool2string(linear)
-      end if
-      write (*,scifmt) "energy convergence",ethr,"Eh  "
-      write (*,scifmt) "grad. convergence ",gthr,"Eh/α"
-      write (*,dblfmt) "maximium RF displ.",maxdispl,"    "
-      !write (*,scifmt) "Hlow (freq-cutoff)",hlow,"    "
-      !write (*,dblfmt) "Hmax (freq-cutoff)",hmax,"    "
-      !write (*,dblfmt) "S6 in model hess. ",s6,"    "
-      write (*,'(10x,"└",49("─"),"┘")')
+      call print_optsummary(calc,tight,nvar,maxcycle,maxmicro, &
+      &                       ethr,gthr,linear,wr)
     end if
 
 !>--- initialize OPT object
@@ -331,8 +283,8 @@ contains  !> MODULE PROCEDURES START HERE
       if (pr) then
         write (*,'(" * total energy  :",f14.7,1x,"Eh")',advance='no') energy
         write (*,'(5x,"change ΔE",e18.7,1x,"Eh")') echng
-        write (*,'(3x,"gradient norm :",f14.7,1x,"Eh/α")',advance='no') gnorm
-        write (*,'(3x,"predicted",e18.7)',advance='no') depred
+        write (*,'(3x,"gradient norm :",f14.7,1x,"Eh/a0")',advance='no') gnorm
+        write (*,'(2x,"predicted",e18.7)',advance='no') depred
         if (iter > 1) then
           dummy = (depred-echng)/echng*100.0_wp
           if (abs(dummy) < 1000.0_wp) then
@@ -345,15 +297,18 @@ contains  !> MODULE PROCEDURES START HERE
         end if
       end if
 
+!>--- dynamic scaling in dependence of grad norm
+!>--- if we are close to convergence we can take larger steps
+      alp = 1.0d-1
       if (gnorm .lt. 0.002) then ! 0.002
-        alp = 1.5d0 ! 1.5
-      elseif (gnorm .lt. 0.0006) then
-        alp = 2.0d0 ! 2
-      elseif (gnorm .lt. 0.0003) then
-        alp = 3.0d0 ! 3
-      else
-        alp = 1.0d0
-      end if
+        alp = 1.5d-1 ! 1.5
+      endif
+      if (gnorm .lt. 0.0006) then
+        alp = 2.0d-1 ! 2
+      endif
+      if (gnorm .lt. 0.0003) then
+        alp = 3.0d-1 ! 3
+      endif
 
 !>------------------------------------------------------------------------
 !> Update the Hessian
@@ -451,7 +406,7 @@ contains  !> MODULE PROCEDURES START HERE
       lowered = echng .lt. 0.0_wp
       converged = econverged.and.gconverged.and.lowered
       if (pr) then
-        write (*,'(3x,"converged δE/grad :",1x,l," /",l)') econverged,gconverged
+        call print_convd(econverged,gconverged)
       end if
       if (converged) then
         converged = .true.
@@ -522,294 +477,6 @@ contains  !> MODULE PROCEDURES START HERE
 
     return
   end subroutine rfopt
-
-!========================================================================================!
-
-!  subroutine relax(mol,calc,OPT,iter,maxmicro,etot,grd,  &
-!            &      ethr,gthr,converged,                  &
-!            &      pr,wr,ilog,iostatus,avconv)
-!!*********************************************************
-!!* subroutine relax
-!!*
-!!* Implements the microiteration relaxation cycles, i.e.,
-!!* the update steps and diagonalizations between the
-!!* new ANC generation.
-!!*********************************************************
-!    implicit none
-!
-!    type(coord) :: mol
-!    type(calcdata) :: calc
-!    type(optimizer) :: OPT
-!    integer,intent(inout) :: iter
-!    integer,intent(in)    :: maxmicro
-!    real(wp),intent(inout) :: etot
-!    real(wp),intent(inout) :: grd(3,mol%nat)
-!    real(wp),intent(in) :: ethr
-!    real(wp),intent(in) :: gthr
-!    logical,intent(in) :: pr
-!    logical,intent(in) :: wr
-!    integer,intent(in) :: ilog
-!    logical,intent(out) :: converged
-!    integer,intent(out) :: iostatus
-!    type(convergence_log),intent(inout),optional :: avconv
-!
-!    integer :: maxiter
-!    integer :: iupdat
-!
-!    real(wp) :: et
-!    real(wp) :: egap
-!    real(wp) :: acc_in
-!
-!    logical :: exact
-!    integer :: nvar1,npvar,npvar1
-!    logical :: fail
-!    logical :: econverged
-!    logical :: gconverged
-!    logical :: lowered
-!    integer :: i,j,ii,jj,jjj,iii,k,lwork,info,m,idum,imax(3)
-!    real(wp) :: energy,dsnrm,maxdispl,t0,w0,t1,w1
-!    real(wp) :: lambda,gnorm,dnorm,ddot,eold,xdum,estart,acc,e_in
-!    real(wp) :: depred,echng,dummy,maxd,alp,gchng,gnold
-!    real(wp),allocatable :: gold(:)
-!    real(wp),allocatable :: displ(:),gint(:)
-!    real(sp),allocatable :: eaug(:)
-!    real(sp),allocatable :: Uaug(:,:)
-!    real(sp),allocatable :: Aaug(:)
-!    real(sp),parameter :: r4dum = 1.e-8
-!    !> LAPACK & BLAS
-!    external :: dgemv
-!    real(sp),external :: sdot
-!
-!    iostatus = 0
-!
-!    !$omp critical
-!    allocate (gold(OPT%nvar),displ(OPT%nvar),gint(OPT%nvar),source=0.0_wp)
-!
-!    gnorm = 0.0_wp
-!    depred = 0.0_wp
-!    echng = 0.0_wp
-!    maxdispl = calc%maxdispl_opt
-!    acc_in = calc%acc_opt
-!    energy = etot
-!    e_in = etot
-!    alp = 1.0_wp
-!    converged = .false.
-!    exact = calc%exact_rf
-!    iupdat = calc%iupdat
-!
-!    nvar1 = OPT%nvar+1         !> dimension of RF calculation
-!    npvar = OPT%nvar*(nvar1)/2 !> packed size of Hessian (note the abuse of nvar1!)
-!    npvar1 = nvar1*(nvar1+1)/2 !> packed size of augmented Hessian
-!    allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1))
-!    !$omp end critical
-!
-!!! ========================================================================
-!    main_loop: do ii = 1,maxmicro
-!!! ========================================================================
-!      iter = iter+1
-!      if (pr) call print_optiter(iter)
-!      gold = gint
-!      gnold = gnorm
-!      eold = energy
-!!>--- calc predicted energy change based on E = E0 + delta * G + delta^2 * H
-!      if (ii > 1) then
-!        call prdechng(OPT%nvar,gold,displ,OPT%hess,depred)
-!      end if
-!
-!!>------------------------------------------------------------------------
-!!>--- SINGLEPOINT CALCULATION
-!!>------------------------------------------------------------------------
-!      grd = 0.0_wp
-!      call engrad(mol,calc,energy,grd,iostatus)
-!      if (iostatus .ne. 0) then
-!        fail = .true.
-!        exit main_loop
-!      end if
-!      gnorm = norm2(grd)
-!!>------------------------------------------------------------------------
-!
-!!>--- dump to .log file
-!      if (wr) then
-!        call mol%appendlog(ilog,energy)
-!      end if
-!
-!      if (gnorm .gt. 500.0_wp) then
-!        if (pr) write (*,*) '|grad| > 500, something is totally wrong!'
-!        fail = .true.
-!        iostatus = -1
-!        exit main_loop
-!      end if
-!
-!      !if (present(avconv)) then
-!      !  call avconv%set_eg_log(energy,gnorm)
-!      !  energy = avconv%get_averaged_energy()
-!      !  gnorm = avconv%get_averaged_gradient()
-!      !  if (pr) then
-!      !    write (*,'("av. E:",1x,f14.7,1x,"->",1x,f14.7)') &
-!      !      avconv%elog(avconv%nlog),energy
-!      !    write (*,'("av. G:",1x,f14.7,1x,"->",1x,f14.7)') &
-!      !      avconv%glog(avconv%nlog),gnorm
-!      !  end if
-!      !end if
-!
-!!>--- check for convergence
-!      gchng = gnorm-gnold
-!      echng = energy-eold
-!      econverged = abs(echng) .lt. ethr
-!      gconverged = gnorm .lt. gthr
-!      lowered = echng .lt. 0.0_wp
-!
-!!>--- optimization step printout
-!      if (pr) then
-!        write (*,'(" * total energy  :",f14.7,1x,"Eh")',advance='no') energy
-!        write (*,'(5x,"change ΔE",e18.7,1x,"Eh")') echng
-!        write (*,'(3x,"gradient norm :",f14.7,1x,"Eh/α")',advance='no') gnorm
-!        write (*,'(3x,"predicted",e18.7)',advance='no') depred
-!        if (ii > 1) then
-!          dummy = (depred-echng)/echng*100.0_wp
-!          if (abs(dummy) < 1000.0_wp) then
-!            write (*,'(1x,"("f7.2"%)")') dummy
-!          else
-!            write (*,'(1x,"(*******%)")')
-!          end if
-!        else
-!          write (*,'(1x,"("f7.2"%)")')-100.0_wp
-!        end if
-!      end if
-!
-!      if (gnorm .lt. 0.002) then ! 0.002
-!        alp = 1.5d0 ! 1.5
-!      elseif (gnorm .lt. 0.0006) then
-!        alp = 2.0d0 ! 2
-!      elseif (gnorm .lt. 0.0003) then
-!        alp = 3.0d0 ! 3
-!      else
-!        alp = 1.0d0
-!      end if
-!
-!!>------------------------------------------------------------------------
-!!> Update the Hessian
-!!>------------------------------------------------------------------------
-!      if (ii .gt. 1) then
-!!>--- Hessian update, but only after first iteration (ii > 1)
-!        select case (iupdat)
-!        case (0)
-!          call bfgs(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
-!        case (1)
-!          call powell(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
-!        case (2)
-!          call sr1(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
-!        case (3)
-!          call bofill(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
-!        case (4)
-!          call schlegel(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
-!        case default
-!          write (*,*) 'invalid hessian update selection'
-!          stop
-!        end select
-!      end if
-!
-!!>------------------------------------------------------------------------
-!!>  rational function (RF) method
-!!>------------------------------------------------------------------------
-!!>  To get initial guess for the displacement solve this:
-!!>  (Note: SINGLE PRECISION accuracy, there are some typecasts!)
-!!>
-!!>   ⎛ H  g ⎞ ⎛ dx ⎞     ⎛ dx ⎞
-!!>   ⎝ g  0 ⎠ ⎝  1 ⎠ = λ ⎝  1 ⎠
-!!>     Aaug    Uaug       Uaug
-!
-!!>--- first, augment Hessian by gradient, everything packed, no blowup
-!      Aaug(1:npvar) = real(OPT%hess(1:npvar),sp)
-!      Aaug(npvar+1:npvar1-1) = real(gint(1:OPT%nvar),sp)
-!      Aaug(npvar1) = 0.0_sp
-!
-!!>--- choose solver
-!      if (exact.or.nvar1 .lt. 50) then
-!        call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
-!      else
-!        !>--- steepest decent guess for displacement
-!        if (ii .eq. 1) then
-!          Uaug(:,1) = [-real(gint(1:OPT%nvar),sp),1.0_sp]
-!          dsnrm = sqrt(sdot(nvar1,Uaug,1,Uaug,1))
-!          Uaug = Uaug/real(dsnrm,sp)
-!        end if
-!        call solver_sdavidson(nvar1,r4dum,Aaug,Uaug,eaug,fail,.false.)
-!        !>--- if that failed, retry with better solver
-!        if (fail) then
-!          call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
-!        end if
-!      end if
-!
-!!>--- divide by last element(=λ) to get the displacement vector dx
-!      if (fail.or.abs(Uaug(nvar1,1)) .lt. 1.e-10) then
-!        if (pr) write (*,*) "internal rational function error"
-!        iostatus = -1
-!        exit main_loop
-!      end if
-!      displ(1:OPT%nvar) = Uaug(1:OPT%nvar,1)/Uaug(nvar1,1)
-!
-!!>--- maybe more consistent version is to rescale displacement
-!      maxd = alp*sqrt(ddot(OPT%nvar,displ,1,displ,1))
-!      if (maxd > maxdispl) then
-!        if (pr) write (*,'(" * rescaling step by",f14.7)') maxdispl/maxd
-!        displ = maxdispl*displ/maxd
-!      end if
-!
-!!>--- now some output
-!      dsnrm = sqrt(ddot(OPT%nvar,displ,1,displ,1))
-!      if (pr) then
-!        !> this array is currently not used and will be overwritten in next step
-!        gold = abs(displ)
-!        imax(1) = maxloc(gold,1); gold(imax(1)) = 0.0_wp
-!        imax(2) = maxloc(gold,1); gold(imax(2)) = 0.0_wp
-!        imax(3) = maxloc(gold,1)
-!        write (*,'(3x,"displ. norm   :",f14.7,1x,"α")',advance='no') &
-!          dsnrm*alp
-!        write (*,'(6x,"lambda   ",e18.7)') eaug(1)
-!        write (*,'(3x,"maximum displ.:",f14.7,1x,"α")',advance='no') &
-!          abs(displ(imax(1)))*alp
-!        write (*,'(6x,"in coords ",3("#",i0,", "),"...")') imax
-!      end if
-!!>------------------------------------------------------------------------
-!
-!!>--- 2nd: exit and redo hessian (internal restart)
-!      if (ii .gt. 2.and.dsnrm .gt. 2.0) then
-!        if (pr) write (*,*) 'exit because of too large step'
-!        exit main_loop
-!      end if
-!
-!!>--- new coordinates
-!      OPT%coord = OPT%coord+displ*alp
-!
-!!>--- converged ?
-!      econverged = abs(echng) .lt. ethr
-!      gconverged = gnorm .lt. gthr
-!      lowered = echng .lt. 0.0_wp
-!      converged = econverged.and.gconverged.and.lowered
-!      if (pr) then
-!        write (*,'(3x,"converged δE/grad :",1x,l," /",l)') econverged,gconverged
-!      end if
-!      if (converged) then
-!        !if (econverged .and. gconverged .and. lowered) then
-!        converged = .true.
-!        etot = energy
-!        !return
-!        exit main_loop
-!      end if
-!!>========================================================================
-!    end do main_loop
-!!>========================================================================
-!    !$omp critical
-!    if (allocated(Uaug)) deallocate (Uaug)
-!    if (allocated(eaug)) deallocate (eaug)
-!    if (allocated(Aaug)) deallocate (Aaug)
-!    !$omp end critical
-!
-!    etot = energy
-!
-!    return
-!  end subroutine relax
 
 !========================================================================================!
 !========================================================================================!

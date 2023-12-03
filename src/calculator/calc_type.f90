@@ -211,7 +211,7 @@ module calc_type
     real(wp) :: hmax_opt = 5.0_wp
     real(wp) :: acc_opt = 1.0_wp
     real(wp) :: maxerise = 1.0e-5_wp
-    real(wp) :: hguess = 0.2_wp !> Hessian guess (for some optimizers)
+    real(wp) :: hguess = 0.02_wp !> Hessian guess (for some optimizers)
     logical  :: exact_rf = .false.
     logical  :: average_conv = .false.
     logical  :: tsopt = .false.

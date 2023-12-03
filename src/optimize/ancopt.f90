@@ -107,14 +107,6 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: modef
     logical :: ex,converged,linear
     real(wp) :: estart,esave
-    character(len=*),parameter :: scifmt = &
-                                  '(10x,"│",3x,a,e22.7,1x,a,1x,"│")'
-    character(len=*),parameter :: dblfmt = &
-                                  '(10x,"│",3x,a,f18.7,5x,a,1x,"│")'
-    character(len=*),parameter :: intfmt = &
-                                  '(10x,"│",3x,a,i18,      10x,"│")'
-    character(len=*),parameter :: chrfmt = &
-                                  '(10x,"│",3x,a,a18,      10x,"│")'
 
     iostatus = 0
     fail = .false.
@@ -158,49 +150,10 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- print a summary of settings, if desired
     if (pr) then
-      write (*,'(/,10x,"┍",49("━"),"┑")')
-      write (*,'(10x,"│",11x,a,11x,"│")') "GEOMETRY OPTIMIZATION SETUP"
-      write (*,'(10x,"┝",49("━"),"┥")')
-      write (*,chrfmt) "algorithm         ","          ANCOPT"
-      write (*,intfmt) "optimization level",tight
-      write (*,intfmt) "max. optcycles    ",maxcycle
-      write (*,intfmt) "ANC micro-cycles  ",maxmicro
-      write (*,intfmt) "degrees of freedom",nvar
-      if (modef > 0) then
-        write (*,intfmt) "# mode follow     ",modef
-      end if
-      write (*,'(10x,"├",49("─"),"┤")')
-      if (calc%exact_rf) then
-        write (*,chrfmt) "RF solver         ","spevx"
-      else
-        write (*,chrfmt) "RF solver         ","davidson"
-      end if
-      select case (iupdat)
-      case (0)
-        write (*,chrfmt) "Hessian update    ","bfgs"
-      case (1)
-        write (*,chrfmt) "Hessian update    ","powell"
-      case (2)
-        write (*,chrfmt) "Hessian update    ","sr1"
-      case (3)
-        write (*,chrfmt) "Hessian update    ","bofill"
-      case (4)
-        write (*,chrfmt) "Hessian update    ","schlegel"
-      end select
-      write (*,chrfmt) "write crestopt.log",bool2string(wr)
-      if (linear) then
-        write (*,chrfmt) "linear (good luck)",bool2string(linear)
-      else
-        write (*,chrfmt) "linear?           ",bool2string(linear)
-      end if
-      write (*,scifmt) "energy convergence",ethr,"Eh  "
-      write (*,scifmt) "grad. convergence ",gthr,"Eh/α"
-      write (*,dblfmt) "maximium RF displ.",maxdispl,"    "
-      write (*,scifmt) "Hlow (freq-cutoff)",hlow,"    "
-      write (*,dblfmt) "Hmax (freq-cutoff)",hmax,"    "
-      write (*,dblfmt) "S6 in model hess. ",s6,"    "
-      write (*,'(10x,"└",49("─"),"┘")')
+      call print_optsummary(calc,tight,nvar,maxcycle,maxmicro, &
+      &                       ethr,gthr,linear,wr)
     end if
+
 
 !>--- initialize OPT object
     !$omp critical
@@ -622,7 +575,7 @@ contains  !> MODULE PROCEDURES START HERE
       lowered = echng .lt. 0.0_wp
       converged = econverged.and.gconverged.and.lowered
       if (pr) then
-        write (*,'(3x,"converged δE/grad :",1x,l," /",l)') econverged,gconverged
+        call print_convd(econverged,gconverged)
       end if
       if (converged) then
         !if (econverged .and. gconverged .and. lowered) then

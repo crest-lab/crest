@@ -428,6 +428,11 @@ contains !> MODULE PROCEDURES START HERE
     case (4) !> string
       call parse_calc(env,calc,kv%key,kv%value_c)
     end select
+    !> other, with multiple or raw type
+    select case(kv%key)
+    case ('optlev','ancopt_level')
+      env%optlev = optlevnum(kv%rawvalue)
+    end select
   end subroutine parse_calc_auto
   subroutine parse_calc_float(env,calc,key,val)
     implicit none
