@@ -42,6 +42,7 @@ module optimize_type
       real(wp),allocatable :: xyz(:,:)
    contains
    procedure :: allocate => allocate_anc
+   procedure :: allocate2 => allocate_opt
    procedure :: deallocate => deallocate_anc
    procedure :: write => write_anc
    procedure :: new => generate_anc_blowup
@@ -90,6 +91,31 @@ subroutine allocate_anc(self,n,nvar,hlow,hmax)
    allocate( self%coord(nvar),           source = 0.0_wp )
    allocate( self%xyz(3,n),              source = 0.0_wp )
 end subroutine allocate_anc
+
+
+subroutine allocate_opt(self,n)!,nvar)
+   implicit none
+   class(optimizer),intent(inout)  :: self
+   integer,      intent(in)     :: n
+   !integer,      intent(in)     :: nvar
+   integer :: nvar
+   integer                      :: n3
+   !real(wp),intent(in),optional :: hlow
+   !real(wp),intent(in),optional :: hmax
+   n3 = 3*n
+   call self%deallocate
+   self%n    = n
+   self%n3   = 3*n
+   nvar = 3*n
+   self%nvar = nvar
+   allocate( self%hess(nvar*(nvar+1)/2), source = 0.0_wp )
+   !allocate( self%B(n3,n3),              source = 0.0_wp )
+   allocate( self%eigv(n3),              source = 0.0_wp )
+   !allocate( self%coord(nvar),           source = 0.0_wp )
+   !allocate( self%xyz(3,n),              source = 0.0_wp )
+end subroutine allocate_opt
+
+
 
 !========================================================================================!
 

@@ -82,7 +82,7 @@ contains  !> MODULE PROCEDURES START HERE
     logical :: fail
     !> Local objects
     type(coord)   :: molopt
-    type(optimizer)  :: anc
+    type(optimizer)  :: OPT
     type(mhparam) :: mhset
 
     real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,hlow,edum,s6,thr
@@ -161,7 +161,7 @@ contains  !> MODULE PROCEDURES START HERE
       write (*,'(/,10x,"┍",49("━"),"┑")')
       write (*,'(10x,"│",11x,a,11x,"│")') "GEOMETRY OPTIMIZATION SETUP"
       write (*,'(10x,"┝",49("━"),"┥")')
-      !write (*,chrfmt) "optimization level",int2optlevel(tight)
+      write (*,chrfmt) "algorithm         ","          ANCOPT"
       write (*,intfmt) "optimization level",tight
       write (*,intfmt) "max. optcycles    ",maxcycle
       write (*,intfmt) "ANC micro-cycles  ",maxmicro
@@ -202,10 +202,10 @@ contains  !> MODULE PROCEDURES START HERE
       write (*,'(10x,"└",49("─"),"┘")')
     end if
 
-!>--- initialize anc object
+!>--- initialize OPT object
     !$omp critical
     allocate (h(nat3,nat3),hess(nat3*(nat3+1)/2),eig(nat3))
-    call anc%allocate(mol%nat,nvar,hlow,hmax)
+    call OPT%allocate(mol%nat,nvar,hlow,hmax)
     allocate (molopt%at(mol%nat),molopt%xyz(3,mol%nat))
     !$omp end critical
 
@@ -259,7 +259,7 @@ contains  !> MODULE PROCEDURES START HERE
           h(j,i) = hess(k)
         end do
       end do
-      call anc%new(molopt%xyz,h,pr,linear,fail)
+      call OPT%new(molopt%xyz,h,pr,linear,fail)
       if (fail) then
         iostatus = -1
         exit ANC_microiter
@@ -268,7 +268,7 @@ contains  !> MODULE PROCEDURES START HERE
       esave = etot !> save energy before relaxation
 !>--- call the actual relaxation routine
 !>    this routine will perform [maxmicro] relaxation steps
-      call relax(molopt,calc,anc,iter,maxmicro,etot,grd,  &
+      call relax(molopt,calc,OPT,iter,maxmicro,etot,grd,  &
             &      ethr,gthr,converged,                  &
             &      pr,wr,ilog,iostatus,avconv)
       if (iostatus .ne. 0) then
@@ -280,7 +280,7 @@ contains  !> MODULE PROCEDURES START HERE
       maxmicro = min(int(float(maxmicro)*1.1_wp),2*calc%micro_opt)
 
 !>--- check structural change by RMSD
-      call rmsd(molopt%nat,anc%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
+      call rmsd(molopt%nat,OPT%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
       if (.not.converged.and.pr) then
         write (*,'(" * RMSD in coord.:",f14.7,1x,"α")',advance='no') rmsdval
         write (*,'(6x,"energy gain",e16.7,1x,"Eh")') etot-esave
@@ -337,7 +337,7 @@ contains  !> MODULE PROCEDURES START HERE
     if (allocated(hess)) deallocate (hess)
     if (allocated(molopt%at)) deallocate (molopt%at)
     if (allocated(molopt%xyz)) deallocate (molopt%xyz)
-    call anc%deallocate
+    call OPT%deallocate
     !$omp end critical
 
     return
@@ -345,7 +345,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine relax(mol,calc,anc,iter,maxmicro,etot,grd,  &
+  subroutine relax(mol,calc,OPT,iter,maxmicro,etot,grd,  &
             &      ethr,gthr,converged,                  &
             &      pr,wr,ilog,iostatus,avconv)
 !*********************************************************
@@ -359,7 +359,7 @@ contains  !> MODULE PROCEDURES START HERE
 
     type(coord) :: mol
     type(calcdata) :: calc
-    type(optimizer) :: anc
+    type(optimizer) :: OPT
     integer,intent(inout) :: iter
     integer,intent(in)    :: maxmicro
     real(wp),intent(inout) :: etot
@@ -403,7 +403,7 @@ contains  !> MODULE PROCEDURES START HERE
     iostatus = 0
 
     !$omp critical
-    allocate (gold(anc%nvar),displ(anc%nvar),gint(anc%nvar),source=0.0_wp)
+    allocate (gold(OPT%nvar),displ(OPT%nvar),gint(OPT%nvar),source=0.0_wp)
 
     gnorm = 0.0_wp
     depred = 0.0_wp
@@ -417,8 +417,8 @@ contains  !> MODULE PROCEDURES START HERE
     exact = calc%exact_rf
     iupdat = calc%iupdat
 
-    nvar1 = anc%nvar+1             !> dimension of RF calculation
-    npvar = anc%nvar*(nvar1)/2   !> packed size of Hessian (note the abuse of nvar1!)
+    nvar1 = OPT%nvar+1             !> dimension of RF calculation
+    npvar = OPT%nvar*(nvar1)/2   !> packed size of Hessian (note the abuse of nvar1!)
     npvar1 = nvar1*(nvar1+1)/2 !> packed size of augmented Hessian
     allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1))
     !$omp end critical
@@ -433,14 +433,14 @@ contains  !> MODULE PROCEDURES START HERE
       eold = energy
 !>--- calc predicted energy change based on E = E0 + delta * G + delta^2 * H
       if (ii > 1) then
-        call prdechng(anc%nvar,gold,displ,anc%hess,depred)
+        call prdechng(OPT%nvar,gold,displ,OPT%hess,depred)
       end if
 
 !>------------------------------------------------------------------------
 !>--- SINGLEPOINT CALCULATION
 !>------------------------------------------------------------------------
       !> get Cartestian coordinates and gradient
-      call anc%get_cartesian(mol%xyz)
+      call OPT%get_cartesian(mol%xyz)
 
       grd = 0.0_wp
       call engrad(mol,calc,energy,grd,iostatus)
@@ -455,7 +455,7 @@ contains  !> MODULE PROCEDURES START HERE
         call mol%appendlog(ilog,energy)
       end if
 !>--- transform Cartesian xyz to internal gradient
-      call dgemv('t',anc%n3,anc%nvar,1.0_wp,anc%B,anc%n3,grd,1,0.0_wp,gint,1)
+      call dgemv('t',OPT%n3,OPT%nvar,1.0_wp,OPT%B,OPT%n3,grd,1,0.0_wp,gint,1)
       gnorm = norm2(gint)
 
       if (gnorm .gt. 500.0_wp) then
@@ -502,14 +502,15 @@ contains  !> MODULE PROCEDURES START HERE
         end if
       end if
 
+      alp = 1.0d0 
       if (gnorm .lt. 0.002) then ! 0.002
         alp = 1.5d0 ! 1.5
-      elseif (gnorm .lt. 0.0006) then
+      endif
+      if (gnorm .lt. 0.0006) then
         alp = 2.0d0 ! 2
-      elseif (gnorm .lt. 0.0003) then
+      endif
+      if (gnorm .lt. 0.0003) then
         alp = 3.0d0 ! 3
-      else
-        alp = 1.0d0
       end if
 
 !>------------------------------------------------------------------------
@@ -519,15 +520,15 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- Hessian update, but only after first iteration (ii > 1)
         select case (iupdat)
         case (0)
-          call bfgs(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+          call bfgs(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
         case (1)
-          call powell(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+          call powell(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
         case (2)
-          call sr1(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+          call sr1(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
         case (3)
-          call bofill(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+          call bofill(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
         case (4)
-          call schlegel(anc%nvar,gnorm,gint,gold,displ,anc%hess)
+          call schlegel(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
         case default
           write (*,*) 'invalid hessian update selection'
           stop
@@ -545,8 +546,8 @@ contains  !> MODULE PROCEDURES START HERE
 !>     Aaug    Uaug       Uaug
 
 !>--- first, augment Hessian by gradient, everything packed, no blowup
-      Aaug(1:npvar) = real(anc%hess(1:npvar),sp)
-      Aaug(npvar+1:npvar1-1) = real(gint(1:anc%nvar),sp)
+      Aaug(1:npvar) = real(OPT%hess(1:npvar),sp)
+      Aaug(npvar+1:npvar1-1) = real(gint(1:OPT%nvar),sp)
       Aaug(npvar1) = 0.0_sp
 
 !>--- choose solver
@@ -555,7 +556,7 @@ contains  !> MODULE PROCEDURES START HERE
       else
         !>--- steepest decent guess for displacement
         if (ii .eq. 1) then
-          Uaug(:,1) = [-real(gint(1:anc%nvar),sp),1.0_sp]
+          Uaug(:,1) = [-real(gint(1:OPT%nvar),sp),1.0_sp]
           dsnrm = sqrt(sdot(nvar1,Uaug,1,Uaug,1))
           Uaug = Uaug/real(dsnrm,sp)
         end if
@@ -572,24 +573,24 @@ contains  !> MODULE PROCEDURES START HERE
         iostatus = -1
         exit main_loop
       end if
-      displ(1:anc%nvar) = Uaug(1:anc%nvar,1)/Uaug(nvar1,1)
+      displ(1:OPT%nvar) = Uaug(1:OPT%nvar,1)/Uaug(nvar1,1)
 
 !>--- check if step is too large, just cut off everything thats to large
-      !do j = 1,anc%nvar
+      !do j = 1,OPT%nvar
       !  if (abs(displ(j)) .gt. maxdispl) then
       !    if (displ(j) < 0) displ(j) = -maxdispl
       !    if (displ(j) > 0) displ(j) = maxdispl
       !  end if
       !end do
 !>--- maybe more consistent version is to rescale displacement
-      maxd = alp*sqrt(ddot(anc%nvar,displ,1,displ,1))
+      maxd = alp*sqrt(ddot(OPT%nvar,displ,1,displ,1))
       if (maxd > maxdispl) then
         if (pr) write (*,'(" * rescaling step by",f14.7)') maxdispl/maxd
         displ = maxdispl*displ/maxd
       end if
 
 !>--- now some output
-      dsnrm = sqrt(ddot(anc%nvar,displ,1,displ,1))
+      dsnrm = sqrt(ddot(OPT%nvar,displ,1,displ,1))
       if (pr) then
         !> this array is currently not used and will be overwritten in next step
         gold = abs(displ)
@@ -602,7 +603,7 @@ contains  !> MODULE PROCEDURES START HERE
         write (*,'(3x,"maximum displ.:",f14.7,1x,"α")',advance='no') &
           abs(displ(imax(1)))*alp
         write (*,'(6x,"in ANC''s ",3("#",i0,", "),"...")') imax
-        !call prdispl(anc%nvar,displ)
+        !call prdispl(OPT%nvar,displ)
       end if
 !>------------------------------------------------------------------------
 
@@ -613,7 +614,7 @@ contains  !> MODULE PROCEDURES START HERE
       end if
 
 !>--- new coordinates
-      anc%coord = anc%coord+displ*alp
+      OPT%coord = OPT%coord+displ*alp
 
 !>--- converged ?
       econverged = abs(echng) .lt. ethr
@@ -640,7 +641,7 @@ contains  !> MODULE PROCEDURES START HERE
     !$omp end critical
 
     etot = energy
-    call anc%get_cartesian(mol%xyz)
+    call OPT%get_cartesian(mol%xyz)
 
     return
   end subroutine relax

@@ -19,6 +19,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND srcs
   "${dir}/ancopt.f90"
   "${dir}/gd.f90"
+  "${dir}/rfo.f90"
   "${dir}/hessupdate.f90"
   "${dir}/modelhessian.f90"
   "${dir}/optimize_maths.f90"

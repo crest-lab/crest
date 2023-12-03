@@ -41,19 +41,16 @@ subroutine crest_numhess(env,tim)
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
   type(coord) :: mol,molnew
-
   integer :: i,j,io,ich,nat3,n_freqs,i0
   logical :: pr,wr
-
-  character :: fname
 !========================================================================================!
   type(calcdata) :: calc
-
   real(wp) :: energy
   real(wp),allocatable :: hess(:,:,:),freq(:,:),grad(:),grad1(:,:),grad2(:,:),heff(:,:)
-  real(wp),allocatable :: ohess(:,:), ofreq(:)
+  real(wp),allocatable :: ohess(:,:),ofreq(:),grad0(:,:),energies0(:)
+  character(len=60) :: atmp
 !========================================================================================!
-  call tim%start(14,'Numerical Hessian')
+  call tim%start(15,'Numerical Hessian')
 !========================================================================================!
   !call system('figlet numhess')
   write (stdout,*)
@@ -76,14 +73,33 @@ subroutine crest_numhess(env,tim)
   !>--- print some info about the calculation
   call calc%info(stdout)
 
-  nat3 = mol%nat*3
+!========================================================================================!
 
+  !>--- start with an initial single point
+  write(stdout,'(a)') repeat(":",80)
+  write (stdout,'(1x,a)') 'Initial singlpoint calculation ...'
+  allocate(grad0(3,mol%nat),source=0.0_wp)
+  allocate(energies0( calc%ncalculations ), source=0.0_wp)
+
+  call engrad(mol,calc,energy,grad0,io)   
+  energies0 = calc%etmp  
+  
+  write(atmp,'("Energy = ",f25.15," Eh")') energy
+  call smallhead(trim(atmp)) 
+  write(stdout,'(a)') repeat(":",80)
+  write(stdout,*)
+  
+
+  deallocate(grad0)
+ 
+!========================================================================================!
+
+  nat3 = mol%nat*3
   if (calc%ncalculations .eq. 1) then
     write (stdout,'(1x,a)',advance='no') 'Calculating numerical Hessian ...'
   else
     write (stdout,'(1x,a)',advance='no') 'Calculating numerical Hessians ...'
   end if
-
   flush (stdout)
 
 !========================================================================================!
@@ -92,16 +108,15 @@ subroutine crest_numhess(env,tim)
 !> Regular verision
 
     if (calc%id .eq. -1) then
-    n_freqs = calc%ncalculations+1
-  else
-    n_freqs = calc%ncalculations
-  end if
+      n_freqs = calc%ncalculations+1
+    else
+      n_freqs = calc%ncalculations
+    end if
 
-  allocate (hess(nat3,nat3,calc%ncalculations),source=0.0_wp)
-  allocate (freq(nat3,n_freqs),source=0.0_wp)
+    allocate (hess(nat3,nat3,calc%ncalculations),source=0.0_wp)
+    allocate (freq(nat3,n_freqs),source=0.0_wp)
 
-
-    !>-- Computes numerical Hessians
+    !>-- Computes numerical Hessians and stores them individually for each level
     call numhess2(mol%nat,mol%at,mol%xyz,calc,hess,io)
 
     write (stdout,*) 'done.'
@@ -179,6 +194,11 @@ subroutine crest_numhess(env,tim)
           !>-- Prints g98.out format file
           call print_g98_fake(mol%nat,mol%at,nat3,mol%xyz,freq(:,i),hess(:,:,i), &
           &    calc%calcs(i)%calcspace,'g98.out')
+
+          write(atmp,*) i
+          call smallhead("Thermo contributions for [[calculation.level]] "//trim(adjustl(atmp)))
+          call numhess_thermostat(env,mol,nat3,hess(:,:,i),freq(:,i),energies0(i))
+
         end if
 
       end if
@@ -197,13 +217,16 @@ subroutine crest_numhess(env,tim)
     !>-- Prints Hessian (pure 2nd derivatives in atomic units)
     call print_hessian(ohess(:,:),nat3,'','numhess')
 
+    write (stdout,*) 'Note: The Hessian is printed as nat*3 blocks of nat*3 entries.'
+    write (stdout,*)
+
     !>-- Projects and mass-weights the Hessian (M^1/2*H*M^1/2)
     call prj_mw_hess(mol%nat,mol%at,nat3,mol%xyz,ohess(:,:))
 
     !>-- Computes the Frequencies (in cm^-1)
     call frequencies(mol%nat,mol%at,mol%xyz,nat3,calc,ohess(:,:),ofreq(:),io)
 
-    !>-- Prints vibspectrum with artifical intensities
+    !>-- Prints vibspectrum (cm^-1) with artifical intensities
     call print_vib_spectrum(mol%nat,mol%at,nat3,mol%xyz,ofreq(:), &
     &    '','vibspectrum')
 
@@ -211,23 +234,91 @@ subroutine crest_numhess(env,tim)
     call print_g98_fake(mol%nat,mol%at,nat3,mol%xyz,ofreq(:),ohess(:,:), &
     &    '','g98.out')
 
+    !>--- thermostatistical contributions
+    call numhess_thermostat(env,mol,nat3,ohess,ofreq,energy)
 
 !========================================================================================!
   end if
 !========================================================================================!
 
-  write (stdout,*) 'Note: The Hessian is printed as nat*3 blocks of nat*3 entries.'
-  write (stdout,*)
+
+
 
 !========================================================================================!
-  if(allocated(hess)) deallocate (hess)
-  if(allocated(freq)) deallocate (freq)
-  if(allocated(ohess)) deallocate( ohess)
-  if(allocated(ofreq)) deallocate( ofreq)
+  if (allocated(hess)) deallocate (hess)
+  if (allocated(freq)) deallocate (freq)
+  if (allocated(ohess)) deallocate (ohess)
+  if (allocated(ofreq)) deallocate (ofreq)
 !========================================================================================!
-  call tim%stop(14)
+  call tim%stop(15)
 
   return
 !========================================================================================!
 !========================================================================================!
 end subroutine crest_numhess
+
+!========================================================================================!
+
+subroutine numhess_thermostat(env,mol,nat3,hess,freq,etot)
+!*****************************************
+!* A minimal wrapper of thermo to obtain
+!* free energy contributions
+!*****************************************
+  use crest_parameters
+  use crest_data
+  use strucrd
+  implicit none
+  !> INPUT
+  type(systemdata) :: env
+  type(coord) :: mol
+  integer,intent(in) :: nat3
+  real(wp),intent(in) :: hess(nat3,nat3)
+  real(wp),intent(in) :: freq(nat3)
+  real(wp),intent(in) :: etot
+  !> LOCAL
+  real(wp) :: ithr,fscal,sthr
+  integer :: nt,nfreq,nrt
+  real(wp),allocatable :: temps(:),et(:),ht(:),stot(:),gt(:)
+  real(wp) :: zpve
+  character(len=*),parameter :: outfmt = &
+  &  '(10x,"::",1x,a,f24.12,1x,a,1x,"::")'
+
+  !> inversion threshold
+  ithr = env%thermo%ithr
+  !> frequency scaling factor
+  fscal = env%thermo%fscal
+  !> RR-HO interpolation
+  sthr = env%thermo%sthr
+
+  if (.not.allocated(env%thermo%temps)) then
+    call env%thermo%get_temps()
+  end if
+  nt = env%thermo%ntemps
+  allocate (temps(nt),et(nt),ht(nt),gt(nt),stot(nt),source=0.0_wp)
+  temps = abs(env%thermo%temps-298.15_wp)
+  write(*,*) temps
+  nrt = minloc(temps(:),1)
+  write(*,*) nrt
+  temps = env%thermo%temps 
+
+  !> calcthermo wants input in Angstroem
+  call calcthermo(mol%nat,mol%at,mol%xyz*autoaa,freq,.true., &
+  & ithr,fscal,sthr,nt,temps,et,ht,gt,stot)
+
+  !> printout
+  zpve = et(nrt)-ht(nrt)
+  write(stdout,*) 
+  write(stdout,'(10x,a)') repeat(':',50)
+  write(stdout,'(10x,"::",7x,a,f12.2,1x,a,8x,"::")') "THERMODYNAMICS at",temps(nrt),'K'
+  write(stdout,'(10x,a)') repeat(':',50)
+  write(stdout,outfmt) 'TOTAL FREE ENERGY',etot+gt(nrt),'Eh'  
+  write(stdout,'(10x,a)') '::'//repeat('-',46)//'::'
+  write(stdout,outfmt) 'total energy     ',etot,'Eh'
+  write(stdout,outfmt) 'ZPVE             ',zpve,'Eh'
+  write(stdout,outfmt) 'G(RRHO) w/o ZPVE ',gt(nrt)-zpve,'Eh'
+  write(stdout,outfmt) 'G(RRHO) total    ',gt(nrt),'Eh'
+  write(stdout,'(10x,a)') repeat(':',50)
+
+  deallocate (stot,gt,ht,et,temps)
+end subroutine numhess_thermostat
+

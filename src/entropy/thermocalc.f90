@@ -50,21 +50,21 @@ subroutine prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,symnum,symchar)
   molmass = molweight(nat,at)
 
   if (pr) then
-    write (stdout,'(a,f8.2)') 'Mol. weight /amu  : ',molmass
+    write (stdout,'(a,f15.2)') 'Mol. weight /amu  : ',molmass
   end if
 
   !>--- rotational constants in cm-1
   rabc = 0.0d0
   call axis(nat,at,xyz,rabc(1:3),avmom)
   if (pr) then
-    write (stdout,'(a,3f8.2)') 'Rot. const. /MHz  : ',rabc(1:3)
+    write (stdout,'(a,3f15.2)') 'Rot. const. /MHz  : ',rabc(1:3)
   end if
   rabc = rabc/2.99792458d+4   ! MHz to cm-1
   a = rabc(1)
   b = rabc(2)
   c = rabc(3)
   if (pr) then
-    write (stdout,'(a,3f8.2)') 'Rot. const. /cm-1 : ',rabc(1:3)
+    write (stdout,'(a,3f15.2)') 'Rot. const. /cm-1 : ',rabc(1:3)
   end if
 
   !>--- symmetry number from rotational symmetry
@@ -206,7 +206,7 @@ subroutine calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr,nt,temps, &
   do i = 1,nvib
     if (vibs(i) .lt. 0.and.vibs(i) .gt. ithr) then
       vibs(i) = -vibs(i)
-      if (pr) write (stdout,*) 'inverting freq ',i,vibs(i)
+      if (pr) write (stdout,'(a,i5," :",f10.2)') 'Inverting frequency',i,vibs(i)
     end if
     if (vibs(i) < 0.0) then
       nimag = nimag+1

@@ -447,7 +447,10 @@ contains !> MODULE PROCEDURES START HERE
 
     case('displ_opt','maxdispl')
       calc%maxdispl_opt = val !> optimization step size/scaling
- 
+
+    case('hguess')
+      calc%hguess = val  !> guess for the initial hessian     
+
     case default
       return
     end select
@@ -508,10 +511,12 @@ contains !> MODULE PROCEDURES START HERE
 
     case( 'opt','opt_engine','opt_algo' )
       select case(val)
-      case( 'ancopt' ) 
+      case( 'ancopt','rfo-anc' ) 
         calc%opt_engine = 0
       case( 'lbfgs','l-bfgs' )
         calc%opt_engine = 1
+      case( 'rfo','rfo-cart' )
+        calc%opt_engine = 2 
       case( 'gd','gradient descent' )
         calc%opt_engine = -1
       end select
@@ -535,6 +540,10 @@ contains !> MODULE PROCEDURES START HERE
     select case (key)
     case ('eprint')
       calc%pr_energies = val
+
+    case ('exact_rf' )
+      calc%exact_rf = val      
+
     case default
       return
     end select

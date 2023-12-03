@@ -27,6 +27,7 @@ module optimize_module
   use strucrd
   use ancopt_module
   use gradientdescent_module
+  use rfo_module
   use optimize_utils
   implicit none
   private
@@ -66,10 +67,20 @@ contains  !> MODULE PROCEDURES START HERE
 
     !> optimization
     select case (calc%opt_engine)
+    case ( 0)
+       call ancopt(molnew,calc,etot,grd,pr,wr,iostatus)
+    case ( 1)
+       !> l-bfgs goes here
+      write(stdout,'(a)') 'L-BFGS currently not implemented'
+      stop
+    case ( 2)
+       !> rfo goes here
+       call rfopt(molnew,calc,etot,grd,pr,wr,iostatus)
     case (-1)
       call gradientdescent(molnew,calc,etot,grd,pr,wr,iostatus)
     case default
-      call ancopt(molnew,calc,etot,grd,pr,wr,iostatus)
+      write(stdout,'(a)') 'Unknown optimization engine!'
+      stop
     end select
 
     return
