@@ -88,15 +88,7 @@ program CREST
 !> SOME I/O STUFF
 !=========================================================================================!
 !>--- check for the coord file in the working directory
-  if (env%crestver .eq. crest_solv) then
-    inquire (file='solute',exist=ex1)
-    inquire (file='solvent',exist=ex2)
-    if (.not.ex1) then
-      error stop 'No solute file found. Exit.'
-    else if (.not.ex2) then
-      error stop 'No solvent file found. Exit.'
-    end if
-  else
+  if (env%crestver /= crest_solv) then
     inquire (file='coord',exist=ex)
     if (.not.ex) then
       error stop 'No coord file found. Exit.'

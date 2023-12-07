@@ -491,6 +491,12 @@ subroutine parseflags(env,arg,nra)
 
       case ('-solvtool','-qcg')
 !               env%mddumpxyz = 1000
+        ! Set solute file if present
+        if(i == 2) env%solu_file = trim(arg(i-1))
+        ! Set solvent file if prensent
+        ! If it is another argument, it doesent matter as solvent file is checke in solvtool
+        if (nra >= i+1) env%solv_file = trim(arg(i+1))
+        ! Set QCG defaults
         env%preopt = .false.
         env%crestver = crest_solv
         env%QCG = .true.
@@ -501,9 +507,6 @@ subroutine parseflags(env,arg,nra)
         env%ewin = 3.0d0
         env%doOHflip = .false. !Switch off OH-flip
         if (env%iterativeV2) env%iterativeV2 = .false.
-        if (nra >= i+1) then
-          env%solv_file = trim(arg(i+1))
-        end if
         exit
 
       case ('-compress')
@@ -2369,8 +2372,7 @@ subroutine inputcoords(env,arg)
 
 !>--- Redirect for QCG input reading
   if (env%QCG) then
-    arg2 = env%solv_file
-    call inputcoords_qcg(env,arg,arg2)
+    !Input coordinates are processed in solvtool.f90 file during solvtool subroutine
     return
   end if
 !>---
@@ -2444,162 +2446,3 @@ subroutine inputcoords(env,arg)
 
   return
 end subroutine inputcoords
-
-!========================================================================================!
-!> Convert given QCG coordinate files into (TM format)
-!> If the input is in SDF format, document the info to convert the
-!> final ensemble back into this format
-!========================================================================================!
-subroutine inputcoords_qcg(env,arg1,arg2)
-  use iso_fortran_env,only:wp => real64
-  use crest_data
-  use strucrd
-  use zdata
-  use iomod
-  implicit none
-
-  type(systemdata) :: env
-  character(len=*) :: arg1,arg2
-
-  logical :: ex11,ex12,ex21,ex22,solu,solv
-  character(len=:),allocatable :: inputfile
-  type(coord) :: mol
-  type(zmolecule) :: zmol,zmol1
-  integer :: i
-
-!--------------------Checking for input-------------!
-
-  inquire (file='solute',exist=solu)
-  inquire (file=arg1,exist=ex11)
-  inquire (file='coord',exist=ex12)
-
-  inquire (file='solvent',exist=solv)
-  inquire (file=arg2,exist=ex21)
-  if (len_trim(arg2) .eq. 0) then !Check if the second argument is just empty
-    ex21 = .false.
-  end if
-  inquire (file='coord',exist=ex22)
-
-  if (.not.ex11.and..not.ex12.and..not.solu) then
-    error stop 'No (valid) solute file! exit.'
-  else if (.not.ex21.and..not.ex22.and..not.solv) then
-    error stop 'No (valid) solvent file! exit.'
-  end if
-
-!---------------Handling solute---------------------!
-
-  if (ex11.and.arg1(1:1) .ne. '-') then
-    call mol%open(arg1)
-    call mol%write('solute')
-    call mol%write('solute.xyz')
-    call mol%deallocate()
-    inputfile = trim(arg1)
-    write (*,*) 'Solute-file: ',arg1
-    env%solu_file = arg1
-  else if (solu.and..not.ex11) then
-    call copy('solute','solute.old')
-    inputfile = 'solute'
-    write (*,'(/,1x,a)') 'Solute-file: solute'
-    env%solu_file = 'solute'
-  else if (ex12.and..not.ex11) then !-- save coord as reference
-    call copy('coord','coord.old')
-    call copy('coord','solute')
-    write (*,'(/,1x,a)') 'Solute-file: coord'
-    inputfile = 'coord'
-    env%solu_file = 'coord'
-  else
-    write (*,*) 'An error occured processing the solute-input file'
-  end if
-
-  !--- if the input was a SDF file, special handling
-  env%sdfformat = .false.
-  call checkcoordtype(inputfile,i)
-  if (i == 31.or.i == 32) then
-!      call inpsdf(env,inputfile)
-    write (*,*) 'QCG currently does not support SDF-files.'
-  end if
-
-!---------------Handling solvent---------------------!
-
-  if (ex21.and.arg2(1:1) .ne. '-'.and.arg2(1:1) .ne. ' ') then
-    call mol%open(arg2)
-    call mol%write('solvent')
-    call mol%write('solvent.xyz')
-    call mol%deallocate()
-    inputfile = trim(arg2)
-    write (*,*) 'Solvent-file: ',arg2
-    env%solv_file = arg2
-  else if (solv.and..not.ex21) then
-    call copy('solvent','solvent.old')
-    inputfile = 'solvent'
-    write (*,'(/,1x,a)') 'Solvent-file: solvent'
-    env%solv_file = 'solvent'
-  else if (ex22.and..not.ex21) then !-- save coord as reference
-    call copy('coord','coord.old')
-    call copy('coord','solvent')
-    inputfile = 'coord'
-    write (*,'(/,1x,a)') 'Solvent-file: coord'
-    env%solv_file = 'coord'
-  else
-    write (*,*) 'An error occured during solvent-file processing'
-  end if
-
-  !--- if the input was a SDF file, special handling
-  env%sdfformat = .false.
-  call checkcoordtype(inputfile,i)
-  if (i == 31.or.i == 32) then
-    !call inpsdf(env,inputfile)
-    write (*,*) 'QCG currently does not support SDF-files.'
-  end if
-
-!-------------Checking both files and saving them---------------------------!
-
-  !--- after this point there should always be a solvent and solute file present
-  if (.not.allocated(env%inputcoords_solu)) env%inputcoords_solu = 'solute'
-  if (.not.allocated(env%inputcoords_solv)) env%inputcoords_solv = 'solvent'
-
-  call mol%open('solute')
-
-  env%nat = mol%nat
-  !--- solute geo
-  env%qcg_solute%nat = mol%nat
-  env%qcg_solute%at = mol%at
-  env%qcg_solute%xyz = mol%xyz
-  if (any((/crest_mfmdgc,crest_imtd,crest_imtd2/) == env%crestver)) then
-    if (.not.env%autozsort) then
-      env%qcg_solute%ntopo = mol%nat*(mol%nat+1)/2
-      allocate (env%qcg_solute%topo(env%qcg_solute%ntopo))
-      call quicktopo(mol%nat,mol%at,mol%xyz,env%qcg_solute%ntopo,env%qcg_solute%topo)
-    end if
-  end if
-  call mol%deallocate()
-
-  call mol%open('solvent')
-
-  env%nat = mol%nat
-  env%rednat = env%nat        !get the number of atoms and the reduced number of atoms if some of them are     excluded from the RMSD calc in V2
-  !--- solvent geo
-  env%qcg_solvent%nat = mol%nat
-  env%qcg_solvent%at = mol%at
-  env%qcg_solvent%xyz = mol%xyz
-  if (any((/crest_mfmdgc,crest_imtd,crest_imtd2/) == env%crestver)) then
-    if (.not.env%autozsort) then
-      env%qcg_solvent%ntopo = mol%nat*(mol%nat+1)/2
-      allocate (env%qcg_solvent%topo(env%qcg_solvent%ntopo))
-      call quicktopo(mol%nat,mol%at,mol%xyz,env%qcg_solvent%ntopo,env%qcg_solvent%topo)
-    end if
-  end if
-  call mol%deallocate()
-
-  !--- for protonation/deprotonation applications get ref. number of fragments
-  !--- also get some other structure based info
-  call simpletopo_file('solute',zmol,.false.,.false.,'')
-  env%ptb_solute%nfrag = zmol%nfrag
-  call zmol%deallocate()
-
-  call simpletopo_file('solvent',zmol1,.false.,.false.,'')
-  env%ptb_solvent%nfrag = zmol1%nfrag
-  call zmol1%deallocate()
-
-  return
-end subroutine inputcoords_qcg
