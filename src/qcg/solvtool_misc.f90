@@ -299,7 +299,6 @@ subroutine ensemble_lmo(env, fname, self, NTMP, TMPdir, conv)
    write (jobcall, '(a,1x,a,1x,a,'' --sp --lmo --chrg '',f4.1,1x,a,'' >xtb_lmo.out'')') &
    &     trim(env%ProgName), trim(fname), trim(env%lmover), self%chrg, trim(pipe)
    k = 0 !counting the finished jobs
-
 !___________________________________________________________________________________
 
 !$omp parallel &
@@ -717,7 +716,10 @@ subroutine ens_sp(env, fname, NTMP, TMPdir)
    do i = 1, NTMP
       vz = i
       !$omp task firstprivate( vz ) private( tmppath )
-      write (tmppath, '(a,i0)') trim(TMPdir), i
+      call initsignal()
+      !$omp critical
+      write (tmppath, '(a,i0)') trim(TMPdir), vz
+      !$omp end critical
       call command('cd '//trim(tmppath)//' && '//trim(jobcall))
       !$omp critical
       k = k + 1
