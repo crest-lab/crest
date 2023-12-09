@@ -22,7 +22,9 @@
 !====================================================!
 
 module constraints
-
+  use crest_parameters
+  use strucrd
+  use wall_setup
   use iso_fortran_env,only:wp => real64
   implicit none
 
@@ -33,13 +35,10 @@ module constraints
   logical :: ex
 
   !--- some constants and name mappings
-  real(wp),parameter :: bohr = 0.52917726_wp
-  real(wp),parameter :: autokcal = 627.509541_wp
-  real(wp),parameter :: kB = 3.166808578545117e-06_wp !in Eh/K
-  real(wp),parameter :: pi = 3.14159265359_wp
   real(wp),parameter :: deg = 180.0_wp/pi ! 1 rad in degrees
   real(wp),parameter :: fcdefault = 0.01_wp
   real(wp),parameter :: Tdefault = 298.15_wp
+  real(wp),parameter :: betadefault = 50.0_wp
 
   !>--- constrain types
   integer,parameter :: bond = 1
@@ -63,12 +62,20 @@ module constraints
   public :: constraint
   type :: constraint
 
-    integer :: type = 0
-    integer :: subtype = pharmonic
-    integer :: n = 0
+    !> required
+    integer :: type = 0  !> type of the constraint
+    integer :: n = 0  !> number of atoms affected
     integer,allocatable :: atms(:)
     real(wp),allocatable :: ref(:)
     real(wp),allocatable :: fc(:)
+
+    !> special directives
+    logical :: frozenatms = .false.
+    logical,pointer :: freezeptr(:)
+
+    !> other
+    real(wp) :: wscal = 1.0_wp
+    integer :: subtype = pharmonic  !> currently unused switch
 
   contains
     procedure :: print => print_constraint
@@ -86,9 +93,12 @@ module constraints
     procedure :: analyzedummy => analyze_dummy_bond_constraint
     procedure :: rdbondconstraint => analyze_dummy_bond_constraint2
     procedure :: bondrangeconstraint => create_bondrange_constraint
+    procedure :: addfreeze => constraint_freezeassoc
+    procedure :: complete => complete_defaults
+    !  procedure :: allatms => add_allatms
   end type constraint
 
-  !=====================================================! 
+  !=====================================================!
 
   public :: scantype
   type :: scantype
@@ -114,6 +124,144 @@ module constraints
 !========================================================================================!
 contains  !>--- Module routines start here
 !========================================================================================!
+!========================================================================================!
+
+  subroutine complete_defaults(self,mol)
+!****************************************************
+!* In case there are some defaults missing, complete
+!* with sensible settings
+!****************************************************
+    class(constraint) :: self
+    type(coord) :: mol
+    integer :: i,j
+    select case (self%type)
+!>--- bond constraint
+    case (bond)
+      if (self%n .ne. 2) error stop '*** ERROR *** wrong number of atoms for bond constraint'
+      if (.not.allocated(self%fc)) then
+        allocate (self%fc(1))
+        self%fc(1) = fcdefault
+      end if
+      if (.not.allocated(self%ref)) then
+        allocate (self%ref(1))
+        self%ref(1) = mol%dist(self%atms(1),self%atms(2))
+      end if
+
+!>--- bondrange constraint
+    case (bondrange)
+      if (self%n .ne. 2) error stop '*** ERROR *** wrong number of atoms for bondrange constraint'
+      if (.not.allocated(self%fc)) then
+        allocate (self%fc(2))
+        self%fc(1) = fcdefault/kB
+        self%fc(2) = betadefault
+      else
+        if (size(self%fc) < 2) error stop '*** ERROR *** wrong number of parameters for bondrange constraint'
+      end if
+      if (.not.allocated(self%ref)) then
+        allocate (self%ref(2))
+        self%ref(1) = mol%dist(self%atms(1),self%atms(2))+0.5_wp
+        self%ref(2) = self%ref(1)-1.0_wp
+      end if
+
+!>--- angle constraint
+    case (angle)
+      if (self%n .ne. 3) error stop '*** ERROR *** wrong number of atoms for angle constraint'
+      if (.not.allocated(self%fc)) then
+        allocate (self%fc(1))
+        self%fc(1) = fcdefault
+      end if
+      if (.not.allocated(self%ref)) then
+        allocate (self%ref(1))
+        !> reference in rad
+        self%ref(1) = mol%angle(self%atms(1),self%atms(2),self%atms(3))
+      end if
+
+!>--- dehedral constraint
+    case (dihedral)
+      if (self%n .ne. 4) error stop '*** ERROR *** wrong number of atoms for dihedral constraint'
+      if (.not.allocated(self%fc)) then
+        allocate (self%fc(1))
+        self%fc(1) = fcdefault
+      end if
+      if (.not.allocated(self%ref)) then
+        allocate (self%ref(1))
+        !> reference in rad
+        self%ref(1) = mol%dihedral(self%atms(1),self%atms(2),self%atms(3),self%atms(4))
+      end if
+
+!>--- wall potential (exponential)
+    case (wall)
+      if (self%n .eq. 0.or..not.allocated(self%atms)) then
+        self%n = mol%nat
+        if (allocated(self%atms)) deallocate (self%atms)
+        allocate (self%atms(mol%nat))
+        do i = 1,mol%nat
+          self%atms(i) = i
+        end do
+      end if
+      if (.not.allocated(self%fc)) then
+        allocate (self%fc(2))
+        self%fc(1) = fcdefault
+        self%fc(2) = 6.0_wp
+      else
+        if (size(self%fc) < 2) error stop '*** ERROR *** wrong number of parameters for wall potential'
+      end if
+      if (.not.allocated(self%ref)) then
+        allocate (self%ref(3))
+        call boxpot_core(mol,self%ref,self%wscal)
+      else
+        if (size(self%ref) < 3) error stop '*** ERROR *** wrong number of reference vaules for wall    potential'
+      end if
+
+!>--- wall potential (logfermi)
+    case (wall_fermi)
+      if (self%n .eq. 0.or..not.allocated(self%atms)) then
+        self%n = mol%nat
+        if (allocated(self%atms)) deallocate (self%atms)
+        allocate (self%atms(mol%nat))
+        do i = 1,mol%nat
+          self%atms(i) = i
+        end do
+      end if
+
+      if (.not.allocated(self%fc)) then
+        allocate (self%fc(2))
+        self%fc(1) = fcdefault
+        self%fc(2) = betadefault
+      else
+        if (size(self%fc) < 2) error stop '*** ERROR *** wrong number of parameters for wall potential'
+      end if
+      if (.not.allocated(self%ref)) then
+        allocate (self%ref(3))
+        call boxpot_core(mol,self%ref,self%wscal)
+      else
+        if (size(self%ref) < 3) error stop '*** ERROR *** wrong number of reference vaules for wall potential'
+      end if
+
+!>--- gap difference potential (only needs fc)
+    case (na_gapdiff)
+      if (.not.allocated(self%fc)) then
+        allocate (self%fc(2))
+        self%fc(1) = 10.0_wp  !> sigma
+        self%fc(2) = 0.005_wp !> alpha
+      else
+        if (size(self%fc) < 2) error stop '*** ERROR *** wrong number of parameters for gap potential'
+      end if
+
+!>--- new gap difference potential (only needs fc)
+    case (na_gapdiff2)
+      if (.not.allocated(self%fc)) then
+        allocate (self%fc(3))
+        self%fc(1) = 10.0_wp  !> sigma
+        self%fc(2) = 0.005_wp !> alpha
+        self%fc(3) = 0.25_wp  !> k
+      else
+        if (size(self%fc) < 3) error stop '*** ERROR *** wrong number of parameters for gap potential'
+      end if
+
+    end select
+  end subroutine complete_defaults
+
 !========================================================================================!
 
   subroutine calc_constraint(n,xyz,constr,energy,grd)
@@ -171,7 +319,7 @@ contains  !>--- Module routines start here
     case (bond)
       art = 'distance'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0)') self%atms(1:2)
-      write (values,'(" d=",f8.2,1x,"k=",f8.5)') self%ref(1)*bohr,self%fc(1)
+      write (values,'(" d=",f8.2,1x,"k=",f8.5)') self%ref(1)*autoaa,self%fc(1)
     case (angle)
       art = 'angle'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0,",",i0)') self%atms(1:3)
@@ -199,7 +347,7 @@ contains  !>--- Module routines start here
     case (bondrange)
       art = 'bondrange'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0)') self%atms(1:2)
-      write (values,'(" upper=",f8.2,1x,"lower=",f8.2)') self%ref(1)*bohr,self%ref(2)*bohr
+      write (values,'(" upper=",f8.2,1x,"lower=",f8.2)') self%ref(1)*autoaa,self%ref(2)*autoaa
     case default
       art = 'none'
       atoms = 'none'
@@ -293,8 +441,22 @@ contains  !>--- Module routines start here
     self%type = 0
     self%subtype = pharmonic
     self%n = 0
+    self%frozenatms = .false.
+    self%wscal = 1.0_wp
     return
   end subroutine constraint_deallocate
+
+!========================================================================================!
+!> subroutine constraint_freezeassoc
+!> associate the freezeptr
+  subroutine constraint_freezeassoc(self,freezelist)
+    implicit none
+    class(constraint) :: self
+    logical,intent(in),target :: freezelist(:)
+    self%freezeptr => freezelist
+    self%frozenatms = .true.
+    return
+  end subroutine constraint_freezeassoc
 
 !========================================================================================!
 !> subroutine scantype_deallocate
@@ -379,9 +541,6 @@ contains  !>--- Module routines start here
     grd = 0.0_wp
 
     if (constr%n /= 2) return
-    !if (.not.allocated(constr%atms)) return
-    !if (.not.allocated(constr%ref)) return
-    !if (.not.allocated(constr%fc)) return
 
     iat = constr%atms(1)
     jat = constr%atms(2)
@@ -438,15 +597,13 @@ contains  !>--- Module routines start here
       self%fc(1) = 0.1_wp/kb
     end if
     self%fc(1) = abs(self%fc(1))
-    if (present(beta))then
-      self%fc(2) = beta 
+    if (present(beta)) then
+      self%fc(2) = beta
     else
-      self%fc(2) = 50.0_wp
-    endif
+      self%fc(2) = betadefault
+    end if
     return
   end subroutine create_bondrange_constraint
-
-
 
   subroutine bondrange_constraint(n,xyz,constr,energy,grd)
 !************************************************************
@@ -465,7 +622,7 @@ contains  !>--- Module routines start here
     integer :: iat,jat
     real(wp) :: a,b,c,x
     real(wp) :: dist,ref,k,dum
-    real(wp) :: ref_upper, ref_lower
+    real(wp) :: ref_upper,ref_lower
     real(wp) :: T,beta
     real(wp) :: dr(3)
 
@@ -473,11 +630,6 @@ contains  !>--- Module routines start here
     grd = 0.0_wp
 
     if (constr%n /= 2) return
-    !if (.not.allocated(constr%atms)) return
-    !if (.not.allocated(constr%ref)) return
-    !if (size(constr%ref,1) < 2) return
-    !if (.not.allocated(constr%fc)) return
-    !if (size(constr%fc,1) < 2) return
 
     iat = constr%atms(1)
     jat = constr%atms(2)
@@ -504,33 +656,33 @@ contains  !>--- Module routines start here
     grd(3,jat) = -grd(3,iat)
 
     !> lower bound contribution
-    x = ref_lower - dist
+    x = ref_lower-dist
     !energy = energy +  kb*T*log(1.0_wp+exp(beta*x))
-    energy = energy + logfermi(T,beta,x)
+    energy = energy+logfermi(T,beta,x)
     !dum = (kb*T*beta*exp(beta*x))/(exp(beta*x)+1.0_wp)
-    dum = dlogfermi(T,beta,x) 
+    dum = dlogfermi(T,beta,x)
     dr(1) = -dum*(a/dist)
     dr(2) = -dum*(b/dist)
     dr(3) = -dum*(c/dist)
-    grd(1,iat) = grd(1,iat) + dr(1)
-    grd(2,iat) = grd(2,iat) + dr(2) 
-    grd(3,iat) = grd(3,iat) + dr(3)
-    grd(1,jat) = grd(1,jat) - dr(1)
-    grd(2,jat) = grd(2,jat) - dr(2)
-    grd(3,jat) = grd(3,jat) - dr(3)
+    grd(1,iat) = grd(1,iat)+dr(1)
+    grd(2,iat) = grd(2,iat)+dr(2)
+    grd(3,iat) = grd(3,iat)+dr(3)
+    grd(1,jat) = grd(1,jat)-dr(1)
+    grd(2,jat) = grd(2,jat)-dr(2)
+    grd(3,jat) = grd(3,jat)-dr(3)
 
     !> energy shift (no gard contribution)
     !> if ref_upper == ref_lower, this will transform the
     !> bondrange constraint into something close to a harmonic potential
     !> and the shift shifts the potential to zero at the minimum
-    ref = (ref_upper + ref_lower)/2.0_wp
-    x = ref - ref_upper
+    ref = (ref_upper+ref_lower)/2.0_wp
+    x = ref-ref_upper
     dum = logfermi(T,beta,x)
-    x = ref_lower - ref
-    dum = dum + logfermi(T,beta,x)
-    energy = energy - dum
+    x = ref_lower-ref
+    dum = dum+logfermi(T,beta,x)
+    energy = energy-dum
 
-    return 
+    return
   end subroutine bondrange_constraint
 
   function logfermi(T,beta,x) result(energy)
@@ -550,7 +702,6 @@ contains  !>--- Module routines start here
     real(wp),intent(in) :: x
     dldx = (kb*T*beta*exp(beta*x))/(exp(beta*x)+1.0_wp)
   end function dlogfermi
-
 
 !========================================================================================!
 !> subroutien create_angle_constraint
@@ -961,9 +1112,12 @@ contains  !>--- Module routines start here
     return
   end subroutine sphere_update_nat
 !========================================================================================!
-!> constrain atoms within defined wall potentials
-!> the potentials themselves can be polinomial or logfermi type
+
   subroutine wall_constraint(n,xyz,constr,energy,grd,subtype)
+!*****************************************************************
+!* constrain atoms within defined wall potentials
+!* the potentials themselves can be polinomial or logfermi type
+!*****************************************************************
     implicit none
     integer,intent(in) :: n
     real(wp),intent(in) :: xyz(3,n)
@@ -989,8 +1143,14 @@ contains  !>--- Module routines start here
     !> sphere_beta  = 6.0_wp
     !> sphere_temp  = 300.0_wp
 
-    do i = 1,n
+    do i = 1,constr%n
       iat = constr%atms(i)
+
+!> DO NOT APPLY THE WALL POTENTIAL TO FROZEN ATOMS. THE ENERGY WILL JUST EXPLODE
+      if (constr%frozenatms) then
+        if (constr%freezeptr(iat)) cycle
+      end if
+
       select case (subtype)
       case default
         return

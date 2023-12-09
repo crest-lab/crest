@@ -921,6 +921,7 @@ end subroutine parse_topo_excl
 !> parse a list of atoms (either by their position in the input file, or by atom type)
 !========================================================================================!
 subroutine parse_atlist_new(arg,selected,nat,at,natlist)
+  use strucrd
   implicit none
   !> Input
   character(len=*) :: arg
@@ -933,27 +934,22 @@ subroutine parse_atlist_new(arg,selected,nat,at,natlist)
   integer :: i,j
   integer :: nselect
   logical,allocatable :: atypes(:)
-
+  logical,allocatable :: atlist(:)
   !>-- initialize
   natlist = 0
 
   !>-- first the specific atomlist
-  call parse_atlist(arg,nselect,nat,natlist)
+  allocate(atlist(nat),source=.false.) 
+  call get_atlist(nat,atlist,arg,at) 
+  nselect = count(atlist,1)
 
-  !>-- then atom types (by element symbol)
-  allocate (atypes(118))
-  atypes = .false.
-  call parse_atypelist(arg,nselect,atypes)
+  !>-- then select atoms
   if (nselect > 0) then
-    do i = 1,118
-      if (atypes(i)) then
-        do j = 1,nat
-          if (at(j) == i) natlist(j) = 1
-        end do
-      end if
-    end do
+    do j = 1,nat
+       if (atlist(j)) natlist(j) = 1
+     end do
   end if
-  if (allocated(atypes)) deallocate (atypes)
+  if (allocated(atlist)) deallocate (atlist)
 
   !>-- count how many have been selected
   selected = sum(natlist)

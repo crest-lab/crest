@@ -63,22 +63,6 @@ module strucrd
   private :: upperCase,lowerCase
   private :: convertlable,fextension,sgrep
 
-!!>--- Element symbols
-!!&<
-!  character(len=2),private,parameter :: PSE(118) = [ &
-! & 'H ',                                                                                'He', &
-! & 'Li','Be',                                                  'B ','C ','N ','O ','F ','Ne', &
-! & 'Na','Mg',                                                  'Al','Si','P ','S ','Cl','Ar', &
-! & 'K ','Ca','Sc','Ti','V ','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr', &
-! & 'Rb','Sr','Y ','Zr','Nb','Mo','Tc','Ru','Rh','Pd','Ag','Cd','In','Sn','Sb','Te','I ','Xe', &
-! & 'Cs','Ba','La',                                                                            &
-! &                'Ce','Pr','Nd','Pm','Sm','Eu','Gd','Tb','Dy','Ho','Er','Tm','Yb','Lu',      &
-! &                'Hf','Ta','W ','Re','Os','Ir','Pt','Au','Hg','Tl','Pb','Bi','Po','At','Rn', &
-! & 'Fr','Ra','Ac',                                                                            &
-! &                'Th','Pa','U ','Np','Pu','Am','Cm','Bk','Cf','Es','Fm','Md','No','Lr',      &
-! &                'Rf','Db','Sg','Bh','Hs','Mt','Ds','Rg','Cn','Nh','Fl','Mc','Lv','Ts','Og' ]
-!!&>
-
 !=========================================================================================!
 !>--- public subroutines
   public :: i2e          !> function to convert atomic number to element symbol
@@ -1369,7 +1353,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 !==================================================================!
 ! function coord_getangle
-! calculate the angle for a given trio of atoms
+! calculate the angle for a given trio of atoms in rad
 ! A1-A2-A3
 !==================================================================!
   function coord_getangle(self,a1,a2,a3) result(angle)
@@ -1389,7 +1373,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 !==================================================================!
 ! function coord_getdihedral
-! calculate the dihedral angle for a given quartet of atoms
+! calculate the dihedral angle for a given quartet of atoms in rad
 ! A1-A2-A3-A4
 !==================================================================!
   function coord_getdihedral(self,a1,a2,a3,a4) result(dihed)
@@ -2218,13 +2202,22 @@ contains  !> MODULE PROCEDURES START HERE
         read (atmp,*,iostat=io) i1
         !> check if it is an element symbol
         if (io /= 0) then
-          if(len_trim(atmp) > 2) cycle !> exclude non-elements
-          k = e2i(atmp)
-          if (present(at)) then
-            do j = 1,nat
-              if (at(j) == k) atlist(j) = .true.
-            end do
-          end if
+          if(len_trim(atmp) > 2)then
+            if(index(trim(atmp),'heavy').ne.0)then !> all heavy atoms
+              if (present(at)) then
+              do j = 1,nat
+                if (at(j) > 1) atlist(j) = .true.
+              end do
+              end if
+            endif
+          else !> element symbols
+            k = e2i(atmp)
+            if (present(at)) then
+              do j = 1,nat
+                if (at(j) == k) atlist(j) = .true.
+              end do
+            end if
+          endif
         else
           atlist(i1) = .true.
         end if

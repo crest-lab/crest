@@ -81,6 +81,10 @@ subroutine parseinputfile(env,fname)
     kv = dict%kv_list(i)
     call parse_main_auto(env,kv)
   end do
+!>------------------------------------------------------
+!> After this point I assume an input structure was
+!> provided. Either in parse_main_auto or confparse.f90
+!>------------------------------------------------------
 
 !>--- parse all objects that write to env or global data
   do i = 1,dict%nblk
@@ -98,7 +102,7 @@ subroutine parseinputfile(env,fname)
 
 !>--- check for molecular dynamics setup
 !     i.e., all [dynamics] and [[dynamics.*]] blocks
-  call parse_dynamics_data(mddat,dict,l1)
+  call parse_dynamics_data(env,mddat,dict,l1)
   if (l1) then
     env%mddat = mddat
   end if

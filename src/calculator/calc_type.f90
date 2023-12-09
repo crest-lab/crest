@@ -581,7 +581,7 @@ contains  !>--- Module routines start here
     if (self%nfreeze > 0) then
        nat = size(grad,2)
        if(nat == self%nfreeze)then
-         error stop '**ERROR** Must not freeze all atoms!'
+         error stop '*** ERROR *** Must not freeze all atoms!'
        endif 
        do i =1,nat
          if(self%freezelist(i)) grad(:,i) = 0.0_wp

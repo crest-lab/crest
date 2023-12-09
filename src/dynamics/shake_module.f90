@@ -83,6 +83,9 @@ module shake_module
     !>--- temporary coordinate space (to avoid reallocation every shake call)
     real(wp),allocatable :: xyzt(:,:)
 
+    !>--- pointer to the freeze list
+    logical, pointer :: freezeptr(:)
+
   end type shakedata
 
   public :: init_shake
@@ -115,27 +118,27 @@ contains !> MODULE PROCEDURES START HERE
     integer :: ij
     integer,allocatable :: list(:)
     real(wp) :: rco
-    logical :: metalbond,rcut
+    logical :: metalbond,rcut,checkfreeze
 
     integer :: n2
     integer,allocatable :: cons2(:,:)
 
-    !>--- if shake was already set up, return
+!>--- if shake was already set up, return
     if(shk%initialized) return
 
-    !>--- reset counter
+!>--- reset counter
     nconsu = 0
     n2 = 0
-    !>--- count user-defined bonds
+    checkfreeze = associated(shk%freezeptr)
+
+!>--- count user-defined bonds
     if ((shk%nusr > 0) .and. allocated(shk%conslistu)) then
       do i = 1,shk%nusr
         nconsu = nconsu + 1
-        !if (pr) write (*,*) 'SHAKE user input constraining bond ', &
-        !    &      shk%conslistu(1:2,nconsu)
       end do
     end if
 
-    !>--- constrain all X-H only
+!>--- constrain all X-H only
     if (shk%shake_mode == 1) then
       ij = nat * (nat + 1) / 2
       allocate (cons2(2,ij),source=0)
@@ -144,6 +147,12 @@ contains !> MODULE PROCEDURES START HERE
           minrij = 1000.0_wp
           do j = 1,nat
             if (j .ne. i) then
+
+              !> check if BOTH are frozen
+              if(checkfreeze)then
+                if( shk%freezeptr(i) .and. shk%freezeptr(j) ) cycle
+              endif 
+              
               rij = (xyz(1,i) - xyz(1,j))**2 + (xyz(2,i) - xyz(2,j))**2 + (xyz(3,i) - xyz(3,j))**2
               if (rij .lt. minrij) then
                 minrij = rij
@@ -167,7 +176,8 @@ contains !> MODULE PROCEDURES START HERE
         end if
       end do
     end if
-    !>--- SHAKE all bonds
+
+!>--- SHAKE all bonds
     if (shk%shake_mode == 2) then
       if (allocated(shk%wbo)) then
         ij = nat * (nat + 1) / 2
@@ -176,6 +186,12 @@ contains !> MODULE PROCEDURES START HERE
         do i = 1,nat
           do j = 1,nat
             if (i .eq. j) cycle
+
+            !>--- if both are frozen, no SHAKE!
+            if(checkfreeze)then
+              if( shk%freezeptr(i) .and. shk%freezeptr(j) ) cycle
+            endif
+
             rij = (xyz(1,i) - xyz(1,j))**2 + (xyz(2,i) - xyz(2,j))**2 + (xyz(3,i) - xyz(3,j))**2
             rco = (atomicRad(at(j)) + atomicRad(at(i))) * autoaa
             ij = shake_lin(i,j)
@@ -235,7 +251,6 @@ contains !> MODULE PROCEDURES START HERE
       shk%conslist(1:2,j:shk%ncons) = cons2(1:2,1:n2)
     end if
     do i = 1,shk%ncons
-      !if (pr) write (*,*) 'SHAKE constraining bond',shk%conslist(1:2,i)
       iat = shk%conslist(1,i)
       jat = shk%conslist(2,i)
       drij(1:3) = xyz(1:3,iat) - xyz(1:3,jat)
@@ -247,6 +262,7 @@ contains !> MODULE PROCEDURES START HERE
   end subroutine init_shake
 
 !========================================================================================!
+
   subroutine do_shake(nat,xyzo,xyz,velo,acc,mass,tstep,shk,pr,iostat)
 !**************************************************
 !* subroutine do_shake
@@ -274,7 +290,6 @@ contains !> MODULE PROCEDURES START HERE
     io = 1         !> and therefore unsuccessfull
     icyc = 0
 
-    !allocate (xyzt(3,nat))
     if(.not.allocated(shk%xyzt)) allocate(shk%xyzt(3,nat))
     shk%xyzt = xyz
 
@@ -287,7 +302,7 @@ contains !> MODULE PROCEDURES START HERE
       shk%dro(1:3,i) = xyzo(1:3,iat) - xyzo(1:3,jat)
     end do
 
-    !>--- iterative SHAKE loop
+!>--- iterative SHAKE loop
     do
       maxdev = 0.d0
 
@@ -334,7 +349,6 @@ contains !> MODULE PROCEDURES START HERE
     else if (pr) then
       write (*,*) 'SHAKE did not converge! maxdev=',maxdev
     end if
-    !deallocate (xyzt)
 
     if(present(iostat))then
       iostat = io
@@ -355,5 +369,6 @@ contains !> MODULE PROCEDURES START HERE
     return
   end function shake_lin
 
+!========================================================================================!
 !========================================================================================!
 end module shake_module

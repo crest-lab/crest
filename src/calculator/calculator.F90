@@ -259,6 +259,9 @@ contains  !> MODULE PROCEDURES START HERE
       do i = 1,calc%nconstraints
         efix = 0.0_wp
         calc%grdfix = 0.0_wp
+        if(calc%nfreeze > 0)then
+           call calc%cons(i)%addfreeze(calc%freezelist)
+        endif
         if (calc%cons(i)%type >= 0) then
           !>--- structural constraints
           call calc_constraint(mol%nat,mol%xyz,calc%cons(i),efix,calc%grdfix)

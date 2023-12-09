@@ -28,6 +28,9 @@ module lwoniom_module
 
 #ifndef WITH_LWONIOM
   !> this is a placeholder if no lwONIOM module is used!
+  type :: lwoniom_frag_placeholder
+    integer,allocatable :: chrg 
+  end  type lwoniom_frag_placeholder
   type :: lwoniom_input
     integer :: id = 0
   end type lwoniom_input
@@ -36,6 +39,7 @@ module lwoniom_module
     integer :: calcids(2,2)
     integer :: nfrag = 0
     integer :: ncalcs = 0
+    type(lwoniom_frag_placeholder),allocatable :: fragment(:)
   end type lwoniom_data
 #endif
 
@@ -77,7 +81,7 @@ contains  !> MODULE PROCEDURES START HERE
     allocate(ONIOM_input)
     call lwoniom_parse_inputfile(tomlfile,ONIOM_input,required = .false., natoms=nat)
     ONIOM_input%at = at
-    ONIOM_input%xyz = xyz*autoaa !> ONIOM_input needs to stor coords in Angstroem rather than bohr
+    ONIOM_input%xyz = xyz*autoaa !> ONIOM_input needs to store coords in Angstroem rather than bohr
     call lwoniom_new_calculator( ONIOM_input, ONIOM_data ) !> because this converts to Bohr
     deallocate(ONIOM_input)
     call ONIOM_data%dump_fragments()
@@ -106,13 +110,9 @@ contains  !> MODULE PROCEDURES START HERE
 
     !> optional, update a given list of coord-type molecules (the fragments)
     if(present(mollist).and.present(cmap))then
-      !do i=1,ONIOM%nfrag
-      ! call ONIOM_get_mol(ONIOM,i,mollist(i))
-      !enddo
       do i=1,ONIOM%ncalcs
           j = cmap(i)
           call ONIOM_get_mapping(j, ONIOM%calcids, highlow, fragid)
-          !write(*,*) fragid, highlow
           call ONIOM_get_mol(ONIOM,fragid,mollist(i),highlow)
       enddo
     endif
@@ -120,7 +120,6 @@ contains  !> MODULE PROCEDURES START HERE
     call ONIOM_compile_error()
 #endif
   end subroutine ONIOM_update_geo
-
 
 !========================================================================================!
 
@@ -145,9 +144,6 @@ contains  !> MODULE PROCEDURES START HERE
 #endif
   end subroutine ONIOM_engrad
 
-
-
-
 !========================================================================================!
 
   subroutine ONIOM_get_mol(ONIOM,F,mol,highlow)
@@ -168,15 +164,7 @@ contains  !> MODULE PROCEDURES START HERE
     if(mol%nat /=  natf) call mol%deallocate()
 
     mol%nat = natf
-    !if(present(highlow) .and. (ONIOM%fragment(F)%replace_at))then
-    !  if(highlow .eq. 1)then
-    !     mol%at = reshape( [ONIOM%fragment(F)%at_high,ONIOM%fragment(F)%linkat], [natf])
-    !  else if(highlow.eq.2)then
-    !     mol%at = reshape( [ONIOM%fragment(F)%at_low,ONIOM%fragment(F)%linkat], [natf])
-    !  endif  
-    !else
     mol%at = reshape( [ONIOM%fragment(F)%at,ONIOM%fragment(F)%linkat], [natf])
-    !endif
     mol%xyz = reshape( [ONIOM%fragment(F)%xyz,ONIOM%fragment(F)%linkxyz], [3,natf]) 
     
 #else
@@ -226,7 +214,6 @@ contains  !> MODULE PROCEDURES START HERE
     type(coord),pointer,intent(out) :: molptr
     molptr => mol
   end subroutine ONIOM_associate_mol
-
 
 !========================================================================================!
 

@@ -127,7 +127,7 @@ contains  !> MODULE PROCEDURES START HERE
 
     type(coord) :: mol          !> molecule data (should be in Bohr)
     type(mddata) :: dat         !> MD data
-    type(calcdata) :: calc      !> calculation control
+    type(calcdata),target :: calc      !> calculation control
     logical,intent(in) :: pr    !> printout control
     integer,intent(out) :: term !> termination status
 
@@ -154,7 +154,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=256) :: commentline
     integer :: i,j,k,l,ich,och,io
     integer :: dcount,printcount
-    logical :: ex
+    logical :: ex,fail
 
     call initsignal()
 
@@ -164,8 +164,13 @@ contains  !> MODULE PROCEDURES START HERE
     term = 0
     tstep_au = dat%tstep*fstoau
     nfreedom = 3*mol%nat
-!> TODO fix frozen-atom degrees of freedom and SHAKE
+    if(calc%nfreeze > 0)then
+      nfreedom = nfreedom - 3*calc%nfreeze
+    endif
     if (dat%shake) then
+      if(calc%nfreeze > 0)then
+        dat%shk%freezeptr => calc%freezelist
+      endif
       call init_shake(mol%nat,mol%at,mol%xyz,dat%shk,pr)
       dat%nshake = dat%shk%ncons
       nfreedom = nfreedom-dat%nshake
@@ -201,10 +206,12 @@ contains  !> MODULE PROCEDURES START HERE
       write (*,'('' dt /fs             :'',f10.2)') dat%tstep
       write (*,'('' temperature /K     :'',f10.2)') dat%tsoll
       write (*,'('' max steps          :'',i10  )') dat%length_steps
-      !write (*,'('' block length (av.) :'',i6  )') blockl
+      write (*,'('' block length (av.) :'',i10  )') dat%blockl
       write (*,'('' dumpstep(trj) /fs  :'',f10.2,i6)') dat%dumpstep,dat%sdump
-      !write (*,'('' dumpstep(coords)/fs:'',f8.2,i6)') dump_md,cdump0
       write (*,'('' # deg. of freedom  :'',i10  )') nfreedom
+      if(calc%nfreeze > 0)then
+      write (*,'('' # frozen atoms     :'',i10  )') calc%nfreeze
+      endif
       call thermostatprint(dat,pr)
       write (*,'('' SHAKE constraint   :'',8x,l)') dat%shake
       if (dat%shake) then
@@ -243,7 +250,14 @@ contains  !> MODULE PROCEDURES START HERE
       f = 2.0_wp
     end if
     edum = f*dat%tsoll*0.5_wp*kB*float(nfreedom)
-    call mdinitu(mol,dat,velo,mass,edum,pr)
+    if(.not.dat%restart .or. .not.allocated(dat%restartfile))then 
+     call mdinitu(mol,dat,velo,mass,edum,pr)
+    else
+     call rdmdrestart(mol,dat,velo,fail)
+     if(fail)then
+        call mdinitu(mol,dat,velo,mass,edum,pr)
+     endif
+    endif 
     call ekinet(mol%nat,velo,mass,ekin)
     if(calc%nfreeze > 0)then
        do i = 1,mol%nat

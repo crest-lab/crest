@@ -19,7 +19,7 @@
 
 !> NOTE: This is work in progress, not all input conventions have been set yet
 !========================================================================================!
-!> Routines contained here are for parsing 'top level' settings that will 
+!> Routines contained here are for parsing 'top level' settings that will
 !> enter the env systemdata object
 
 module parse_maindata
@@ -27,7 +27,7 @@ module parse_maindata
   !> modules for data storage in crest
   use crest_data
   use crest_restartlog
-  use strucrd, only: coord
+  use strucrd,only:coord
   !> modules used for parsing the root_object
   !>
   use parse_keyvalue,only:keyvalue,valuetypes
@@ -58,7 +58,7 @@ contains   !> MODULE PROCEDURES START HERE
       call parse_main_c(env,kv%key,kv%value_c)
     end select
 !> other, with multiple or raw type
-    select case(kv%key)
+    select case (kv%key)
     case ('optlev','ancopt_level')
       env%optlev = optlevnum(kv%rawvalue)
     end select
@@ -192,29 +192,36 @@ contains   !> MODULE PROCEDURES START HERE
     case ('notopo')
       env%checktopo = .not.val
     case ('restart')
-      if(val)then
+      if (val) then
         call read_restart(env)
-      endif
+      end if
     end select
     return
   end subroutine parse_main_bool
 !========================================================================================!
+
   subroutine parse_main_blk(env,blk)
+!**************************************
+!* Some shorter blocks are not defined
+!* in separate source files. They can
+!* be found below.
+!**************************************
     implicit none
     type(systemdata) :: env
     type(datablock) :: blk
     select case (blk%header)
     case ('cregen')
       call parse_cregen(env,blk)
-    case('confsolv')
+    case ('confsolv')
       call parse_confsolv(env,blk)
     end select
   end subroutine parse_main_blk
+
 !========================================================================================!
- subroutine parse_cregen(env,blk)
+  subroutine parse_cregen(env,blk)
 !****************************************
 !* parse settings for the CREGEN routine
-!****************************************  
+!****************************************
     implicit none
     type(systemdata) :: env
     type(datablock) :: blk
@@ -223,19 +230,19 @@ contains   !> MODULE PROCEDURES START HERE
 !>--- parse the arguments
     do i = 1,blk%nkv
       kv = blk%kv_list(i)
-    select case (kv%key)
-    case ('ewin') 
-      env%ewin = kv%value_f
-    case ('ethr')
-      env%ethr = kv%value_f
-    case ('rthr')
-      env%rthr = kv%value_f
-    case ( 'bthr')
-      env%bthr2 = kv%value_f
-    case ('eqv','nmr') 
-      env%doNMR = kv%value_b 
-    end select
-    enddo
+      select case (kv%key)
+      case ('ewin')
+        env%ewin = kv%value_f
+      case ('ethr')
+        env%ethr = kv%value_f
+      case ('rthr')
+        env%rthr = kv%value_f
+      case ('bthr')
+        env%bthr2 = kv%value_f
+      case ('eqv','nmr')
+        env%doNMR = kv%value_b
+      end select
+    end do
   end subroutine parse_cregen
 
 !========================================================================================!
@@ -245,38 +252,40 @@ contains   !> MODULE PROCEDURES START HERE
     type(systemdata) :: env
     type(datablock) :: blk
     type(keyvalue) :: kv
-    integer :: i    
+    integer :: i
 !>--- add ConfSolv as refinement level to give a ΔΔGsoln
     call env%addrefine(refine%ConfSolv)
 
 !>--- parse the arguments
     do i = 1,blk%nkv
       kv = blk%kv_list(i)
-    select case (kv%key)
-    case ('pid')
-      if(.not.allocated(cs_pid)) allocate(cs_pid)
-      cs_pid = kv%value_i
-    case ('bin')
-       cs_bin = trim(kv%value_c)
-    case ( 'port')
-       if(.not.allocated(cs_port)) allocate(cs_port)
-       cs_port = kv%value_i
-    case ('solvent') 
-    !> to define a single solvent like: solvent = ['water','O']
-       if(kv%na == 2)then
-         cs_solvent = trim(kv%value_rawa(1))
-         cs_smiles = trim(kv%value_rawa(2)) 
-       else
-         cs_solvent = kv%value_c
-       endif
-    case ('solvent_name')
-       cs_solvent = kv%value_c
-    case ('solvent_smiles')
-       cs_smiles = kv%value_c
-    case ('model_path','param','checkpoint')
-       cs_param = kv%value_c
-    end select
-    enddo
+      select case (kv%key)
+      case ('pid')
+        if (.not.allocated(cs_pid)) allocate (cs_pid)
+        cs_pid = kv%value_i
+      case ('bin')
+        cs_bin = trim(kv%value_c)
+      case ('port')
+        if (.not.allocated(cs_port)) allocate (cs_port)
+        cs_port = kv%value_i
+      case ('solvent')
+        !> to define a single solvent like: solvent = ['water','O']
+        if (kv%na == 2) then
+          cs_solvent = trim(kv%value_rawa(1))
+          cs_smiles = trim(kv%value_rawa(2))
+        else
+          cs_solvent = kv%value_c
+        end if
+      case ('solvent_name')
+        cs_solvent = kv%value_c
+      case ('solvent_smiles')
+        cs_smiles = kv%value_c
+      case ('model_path','param','checkpoint')
+        cs_param = kv%value_c
+      end select
+    end do
   end subroutine parse_confsolv
+
+!========================================================================================!
 !========================================================================================!
 end module parse_maindata

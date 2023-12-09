@@ -668,7 +668,7 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
   type(systemdata),intent(inout) :: env
   type(mddata) :: mddats(nsim)
   integer :: nsim
-  integer :: i,io
+  integer :: i,io,j
   logical :: ex
 !========================================================!
   type(mtdpot),allocatable :: mtds(:)
@@ -701,6 +701,14 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
       mddats(i)%npot = 1
       allocate (mddats(i)%mtd(1),source=mtds(i))
       allocate (mddats(i)%cvtype(1),source=cv_rmsd)
+      !> if necessary exclude atoms from RMSD bias
+      if(sum(env%includeRMSD) /= env%ref%nat)then
+         if(.not.allocated(mddats(i)%mtd(1)%atinclude)) &
+         & allocate (mddats(i)%mtd(1)%atinclude( env%ref%nat ), source=.true.  )
+         do j=1,env%ref%nat
+           if(env%includeRMSD(j) .ne.1) mddats(i)%mtd(1)%atinclude(j) = .false. 
+         enddo
+      endif
     end if
   end do
   if (allocated(mtds)) deallocate (mtds)
@@ -901,7 +909,7 @@ subroutine parallel_md_block_printout(MD,vz)
     end if
   end if
   if(allocated(MD%active_potentials))then
-      write (stdout,'(2x,"|   active potentials    :",i4," porential |")') size(MD%active_potentials,1)
+      write (stdout,'(2x,"|   active potentials    :",i4," potential    |")') size(MD%active_potentials,1)
   endif
   if (MD%simtype == type_mtd) then
     if (MD%cvtype(1) == cv_rmsd) then
