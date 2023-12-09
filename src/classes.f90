@@ -350,7 +350,7 @@ module crest_data
     character(len=512) :: homedir        !> original directory from which calculation was started
     character(len=512) :: scratchdir     !> path to the scratch directory
     character(len=:),allocatable :: cmd
-    character(len=:),allocatable :: inputcoords,inputcoords_solv,inputcoords_solu
+    character(len=:),allocatable :: inputcoords
     character(len=:),allocatable :: wbofile
     character(len=:),allocatable :: atlist
     character(len=:),allocatable :: chargesfilename
@@ -386,8 +386,6 @@ module crest_data
 
     !>--- property data objects
     type(protobj) :: ptb
-    type(protobj) :: ptb_solvent
-    type(protobj) :: ptb_solute
 
     !>--- saved constraints
     type(constra) :: cts
@@ -409,8 +407,6 @@ module crest_data
 
     !>--- reference structure data (the input structure)
     type(refdata) :: ref
-    type(refdata) :: qcg_solvent
-    type(refdata) :: qcg_solute
 
     !>--- QCG data
     integer           :: qcg_runtype = 0      !> Default is grow, 1= ensemble & opt, 2= e_solv, 3= g_solv

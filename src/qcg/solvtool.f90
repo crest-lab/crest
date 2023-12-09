@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 Sebastian Spicher, Christoph Plett, Philipp Pracht
+! Copyright (C) 2023 Christoph Plett, Sebastian Spicher, Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -55,11 +55,12 @@ subroutine crest_solvtool(env, tim)
 
 !> Check, if xtb is present
    call checkprog_silent(env%ProgName,.true.,iostat=io)
-   if(io /= 0 ) error stop
+   if(io /= 0 ) error stop 'No xtb found'
 
-!> Check, if xtbiff is present
+!> Check, if xtbiff is present (if it is required)
    if (env%use_xtbiff) then
-      call check_prog_path_iff(env)
+      call checkprog_silent(env%ProgIFF,.true.,iostat=io)
+      if(io /= 0 ) error stop 'No xtbiff found'
    else
       write (*, *)
       write (*, *) '  The use of the aISS algorithm is requested (recommend).'
@@ -383,13 +384,15 @@ subroutine read_qcg_input(env, solu, solv)
 
    pr = .true.
 
+   call inputcoords_qcg(env, solu, solv)
+
 !--- Read in nat, at, xyz
-   call simpletopo_file('solute', solu, .false., .false., '')
-   allocate (solu%xyz(3, solu%nat))
-   call rdcoord('solute', solu%nat, solu%at, solu%xyz)
-   call simpletopo_file('solvent', solv, .false., .false., '')
-   allocate (solv%xyz(3, solv%nat))
-   call rdcoord('solvent', solv%nat, solv%at, solv%xyz)
+!   call simpletopo_file('solute', solu, .false., .false., '')
+!   allocate (solu%xyz(3, solu%nat))
+!   call rdcoord('solute', solu%nat, solu%at, solu%xyz)
+!   call simpletopo_file('solvent', solv, .false., .false., '')
+!   allocate (solv%xyz(3, solv%nat))
+!   call rdcoord('solvent', solv%nat, solv%at, solv%xyz)
 
 !--- CMA-Trafo
    call cma_shifting(solu, solv)
@@ -427,7 +430,6 @@ subroutine read_qcg_input(env, solu, solv)
               &Please use the aISS algorithm of xtb.'
       call read_directed_input(env)
    end if
-
 
 end subroutine read_qcg_input
 
@@ -3331,32 +3333,6 @@ subroutine qcg_cleanup(env)
 
 end subroutine qcg_cleanup
 
-subroutine check_prog_path_iff(env)
-   use crest_data
-   use iomod, only: command,checkprog_silent
-   implicit none
-   type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
-   character(len=512)           :: prog
-   character(len=256)           :: str
-   character(len=256)           :: path
-   integer                      :: ios, io
-
-   prog = env%ProgIFF
-   !write (str, '("which ",a," > ",a,"_path 2>/dev/null")') trim(prog), trim(prog)
-   !call command(trim(str), io)
-   !write (str, '(a,"_path")') trim(prog)
-   !str = trim(str)
-   !open (unit=27, file=str, iostat=ios)
-   !read (27, '(a)', iostat=ios) path
-   call checkprog_silent( prog, iostat=ios)
-   if (ios .ne. 0) then
-      write (0, *) 'No xtb-IFF found. This is currently required for ', &
-      & 'QCG and available at https:/github.com/grimme-lab/xtbiff/'
-      error stop
-   end if
-
-end subroutine check_prog_path_iff
-
 subroutine write_reference(env, solu, clus)
    use iso_fortran_env, wp => real64
    use crest_data
@@ -3377,3 +3353,80 @@ subroutine write_reference(env, solu, clus)
    call wrc0(env%fixfile, ref_clus%nat, ref_clus%at, ref_clus%xyz)
 
 end subroutine write_reference
+
+
+!========================================================================================!
+!> Convert given QCG coordinate files into (TM format)
+!> Write "solute" and "solvent" coordinate files
+!========================================================================================!
+subroutine inputcoords_qcg(env, solute, solvent)
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  use strucrd
+  use zdata
+  use iomod
+  implicit none
+
+  type(systemdata), intent(inout) :: env
+  type(zmolecule), intent(out) :: solute, solvent
+
+  logical :: ex11,ex21,solu,solv
+  type(coord) :: mol
+  type(zmolecule) :: zmol,zmol1
+  integer :: i
+
+!--------------------Checking for input-------------!
+
+  !Solute
+  inquire (file=env%solu_file,exist=ex11)
+  inquire (file='solute',exist=solu)
+  if (solu) call copy('solute','solute.old') !Backup solute file
+  if ((.not. ex11) .and. (.not. solu)) then
+    error stop 'No (valid) solute file! exit.'
+  else if ((.not. ex11) .and. (solu)) then
+    env%solu_file = 'solute'
+  end if
+
+  !Solvent
+  inquire (file=env%solv_file,exist=ex21)
+  inquire (file='solvent',exist=solv)
+  if (solu) call copy('solvent','solvent.old') !Backup solvent file
+  if ((.not. ex21) .and. (.not. solv)) then
+    error stop 'No (valid) solvent file! exit.'
+  else if ((.not. ex11) .and. (solu)) then
+    env%solu_file = 'solvent'
+  end if
+
+!---------------Handling solute---------------------!
+  call mol%open(env%solu_file)
+  call mol%write('solute')
+  solute%nat = mol%nat
+  solute%at = mol%at
+  solute%xyz = mol%xyz
+  call mol%deallocate()
+
+  !--- if the input was a SDF file, special handling
+  env%sdfformat = .false.
+  call checkcoordtype(env%solu_file,i)
+  if (i == 31.or.i == 32) then
+    !Add sdf stuff here, if somebody needs it
+  end if
+
+!---------------Handling solvent---------------------!
+
+  call mol%open(env%solv_file)
+  call mol%write('solvent')
+  solvent%nat = mol%nat
+  solvent%at = mol%at
+  solvent%xyz = mol%xyz
+  call mol%deallocate()
+
+  !--- if the input was a SDF file, special handling
+  env%sdfformat = .false.
+  call checkcoordtype(env%solv_file,i)
+  if (i == 31.or.i == 32) then
+    !Add sdf stuff here, if somebody needs it
+  end if
+
+  return
+end subroutine inputcoords_qcg
