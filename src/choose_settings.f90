@@ -118,7 +118,10 @@ subroutine md_length_setup(env)
 
 !>-- ONLY use generated MD length if not already set by the user
   if (env%mdtime .le. 0.0d0) then
-    if (total .gt. lenthr) then
+    if(env%mddat%length_ps > 0.0_wp)then
+      total = env%mddat%length_ps
+      write(stdout,'(1x,"t(MTD) / ps set via calculator :",  f8.1)') total
+    else if (total .gt. lenthr) then
       total = lenthr
       call mtdwarning(lenthr*rfac)
     end if
@@ -480,6 +483,8 @@ subroutine env_to_mddat(env)
    if(env%mddat%length_ps <= 0.0_wp)then
    !> total runtime in ps
      env%mddat%length_ps    = env%mdtime
+   else
+     env%mdtime = env%mddat%length_ps
    endif
    if(env%mddat%tstep <= 0.0_wp)then
    !> time step in fs 

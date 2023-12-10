@@ -61,6 +61,8 @@ module constraints
 
   public :: constraint
   type :: constraint
+    !> quick select
+    logical :: active = .true.
 
     !> required
     integer :: type = 0  !> type of the constraint
@@ -95,7 +97,6 @@ module constraints
     procedure :: bondrangeconstraint => create_bondrange_constraint
     procedure :: addfreeze => constraint_freezeassoc
     procedure :: complete => complete_defaults
-    !  procedure :: allatms => add_allatms
   end type constraint
 
   !=====================================================!
@@ -263,6 +264,7 @@ contains  !>--- Module routines start here
   end subroutine complete_defaults
 
 !========================================================================================!
+!========================================================================================!
 
   subroutine calc_constraint(n,xyz,constr,energy,grd)
 !*****************************************************
@@ -280,6 +282,8 @@ contains  !>--- Module routines start here
 
     energy = 0.0_wp
     grd = 0.0_wp
+
+    if(.not.constr%active) return
 
     select case (constr%type)
     case (bond)
@@ -302,6 +306,9 @@ contains  !>--- Module routines start here
 
     return
   end subroutine calc_constraint
+
+!========================================================================================!
+!========================================================================================!
 
   subroutine print_constraint(self,chnl)
     implicit none
