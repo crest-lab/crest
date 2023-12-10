@@ -69,6 +69,12 @@ contains   !> MODULE PROCEDURES START HERE
     character(len=*) :: key
     real(wp) :: val
     select case (key)
+    case('wscal')
+      env%potscal = val
+      env%wallsetup = .true.
+    case('wpad')
+      env%potpad = val
+      env%wallsetup = .true.
 
     end select
     return
@@ -138,6 +144,12 @@ contains   !> MODULE PROCEDURES START HERE
         env%preopt = .false.
         env%crestver = crest_imtd
         env%runver = 1
+      case ('nci-mtd','nci')
+        env%NCI = .true.
+        env%runver = 4
+        env%autozsort = .false.
+        env%performCross = .false.
+        env%rotamermds = .false.
       case ('entropy','imtd-stmd')
         env%crestver = crest_imtd  !> the entropy mode acts as subtype of the crest_imtd algo
         env%properties = abs(p_CREentropy)
@@ -174,6 +186,10 @@ contains   !> MODULE PROCEDURES START HERE
       env%constraints = val
     case ('rigidconf_file')
       env%rigidconf_userfile = val
+
+    case('watlist','wat')
+      env%potatlist = val
+      env%wallsetup=.true.
     end select
     return
   end subroutine parse_main_c

@@ -40,7 +40,7 @@ subroutine parseinputfile(env,fname)
   use crest_parameters
   !> modules for data storage in crest
   use crest_data
-  use crest_calculator, only:calcdata
+  use crest_calculator,only:calcdata
   use dynamics_module,only:mddata
 
   !> modules used for parsing the root_object
@@ -108,11 +108,11 @@ subroutine parseinputfile(env,fname)
   end if
 
 !>--- check for lwONIOM setup (will be read at end of confparse)
-   do i = 1,dict%nblk
-      if(dict%blk_list(i)%header == 'lwoniom')then
-        env%ONIOM_toml = trim(fname)  
-      endif
-   enddo
+  do i = 1,dict%nblk
+    if (dict%blk_list(i)%header == 'lwoniom') then
+      env%ONIOM_toml = trim(fname)
+    end if
+  end do
 
   call dict%deallocate()
   return
@@ -120,43 +120,44 @@ end subroutine parseinputfile
 
 !========================================================================================!
 !========================================================================================!
-subroutine internal_constraint_repair(env)
-!*******************************************
+subroutine internal_constraint_repair(env,bondconst)
+!**************************************************
 !* subroutine internal_constraint_setup
-!* 'repair' settings for constraints set up
-!* for the internal calculation engine
-!*******************************************
+!* add global settings from crests legacy keywords
+!* to the new calculator setup
+!**************************************************
   use crest_parameters
   use crest_data
+  use parse_xtbinput
   implicit none
   type(systemdata) :: env
+  logical,intent(in) :: bondconst
   integer :: i,j,k,l,n
   integer :: nat
   logical,allocatable :: atms(:)
+  logical :: ex
 
-  n = env%calc%nconstraints
-  if (n < 1) return
+!>--- don't need it for the legacy runtype
+  if (env%legacy) return
 
-  nat = env%nat
+!>--- check if we want to read the bondlengths file
+  inquire (file='bondlengths',exist=ex)
+  if (bondconst.and.ex) then
+    call parse_xtbinputfile(env,'bondlengths')
+  end if
 
-  do i = 1,n
-    select case (env%calc%cons(i)%type)
-
-    case (4,5) !> wall, wall_fermi
-      if (env%calc%cons(i)%n == 0) then
-        !> if no #atoms have been specified, apply to all atoms
-        write(*,*) 'restoring all atoms' 
-        allocate (atms(nat))
-        atms = .true.
-        call env%calc%cons(i)%sphereupdate(nat,atms)
-        deallocate (atms)
-        env%calc%cons(i)%ref = env%calc%cons(i)%ref * env%potscal
-      end if
-
-    case default
-      continue
-    end select
-  end do
+!>--- wall potential setup for calculator version
+  if (env%NCI.or.env%wallsetup) then
+    write (stdout,'("> ",a)') 'Generating logfermi wall potential for the system.'
+    if (allocated(env%potatlist)) then
+      write (stdout,'("> ",a,f8.3,2x,a,f8.3,a,a)') 'wscal=',env%potscal, &
+      & 'wpad=',env%potpad,'  atoms: ',trim(env%potatlist)
+    else
+      write (stdout,'("> ",a,f8.3,2x,a,f8.3,a,a)') 'wscal=',env%potscal, &
+      & 'wpad=',env%potpad,'  atoms: ','all'
+    end if
+    call wallpot(env)
+  end if
 
   return
 end subroutine internal_constraint_repair
@@ -167,9 +168,9 @@ subroutine env_calcdat_specialcases(env)
 !****************************************************
 !* Some special treatments are sometimes necessary
 !* depending on a choosen calculation level,
-!* for example, a MD timestep adjustment for GFN-FF. 
-!* This routine takes care of that, 
-!* but some stuff (in particular MD settings) may be 
+!* for example, a MD timestep adjustment for GFN-FF.
+!* This routine takes care of that,
+!* but some stuff (in particular MD settings) may be
 !* overwritten later in the respective block.
 !***************************************************
   use crest_parameters
@@ -181,22 +182,21 @@ subroutine env_calcdat_specialcases(env)
   integer :: refine_lvl
 
   !> special case for GFN-FF calculations
-  if(any(env%calc%calcs(:)%id == jobtype%gfnff))then
+  if (any(env%calc%calcs(:)%id == jobtype%gfnff)) then
     env%mdstep = 1.5d0
     env%hmass = 5.0d0
     env%cts%cbonds_md = .true.
     env%checkiso = .true.
-  endif
-
+  end if
 
   !> check if any refinement is to be done between opt.
-  if(any(env%calc%calcs(:)%refine_lvl > 0))then
-    do i=1,env%calc%ncalculations 
+  if (any(env%calc%calcs(:)%refine_lvl > 0)) then
+    do i = 1,env%calc%ncalculations
       refine_lvl = env%calc%calcs(i)%refine_lvl
-      if(refine_lvl <= 0 ) cycle
-      if(any(env%refine_queue(:) == refine_lvl)) cycle
-      call env%addrefine( refine_lvl )
-    enddo
-  endif
+      if (refine_lvl <= 0) cycle
+      if (any(env%refine_queue(:) == refine_lvl)) cycle
+      call env%addrefine(refine_lvl)
+    end do
+  end if
 
 end subroutine env_calcdat_specialcases

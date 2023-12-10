@@ -23,60 +23,54 @@
 subroutine wallpot(env)
   use crest_parameters
   use crest_data
-  use strucrd,only:rdnat,rdcoord,wrc0,coord
+  use strucrd,only:coord,get_atlist
   use axis_module
   use crest_calculator
   use wall_setup
   implicit none
   type(systemdata) :: env
-
-  integer :: nat
-  integer,allocatable  :: at(:)
-  real(wp),allocatable :: xyz(:,:)
-  real(wp) :: eaxr(3),rabc(3)
-  real(wp) :: rmax
-  real(wp) :: sola,vtot
-  real(wp) :: r,roff,boxr
-  real(wp) :: pshape
-  real(wp) :: volsum
-  real(wp) :: natfac,erffac,erfscal
+  real(wp) :: rabc(3)
   logical :: pr = .false.
-
   type(coord) :: mol
   type(constraint) :: constr
   logical,allocatable :: atms(:)
-
-  real(wp),parameter :: pi43 = pi * (4.0_wp / 3.0_wp)
-  real(wp),parameter :: third = 1.0_wp / 3.0_wp
-  real(wp),parameter :: kdefault = 1.0_wp  !> xtb version doesn't use k
-  real(wp),parameter :: alphadefault = 30.0_wp !> polynomial default in xtb
+  real(wp),parameter :: pi43 = pi*(4.0_wp/3.0_wp)
+  real(wp),parameter :: third = 1.0_wp/3.0_wp
+  real(wp),parameter :: kdefault = 298.15_wp  !> xtb version doesn't use k
+  real(wp),parameter :: betadefault = 50.0_wp !> polynomial default in xtb
 !=========================================================!
-  allocate (env%cts%pots(10))
-  env%cts%pots = ''
-  env%cts%NCI = .true.
 
 !>--- read in coord
   call env%ref%to(mol)
 
 !>--- calculate the surrounding ellipsoid
-  call wallpot_core(mol,rabc, potscal=env%potscal) 
+  call boxpot_core(mol,rabc,potscal=env%potscal,potpad=env%potpad)
 
-!>--- write CMA transformed coord file
-  call wrc0('coord',env%nat,mol%at,mol%xyz)
-  call wall_dummypot(rabc,mol%xyz,mol%at,mol%nat)
+!>--- write CMA transformed coord file and into memory
+  env%ref%xyz = mol%xyz
+  call mol%write('coord')
 
-!>--- constraint in legacy framework
-  write (env%cts%pots(1),'("$wall")')
-  write (env%cts%pots(2),'(2x,"potential=polynomial")')
-  write (env%cts%pots(3),'(2x,"ellipsoid:",1x,3(g0,",",1x),"all")') rabc
-
+  if (.not.env%legacy) then
 !>--- add constraint in calculator framwork
-  if(.not.env%legacy)then
-    allocate(atms(mol%nat), source=.true.) !> all atoms
-    call constr%ellipsoid( mol%nat, atms,rabc, kdefault,alphadefault,.false.)
-    deallocate(atms)
-    !call constr%print(stdout)
+    allocate (atms(mol%nat),source=.false.)
+    if(allocated(env%potatlist))then
+      call get_atlist(mol%nat,atms,env%potatlist,mol%at) !> selected atoms
+    else
+      atms(:) = .true. !> all atoms
+    endif
+    call constr%ellipsoid(mol%nat,atms,rabc,kdefault,betadefault,.true.)
+    deallocate (atms)
+    call constr%print(stdout)
     call env%calc%add(constr)
-  endif
+  else
+!>--- constraint in legacy framework
+
+    allocate (env%cts%pots(10))
+    env%cts%pots = ''
+    env%cts%NCI = .true.
+    write (env%cts%pots(1),'("$wall")')
+    write (env%cts%pots(2),'(2x,"potential=logfermi")')
+    write (env%cts%pots(3),'(2x,"ellipsoid:",1x,3(g0,",",1x),"all")') rabc
+  end if
   return
 end subroutine wallpot

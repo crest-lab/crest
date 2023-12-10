@@ -152,7 +152,7 @@ contains  !>--- Module routines start here
       if (self%n .ne. 2) error stop '*** ERROR *** wrong number of atoms for bondrange constraint'
       if (.not.allocated(self%fc)) then
         allocate (self%fc(2))
-        self%fc(1) = fcdefault/kB
+        self%fc(1) = fcdefault/kB !> bondrange doesn't use 300K default! 
         self%fc(2) = betadefault
       else
         if (size(self%fc) < 2) error stop '*** ERROR *** wrong number of parameters for bondrange constraint'
@@ -226,7 +226,7 @@ contains  !>--- Module routines start here
 
       if (.not.allocated(self%fc)) then
         allocate (self%fc(2))
-        self%fc(1) = fcdefault
+        self%fc(1) = Tdefault
         self%fc(2) = betadefault
       else
         if (size(self%fc) < 2) error stop '*** ERROR *** wrong number of parameters for wall potential'
@@ -312,52 +312,63 @@ contains  !>--- Module routines start here
     character(len=10) :: atm
     integer :: chnl
     logical :: pr
-
+    character(len=*),parameter :: headfmt ='("> constraint: ",a,a)'
     if (self%type == 0) return
     pr = .true.
     select case (self%type)
     case (bond)
       art = 'distance'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0)') self%atms(1:2)
-      write (values,'(" d=",f8.2,1x,"k=",f8.5)') self%ref(1)*autoaa,self%fc(1)
+      write (chnl,headfmt) trim(art),trim(atoms)
+      write (chnl,'(2x,"d(AA)=",f12.5,1x,"k=",f8.5)') self%ref(1)*autoaa,self%fc(1)
     case (angle)
       art = 'angle'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0,",",i0)') self%atms(1:3)
-      write (values,'(" deg=",f6.2,1x,"k=",f8.5)') self%ref(1)*deg,self%fc(1)
+      write (chnl,headfmt) trim(art),trim(atoms)
+      write (chnl,'(2x,"deg=",f6.2,1x,"k=",f8.5)') self%ref(1)*deg,self%fc(1)
     case (dihedral)
       art = 'dihedral'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0,",",i0,",",i0)') self%atms(1:4)
-      write (values,'(" deg=",f6.2,1x,"k=",f8.5)') self%ref(1)*deg,self%fc(1)
+      write (chnl,headfmt) trim(art),trim(atoms)
+      write (chnl,'(2x,"deg=",f6.2,1x,"k=",f8.5)') self%ref(1)*deg,self%fc(1)
     case (wall)
       art = 'wall'
       write (atoms,'(1x,"atoms:",1x,i0,a)') self%n,'/all'
-      write (values,'(" radii(Bohr)=",3f12.5," k=",f8.5,1x,"exp=",f5.2)') self%ref(1:3),self%fc(1:2)
+      write (chnl,headfmt) trim(art),trim(atoms)
+      write (chnl,'(2x,"radii(AA)=",3f12.5)') self%ref(1:3)*autoaa
+      write (chnl,'(2x,"kb*T=",f12.5,1x,"exp=",f12.5)') self%fc(1),self%fc(2)
     case (wall_fermi)
       art = 'wall_fermi'
       write (atoms,'(1x,"atoms:",1x,i0,a)') self%n,'/all'
-      write (values,'(" radii(Bohr)=",3f12.5," T=",f8.1,1x,"exp=",f5.2)') self%ref(1:3),self%fc(1:2)
+      write (chnl,headfmt) trim(art),trim(atoms)
+      write (chnl,'(2x,"radii(AA)=",3f12.5)') self%ref(1:3)*autoaa
+      write (chnl,'(2x,"     kb*T=",f12.5,1x," exp=",f12.5)') self%fc(1)*kB,self%fc(2)
     case (na_gapdiff)
       art = 'nonadiabatic gap'
       write (atoms,'(1x,"[",a,"]")') 'σ*ΔE²/(ΔE+α)'
-      write (values,'(" σ=",f8.5," α=",f8.5)') self%fc(1:2)
+      write (chnl,headfmt) trim(art),trim(atoms)
+      write (chnl,'(2x,"σ=",f8.5," α=",f8.5)') self%fc(1:2)
     case (na_gapdiff2)
       art = 'nonadiabatic gap'
       write (atoms,'(1x,"[",a,"]")') 'σ*(exp(-β|ΔE|)+C) * ΔE²/(|ΔE|+α)'
-      write (values,'(" σ=",f8.5," α=",f8.5," C=",f8.5," β=",f8.5)') self%fc(1:3),27.2114_wp
+      write (chnl,headfmt) trim(art),trim(atoms)
+      write (chnl,'(2x,"σ=",f8.5," α=",f8.5)') self%fc(1:2)
+      write (chnl,'(2x,"C=",f8.5," β=",f8.5)') self%fc(3),27.2114_wp
     case (bondrange)
       art = 'bondrange'
       write (atoms,'(1x,"atoms:",1x,i0,",",i0)') self%atms(1:2)
-      write (values,'(" upper=",f8.2,1x,"lower=",f8.2)') self%ref(1)*autoaa,self%ref(2)*autoaa
+      write (chnl,headfmt) trim(art),trim(atoms)
+      write (chnl,'(2x,"upper=",f8.2,1x,"lower=",f8.2)') self%ref(1)*autoaa,self%ref(2)*autoaa
     case default
       art = 'none'
       atoms = 'none'
       values = ' '
       pr = .false.
     end select
-    if (pr) then
-      write (chnl,'("> ",a,a,a)') 'constraint: ',trim(art),trim(atoms)
-      write (chnl,'(1x,a)') trim(values)
-    end if
+    !if (pr) then
+    !  write (chnl,'("> ",a,a,a)') 'constraint: ',trim(art),trim(atoms)
+    !  write (chnl,'(1x,a)') trim(values)
+    !end if
 
     return
   end subroutine print_constraint
@@ -1044,7 +1055,7 @@ contains  !>--- Module routines start here
     real(wp),intent(in) :: r
     real(wp) :: k,alpha
     logical,intent(in) :: logfermi
-    integer :: i,c
+    integer :: i,c,ii
 
     call self%deallocate()
     if (logfermi) then
@@ -1057,8 +1068,12 @@ contains  !>--- Module routines start here
     allocate (self%atms(c))
     allocate (self%fc(2),source=fcdefault)
     allocate (self%ref(3),source=r)
+    ii = 0
     do i = 1,n
-      if (atms(i)) self%atms(i) = i
+      if (atms(i))then 
+        ii = ii +1
+        self%atms(ii) = i
+      endif
     end do
     self%ref(:) = r
     self%fc(1) = k
@@ -1074,7 +1089,7 @@ contains  !>--- Module routines start here
     real(wp),intent(in) :: r(3)
     real(wp) :: k,alpha
     logical,intent(in) :: logfermi
-    integer :: i,c
+    integer :: i,c,ii
 
     call self%deallocate()
     if (logfermi) then
@@ -1087,8 +1102,12 @@ contains  !>--- Module routines start here
     allocate (self%atms(c))
     allocate (self%fc(2),source=fcdefault)
     allocate (self%ref(3),source=r)
+    ii = 0
     do i = 1,n
-      if (atms(i)) self%atms(i) = i
+      if (atms(i))then
+        ii = ii +1 
+        self%atms(ii) = i
+      endif
     end do
     self%ref(:) = r(:)
     self%fc(1) = k
@@ -1191,6 +1210,7 @@ contains  !>--- Module routines start here
         fermi = 1.0_wp/(1.0_wp+expo)
         energy = energy+kB*T*log(1.0_wp+expo)
         grd(:,iat) = grd(:,iat)+kB*T*beta*expo*fermi*(r*w)/(dist+1.0e-14_wp)
+
       case (box)
 
       case (box_fermi)

@@ -391,13 +391,15 @@ module crest_data
     type(constra) :: cts
 
     !>--- NCI mode data
-    real(wp) :: potscal
+    real(wp) :: potscal = 1.0_wp
+    real(wp) :: potpad  = 0.0_wp
+    character(len=:),allocatable :: potatlist
 
     !>--- Nanoreactor data
     real(wp) :: rdens     !reactor density
     real(wp) :: tempfermi = 6000.0d0 !logfermi temperature
 
-    !>--- Entropy static MTDs object
+    !>--- Entropy static MTDs (umbrella sampling) object
     type(entropyMTD) :: eMTD
     real(wp) :: XH3 = 0
     real(wp) :: kappa = 1.5_wp   !> vM-kernel discretization
@@ -409,11 +411,11 @@ module crest_data
     type(refdata) :: ref
 
     !>--- QCG data
-    integer           :: qcg_runtype = 0      !> Default is grow, 1= ensemble & opt, 2= e_solv, 3= g_solv
-    integer           :: nsolv = 0            !> Number of solventmolecules
-    integer           :: nqcgclust = 0        !> Number of cluster to be taken
-    integer           :: max_solv = 0         !> Maximal number of solvents added, if none is given
-    integer           :: ensemble_method = -1 !> Default -1 for qcgmtd, 0= crest, 1= standard MD, 2= MTD
+    integer :: qcg_runtype = 0      !> Default is grow, 1= ensemble & opt, 2= e_solv, 3= g_solv
+    integer :: nsolv = 0            !> Number of solventmolecules
+    integer :: nqcgclust = 0        !> Number of cluster to be taken
+    integer :: max_solv = 0         !> Maximal number of solvents added, if none is given
+    integer :: ensemble_method = -1 !> Default -1 for qcgmtd, 0= crest, 1= standard MD, 2= MTD
     character(len=:), allocatable :: directed_file !name of the directed list
     character(len=64), allocatable :: directed_list(:,:) !How many solvents at which atom to add
     integer, allocatable :: directed_number(:) !Numbers of solvents added per defined atom
@@ -424,9 +426,9 @@ module crest_data
     character(len=5) :: docking_qcg_flag = '--qcg'
 
     !>--- clustering data
-    integer :: maxcluster = 0  !> maximum number of clusters to be generated
-    integer :: nclust = 0      !> fixed number of clusters (unly used if !=0)
-    integer :: pccap = 100     !> maximum number of principal components used for clustering
+    integer  :: maxcluster = 0  !> maximum number of clusters to be generated
+    integer  :: nclust = 0      !> fixed number of clusters (unly used if !=0)
+    integer  :: pccap = 100     !> maximum number of principal components used for clustering
     real(wp) :: pcthr = 0.85d0
     real(wp) :: pcmin = 0.05d0
     real(wp) :: csthr = 0.80d0
@@ -441,7 +443,7 @@ module crest_data
     character(len=:),allocatable :: biasfile
     real(wp) :: rthr2 = 0.3_wp    !>  Discard all structures with a bias smaller than this
     real(wp) :: kshift = 3.0_wp   !>  Shift of the k_i (in kcal/mol)
-    integer :: kshiftnum = 4      !>  try 5 different kshift (if not specified otherwise
+    integer  :: kshiftnum = 4     !>  try 5 different kshift (if not specified otherwise)
     real(wp) :: gescoptlev = 2.0_wp
 
     !>--- DFT driver arguments [DEPRECATED]

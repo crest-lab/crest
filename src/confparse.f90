@@ -880,20 +880,24 @@ subroutine parseflags(env,arg,nra)
           env%autozsort = .false.
           env%performCross = .false.
           env%rotamermds = .false.
-        case ('-wscal')                           !scale size of wall potential
-          call readl(arg(i + 1),xx,j)
-          env%potscal = xx(1)
-        case ('-wall')
-          env%wallsetup = .true.
-          write (*,'(2x,a,1x,a)')'--wall:','requesting setup of wall potential'
-        case ( '-wallxl','-wall-xl')
-          env%wallsetup = .true.
-          env%potscal = 1.5_wp
-          write (*,'(2x,a,1x,a)')'--wall-xl:','requesting setup of wall potential (x1.5 size)'
-        case ( '-wallxxl','-wall-xxl') 
-          env%wallsetup = .true.
-          env%potscal = 2.0_wp
-          write (*,'(2x,a,1x,a)')'--wall-xxl:','requesting setup of wall potential (x2.0 size)'
+!        case ('-wscal')                           !scale size of wall potential
+!          call readl(arg(i + 1),xx,j)
+!          env%potscal = xx(1)
+!        case ('-wpad')                            !pad size of wall potential
+!          call readl(arg(i + 1),xx,j)
+!          env%potpad = xx(1)
+!          write(*,*) env%potpad
+!        case ('-wall')
+!          env%wallsetup = .true.
+!          write (*,'(2x,a,1x,a)')'--wall:','requesting setup of wall potential'
+!        case ( '-wallxl','-wall-xl')
+!          env%wallsetup = .true.
+!          env%potscal = 1.5_wp
+!          write (*,'(2x,a,1x,a)')'--wall-xl:','requesting setup of wall potential (x1.5 size)'
+!        case ( '-wallxxl','-wall-xxl') 
+!          env%wallsetup = .true.
+!          env%potscal = 2.0_wp
+!          write (*,'(2x,a,1x,a)')'--wall-xxl:','requesting setup of wall potential (x2.0 size)'
         case ('-squick','-superquick')            !extremely crude quick mode
           write (*,'(2x,a,1x,a)') trim(arg(i)),' : very crude quick-mode (no NORMMD, no GC, crude opt.)'
           env%rotamermds = .false.      !no NORMMD
@@ -1414,6 +1418,15 @@ subroutine parseflags(env,arg,nra)
       case ('-wscal')                           !scale size of wall potential
         call readl(arg(i+1),xx,j)
         env%potscal = xx(1)
+      case ('-wpad')                            !scale size of wall potential
+        call readl(arg(i+1),xx,j)
+        env%potpad = xx(1)
+      case ('-watoms','-wat')
+        ctmp = arg(i+1)
+        if(ctmp(1:1) .ne. '-')then
+           env%potatlist = trim(ctmp)
+           write(*,*) env%potatlist 
+        endif
       case ('-wall')
         env%wallsetup = .true.
         write (*,'(2x,a,1x,a)') '--wall:','requesting setup of wall potential'
@@ -2013,6 +2026,7 @@ subroutine parseflags(env,arg,nra)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
   deallocate (strings,floats,xx)
+
 !>----- additional checks and settings
   if (env%crestver .eq. crest_solv) bondconst = .false.
 
@@ -2024,30 +2038,20 @@ subroutine parseflags(env,arg,nra)
     error stop 'Z sorting of the input is unavailable for -qcg runtyp.'
   end if
 
-  if (env%NCI.or.env%wallsetup) then
+!>--- automatic wall potential for the LEGACY version
+  if (env%NCI.or.env%wallsetup .and. env%legacy) then
     call wallpot(env)
     if (env%wallsetup) then
       write (*,'(2x,a)') 'Automatically generated ellipsoide potential:'
     else
       write (*,'(2x,a)') 'Automatically generated ellipsoide potential for NCI mode:'
     end if
-    call write_cts_NCI_pr(6,env%cts)
+    call write_cts_NCI_pr(stdout,env%cts)
     write (*,*)
   end if
 
 !>--- automatic bond constraint setup
-  if (env%crestver > 200.and.env%crestver < 300) then
-    !>--- internal calculation engine versions
-    if (.not.bondconst) then
-      call autoconstraint_internal(env)
-    else
-      select case (ctype)
-      case (1)
-        call autobond_internal(env,0)
-      end select
-    end if
-  else if (bondconst) then
-    !>--- standard crest+xtb version
+  if (bondconst) then
     select case (ctype)
     case (1)
       call autoBondConstraint('coord',env%forceconst,env%wbofile)
@@ -2066,7 +2070,7 @@ subroutine parseflags(env,arg,nra)
   call parseRC2(env,bondconst)
 
 !>--- internal constraint check-up
-  call internal_constraint_repair(env)
+  call internal_constraint_repair(env,bondconst)
 
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
@@ -2184,9 +2188,6 @@ subroutine parseflags(env,arg,nra)
     allocate(env%calc%ONIOM)
     call ONIOM_read_toml(env%ONIOM_toml,env%nat,env%ref%at,env%ref%xyz,env%calc%ONIOM)     
     call env%calc%ONIOMexpand()
-    !call env%calc%info(stdout)
-    !call env%calc%ONIOM%dump_fragments() 
-    !stop 'ONIOM read'
   endif
 
 !>--- important printouts

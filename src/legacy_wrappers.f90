@@ -39,19 +39,18 @@ subroutine env2calc(env,calc,molin)
   type(coord) :: mol
 
 !>--- Calculator level
-  call calc%reset()
+!> do not do this, there might be constraints already set up
+!  call calc%reset()
 
-  !>-- defaults to whatever env has selected or gfn0
+!>-- defaults to whatever env has selected or gfn0
   call cal%create(trim(env%gfnver))
   if (present(molin)) then
     mol = molin
-    !else
-    !  call mol%open('coord')
   end if
 
   cal%uhf = env%uhf
   cal%chrg = env%chrg
-  !>-- obtain WBOs OFF by default
+!>-- obtain WBOs OFF by default
   cal%rdwbo = .false.
 
   !> implicit solvation
@@ -125,9 +124,11 @@ subroutine env2calc_setup(env)
 
   end interface
 
-  call env2calc(env,calc,mol)
+  call env%ref%to(mol) 
 
-  env%calc = calc
+  call env2calc(env,env%calc,mol)
+
+ ! env%calc = calc
 end subroutine env2calc_setup
 
 !================================================================================!

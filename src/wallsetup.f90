@@ -107,16 +107,17 @@ contains !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine boxpot_core(mol,rabc,potscal)
+  subroutine boxpot_core(mol,rabc,potscal,potpad)
 !***********************************************
 !* simplified routine to set up wall potentials
-!* draws a box around the molecule and adds 25%
+!* draws a box around the molecule and adds 3AA
 !***********************************************
     implicit none
     type(coord) :: mol
     real(wp),intent(out) :: rabc(3)
     real(wp),intent(in),optional :: potscal
-    real(wp) :: box(3,3),pscal
+    real(wp),intent(in),optional :: potpad
+    real(wp) :: box(3,3),pscal,ppad
     real(wp) :: boxvol
 
     if (present(potscal)) then
@@ -124,14 +125,19 @@ contains !> MODULE PROCEDURES START HERE
     else
       pscal = 1.0_wp
     end if
-
+    if (present(potpad)) then
+      ppad = potpad
+    else
+      ppad = 0.0_wp
+    end if
+  
 !>--- calculate the box 
     boxvol = getbox2(mol%nat,mol%xyz,mol%at,box)
     rabc(1:3) = box(1:3,3)/2.0_wp  !> radius, half the box length
 
-!>--- add 25% and scale further by a user-defined factor, if necessary
-    rabc = rabc * 1.25_wp * pscal
-
+!>--- add 3AA and scale further by a user-defined factor, if necessary
+    rabc = (rabc + 3.0_wp*aatoau + ppad) * pscal
+    
     if(debug) call wall_dummypot(rabc,mol%xyz,mol%at,mol%nat)
 
   end subroutine boxpot_core
@@ -274,17 +280,17 @@ contains !> MODULE PROCEDURES START HERE
     do i = 1,n
       rat(i) = rcov(at(i))
     end do
-    rcovmax = maxval(rat)
+    rcovmax = maxval(rat)*2.0_wp
     box = 0.0_wp
     getbox2 = 1.0_wp
     do i = 1,3 !i are the X,Y,Z axis
       box(i,1) = maxval(xyz(i,:))
       box(i,2) = minval(xyz(i,:))
       box(i,3) = abs(box(i,1)-box(i,2)) !side length
-      if (box(i,3) .lt. 1.0d0) then
-        box(i,1) = rcovmax
-        box(i,2) = -rcovmax
-        box(i,3) = rcovmax*2.0_wp
+      if (box(i,3) .lt. rcovmax) then
+        box(i,1) = rcovmax*2.0_wp
+        box(i,2) = -rcovmax*2.0_wp
+        box(i,3) = rcovmax*4.0_wp
       end if
       getbox2 = getbox2*box(i,3)          !to volume
     end do
