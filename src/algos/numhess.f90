@@ -296,9 +296,9 @@ subroutine numhess_thermostat(env,mol,nat3,hess,freq,etot)
   nt = env%thermo%ntemps
   allocate (temps(nt),et(nt),ht(nt),gt(nt),stot(nt),source=0.0_wp)
   temps = abs(env%thermo%temps-298.15_wp)
-  write(*,*) temps
+  !write(*,*) temps
   nrt = minloc(temps(:),1)
-  write(*,*) nrt
+  !write(*,*) nrt
   temps = env%thermo%temps 
 
   !> calcthermo wants input in Angstroem

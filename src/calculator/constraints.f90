@@ -135,6 +135,7 @@ contains  !>--- Module routines start here
     class(constraint) :: self
     type(coord) :: mol
     integer :: i,j
+    real(wp) :: dummy
     select case (self%type)
 !>--- bond constraint
     case (bond)
@@ -162,6 +163,10 @@ contains  !>--- Module routines start here
         allocate (self%ref(2))
         self%ref(1) = mol%dist(self%atms(1),self%atms(2))+0.5_wp
         self%ref(2) = self%ref(1)-1.0_wp
+      else
+        dummy = minval(self%ref(:))
+        self%ref(1) =  maxval(self%ref(:))
+        self%ref(2) = dummy
       end if
 
 !>--- angle constraint

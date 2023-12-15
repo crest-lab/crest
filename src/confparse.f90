@@ -2425,7 +2425,8 @@ subroutine inputcoords(env,arg)
   if (.not.allocated(env%inputcoords)) env%inputcoords = 'coord'
   call mol%open('coord')
 !>-- shift to CMA and align according to rot.const.
-  if (env%crestver /= crest_solv) call axis(mol%nat,mol%at,mol%xyz)
+  if (env%crestver /= crest_solv .and. env%crestver /= crest_sp &
+  & .and. env%crestver /= crest_optimize) call axis(mol%nat,mol%at,mol%xyz)
 !>-- overwrite coord
   call mol%write('coord')
 

@@ -50,21 +50,23 @@ subroutine prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,symnum,symchar)
   molmass = molweight(nat,at)
 
   if (pr) then
-    write (stdout,'(a,f15.2)') 'Mol. weight /amu  : ',molmass
+    write (stdout,'(1x,a,f15.2)') 'Mol. weight /amu  : ',molmass
   end if
 
   !>--- rotational constants in cm-1
   rabc = 0.0d0
   call axis(nat,at,xyz,rabc(1:3),avmom)
+  a = rabc(3)
+  b = rabc(2)
+  c = rabc(1)
+  rabc(1) = a
+  rabc(3) = c
   if (pr) then
-    write (stdout,'(a,3f15.2)') 'Rot. const. /MHz  : ',rabc(1:3)
+    write (stdout,'(1x,a,3f15.2)') 'Rot. const. /MHz  : ',rabc(1:3)
   end if
   rabc = rabc/2.99792458d+4   ! MHz to cm-1
-  a = rabc(1)
-  b = rabc(2)
-  c = rabc(3)
   if (pr) then
-    write (stdout,'(a,3f15.2)') 'Rot. const. /cm-1 : ',rabc(1:3)
+    write (stdout,'(1x,a,3f15.2)') 'Rot. const. /cm-1 : ',rabc(1:3)
   end if
 
   !>--- symmetry number from rotational symmetry
@@ -106,7 +108,7 @@ subroutine prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,symnum,symchar)
   end if
 
   if (pr) then
-    write (stdout,'(a,4x,a)') 'Symmetry:',sym
+    write (stdout,'(1x,a,4x,a)') 'Symmetry:',sym
   end if
   return
 end subroutine prepthermo
@@ -181,7 +183,7 @@ subroutine calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr,nt,temps, &
   c = rabc(3)
 
   nvib_theo = 3*nat-6
-  if (c .lt. 1.d-10) linear = .true.
+  if (c .lt. 1.d-10 .or. (symchar=='din')) linear = .true.
   if (linear) nvib_theo = 3*nat-5
 
   if (a+b+c .lt. 1.d-6) then
@@ -198,10 +200,10 @@ subroutine calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr,nt,temps, &
       vibs(nvib) = freq(i)
     end if
   end do
-  ! scale
+  !> scale
   vibs(1:nvib) = vibs(1:nvib)*fscal
 
-  ! invert imaginary modes
+  !> invert imaginary modes
   nimag = 0
   do i = 1,nvib
     if (vibs(i) .lt. 0.and.vibs(i) .gt. ithr) then
