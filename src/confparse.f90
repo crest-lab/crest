@@ -592,13 +592,14 @@ subroutine parseflags(env,arg,nra)
 
       case ('-thermo','-thermotool')
         env%properties = p_thermo
-        ctmp = trim(arg(1))  !either first argument
+        ctmp = trim(arg(1))  ! first argument to read the structure
         if (ctmp(1:1) .ne. '-') then
           env%inputcoords = trim(ctmp)
+          env%thermo%coords = trim(ctmp)
         end if
-        ctmp = trim(arg(i+1)) !or this
+        ctmp = trim(arg(i+1)) ! second argument to read the vibspectrum
         if (ctmp(1:1) .ne. '-') then
-          env%inputcoords = trim(ctmp)
+          env%thermo%vibfile = trim(ctmp)
         end if
 
       case ('-rmsd','-rmsdheavy','-hrmsd')

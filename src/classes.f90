@@ -248,6 +248,8 @@ module crest_data
     real(wp) :: sthr = 25.0_wp   !> rot/vib interpol threshold (in xtb 50.0)
     real(wp) :: trange(3)
     integer  :: ntemps
+    character(len=:),allocatable :: coords !> name of structure file for standalone use
+    character(len=:),allocatable :: vibfile !> name of file containing frequencies or hessian
     real(wp),allocatable :: temps(:)
     real(wp) :: ptot = 0.9d0       !> population sthreshold
     integer  :: pcap = 50000       !> limit number of structures
@@ -916,7 +918,7 @@ contains  !> MODULE PROCEDURES START HERE
     allocate (self%temps(nt))
     dum1 = self%trange(1)
     do i = 1,nt
-      self%temps(i) = dum1
+      self%temps(i) = max(dum1,1.0_wp) !> never do 0 K
       dum1 = dum1+self%trange(3)
     end do
     return

@@ -69,10 +69,10 @@ contains   !> MODULE PROCEDURES START HERE
     character(len=*) :: key
     real(wp) :: val
     select case (key)
-    case('wscal')
+    case ('wscal')
       env%potscal = val
       env%wallsetup = .true.
-    case('wpad')
+    case ('wpad')
       env%potpad = val
       env%wallsetup = .true.
 
@@ -187,9 +187,9 @@ contains   !> MODULE PROCEDURES START HERE
     case ('rigidconf_file')
       env%rigidconf_userfile = val
 
-    case('watlist','wat')
+    case ('watlist','wat')
       env%potatlist = val
-      env%wallsetup=.true.
+      env%wallsetup = .true.
     end select
     return
   end subroutine parse_main_c
@@ -230,6 +230,8 @@ contains   !> MODULE PROCEDURES START HERE
       call parse_cregen(env,blk)
     case ('confsolv')
       call parse_confsolv(env,blk)
+    case ('thermo')
+      call parse_thermo(env,blk)
     end select
   end subroutine parse_main_blk
 
@@ -301,6 +303,48 @@ contains   !> MODULE PROCEDURES START HERE
       end select
     end do
   end subroutine parse_confsolv
+
+!========================================================================================!
+
+  subroutine parse_thermo(env,blk)
+!****************************************
+!* parse settings for the Thermo routine
+!****************************************
+    implicit none
+    type(systemdata) :: env
+    type(datablock) :: blk
+    type(keyvalue) :: kv
+    integer :: i
+!>--- parse the arguments
+    do i = 1,blk%nkv
+      kv = blk%kv_list(i)
+      select case (kv%key)
+      case ('ithr','freq_ithr','freq_invert')
+        env%thermo%ithr = kv%value_f
+      case ('fscal','freq_scal')
+        env%thermo%fscal = kv%value_f
+      case ('sthr','freq_interpol')
+        env%thermo%sthr = kv%value_f
+      case ('trange')
+        if (kv%na >= 2) then
+          env%thermo%trange(1) = minval(kv%value_fa(1:2),1)
+          env%thermo%trange(2) = maxval(kv%value_fa(1:2),1) 
+        endif  
+        if(kv%na >= 3)then
+          env%thermo%trange(3) = kv%value_fa(3)
+        endif 
+      case ('tstep')
+        env%thermo%trange(3) = kv%value_f
+
+      case ('input','coords')
+        env%thermo%coords = kv%value_c
+        if(allocated(env%thermo%vibfile)) env%properties = p_thermo
+      case ('freq_input','vibs','hessian')
+        env%thermo%vibfile = kv%value_c 
+        if(allocated(env%thermo%coords)) env%properties = p_thermo
+      end select
+    end do
+  end subroutine parse_thermo
 
 !========================================================================================!
 !========================================================================================!

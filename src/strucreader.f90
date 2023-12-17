@@ -1283,6 +1283,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: ftype
     integer :: i,j,k,ich,io
     logical :: ex
+    real(wp) :: en
 
     inquire (file=fname,exist=ex)
     if (.not.ex) then
@@ -1295,15 +1296,17 @@ contains  !> MODULE PROCEDURES START HERE
     call rdnat(fname,nat)
 
     if (nat > 0) then
+      en = 0.0_wp
       allocate (at(nat),xyz(3,nat))
       if (ftype == pdbfile) then
         call rdPDB(fname,nat,at,xyz,self%pdb)
         xyz = xyz/bohr
       else
-        call rdcoord(fname,nat,at,xyz)
+        call rdcoord(fname,nat,at,xyz,energy=en)
       end if
 
       self%nat = nat
+      self%energy = en
       call move_alloc(at,self%at)
       call move_alloc(xyz,self%xyz)
     else

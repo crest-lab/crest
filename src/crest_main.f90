@@ -204,7 +204,8 @@ program CREST
 !>--- wrapper for the thermo routine
   case (p_thermo)
     call tim%start(4,'')
-    call thermo_mini(env)
+    !call thermo_mini(env)
+    call thermo_standalone(env)
     call tim%stop(4)
     call propquit(tim)
 !>--- ensemble merging tool

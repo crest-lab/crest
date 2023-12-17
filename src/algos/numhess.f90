@@ -174,8 +174,10 @@ subroutine crest_numhess(env,tim)
 
       else
 
+        write(atmp,*) i
+
         !>-- Prints Hessian
-        call print_hessian(hess(:,:,i),nat3,calc%calcs(i)%calcspace,'numhess')
+        call print_hessian(hess(:,:,i),nat3,'','numhess'//trim(adjustl(atmp)))
 
         !>-- Projects and mass-weights the Hessian
         call prj_mw_hess(mol%nat,mol%at,nat3,mol%xyz,hess(:,:,i))
@@ -189,7 +191,7 @@ subroutine crest_numhess(env,tim)
 
           !>-- Prints vibspectrum with artifical intensities
           call print_vib_spectrum(mol%nat,mol%at,nat3,mol%xyz,freq(:,i), &
-          &    calc%calcs(i)%calcspace,'vibspectrum')
+          &    '','vibspectrum'//trim(adjustl(atmp)))
 
           !>-- Prints g98.out format file
           call print_g98_fake(mol%nat,mol%at,nat3,mol%xyz,freq(:,i),hess(:,:,i), &
@@ -321,4 +323,120 @@ subroutine numhess_thermostat(env,mol,nat3,hess,freq,etot)
 
   deallocate (stot,gt,ht,et,temps)
 end subroutine numhess_thermostat
+
+!========================================================================================!
+
+subroutine thermo_standalone(env)
+!************************************************************
+!* A minimal wrapper of thermo to obtain
+!* re-do the thermostatistics either from a read-in hessian
+!* or a vibspecturm file
+!************************************************************
+  use crest_parameters
+  use crest_data
+  use strucrd
+  implicit none
+  !> INPUT
+  type(systemdata) :: env
+  !> LOCAL
+  type(coord) :: mol
+  integer :: nat3
+  real(wp),allocatable :: hess(:,:)
+  real(wp),allocatable :: freq(:)
+  real(wp) :: etot
+  real(wp) :: ithr,fscal,sthr
+  integer :: nt,nfreq,nrt
+  real(wp),allocatable :: temps(:),et(:),ht(:),stot(:),gt(:)
+  real(wp) :: zpve
+  integer :: ich,i
+  character(len=*),parameter :: outfmt = &
+  &  '(10x,"::",1x,a,f24.12,1x,a,1x,"::")'
+
+  !> header
+  write(stdout,*) " _   _                               "
+  write(stdout,*) "| |_| |__   ___ _ __ _ __ ___   ___  "
+  write(stdout,*) "| __| '_ \ / _ \ '__| '_ ` _ \ / _ \ "
+  write(stdout,*) "| |_| | | |  __/ |  | | | | | | (_) |"
+  write(stdout,*) " \__|_| |_|\___|_|  |_| |_| |_|\___/ "
+  write(stdout,*) "                                     "
+  write(stdout,*) "Molecular thermodynamics from the modified and scaled"
+  write(stdout,*) "rigid-rotor harmonic-oscillator approximation (msRRHO)"
+  write(stdout,*) "See:"
+  write(stdout,*) " • S.Grimme, Chem. Eur. J. 2012, 18, 9955–9964."
+  write(stdout,*) " • P.Pracht, S.Grimme, Chem. Sci., 2021, 12, 6551-6568."
+  write(stdout,*)
+ 
+  !> input coords
+  write(stdout,'(1x,a)',advance='no') 'Reading input coords: '
+  if(allocated(env%thermo%coords))then 
+    call mol%open(env%thermo%coords)
+    write(stdout,'(1x,a)') trim(env%thermo%coords)
+  else
+    call mol%open(env%inputcoords)
+    write(stdout,'(1x,a)') trim(env%inputcoords)
+  endif
+  nat3 = mol%nat * 3
+  allocate(hess(nat3,nat3),freq(nat3), source=0.0_wp)
+
+  !> input frequencies or hessian
+  if(allocated(env%thermo%vibfile))then
+    write(stdout,'(1x,a,a)') 'Reading frequencies from:  ',trim(env%thermo%vibfile)
+    call rdfreq(env%thermo%vibfile,nat3,freq)
+  else
+    error stop 'No Hessian or vibspectrum file allocated for thermo routine!'
+  endif
+  write(stdout,*) 
+  
+  !> energy (maybe read from comment line of xyz)
+  etot = mol%energy
+  !> inversion threshold
+  ithr = env%thermo%ithr
+  !> frequency scaling factor
+  fscal = env%thermo%fscal
+  !> RR-HO interpolation
+  sthr = env%thermo%sthr
+
+  if (.not.allocated(env%thermo%temps)) then
+    call env%thermo%get_temps()
+  end if
+  nt = env%thermo%ntemps
+  allocate (temps(nt),et(nt),ht(nt),gt(nt),stot(nt),source=0.0_wp)
+  temps = abs(env%thermo%temps-298.15_wp)
+  !write(*,*) temps
+  nrt = minloc(temps(:),1)
+  !write(*,*) nrt
+  temps = env%thermo%temps 
+
+  !> calcthermo wants input in Angstroem
+  call calcthermo(mol%nat,mol%at,mol%xyz*autoaa,freq,.true., &
+  & ithr,fscal,sthr,nt,temps,et,ht,gt,stot)
+
+  !> printout
+  zpve = et(nrt)-ht(nrt)
+  write(stdout,*) 
+  write(stdout,'(10x,a)') repeat(':',50)
+  write(stdout,'(10x,"::",7x,a,f12.2,1x,a,8x,"::")') "THERMODYNAMICS at",temps(nrt),'K'
+  write(stdout,'(10x,a)') repeat(':',50)
+  write(stdout,outfmt) 'TOTAL FREE ENERGY',etot+gt(nrt),'Eh'  
+  write(stdout,'(10x,a)') '::'//repeat('-',46)//'::'
+  write(stdout,outfmt) 'total energy     ',etot,'Eh'
+  write(stdout,outfmt) 'ZPVE             ',zpve,'Eh'
+  write(stdout,outfmt) 'G(RRHO) w/o ZPVE ',gt(nrt)-zpve,'Eh'
+  write(stdout,outfmt) 'G(RRHO) total    ',gt(nrt),'Eh'
+  write(stdout,'(10x,a)') repeat(':',50)
+
+  !> for plotting temperature dependencies etc.
+  write(stdout,*)
+  write(stdout,*) 'Some output will be written to thermo.dump' 
+  open(newunit=ich, file='thermo.dump')
+  do i=1,nt
+   write(ich,'(f12.4,4F20.10)') temps(i),gt(i)+etot,gt(i),ht(i),stot(i)
+  enddo
+  close(ich)
+
+  deallocate (stot,gt,ht,et,temps)
+end subroutine thermo_standalone
+
+
+
 

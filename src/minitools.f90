@@ -648,60 +648,6 @@ end function quick_rmsd2
 
 !=========================================================================================!
 
-subroutine thermo_mini(env)
-!*************************************************************
-!* calculate thermostatisitical contributions for a given
-!* input file and "vibspectrum" file in the turbomole formate
-!*************************************************************
-  use crest_parameters
-  use strucrd
-  use crest_data
-  implicit none
-  type(systemdata) :: env
-  type(coord) :: mol
-  real(wp) :: ithr,fscal,sthr
-  integer :: nt
-  real(wp),allocatable :: temps(:)
-  real(wp),allocatable :: et(:)
-  real(wp),allocatable :: ht(:)
-  real(wp),allocatable :: stot(:)
-  real(wp),allocatable :: gt(:)
-  integer :: nfreq
-  real(wp),allocatable :: freq(:)
-  real(wp) :: etot
-  logical :: ex
-
-  if (.not.allocated(env%thermo%temps)) then
-    call env%thermo%get_temps()
-  end if
-  nt = env%thermo%ntemps
-  allocate (temps(nt),et(nt),ht(nt),gt(nt),stot(nt),source=0.0_wp)
-  temps = env%thermo%temps
-
-  call mol%open(env%inputcoords)
-  etot = mol%energy
-  nfreq = 3*mol%nat
-  mol%xyz = mol%xyz*bohr !to Angstroem, important!
-
-  allocate (freq(nfreq))
-  inquire (file='vibspectrum',exist=ex)
-  if (.not.ex) then
-    error stop 'vibspectrum file does not exist!'
-  end if
-  call rdfreq('vibspectrum',nfreq,freq)
-
-  ithr = env%thermo%ithr
-  fscal = env%thermo%fscal
-  sthr = env%thermo%sthr
-  call calcthermo(mol%nat,mol%at,mol%xyz,freq,.true.,ithr,fscal,sthr, &
-                  &    nt,temps,et,ht,gt,stot)
-  deallocate (freq)
-  deallocate (stot,gt,ht,et,temps)
-  return
-end subroutine thermo_mini
-
-!=========================================================================================!
-
 subroutine resort_ensemble(fname)
 !************************************************
 !* resort all structures of a given ensemblefile
