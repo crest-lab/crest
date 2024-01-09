@@ -2093,7 +2093,6 @@ subroutine parseflags(env,arg,nra)
   !>--- defaults for QCG gfnff ensemble search
   if (env%crestver == crest_solv) then
     if (env%ensemble_opt .EQ. '--gff') then
-      env%mdstep = 1.5d0
       env%hmass = 5.0d0
       ctype = 5 !bond constraint
       bondconst = .true.

@@ -996,6 +996,15 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    case (-1:0) !qcgmtd/Crest runtype
 
       !Defaults
+      !General settings:
+      if (.not. env%user_mdstep) then
+         if (env%ensemble_opt .EQ. '--gff') then
+            env%mdstep = 1.5d0
+         else
+            env%mdstep = 5.0d0
+         end if
+      end if
+      !Runtype specific settings:
       if(env%ensemble_method == 0) then
          if (.not. env%user_dumxyz) then
             env%mddumpxyz = 200
