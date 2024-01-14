@@ -13,3 +13,6 @@
 [submodule "subprojects/tblite"]
 	path = subprojects/tblite
 	url = https://github.com/tblite/tblite.git
+[submodule "subprojects/lwoniom"]
+	path = subprojects/lwoniom
+	url = https://github.com/crest-lab/lwoniom

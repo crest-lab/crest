@@ -69,7 +69,7 @@ option(
 option(
   'WITH_LWONIOM',
   type: 'boolean',
-  value: false,
+  value: true,
   description: 'build with lwONIOM integration',
 )
 

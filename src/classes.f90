@@ -128,8 +128,8 @@ module crest_data
 
   type :: constra
     integer :: ndim
-    logical :: used
-    logical :: NCI
+    logical :: used = .false.
+    logical :: NCI = .false.
     logical :: ggrid = .false.
     character(len=:),allocatable :: gbsagrid
     character(len=128),allocatable :: sett(:)

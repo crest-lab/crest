@@ -61,7 +61,7 @@ option(WITH_GFNFF "Enable build with GFN-FF support" TRUE)
 
 option(WITH_XHCFF "Enable build with XHCFF support" FALSE)
 
-option(WITH_LWONIOM "Enable build with lwONIOM support" FALSE)
+option(WITH_LWONIOM "Enable build with lwONIOM support" TRUE)
 
 if(NOT DEFINED "${PROJECT_NAME}-dependency-method")
   set(

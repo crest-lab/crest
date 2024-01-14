@@ -7,8 +7,8 @@ s-dftd3.wrap
 test-drive.wrap
 mctc-lib.wrap
 xhcff
-lwoniom
 
+!lwoniom
 !gfn0
 !toml-f
 !gfnff
