@@ -43,6 +43,9 @@ module gfnff_api
   !> these are placeholders if no gfnff module is used!
   type :: gfnff_data
     integer :: id = 0
+    logical :: restart = .false.
+    character(len=:),allocatable :: restartfile
+    character(len=:),allocatable :: refgeo
   end type gfnff_data
 #endif
 
@@ -64,7 +67,7 @@ contains  !> MODULE PROCEDURES START HERE
     io = 0
 #ifdef WITH_GFNFF
     !> initialize parametrization and topology of GFN-FF
-    call gfnff_initialize(mol%nat,mol%at,mol%xyz,ff_dat,'no file',.false., &
+    call gfnff_initialize(mol%nat,mol%at,mol%xyz,ff_dat,'no file', &
     & ichrg=chrg,print=pr,iostat=io,iunit=iunit)
 
 #else /* WITH_GFNFF */
