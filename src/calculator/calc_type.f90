@@ -123,20 +123,25 @@ module calc_type
     logical  :: saveint = .false.
     character(len=:),allocatable :: solvmodel
     character(len=:),allocatable :: solvent
+!>--- Some optional file name storages
+    character(len=:),allocatable :: parametrisation
+    logical  :: restart = .false.  !> restart option (some potentials can do this)
+    character(len=:),allocatable :: restartfile
+    character(len=:),allocatable :: refgeo
 
-    !> tblite data
+!>--- tblite data
     type(tblite_data),allocatable :: tblite
 
-    !> GFN0-xTB data
+!>--- GFN0-xTB data
     type(gfn0_data),allocatable          :: g0calc
     integer :: nconfig = 0
     integer,allocatable :: config(:)
     real(wp),allocatable :: occ(:)
 
-    !> GFN-FF data
+!>--- GFN-FF data
     type(gfnff_data),allocatable :: ff_dat
 
-    !> XHCFF data
+!>--- XHCFF data
     integer :: ngrid = 230             !>  lebedev grid points per atom
     real(wp) :: extpressure = 0.0_wp   !>  hydorstatic pressure in Gpa
     real(wp) :: proberad = 1.5_wp      !>  proberadius in Angstroem
@@ -158,6 +163,7 @@ module calc_type
     procedure :: printid => calculation_settings_printid
     procedure :: info => calculation_settings_info
     procedure :: create => create_calclevel_shortcut
+    procedure :: norestarts => calculation_settings_norestarts
   end type calculation_settings
 !=========================================================================================!
 
@@ -608,6 +614,20 @@ contains  !>--- Module routines start here
 
 !=========================================================================================!
 
+  subroutine calculation_settings_norestarts(self)
+!*************************************************
+!* remove restart options from this calculation
+!*************************************************
+    implicit none
+    class(calculation_settings) :: self
+    self%restart = .false.
+    if (allocated(self%refgeo)) deallocate (self%refgeo)
+    if (allocated(self%restartfile)) deallocate(self%restartfile)
+  end subroutine calculation_settings_norestarts
+
+
+!=========================================================================================!
+
 !>-- check for missing settings in a calculation_settings object
   subroutine calculation_settings_autocomplete(self,id)
     implicit none
@@ -692,6 +712,8 @@ contains  !>--- Module routines start here
           !> If one of this type is already in the mapping, duplicate the calculator and add it
           call calculator%deallocate()
           calculator = self%calcs(j)
+          !> However, we MUST not use restart I/O options for duplicates!
+          call calculator%norestarts()
           call self%add(calculator)
           newid = self%ncalculations
           k = k+1

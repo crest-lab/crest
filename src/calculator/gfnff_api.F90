@@ -43,12 +43,12 @@ module gfnff_api
   !> these are placeholders if no gfnff module is used!
   type :: gfnff_data
     integer :: id = 0
+    character(len=:),allocatable :: parametrisation
     logical :: restart = .false.
     character(len=:),allocatable :: restartfile
     character(len=:),allocatable :: refgeo
   end type gfnff_data
 #endif
-
 
 !========================================================================================!
 !========================================================================================!
@@ -64,11 +64,20 @@ contains  !> MODULE PROCEDURES START HERE
     logical,intent(in),optional :: pr
     integer,intent(in),optional :: iunit
     type(gfnff_data),allocatable,intent(inout) :: ff_dat
+    type(coord) :: refmol
     io = 0
 #ifdef WITH_GFNFF
-    !> initialize parametrization and topology of GFN-FF
-    call gfnff_initialize(mol%nat,mol%at,mol%xyz,ff_dat,'no file', &
-    & ichrg=chrg,print=pr,iostat=io,iunit=iunit)
+    if (allocated(ff_dat%refgeo)) then
+      !> initialize GFN-FF from a separate reference structure
+      call refmol%open(ff_dat%refgeo)
+      call gfnff_initialize(refmol%nat,refmol%at,refmol%xyz,ff_dat, &
+      & ichrg=chrg,print=pr,iostat=io,iunit=iunit)
+      call refmol%deallocate()
+    else
+      !> initialize parametrization and topology of GFN-FF
+      call gfnff_initialize(mol%nat,mol%at,mol%xyz,ff_dat, &
+      & ichrg=chrg,print=pr,iostat=io,iunit=iunit)
+    end if
 
 #else /* WITH_GFNFF */
     write (stdout,*) 'Error: Compiled without GFN-FF support!'
@@ -122,7 +131,6 @@ contains  !> MODULE PROCEDURES START HERE
 #endif
   end subroutine gfnff_printout
 
-
 !========================================================================================!
   subroutine gfnff_getwbos(ff_dat,nat,wbo)
 !********************************************************
@@ -139,8 +147,6 @@ contains  !> MODULE PROCEDURES START HERE
     call gfnff_get_fake_wbo(ff_dat,nat,wbo)
 #endif
   end subroutine gfnff_getwbos
-
-
 
 !========================================================================================!
 !========================================================================================!

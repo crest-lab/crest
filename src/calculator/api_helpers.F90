@@ -300,7 +300,20 @@ contains    !> MODULE PROCEDURES START HERE
     if (.not.allocated(calc%ff_dat)) then
       allocate (calc%ff_dat)
       loadnew = .true.
-    end if
+
+      !> some restart options
+      calc%ff_dat%restart = calc%restart
+      if(allocated(calc%restartfile))then
+        calc%ff_dat%restartfile = calc%restartfile
+      endif
+      if(allocated(calc%refgeo))then
+        calc%ff_dat%refgeo = calc%refgeo
+      endif
+      if(allocated(calc%parametrisation))then
+        calc%ff_dat%refgeo = calc%parametrisation
+      endif
+
+    endif
     if (allocated(calc%solvent)) then
       if (.not.allocated(calc%ff_dat%solvent)) then
         allocate (calc%ff_dat%solvent,source=trim(calc%solvent))

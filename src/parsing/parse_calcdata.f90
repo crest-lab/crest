@@ -243,6 +243,7 @@ contains !> MODULE PROCEDURES START HERE
     type(calculation_settings) :: job
     character(len=*) :: key
     character(len=*) :: val
+    logical :: ex
     select case (key)
 
     case ('method')
@@ -353,6 +354,32 @@ contains !> MODULE PROCEDURES START HERE
       case default
         job%refine_lvl = refine%non
       end select
+
+    case('restartfile','topo','reftopo')
+      inquire(file=val,exist=ex)
+      if(ex)then
+        job%restart = .true.
+        job%restartfile = val
+      else
+        write(stderr,'(a,a,a)') 'specified restart file ',val,' does not exist'
+        error stop
+      endif
+    case('refgeo','refxyz')
+      inquire(file=val,exist=ex)
+      if(ex)then
+        job%refgeo = val
+      else
+        write(stderr,'(a,a,a)') 'specified reference geometry file ',val,' does not exist'
+        error stop
+      endif
+    case('parametrisation')
+      inquire(file=val,exist=ex)
+      if(ex)then
+        job%parametrisation  = val
+      else
+        write(stderr,'(a,a,a)') 'specified parametrisation file ',val,' does not exist'
+        error stop
+      endif
 
     case ('print')
       select case (val)
