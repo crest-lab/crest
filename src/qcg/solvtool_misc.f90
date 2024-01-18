@@ -20,7 +20,7 @@
 !--------------------------------------------------------------------------------------------
 ! A quick single point xtb calculation without wbo
 !--------------------------------------------------------------------------------------------
-subroutine xtbsp3(env, fname)
+subroutine xtb_sp_qcg(env, fname)
    use iso_fortran_env, only: wp => real64
    use iomod
    use crest_data
@@ -49,7 +49,57 @@ subroutine xtbsp3(env, fname)
    call remove('xtbrestart')
    call remove('xtbtopo.mol')
    call remove('gfnff_topo')
-end subroutine xtbsp3
+end subroutine xtb_sp_qcg
+
+!--------------------------------------------------------------------------------------------
+! A quick single xtb optimization gets zmol and overwrites it with optimized stuff
+!--------------------------------------------------------------------------------------------
+subroutine xtb_opt_qcg(env, zmol, constrain)
+   use iso_fortran_env, only: wp => real64
+   use iomod
+   use crest_data
+   use zdata
+   use strucrd
+
+   implicit none
+   type(systemdata), intent(in) :: env
+   type(zmolecule), intent(inout) :: zmol
+
+   character(:), allocatable :: fname
+   character(len=512) :: jobcall
+   logical :: constrain
+   logical :: const
+   character(*), parameter :: pipe = ' > xtb_opt.out 2> /dev/null'
+   integer :: io
+
+!--- Write coordinated
+   fname = 'coord'
+   call wrc0(fname, zmol%nat, zmol%at, zmol%xyz) !write coord for xtbopt routine
+
+!---- setting threads
+   if (env%autothreads) then
+      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) !set the global OMP/MKL variables for the xtb jobs
+   end if
+!---- jobcall & Handling constraints
+   if(constrain .AND. env%cts%used) then
+     call write_constraint(env, fname, 'xcontrol')
+     call wrc0('coord.ref', zmol%nat, zmol%at, zmol%xyz) !write coord for xtbopt routine
+     write (jobcall, '(a,1x,a,1x,a,'' --opt --input xcontrol '',a,1x,a)') &
+     &     trim(env%ProgName), trim(fname), trim(env%gfnver), trim(env%solv), trim(pipe)
+   else
+     write (jobcall, '(a,1x,a,1x,a,'' --opt '',a,1x,a)') &
+     &     trim(env%ProgName), trim(fname), trim(env%gfnver), trim(env%solv), trim(pipe)
+   end if
+
+   call command(trim(jobcall), io)
+!---- cleanup
+   call rdcoord('xtbopt.coord', zmol%nat, zmol%at, zmol%xyz)
+   call remove('energy')
+   call remove('charges')
+   call remove('xtbrestart')
+   call remove('xtbtopo.mol')
+   call remove('gfnff_topo')
+end subroutine xtb_opt_qcg
 
 !___________________________________________________________________________________
 !
@@ -1002,3 +1052,25 @@ subroutine check_dock(neg_E)
    if (ex .and. int_E < 0.0_wp) neg_E = .true.
 
 end subroutine check_dock
+
+subroutine write_constraint(env,coord_name,fname)
+  use iso_fortran_env, only : wp => real64
+  use crest_data
+  use iomod
+
+  implicit none
+
+  type(systemdata)     :: env
+  character(len=*),intent(in)    :: fname, coord_name
+
+  call copysub(coord_name, 'coord.ref')
+  open(unit=31,file=fname)
+  call write_cts(31,env%cts)
+  call write_cts_biasext(31,env%cts)
+  if(env%cts%used) then !Only, if user set constrians is an $end written
+     write(31,'(a)') '$end'
+  end if
+
+  close(31)
+
+end subroutine write_constraint

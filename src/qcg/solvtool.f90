@@ -170,7 +170,7 @@ subroutine qcg_setup(env, solu, solv)
    type(systemdata):: env
    type(zmolecule) :: solv, solu
 
-   integer :: io, f, r, v, ich
+   integer :: io, f, r
    integer :: num_O, num_H, i
    character(len=*), parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
    logical :: e_there, tmp, used_tmp
@@ -179,41 +179,27 @@ subroutine qcg_setup(env, solu, solv)
    character(len=80)  :: atmp
    character(len=20)  :: gfnver_tmp
 
-
    call getcwd(thispath)
 
+   ! Remove scratch dir, if present
    inquire (file='./qcg_tmp/solute_properties/solute', exist=tmp)
    if (tmp) call rmrf('qcg_tmp') !User given scratch dir will be removed anyway after run
 
+   ! Make scratch directories
    if (env%scratchdir .eq. '') then !check if scratch was not set
       env%scratchdir = 'qcg_tmp'
       io = makedir('qcg_tmp')
    end if
-
-   call copysub('solute', trim(env%scratchdir))
-   call copysub('solvent', env%scratchdir)
-   call env%wrtCHRG(env%scratchdir) !Write .CHRG and .UHF with 3 lines for xtb docking
+   if(env%fixfile /= 'none selected') then
+      call copysub(env%fixfile, env%scratchdir)
+   end if
    call chdir(env%scratchdir)
 
    f = makedir('solute_properties')
+   if(env%fixfile /= 'none selected') then
+      call copysub(env%fixfile, env%scratchdir)
+   end if
    r = makedir('solvent_properties')
-   v = makedir('tmp_grow')
-
-   call chdir('tmp_grow')
-   call getcwd(tmp_grow)
-   call chdir(thispath)
-   call chdir(env%scratchdir)
-
-   call copysub('solute', 'solute_properties')
-   call copysub('.CHRG', 'solute_properties')
-   call copysub('.UHF', 'solute_properties')
-   call copysub('solvent', 'solvent_properties')
-
-   call copysub('.CHRG', tmp_grow)
-   call copysub('.UHF', tmp_grow)
-
-   call remove('solute')
-   call remove('solvent')
 
    if (.not. env%nopreopt) then
       write (*, *)
@@ -227,9 +213,7 @@ subroutine qcg_setup(env, solu, solv)
 
 !---- Properties solute
    call chdir('solute_properties')
-   env%ref%nat = solu%nat
-   env%ref%at = solu%at
-   env%ref%xyz = solu%xyz
+   call env%wrtCHRG('') !Write three lines in QCG mode, but xtb anyway only reads first one
 
 !---- Geometry preoptimization solute
    if (env%final_gfn2_opt) then !If GFN2 final opt, solute also GFN2 optimized
@@ -238,31 +222,7 @@ subroutine qcg_setup(env, solu, solv)
    end if
 
    if ((.not. env%nopreopt) .and. (solu%nat /= 1)) then
-      call wrc0('coord', solu%nat, solu%at, solu%xyz) !write coord for xtbopt routine
-      if (env%cts%used) then
-         call wrc0('coord.ref', solu%nat, solu%at, solu%xyz) !write coord for xtbopt routine
-      end if
-!---- coord setup section
-      open (newunit=ich, file='coord')
-      do
-         read (ich, '(a)', iostat=io) atmp
-         if (io < 0) exit
-         if (index(atmp, '$coord') .ne. 0) cycle
-         if (index(atmp(1:1), '$') .ne. 0) then
-            !write(ich,'(a)')'$end'
-            exit
-         end if
-      end do
-      !add constraints (only if given, else the routine returns)
-      call write_cts(ich, env%cts)
-      call write_cts_biasext(ich, env%cts)
-      write (ich, '(a)') '$end'
-      close (ich)
-
-      !call xtbopt(env)
-      call trialOPT(env)
-      call rdcoord('coord', solu%nat, solu%at, solu%xyz)
-      call remove('coord')
+      call xtb_opt_qcg(env, solu, .true.)
    end if
 
 !--- Axistrf
@@ -272,9 +232,9 @@ subroutine qcg_setup(env, solu, solv)
 !---- LMO/SP-Computation solute
    if (env%use_xtbiff) then
       write (*, *) 'Generating LMOs for solute'
-      call xtb_lmo(env, 'solute')!,solu%chrg)
+      call xtb_lmo(env, 'solute')
    else
-      call xtbsp3(env, 'solute')
+      call xtb_sp_qcg(env, 'solute')
    end if
 
    if (env%final_gfn2_opt) then !If GFN2 final opt, solute also GFN2 optimized
@@ -290,9 +250,6 @@ subroutine qcg_setup(env, solu, solv)
 
    if (env%use_xtbiff) then
       call rename('xtblmoinfo', 'solute.lmo')
-      call copysub('solute.lmo', tmp_grow)
-   else
-      call copysub('solute', tmp_grow)
    end if
 
    call chdir(thispath)
@@ -304,17 +261,11 @@ subroutine qcg_setup(env, solu, solv)
 !---- Properties solvent
    call chdir(env%scratchdir)
    call chdir('solvent_properties')
-   env%ref%nat = solv%nat
-   env%ref%at = solv%at
-   env%ref%xyz = solv%xyz
+   !No charges for solvent written. This is currently not possible
 
 !---- Geometry preoptimization solvent
    if ((.not. env%nopreopt) .and. (solv%nat /= 1)) then
-      call wrc0('coord', solv%nat, solv%at, solv%xyz) !write coord for xtbopt routine
-      !call xtbopt(env)
-      call trialOPT(env)
-      call rdcoord('coord', solv%nat, solv%at, solv%xyz)
-      call remove('coord')
+      call xtb_opt_qcg(env, solv, .false.)
    end if
    call wrc0('solvent', solv%nat, solv%at, solv%xyz)
 
@@ -323,7 +274,7 @@ subroutine qcg_setup(env, solu, solv)
       write (*, *) 'Generating LMOs for solvent'
       call xtb_lmo(env, 'solvent')!,solv%chrg)
    else
-      call xtbsp3(env, 'solvent')
+      call xtb_sp_qcg(env, 'solvent')
    end if
 
    call grepval('xtb.out', '| TOTAL ENERGY', e_there, solv%energy)
@@ -335,9 +286,6 @@ subroutine qcg_setup(env, solu, solv)
 
    if (env%use_xtbiff) then
       call rename('xtblmoinfo', 'solvent.lmo')
-      call copysub('solvent.lmo', tmp_grow)
-   else
-      call copysub('solvent', tmp_grow)
    end if
 
    call chdir(thispath)
@@ -379,20 +327,13 @@ subroutine read_qcg_input(env, solu, solv)
    logical                        :: pr
    real(wp), parameter            :: amutokg = 1.66053886E-27
    real(wp), parameter            :: third = 1.0d0/3.0d0
-   integer                        :: i, ich
+   integer                        :: i
    real(wp)                       :: r_solu, r_solv
 
    pr = .true.
 
+!--- Read in solu and solv coordinates and make solute and solvent file in WD
    call inputcoords_qcg(env, solu, solv)
-
-!--- Read in nat, at, xyz
-!   call simpletopo_file('solute', solu, .false., .false., '')
-!   allocate (solu%xyz(3, solu%nat))
-!   call rdcoord('solute', solu%nat, solu%at, solu%xyz)
-!   call simpletopo_file('solvent', solv, .false., .false., '')
-!   allocate (solv%xyz(3, solv%nat))
-!   call rdcoord('solvent', solv%nat, solv%at, solv%xyz)
 
 !--- CMA-Trafo
    call cma_shifting(solu, solv)
@@ -520,7 +461,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 
    integer                    :: minE_pos, m
    integer                    :: iter = 1
-   integer                    :: i, j, io
+   integer                    :: i, j, io, v
    integer                    :: max_cycle
    logical                    :: e_there, high_e, success, neg_E
    real(wp)                   :: etmp(500)
@@ -604,10 +545,18 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
    call get_ellipsoid(env, solu, solv, clus, .true.)
    call pr_grow_energy()
 
-   if (env%cts%used) call copysub(env%solu_file, env%scratchdir)
    call chdir(env%scratchdir)
-   if (env%cts%used) call copysub(env%solu_file, 'tmp_grow')
+   v = makedir('tmp_grow')
+   if(env%fixfile /= 'none selected') then
+      call copysub(env%fixfile, 'tmp_grow')
+   end if
+   if (env%use_xtbiff) then
+     call copy('solute_properties/solute.lmo', 'tmp_grow/solute.lmo')
+     call copy('solvent_properties/solvent.lmo', 'tmp_grow/solvent.lmo')
+   end if
    call chdir('tmp_grow')
+   call wrc0('solute', solu%nat, solu%at, solu%xyz)
+   call wrc0('solvent', solv%nat, solv%at, solv%xyz)
 
    call ellipsout('solute_cavity.coord', clus%nat, clus%at, clus%xyz, solu%ell_abc)
    solv%ell_abc = clus%ell_abc
@@ -657,7 +606,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
                call check_dock(neg_E)
             end if
 
-!!! If Interaction Energy is not negativ and existent, wall pot. too small and increase
+!-- If Interaction Energy is not negativ and existent, wall pot. too small and increase
             if (neg_E) then
                success = .true.
             else
@@ -1047,6 +996,15 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    case (-1:0) !qcgmtd/Crest runtype
 
       !Defaults
+      !General settings:
+      if (.not. env%user_mdstep) then
+         if (env%ensemble_opt .EQ. '--gff') then
+            env%mdstep = 1.5d0
+         else
+            env%mdstep = 5.0d0
+         end if
+      end if
+      !Runtype specific settings:
       if(env%ensemble_method == 0) then
          if (.not. env%user_dumxyz) then
             env%mddumpxyz = 200
@@ -1676,7 +1634,7 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
       call chdir(to)
       call wrc0('cluster.coord', clus%nat, clus%at, clus%xyz)
       call wr_cluster_cut('cluster.coord', solu%nat, solv%nat, env%nsolv, 'solute_cut.coord', 'solvent_shell.coord')
-      call xtbsp3(env, 'solvent_shell.coord')
+      call xtb_sp_qcg(env, 'solvent_shell.coord')
       call grepval('xtb.out', '| TOTAL ENERGY', ex, e_empty(i))
       call copy('solvent_shell.coord', 'solvent_cluster.coord')
       call copy('solvent_cluster.coord', 'filled_cluster.coord')
@@ -2807,13 +2765,13 @@ subroutine get_interaction_E(env, solu, solv, clus, iter, E_inter)
    call wr_cluster_cut('cluster.coord', solu%nat, solv%nat, iter, 'solute_cut.coord', 'solvent_cut.coord')
 
 !--- Perform single point calculations and recieve energies
-   call xtbsp3(env, 'solute_cut.coord')
+   call xtb_sp_qcg(env, 'solute_cut.coord')
    call grepval('xtb.out', '| TOTAL ENERGY', e_there, e_solute)
    if (.not. e_there) write (*, *) 'Solute energy not found'
-   call xtbsp3(env, 'solvent_cut.coord')
+   call xtb_sp_qcg(env, 'solvent_cut.coord')
    call grepval('xtb.out', '| TOTAL ENERGY', e_there, e_solvent)
    if (.not. e_there) write (*, *) 'Solvent energy not found'
-   call xtbsp3(env, 'cluster.coord')
+   call xtb_sp_qcg(env, 'cluster.coord')
    call grepval('xtb.out', '| TOTAL ENERGY', e_there, e_cluster)
    if (.not. e_there) write (*, *) 'Cluster energy not found'
 
