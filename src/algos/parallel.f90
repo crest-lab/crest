@@ -364,7 +364,6 @@ subroutine crest_oloop_pr_progress(env,total,current)
   type(systemdata),intent(inout) :: env
   integer,intent(in) :: total,current
   real(wp) :: percent
-  character(len=52) :: bar
   character(len=5) :: atmp
   real(wp),save :: increment
   real(wp),save :: progressbarrier
@@ -374,8 +373,7 @@ subroutine crest_oloop_pr_progress(env,total,current)
     progressbarrier = 0.0_wp
     if (env%niceprint) then
       percent = 0.0_wp
-      call progbar(percent,bar)
-      call printprogbar(percent,bar)
+      call printprogbar(percent)
     end if
     increment = 10.0_wp
     if(total > 1000) increment = 7.5_wp
@@ -386,8 +384,7 @@ subroutine crest_oloop_pr_progress(env,total,current)
 
   else if (current <= total .and. current > 0) then !> the regular printout case
     if (env%niceprint) then
-      call progbar(percent,bar)
-      call printprogbar(percent,bar)
+      call printprogbar(percent)
 
     else if (.not.env%legacy) then
       if(percent >= progressbarrier)then
@@ -441,7 +438,6 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   logical :: pr,ex
   integer :: T
   real(wp) :: percent
-  character(len=52) :: bar
   character(len=80) :: atmp
   character(len=*),parameter :: mdir = 'MDFILES'
 
@@ -502,7 +498,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
 
   !>--- run the MDs
   !$omp parallel &
-  !$omp shared(env,calculations,mddats,mol,pr,percent,bar,ich, moltmps)
+  !$omp shared(env,calculations,mddats,mol,pr,percent,ich, moltmps)
   !$omp single
   do i = 1,nsim
 
@@ -742,7 +738,6 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   logical :: pr,ex
   integer :: T
   real(wp) :: percent
-  character(len=52) :: bar
   character(len=80) :: atmp
   character(len=*),parameter :: mdir = 'MDFILES'
 
@@ -795,7 +790,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
 
 !>--- run the MDs
   !$omp parallel &
-  !$omp shared(env,calculations,mddats,mols,pr,percent,bar,ich, moltmps,profiler)
+  !$omp shared(env,calculations,mddats,mols,pr,percent,ich, moltmps,profiler)
   !$omp single
   do i = 1,nsim
 

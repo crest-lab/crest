@@ -151,7 +151,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
     if (it > 0) then
-    running = self%running(it)
+      running = self%running(it)
     else
       running = .true.
     end if
@@ -301,10 +301,10 @@ contains  !> MODULE PROCEDURES START HERE
     lmax = len_trim(msg)
     lmax = max(lmax,self%ltag)
     lmax = max(lmax,lmax_default)
-    do i=1,self%n
+    do i = 1,self%n
       ll = len_trim(self%tag(i))
-      if(ll > lmax) lmax = ll
-    enddo
+      if (ll > lmax) lmax = ll
+    end do
 
     !           DAYS   HOURS   MINUTES   SECONDS
     ! DAYS        1     1/24    1/1440   1/86400
@@ -370,7 +370,7 @@ contains  !> MODULE PROCEDURES START HERE
     !> and finally, again the total cpu and wall time
     if (verbose_local) then
       write (iunit,'(1x,a)') repeat('-',barlen)
-      
+
       write (iunit,'(" * wall-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &
         walldays_abs,wallhours_abs,wallmins_abs,wallsecs_abs
       write (iunit,'(" *  cpu-time: ",i5," d, ",i2," h, ",i2," min, ",f6.3," sec")') &

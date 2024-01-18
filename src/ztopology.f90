@@ -121,7 +121,7 @@ end subroutine simpletopo_mol
 subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
   use crest_parameters
   use zdata
-  use miscdata, only: rcov
+  use miscdata,only:rcov
   implicit none
   type(zmolecule)  :: zmol
   type(zmolecule)  :: zfrag
@@ -224,22 +224,10 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
     end if
   end if
 
-!--- identify rings
+!>--- identify rings
   if (getrings) then
     do i = 1,zmol%nfrag
       call zmol%fragment(i,zfrag)
-      !zfrag%maxring = maxringident !maxringident is a global variable from zdata.f90
-      !call countrings(zfrag,nrings)
-      !if (verbose.and.nrings > 0) then
-      !  if (zmol%nfrag > 1) then
-      !    write (*,'(1x,a,i0)') 'Fragment ',i
-      !    write (*,'(1x,a,i0,/)') 'Total number of rings in the fragment: ',nrings
-      !  else
-      !    write (*,'(1x,a,i0,/)') 'Total number of rings in the system: ',nrings
-      !  end if
-      !end if
-      !if (nrings .ge. 1) then
-      !  allocate (zfrag%zri(nrings))
       call newgetrings(zfrag,.false.)
       nrings = zfrag%nri
       do j = 1,nrings
@@ -269,14 +257,14 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
     end if
   end if
 
-!--- deallocation of memory
+!>--- deallocation of memory
   if (allocated(wbo)) deallocate (wbo)
   deallocate (bond,cn)
   return
 end subroutine simpletopo
 
 !=======================================================================!
-!C compute coordination numbers by adding an inverse damping function
+!> compute coordination numbers by adding an inverse damping function
 !=======================================================================!
 subroutine xcoord2(nat,iz,xyz,rcov,cn,cn_thr,bond)
   use iso_fortran_env,wp => real64
@@ -306,10 +294,10 @@ subroutine xcoord2(nat,iz,xyz,rcov,cn,cn_thr,bond)
         r = sqrt(r2)
         if (r2 .gt. cn_thr) cycle
         rcovj = rcov(iz(iat))
-! covalent distance in Bohr
+!> covalent distance in Bohr
         rco = (rcovi+rcovj)*1.0  ! this scaling reduces the size of the clusters
         rr = rco/r
-! counting function exponential has a better long-range behavior than MHGs inverse damping
+!> counting function exponential has a better long-range behavior than MHGs inverse damping
         damp = 1.d0/(1.d0+exp(-k1*(rr-1.0d0)))
         bond(iat,i) = damp
         xn = xn+damp
@@ -321,7 +309,7 @@ subroutine xcoord2(nat,iz,xyz,rcov,cn,cn_thr,bond)
 end subroutine xcoord2
 
 !===================================================!
-! generate the topo array for a given structure
+!> generate the topo array for a given structure
 !===================================================!
 subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
   use iso_fortran_env,only:wp => real64
@@ -339,7 +327,7 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
   allocate (cn2(nat),source=0.0_wp)
   topo = 0
   neighbourmat = .false.
-  !--- some heuristic rules and CN array setup
+  !>--- some heuristic rules and CN array setup
   do i = 1,nat
     cn2(i) = cn(i)
     rcn = floor(cn(i))
@@ -360,7 +348,7 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
       cn2(i) = rcn
     end if
   end do
-  !--- build the topology
+  !>--- build the topology
   do i = 1,nat
     icn = nint(cn2(i))
     do k = 1,icn
@@ -374,13 +362,13 @@ subroutine bondtotopo(nat,at,bond,cn,ntopo,topo,neighbourmat)
     do j = 1,nat
       if (i == j) cycle
       l = lin(i,j)
-      !-- only save matching topology --> prevent high CN failures
+      !>-- only save matching topology --> prevent high CN failures
       if (neighbourmat(i,j).and.neighbourmat(j,i)) then
         topo(l) = 1
       else
-        ! special case for carbon (because the carbon CN is typically correct)
-        ! this helps, e.g. with eta-coordination in ferrocene
-        ! (used, except if both are carbon)
+        !> special case for carbon (because the carbon CN is typically correct)
+        !> this helps, e.g. with eta-coordination in ferrocene
+        !> (used, except if both are carbon)
         if (.not. (at(i) == 6.and.at(j) == 6)) then
           if (at(i) == 6.and.neighbourmat(i,j)) topo(l) = 1
           if (at(j) == 6.and.neighbourmat(j,i)) topo(l) = 1
@@ -464,7 +452,7 @@ subroutine bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighbourmat,excl)
 end subroutine bondtotopo_excl
 subroutine quicktopo(nat,at,xyz,ntopo,topovec)
   use iso_fortran_env,only:wp => real64
-  use miscdata, only: rcov
+  use miscdata,only:rcov
   implicit none
   integer :: nat
   integer :: at(nat)
@@ -913,7 +901,7 @@ subroutine newgetrings(zmol,verbose)
   !> LOCAL
   type(zring) :: zri
   integer :: V,nrings,nmem
-  integer,allocatable :: A(:,:) !> adjacency matrix    
+  integer,allocatable :: A(:,:) !> adjacency matrix
   logical,allocatable :: rings(:,:)
   logical,allocatable :: ringtracker(:,:)
   integer,allocatable :: tmppath(:)
@@ -964,7 +952,7 @@ subroutine newgetrings(zmol,verbose)
         else
           duplicate = .false.
           do k = 1,nrings
-            if (all(ringtracker(:,k) .eqv. tmpmem(:))) then
+            if (all(ringtracker(:,k).eqv.tmpmem(:))) then
               duplicate = .true.
               exit
             end if

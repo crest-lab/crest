@@ -216,7 +216,7 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
    character(len=512)              :: jobcall
 
    if (env%niceprint) then
-      call printemptybar()
+      call printprogbar(0.0_wp)
    end if
 
    call remove('xtb.out')
@@ -284,7 +284,6 @@ subroutine ensemble_lmo(env, fname, self, NTMP, TMPdir, conv)
    character(len=20)               :: pipe
    character(len=512)              :: thispath, tmppath
    character(len=1024)             :: jobcall
-   character(len=52)               :: bar
    real(wp)                        :: percent
 
 ! setting the threads for correct parallelization
@@ -302,7 +301,7 @@ subroutine ensemble_lmo(env, fname, self, NTMP, TMPdir, conv)
 !___________________________________________________________________________________
 
 !$omp parallel &
-!$omp shared( vz,jobcall,NTMP,percent,k,bar,TMPdir,conv )
+!$omp shared( vz,jobcall,NTMP,percent,k,TMPdir,conv )
 !$omp single
    do i = 1, NTMP
       vz = i
@@ -356,7 +355,6 @@ subroutine ensemble_iff(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, NTMP
    character(len=20)               :: pipe
    character(len=512)              :: tmppath
    character(len=1024)             :: jobcall
-   character(len=52)               :: bar
    character(len=64), intent(in)    :: frag1_file
    character(len=64), intent(in)    :: frag2_file
    character(len=64)               :: frag1
@@ -378,7 +376,7 @@ subroutine ensemble_iff(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, NTMP
 !___________________________________________________________________________________
 
 !$omp parallel &
-!$omp shared( vz,NTMP,percent,k,bar,TMPdir,conv )
+!$omp shared( vz,NTMP,percent,k,TMPdir,conv )
 !$omp single
    do i = 1, NTMP
       vz = i
@@ -429,7 +427,6 @@ subroutine ensemble_dock(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, n_s
    character(len=20)               :: pipe
    character(len=1024)             :: jobcall
    character(len=512)              :: thispath, tmppath
-   character(len=52)               :: bar
    character(len=*), intent(in)     :: frag1_file
    character(len=*), intent(in)     :: frag2_file
    character(len=64)               :: frag1
@@ -475,7 +472,7 @@ subroutine ensemble_dock(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, n_s
 !___________________________________________________________________________________
 
 !$omp parallel &
-!$omp shared( vz,NTMP,percent,k,bar,TMPdir,conv,n_shell,n_solvent,jobcall )
+!$omp shared( vz,NTMP,percent,k,TMPdir,conv,n_shell,n_solvent,jobcall )
 !$omp single
    do i = 1, NTMP
       vz = i
@@ -523,7 +520,6 @@ subroutine cff_opt(postopt, env, fname, n12, NTMP, TMPdir, conv, nothing_added)
    character(len=20)               :: pipe
    character(len=512)              :: thispath, tmppath
    character(len=1024)             :: jobcall
-   character(len=52)               :: bar
    character(len=2)                :: flag
    real(wp)                        :: percent
 
@@ -574,11 +570,11 @@ subroutine cff_opt(postopt, env, fname, n12, NTMP, TMPdir, conv, nothing_added)
    end if
 
    k = 0 !counting the finished jobs
-   if (postopt) call printemptybar()
+   if (postopt) call printprogbar(0.0_wp)
 !___________________________________________________________________________________
 
 !$omp parallel &
-!$omp shared( vz,jobcall,NTMP,percent,k,bar,TMPdir,conv )
+!$omp shared( vz,jobcall,NTMP,percent,k,TMPdir,conv )
 !$omp single
    do i = 1, NTMP
       vz = i
@@ -589,8 +585,7 @@ subroutine cff_opt(postopt, env, fname, n12, NTMP, TMPdir, conv, nothing_added)
       k = k + 1
       percent = float(k)/float(NTMP)*100
       if (postopt) then
-         call progbar(percent, bar)
-         call printprogbar(percent, bar)
+         call printprogbar(percent)
       end if
       !$omp end critical
       !$omp end task
@@ -618,11 +613,11 @@ subroutine cff_opt(postopt, env, fname, n12, NTMP, TMPdir, conv, nothing_added)
    end if
 
    k = 0 !counting the finished jobs
-   if (postopt) call printemptybar()
+   if (postopt) call printprogbar(0.0_wp)
 !___________________________________________________________________________________
 
 !$omp parallel &
-!$omp shared( vz,jobcall,NTMP,percent,k,bar,TMPdir,conv )
+!$omp shared( vz,jobcall,NTMP,percent,k,TMPdir,conv )
 !$omp single
    do i = 1, NTMP
       vz = i
@@ -633,8 +628,7 @@ subroutine cff_opt(postopt, env, fname, n12, NTMP, TMPdir, conv, nothing_added)
       k = k + 1
       percent = float(k)/float(NTMP)*100
       if (postopt) then
-         call progbar(percent, bar)
-         call printprogbar(percent, bar)
+         call printprogbar(percent)
       end if
       !$omp end critical
       !$omp end task
@@ -682,7 +676,6 @@ subroutine ens_sp(env, fname, NTMP, TMPdir)
    character(len=20)               :: pipe
    character(len=512)              :: thispath, tmppath
    character(len=1024)             :: jobcall
-   character(len=52)               :: bar
    real(wp)                        :: percent
 
 ! setting the threads for correct parallelization
@@ -707,11 +700,11 @@ subroutine ens_sp(env, fname, NTMP, TMPdir)
    &    trim(env%ProgName), trim(fname), trim(env%gfnver), trim(env%solv), trim(pipe)
 
    k = 0 !counting the finished jobs
-   call printemptybar()
+   call printprogbar(0.0_wp)
 !___________________________________________________________________________________
 
 !$omp parallel &
-!$omp shared( vz,NTMP,percent,k,bar,TMPdir,jobcall )
+!$omp shared( vz,NTMP,percent,k,TMPdir,jobcall )
 !$omp single
    do i = 1, NTMP
       vz = i
@@ -724,8 +717,7 @@ subroutine ens_sp(env, fname, NTMP, TMPdir)
       !$omp critical
       k = k + 1
       percent = float(k)/float(NTMP)*100
-      call progbar(percent, bar)
-      call printprogbar(percent, bar)
+      call printprogbar(percent)
       !$omp end critical
       !$omp end task
    end do
@@ -768,7 +760,6 @@ subroutine ens_freq(env, fname, NTMP, TMPdir, opt)
    character(len=20)               :: pipe
    character(len=512)              :: thispath, tmppath
    character(len=1024)             :: jobcall
-   character(len=52)               :: bar
    real(wp)                        :: percent
    logical                         :: opt
 
@@ -790,7 +781,7 @@ subroutine ens_freq(env, fname, NTMP, TMPdir, opt)
    end if
 
    k = 0 !counting the finished jobs
-   call printemptybar()
+   call printprogbar()
 
 !--- Jobcall
    if (.not. opt) then
@@ -804,7 +795,7 @@ subroutine ens_freq(env, fname, NTMP, TMPdir, opt)
 !___________________________________________________________________________________
 
 !$omp parallel &
-!$omp shared( vz,NTMP,percent,k,bar,TMPdir,jobcall )
+!$omp shared( vz,NTMP,percent,k,TMPdir,jobcall )
 !$omp single
    do i = 1, NTMP
       vz = i
@@ -814,8 +805,7 @@ subroutine ens_freq(env, fname, NTMP, TMPdir, opt)
       !$omp critical
       k = k + 1
       percent = float(k)/float(NTMP)*100
-      call progbar(percent, bar)
-      call printprogbar(percent, bar)
+      call printprogbar(percent)
       !$omp end critical
       !$omp end task
    end do

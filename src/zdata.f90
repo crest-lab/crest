@@ -24,7 +24,6 @@
 ! identification of isomers
 !================================================================================!
 module zdata
-  !use iso_fortran_env,wp => real64,dp => int64
   use crest_parameters
   implicit none
 
@@ -500,13 +499,13 @@ contains !> MODULE PROCEDURES START HERE
     atmp = ' atoms:'
     if (allocated(self%rlist)) then
       write (ch,'(1x,a,i0)') 'ring size: ',self%rs
-      do i=1,self%rs
-         write(btmp,'(1x,i0)')self%rlist(i)
-         atmp = trim(atmp)//trim(btmp)
-      enddo
+      do i = 1,self%rs
+        write (btmp,'(1x,i0)') self%rlist(i)
+        atmp = trim(atmp)//trim(btmp)
+      end do
       write (ch,*) trim(atmp)
     end if
-    deallocate(atmp)
+    deallocate (atmp)
     return
   end subroutine print_zring
 !=========================================================================================!

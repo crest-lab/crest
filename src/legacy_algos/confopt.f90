@@ -195,29 +195,23 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
       use crest_data
       use iomod
       implicit none
-
       integer :: TMPCONF
       character(len=1024) :: jobcall
       character(len=*) :: base
       character(len=:),allocatable :: bdir
-
       logical :: niceprint
-
-      character(len=52) :: bar
       real(wp) :: percent
-
       integer :: vz,k,i,maxpop
       integer :: io
-
       character(len=512) :: tmppath
 
       if(niceprint)then
-        call printemptybar()
+        call printprogbar(0.0_wp)
       endif
       k=0        ! count finished jobs
 
 !$omp parallel &
-!$omp shared( vz,jobcall,bdir,TMPCONF,percent,k,niceprint,bar,maxpop )
+!$omp shared( vz,jobcall,bdir,TMPCONF,percent,k,niceprint,maxpop )
 !$omp single
       do i=1,TMPCONF
          vz=i
@@ -231,8 +225,7 @@ subroutine opt_OMP_loop(TMPCONF,base,jobcall,niceprint)
         k=k+1
         if(niceprint)then
           percent=float(k)/float(TMPCONF)*100
-          call  progbar(percent,bar)
-          call printprogbar(percent,bar)
+          call printprogbar(percent)
         else
           if(gui)then
              call wrGUIpercent(k,TMPCONF,100)
@@ -288,7 +281,6 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
          logical :: xo
 
          logical :: niceprint   
-         character(len=52) :: bar
          real(wp) :: percent
 
          logical :: verbose,l1
@@ -377,7 +369,7 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
       write(*,'(1x,a,i0,a,a,a)')'Optimizing all ',nall,' structures from file "',trim(ensnam),'" ...'
 
 !$omp parallel &
-!$omp shared( vz,jobcall,optpath,tmppath,ctmp,TMPCONF,percent,k,bar,niceprint) &
+!$omp shared( vz,jobcall,optpath,tmppath,ctmp,TMPCONF,percent,k,niceprint) &
 !$omp shared( nat,at,xyz,multilev,xo,btmp,env ) 
 !$omp single
       do i=1,TMPCONF
@@ -437,18 +429,6 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
 
           !$omp end critical
 
-         !if(env%chrg .ne. 0)then
-         !    ctmp=trim(tmppath)//'/'//'.CHRG'
-         !    open(unit=ich,file=trim(ctmp))
-         !    write(ich,*) env%chrg
-         !    close(ich)
-         !endif
-         !if(env%uhf .ne. 0)then
-         !    ctmp=trim(tmppath)//'/'//'.UHF'
-         !    open(unit=ich,file=trim(ctmp))
-         !    write(ich,*) env%uhf
-         !    close(ich)
-         !endif
          call env%wrtCHRG(trim(tmppath))
          if(env%useqmdff)then
          call copysub('solvent',trim(tmppath))
@@ -481,8 +461,7 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
         k=k+1
         if(niceprint)then
           percent=float(k)/float(TMPCONF)*100
-          call  progbar(percent,bar)
-          call printprogbar(percent,bar)
+          call printprogbar(percent)
         else
           if(gui)then
              call wrGUIpercent(k,TMPCONF,100)

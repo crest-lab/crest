@@ -419,7 +419,6 @@ subroutine protens(ens,env,prot,tim)
   character(len=256) :: filename
   character(len=128) :: inpnam,outnam
   character(len=512) :: jobcall
-  character(len=52) :: bar
 
   logical :: niceprint
 
@@ -474,10 +473,10 @@ subroutine protens(ens,env,prot,tim)
 
   k = 0 !counting the finished jobs
   if (niceprint) then
-    call printemptybar()
+    call printprogbar(0.0_wp)
   end if
 !$omp parallel &
-!$omp shared( vz,jobcall,nall,dirn,percent,k,niceprint,bar )
+!$omp shared( vz,jobcall,nall,dirn,percent,k,niceprint )
 !$omp single
   do i = 1,nall
     vz = i
@@ -489,8 +488,7 @@ subroutine protens(ens,env,prot,tim)
     k = k+1
     if (niceprint) then
       percent = float(k)/float(nall)*100.0d0
-      call progbar(percent,bar)
-      call printprogbar(percent,bar)
+      call printprogbar(percent)
     else
       write (6,'(1x,i0)',advance='no') k
       flush (6)

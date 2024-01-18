@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2018-2020 Philipp Pracht
+! Copyright (C) 2018-2024 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -17,10 +17,15 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!===================================================================================================!
-! Print Header
-!===================================================================================================!
+!=========================================================================================!
+!=========================================================================================!
+!> CREST PRINTOUT ROUTINES
+!=========================================================================================!
+!=========================================================================================!
 subroutine confscript_head(vers)
+!*******************************
+!* Print program header section
+!*******************************
   implicit none
   logical,intent(in) :: vers
   logical :: niceprint
@@ -48,10 +53,11 @@ subroutine confscript_head(vers)
   write (*,*)
 
   write (*,'(3x,a)') 'Original code'
-  write (*,'(4x,a)') 'P.Pracht, S.Grimme, Universität Bonn, MCTC'
+  write (*,'(4x,a)') ' P.Pracht, S.Grimme, Universität Bonn, MCTC'
   write (*,'(3x,a)') 'with help from (alphabetical order):'
-  write (*,'(4x,a)') 'C.Bannwarth, F.Bohle, S.Ehlert, G.Feldmann, S.Grimme,'
-  write (*,'(4x,a)') 'C.Plett, P.Pracht, S.Spicher, P.Steinbach'
+  write (*,'(4x,a)') ' C.Bannwarth, F.Bohle, S.Ehlert, G.Feldmann, J.Gorges,'
+  write (*,'(4x,a)') ' S.Grimme, C.Plett, P.Pracht, S.Spicher, P.Steinbach,'
+  write (*,'(4x,a)') ' P.Wesolowski, F.Zeller'
   write (*,*)
 
   write (*,'(3x,a)') 'Online documentation is available at'
@@ -62,6 +68,9 @@ subroutine confscript_head(vers)
 end subroutine confscript_head
 
 subroutine box3(version,date,commit,author)
+!***************
+!* Print banner
+!***************
   implicit none
   character(len=*) :: version
   character(len=*) :: date
@@ -69,22 +78,22 @@ subroutine box3(version,date,commit,author)
   character(len=*) :: author
   character(len=200) :: logo(10)
   character(len=200) :: info(2)
-  integer,parameter :: pad_left=7
+  integer,parameter :: pad_left = 7
   integer :: i,lcount
   write (*,*)
-  write (logo( 1),'(''╔════════════════════════════════════════════╗'')')
-  write (logo( 2),'(''║            ___ ___ ___ ___ _____           ║'')')
-  write (logo( 3),'(''║           / __| _ \ __/ __|_   _|          ║'')')
-  write (logo( 4),'(''║          | (__|   / _|\__ \ | |            ║'')')
-  write (logo( 5),'(''║           \___|_|_\___|___/ |_|            ║'')')
-  write (logo( 6),'(''║                                            ║'')')
-  write (logo( 7),'(''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
-  write (logo( 8),'(''║          based on the GFN methods          ║'')')
-  write (logo( 9),'(''║                                            ║'')')
+  write (logo(1),'(''╔════════════════════════════════════════════╗'')')
+  write (logo(2),'(''║            ___ ___ ___ ___ _____           ║'')')
+  write (logo(3),'(''║           / __| _ \ __/ __|_   _|          ║'')')
+  write (logo(4),'(''║          | (__|   / _|\__ \ | |            ║'')')
+  write (logo(5),'(''║           \___|_|_\___|___/ |_|            ║'')')
+  write (logo(6),'(''║                                            ║'')')
+  write (logo(7),'(''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
+  write (logo(8),'(''║          based on the GFN methods          ║'')')
+  write (logo(9),'(''║                                            ║'')')
   write (logo(10),'(''╚════════════════════════════════════════════╝'')')
-  do i=1,10
-    write(*,'(a,a)') repeat(" ",pad_left),trim(logo(i))
-  enddo
+  do i = 1,10
+    write (*,'(a,a)') repeat(" ",pad_left),trim(logo(i))
+  end do
   write (*,'(a,''Version '',a,'', '',a)') repeat(" ",pad_left),trim(version),trim(date)
   write (*,'(a,"commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,author
 end subroutine box3
@@ -98,236 +107,256 @@ subroutine disclaimer
 
 end subroutine disclaimer
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!c Confscript help printout
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!=========================================================================================!
+
 subroutine confscript_help()
   use crest_data
   implicit none
 
+  write (*,'(80("-"))')
   write (*,*)
-  write (*,'(1x, ''usage        :'')')
-  write (*,'(1x, ''crest [input] [options]'')')
+  write (*,'(1x, ''Usage :'')')
+  write (*,'(1x, '' crest [input] [options]'')')
   write (*,*)
-  write (*,'(1x, ''The FIRST argument CAN be a coordinate file in the'')')
+  write (*,'(1x, ''The [input] argument CAN be a coordinate file in the'')')
   write (*,'(1x, ''TM (coord, Bohr) or Xmol (*.xyz, Ang.) format.'')')
   write (*,'(1x, ''If no such file is present as the first argument crest will'')')
   write (*,'(1x, ''automatically search for a file called "coord" in the TM format.'')')
-  write (*,'(/,1x,''General and technical options:'')')
-  write (*,'(5x,''-v1                : use the MF-MD-GC workflow. (OUTDATED)'')')
-  write (*,'(5x,''-v2                : use the MTD-GC workflow. (OUTDATED)'')')
-  write (*,'(5x,''-v3 (or -v2i)      : use the iMTD-GC workflow. [default]'')')
-  write (*,'(5x,''-v4                : use the iMTD-sMTD workflow.'')')
-  write (*,'(5x,''-entropy           : the same workflow as with "-v4", specialized'')')
-  write (*,'(5x,''                     for the calculation of conformational entropy.'')')
-  write (*,'(5x,''-xnam <"bin">      : specify name of the xtb binary'')')
-  write (*,'(5x,''                     that should be used.'')')
-  write (*,'(5x,''-niceprint         : progress bar printout for optimizations'')')
-  write (*,'(5x,''-dry               : perform a "dry run". Only prints the settings'')')
-  write (*,'(5x,''                     that would be applied with the CMD input'')')
-  write (*,'(5x,''                     and stops the run before any calculations'')')
-  write (*,'(5x,''-T <int>           : Set total number of CPUs(threads)'')')
-  write (*,'(5x,''                     to be used. Parallel settings are then'')')
-  write (*,'(5x,''                     determined automatically for each step.'')')
-  write (*,'(5x,''                     If not set by "-T", this number is read'')')
-  write (*,'(5x,''                     from the OMP_NUM_THREADS global variable.'')')
   write (*,*)
+  write (*,'(1x, ''Versions >3.0 allow specifying detailed input instructions via'')')
+  write (*,'(1x, ''input files in the TOML format.'')')
+  write (*,'(1x, ''*.toml files can be [input] or specified via "--input <file>"'')')
   write (*,*)
-
-  write (*,'(1x,''Calculation options:'')')
-  write (*,'(5x,''-g <string>        : use GBSA implicit solvent'')')
-  write (*,'(5x,''                     for solvent <string>'')')
-  write (*,'(5x,''-alpb <string>     : use ALPB implicit solvent'')')
-  write (*,'(5x,''                     for solvent <string>'')')
-  write (*,'(5x,''-chrg <int>        : set the molecules´ charge'')')
-  write (*,'(5x,''-uhf <int>         : set <int>=Nα-Nβ electrons'')')
-  write (*,'(5x,''-charges <file>    : copy a existing atomic charges file for'')')
-  write (*,'(5x,''                     all optimizations (can be used by GFN-FF)'')')
-  write (*,'(5x,''-nozs              : do not perform z-mat sorting [default]'')')
-  write (*,'(5x,''-opt <"lev">       : set opt. level for ALL GFN-xTB'')')
-  write (*,'(5x,''                     optimizations.'')')
-  write (*,'(5x,''                     <lev>=vloose,loose,normal,tight,vtight'')')
-  write (*,'(5x,''                     [default: vtight]'')')
-  write (*,'(5x,''-gfn1              : use GFN1-xTB'')')
-  write (*,'(5x,''-gfn2              : use GFN2-xTB [default]'')')
-  !write(*,'(5x,''-gfn0              : use GFN0-xTB'')')
-  write (*,'(5x,''-gff, -gfnff       : use GFN-FF (requires xtb 6.3 or newer)'')')
-  write (*,'(5x,''                     (for GFN-FF searches bond constraints are applied automatically)'')')
-  write (*,'(5x,''-gfn2//gfnff       : GFN2-xTB//GFN-FF composite mode)'')')
-  write (*,'(3x,''Adding additional constraints to the calculations:'')')
-  write (*,'(3x,''The user is able to include additional constraints to ALL'')')
-  write (*,'(3x,''xtb calculations that are conducted by CREST.'')')
-  write (*,'(5x,''-cinp <file>       : read in a file containing the constraints.'')')
-  write (*,'(5x,''                     constraints have to be in the same format as in xtb.'')')
-  write (*,'(5x,''                     (this was done previously via the ".constrains" file)'')')
-  write (*,'(5x,''-cbonds            : define automatic bond constraints (set up from topology)'')')
-  write (*,'(5x,''-nocbonds          : turn of -cbonds (for GFN-FF, mainly. see above)'')')
-  write (*,'(5x,''-fc <float>        : define force constant for defined constraints (-cbonds)'')')
-  write (*,*)
-  write (*,*)
-
-  write (*,'(1x,''Options for ensemble comparisons:'')')
-  write (*,'(5x,''-cregen [file]     : use ONLY the CREGEN subroutine'')')
-  write (*,'(5x,''                     to sort a given ensemble file.'')')
-  write (*,'(5x,''-ewin <real>       : set energy window in kcal/mol,'')')
-  write (*,'(5x,''                     [default: 6.0 kcal/mol]'')')
-  write (*,'(5x,''-rthr <real>       : set RMSD threshold in Ang,'')')
-  write (*,'(5x,''                     [default: 0.125 Ang]'')')
-  write (*,'(5x,''-ethr <real>       : set E threshold in kcal/mol,'')')
-  write (*,'(5x,''                     [default: 0.05 kcal/mol]'')')
-  write (*,'(5x,''-bthr <real>       : set Rot. const. threshold ,'')')
-  write (*,'(5x,''                     [default: 0.01 (= 1%)]'')')
-  write (*,'(5x,''-pthr <real>       : Boltzmann population threshold'')')
-  write (*,'(5x,''                     [default: 0.05 (= 5%)]'')')
-  write (*,'(5x,''-temp <real>       : set temperature in cregen, [default: 298.15 K]'')')
-  write (*,'(5x,''-prsc              : create a scoord.* file for each conformer'')')
-  write (*,'(5x,''-nowr              : don´t write new ensemble files'')')
-  write (*,'(5x,''-eqv,-nmr,-entropy : compare nuclear equivalences (requires rotamers)'')')
-  write (*,'(5x,''-cluster <int>     : PCA and k-Means clustering of sorted ensemble.'')')
-  write (*,'(5x,''                     Works as extenstion to the CREGEN sorting.'')')
-  write (*,'(5x,''                     <int> is the number of clusters to be formed.'')')
-  write (*,'(5x,''-notopo            : turn off any topology checks in CREGEN.'')')
-  write (*,*)
-  write (*,*)
-  write (*,'(1x,''Options for the iMTD-GC workflows:'')')
-  write (*,'(5x,''-cross             : do the GC part [default]'')')
-  write (*,'(5x,''-nocross           : don´t do the GC part'')')
-  write (*,'(5x,''-shake <int>       : set SHAKE mode for MD'')')
-  write (*,'(5x,''                     (0=off,1=H-only,2=all bonds) [default: 2]'')')
-  write (*,'(5x,''-tstep <int>       : set MD time step in fs'')')
-  write (*,'(5x,''                     [default: 5 fs]'')')
-  write (*,'(5x,''-mdlen/-len <real> : set MD length (all MTDs) in ps.'')')
-  write (*,'(5x,''                     Also possible are multiplicative factors'')')
-  write (*,'(5x,''                     for the default MD length with "x<real>"'')')
-  write (*,'(5x,''-mddump <int>      : xyz dumpstep to Trajectory in fs'')')
-  write (*,'(5x,''                     [default: 100 fs]'')')
-  write (*,'(5x,''-vbdump <real>     : set Vbias dump frequency in ps'')')
-  write (*,'(5x,''                     [default: 1.0 ps]'')')
-  write (*,'(5x,''-tnmd <real>       : set temperature for additional normal MDs'')')
-  write (*,'(5x,''                     [default: 400 K]'')')
-  write (*,'(5x,''-norotmd           : don´t do the regular MDs after the '')')
-  write (*,'(5x,''                     second multilevel optimization step'')')
-  write (*,'(5x,''-hflip/-noflip     : turn on/off a small enhancement routine to'')')
-  write (*,'(5x,''                     rotate OH groups after MTD. [default: OFF]'')')
-  write (*,'(5x,''-maxflip <int>     : max. number of new structures by the above'')')
-  write (*,'(5x,''                     enhancement routine. [default: 1000]'')')
-  write (*,'(5x,''-quick             : perform a search with reduced settings'')')
-  write (*,'(5x,''                     for a crude ensemble.'')')
-  write (*,'(5x,''-squick            : perform a even further reduced search'')')
-  write (*,'(5x,''-mquick            : perform a search with maximum reduced settings'')')
-  write (*,'(5x,''                     (do not reduce the settings more than that)'')')
-  write (*,'(5x,''-origin            : track the step of generation for'')')
-  write (*,'(5x,''                     each conformer/rotamer. [default]'')')
-  write (*,'(5x,''-keepdir           : keep sub-directories of the conformer'')')
-  write (*,'(5x,''                     generation step.'')')
-  write (*,'(5x,''-nci               : generate an ellipsoide potential around the'')')
-  write (*,'(5x,''                     input structure and add it to the MTD simulation.'')')
-  write (*,'(5x,''                     This can be used to find aggregates of NCI complexes.'')')
-  write (*,'(5x,''-wscal <real>      : scale the ellipsoide potential axes by factor <real>.'')')
-  write (*,*)
-  write (*,*)
-  write (*,'(1x,''Thermostatistical options (used in entropy mode):'')')
-  write (*,'(5x,''-trange <lower> <upper> <step>   : entropies are calculated for different temperatures.'')')
-  write (*,'(5x,''                                   these are calculated in a temperature range from'')')
-  write (*,'(5x,''                                   <lower> to <upper> with <step> in between.'')')
-  write (*,'(5x,''                                   [default: 280K-380K in 10K steps]'')')
-  write (*,'(5x,''-fscal <float>     : frequency scaling factor. [default: 1.0]'')')
-  write (*,'(5x,''-sthr <float>      : vibrational/rotational entropy interpolation threshold (τ)'')')
-  write (*,'(5x,''                     [default: 25.0 cm^-1]'')')
-  write (*,'(5x,''-ithr <float>      : imaginary mode inversion cutoff [default: -50.0 cm^-1]'')')
-  write (*,'(5x,''-ptot <float>      : sum of population for structures considered in msRRHO average.'')')
-  write (*,'(5x,''                     [default: 0.9 (=90%)]'')')
-
-  write (*,*)
-  write (*,*)
-
-  write (*,'(1x,''Quantum Cluster Growth (QCG)'')')
-  write (*,'(1x,''General usage :'')')
-  write (*,'(5x,''<solute> -qcg <solvent> [options]'')')
-  write (*,'(1x,''options (additionally to the iMTD-GC options above):'')')
-  write (*,'(5x,''-keepdir           : keep the tmp folder'')')
-  write (*,'(5x,''-nopreopt          : do not perform preoptimization (only for qcg).'')')
-  write (*,'(5x,''-xtbiff            : use the xTB-IFF standalone for docking of solvent'')')
-  write (*,'(5x,''-grow              : cluster generation'')')
-  write (*,'(5x,''-fixsolute         : fix the solute during the growth (recommended for rigid ones)'')')
-  write (*,'(5x,''                   : done automatically for water'')')
-  write (*,'(5x,''-nofix             : fix the solute not during the growth (needed only for water)'')')
-!      write(*,'(5x,''-fixens            : fix the solute during the ensemble generation'')')
-      write(*,'(5x,''-nsolv <INT>       : number of solvent molecules to add'')')
-      write(*,'(5x,''-normdock          : Perform a more extensive docking during grow'')')
-      write(*,'(5x,''-maxsolv           : set limit of convergence, if no number of solutes was given. Default 150 '')')
-      write(*,'(5x,''-wscal <FLOAT>     : Scaling factor for outer wall potential'')')
-      write(*,'(5x,''-samerand          : use same random number for every xtbiff run'')')
-      write(*,'(5x,''-fin_opt_gfn2      : perform GFN2-xTB optimizations for final grow and ensemble structures'')')
-      write(*,'(5x,''-directed <FILE>   : Perform directed solvation at positions defined in <FILE>'')')
-      write(*,'(5x,''-ensemble          : ensemble generation'')')
-      write(*,'(5x,''-qcgmtd            : NCI-MTD CREST ensemble generation (Default)'')')
-      write(*,'(5x,''-ncimtd            : NCI-MTD CREST ensemble generation'')')
-      write(*,'(5x,''-mtd               : MTD for QCG ensemble generation'')')
-      write(*,'(5x,''-md                : normal MD for QCG ensemble search'')')
-      write(*,'(5x,''-enslvl [method]   : define a method for ensemble search. All gfn methods are supported'')')
-      write(*,'(5x,''-clustering        : Turn on clustering for the ensemble search (only for qcgmtd and ncimtd'')')
-      write(*,'(5x,''-esolv             : reference cluster generation and comp. of solvation energy'')')
-      write(*,'(5x,''-gsolv             : reference cluster generation and comp. of solvation free energy'')')
-      write(*,'(5x,''-nclus             : defines how many clusters are taken for reference cluster generation'')')
-      write(*,'(5x,''                   : default 4'')')
-      write(*,'(5x,''-nocff             : switches off the CFF algorithm'')')
-      write(*,'(5x,''-freqscal          : defines frequency scale factor. Only for outprint'')')
-      write(*,'(5x,''-freqlvl [method]  : define a method for frequency computation. All gfn versions are supported'')')
-
-
-  write(*,*)
-  write(*,*)
-      write(*,'(1x,''Other tools for standalone use:'')')
-      write(*,'(5x,''-zsort             : use only the zsort subroutine'')')
-      write(*,'(5x,''                     to sort the z-matrix of the input'')')
-      write(*,'(5x,''                     coord file.'')')
-      write(*,'(5x,''-mdopt <file>      : optimize along trajectory or'')')
-      write(*,'(5x,''                     ensemble file in the XYZ format.'')')
-      write(*,'(5x,''                     Each point on the file is optimized.'')')
-      write(*,'(5x,''-screen <file>     : optimize along ensemble file'')')
-      write(*,'(5x,''                     in the XYZ format. A multilevel'')')
-      write(*,'(5x,''                     optimization is performed with continiously'')')
-      write(*,'(5x,''                     increasing thresholds. After each step'')')
-      write(*,'(5x,''                     the ensemble file is sorted.'')')
-      write(*,'(5x,''-protonate         : find a molecules protomes by using a'')')
-      write(*,'(5x,''                     LMO π- or LP-center approach.'')')
-      write(*,'(5x,''-deprotonate       : find a molecules deprotomers.'')')
-      write(*,'(5x,''-tautomerize       : combine the protonation and deprotonation'')')
-      write(*,'(5x,''                     to find prototropic tautomers.'')')
-      write(*,'(6x,''↳ -trev           : do first the deprotonation and then the'')')
-      write(*,'(8x,''                  protonation in the -tautomerize mode, i.e.,'')')
-      write(*,'(8x,''                  reverse of the default procedure.'')')
-      write(*,'(6x,''↳ -iter <int>     : set number of protonation/deprotonation cycles'')')
-      write(*,'(8x,''                  in the tautomerization script. [default: 2]'')')
-      write(*,'(5x,''-compare <f1> <f2> : compare two ensembles <f1> and <f2>.'')')
-      write(*,'(5x,''                     Both ensembles must have the same'')')
-      write(*,'(5x,''                     order of atoms of the molecule and'')')
-      write(*,'(5x,''                     should contain rotamers.'')')
-      write(*,'(6x,''↳ -maxcomp <int>  : Selcect the lowest <int> conformers'')')
-      write(*,'(8x,''                  out of each ensemble to be compared'')')
-      write(*,'(8x,''                  with "-compare". [default: 10]'')')
-      write(*,'(5x,''-testtopo <file>   : Analyze some stuctural info (topology) for a given file.'')')
-      write(*,'(5x,''-constrain <atoms> : write example file ".xcontrol.sample" for constraints'')')
-      write(*,'(5x,''                     in crest. (see -cinp option above)'')')
-      write(*,'(5x,''-thermo <file>     : Calculate thermo data for given structure. Also requires vibrational'')')
-      write(*,'(5x,''                     frequencies in the TM format, saved as file called "vibspectrum"'')')
-      write(*,'(5x,''-rmsd,-rmsdheavy <file1> <file2>  : Calculate RMSD or heavy atom RMSD between two structures.'')')
-      write(*,'(5x,''                                    Input coords are automatically transformed to Angstroem.'')')      
-      write(*,'(5x,''-splitfile <file> [from] [to]     : Split an ensemble from <file> into seperate directories'')')
-      write(*,'(5x,''                                    for each structure. [from] and [to] can be used to select'')')      
-      write(*,'(5x,''                                    specific structures from the file.'')')      
-      write(*,'(5x,''                                    The new directories are collected in the SPLIT directory.'')')      
-
-  write(*,*)
-  write(*,*)
-      write(*,*) 'View literature references with [--cite]'
-      write(*,*) 'Also refer to:'
-      write(*,*) 'https://crest-lab.github.io/crest-docs/'
-      write(*,*)
-
-      stop '   [-h] displayed. exit.'
+  call confscript_morehelp2()
+  stop '   [-h] displayed. exit.'
 end subroutine confscript_help
+
+subroutine confscript_morehelp(flag)
+  use crest_data
+  implicit none
+  character(len=*),intent(in) :: flag
+
+  write (*,'(80("-"))')
+  write(*,*)
+  select case (flag)
+  case default
+    write (*,'(/,1x,''General, technical, and calculation options:'')')
+    write (*,'(5x,''--input <file>     : Specify TOML file with detailed input instructions'')')
+    write (*,'(5x,''-T <int>           : Set total number of CPUs(threads)'')')
+    write (*,'(5x,''                     to be used. Parallel settings are then'')')
+    write (*,'(5x,''                     determined automatically for each step.'')')
+    write (*,'(5x,''                     If not set by "-T", this number is read'')')
+    write (*,'(5x,''                     from the OMP_NUM_THREADS global variable.'')')
+    write (*,'(5x,''-g <string>        : use GBSA implicit solvent'')')
+    write (*,'(5x,''                     for solvent <string>'')')
+    write (*,'(5x,''-alpb <string>     : use ALPB implicit solvent'')')
+    write (*,'(5x,''                     for solvent <string>'')')
+    write (*,'(5x,''-chrg <int>        : set the molecules´ charge'')')
+    write (*,'(5x,''-uhf <int>         : set <int>=Nα-Nβ electrons'')')
+    write (*,'(5x,''-charges <file>    : copy a existing atomic charges file for'')')
+    write (*,'(5x,''                     all optimizations (can be used by GFN-FF)'')')
+    write (*,'(5x,''-opt <"lev">       : set opt. level for ALL GFN-xTB'')')
+    write (*,'(5x,''                     optimizations.'')')
+    write (*,'(5x,''                     <lev>=vloose,loose,normal,tight,vtight'')')
+    write (*,'(5x,''                     [default: vtight]'')')
+    write (*,'(5x,''-gfn1              : use GFN1-xTB'')')
+    write (*,'(5x,''-gfn2              : use GFN2-xTB [default]'')')
+    write (*,'(5x,''-gfn0              : use GFN0-xTB'')')
+    write (*,'(5x,''-gff, -gfnff       : use GFN-FF (requires xtb 6.3 or newer)'')')
+    write (*,'(5x,''                     (for GFN-FF searches bond constraints are applied automatically)'')')
+    write (*,'(5x,''-gfn2//gfnff       : GFN2-xTB//GFN-FF composite mode)'')')
+    write (*,'(3x,''Adding additional constraints to the calculations:'')')
+    write (*,'(3x,''The user is able to include additional constraints to ALL'')')
+    write (*,'(3x,''xtb calculations that are conducted by CREST.'')')
+    write (*,'(5x,''-cinp <file>       : read in a file containing the constraints.'')')
+    write (*,'(5x,''                     constraints have to be in the same format as in xtb.'')')
+    write (*,'(5x,''                     (this was done previously via the ".constrains" file)'')')
+    write (*,'(5x,''-cbonds            : define automatic bond constraints (set up from topology)'')')
+    write (*,'(5x,''-nocbonds          : turn off -cbonds (for GFN-FF, mainly. see above)'')')
+    write (*,'(5x,''-fc <float>        : define force constant for defined constraints (-cbonds)'')')
+    write (*,'(5x,''-xnam <"bin">      : specify name of the xtb binary'')')
+    write (*,'(5x,''                     that should be used.'')')
+    write (*,'(5x,''-niceprint         : progress bar printout for optimizations'')')
+    write (*,'(5x,''-dry               : perform a "dry run". Only prints the settings'')')
+    write (*,'(5x,''                     that would be applied with the CMD input'')')
+    write (*,'(5x,''                     and stops the run before any calculations'')')
+    write (*,*)
+
+  case ('compare','cregen')
+    write (*,'(1x,''Options for ensemble comparisons:'')')
+    write (*,'(5x,''-cregen [file]     : use ONLY the CREGEN subroutine'')')
+    write (*,'(5x,''                     to sort a given ensemble file.'')')
+    write (*,'(5x,''-ewin <real>       : set energy window in kcal/mol,'')')
+    write (*,'(5x,''                     [default: 6.0 kcal/mol]'')')
+    write (*,'(5x,''-rthr <real>       : set RMSD threshold in Ang,'')')
+    write (*,'(5x,''                     [default: 0.125 Ang]'')')
+    write (*,'(5x,''-ethr <real>       : set E threshold in kcal/mol,'')')
+    write (*,'(5x,''                     [default: 0.05 kcal/mol]'')')
+    write (*,'(5x,''-bthr <real>       : set Rot. const. threshold ,'')')
+    write (*,'(5x,''                     [default: 0.01 (= 1%)]'')')
+    write (*,'(5x,''-pthr <real>       : Boltzmann population threshold'')')
+    write (*,'(5x,''                     [default: 0.05 (= 5%)]'')')
+    write (*,'(5x,''-temp <real>       : set temperature in cregen, [default: 298.15 K]'')')
+    write (*,'(5x,''-prsc              : create a scoord.* file for each conformer'')')
+    write (*,'(5x,''-nowr              : don´t write new ensemble files'')')
+    write (*,'(5x,''-eqv,-nmr,-entropy : compare nuclear equivalences (requires rotamers)'')')
+    write (*,'(5x,''-cluster <int>     : PCA and k-Means clustering of sorted ensemble.'')')
+    write (*,'(5x,''                     Works as extenstion to the CREGEN sorting.'')')
+    write (*,'(5x,''                     <int> is the number of clusters to be formed.'')')
+    write (*,'(5x,''-notopo            : turn off any topology checks in CREGEN.'')')
+    write (*,*)
+
+  case ('conf','sampling')
+    write (*,'(1x,''Options for sampling workflows:'')')
+    write (*,'(5x,''-v1                : use the MF-MD-GC workflow. (OUTDATED)'')')
+    write (*,'(5x,''-v2                : use the MTD-GC workflow. (OUTDATED)'')')
+    write (*,'(5x,''-v3 (or -v2i)      : use the iMTD-GC workflow. [default]'')')
+    write (*,'(5x,''-v4                : use the iMTD-sMTD workflow.'')')
+    write (*,'(5x,''-entropy           : the same workflow as with "-v4", specialized'')')
+    write (*,'(5x,''                     for the calculation of conformational entropy.'')')
+    write (*,'(5x,''-nozs              : do not perform z-mat sorting [default]'')')
+    write (*,'(5x,''-cross             : do the GC part [default]'')')
+    write (*,'(5x,''-nocross           : don´t do the GC part'')')
+    write (*,'(5x,''-shake <int>       : set SHAKE mode for MD'')')
+    write (*,'(5x,''                     (0=off,1=H-only,2=all bonds) [default: 2]'')')
+    write (*,'(5x,''-tstep <int>       : set MD time step in fs'')')
+    write (*,'(5x,''                     [default: 5 fs]'')')
+    write (*,'(5x,''-mdlen/-len <real> : set MD length (all MTDs) in ps.'')')
+    write (*,'(5x,''                     Also possible are multiplicative factors'')')
+    write (*,'(5x,''                     for the default MD length with "x<real>"'')')
+    write (*,'(5x,''-mddump <int>      : xyz dumpstep to Trajectory in fs'')')
+    write (*,'(5x,''                     [default: 100 fs]'')')
+    write (*,'(5x,''-vbdump <real>     : set Vbias dump frequency in ps'')')
+    write (*,'(5x,''                     [default: 1.0 ps]'')')
+    write (*,'(5x,''-tnmd <real>       : set temperature for additional normal MDs'')')
+    write (*,'(5x,''                     [default: 400 K]'')')
+    write (*,'(5x,''-norotmd           : don´t do the regular MDs after the '')')
+    write (*,'(5x,''                     second multilevel optimization step'')')
+    write (*,'(5x,''-hflip/-noflip     : turn on/off a small enhancement routine to'')')
+    write (*,'(5x,''                     rotate OH groups after MTD. [default: OFF]'')')
+    write (*,'(5x,''-maxflip <int>     : max. number of new structures by the above'')')
+    write (*,'(5x,''                     enhancement routine. [default: 1000]'')')
+    write (*,'(5x,''-quick             : perform a search with reduced settings'')')
+    write (*,'(5x,''                     for a crude ensemble.'')')
+    write (*,'(5x,''-squick            : perform a even further reduced search'')')
+    write (*,'(5x,''-mquick            : perform a search with maximum reduced settings'')')
+    write (*,'(5x,''                     (do not reduce the settings more than that)'')')
+    write (*,'(5x,''-origin            : track the step of generation for'')')
+    write (*,'(5x,''                     each conformer/rotamer. [default]'')')
+    write (*,'(5x,''-keepdir           : keep sub-directories of the conformer'')')
+    write (*,'(5x,''                     generation step.'')')
+    write (*,'(5x,''-nci               : generate an ellipsoide potential around the'')')
+    write (*,'(5x,''                     input structure and add it to the MTD simulation.'')')
+    write (*,'(5x,''                     This can be used to find aggregates of NCI complexes.'')')
+    write (*,'(5x,''-wscal <real>      : scale the ellipsoide potential axes by factor <real>.'')')
+    write (*,*)
+
+  case ('thermo','entropy')
+    write (*,'(1x,''Thermostatistical options (used in entropy mode):'')')
+    write (*,'(5x,''-trange <lower> <upper> <step>   : entropies are calculated for different temperatures.'')')
+    write (*,'(5x,''                                   these are calculated in a temperature range from'')')
+    write (*,'(5x,''                                   <lower> to <upper> with <step> in between.'')')
+    write (*,'(5x,''                                   [default: 280K-380K in 10K steps]'')')
+    write (*,'(5x,''-fscal <float>     : frequency scaling factor. [default: 1.0]'')')
+    write (*,'(5x,''-sthr <float>      : vibrational/rotational entropy interpolation threshold (τ)'')')
+    write (*,'(5x,''                     [default: 25.0 cm^-1]'')')
+    write (*,'(5x,''-ithr <float>      : imaginary mode inversion cutoff [default: -50.0 cm^-1]'')')
+    write (*,'(5x,''-ptot <float>      : sum of population for structures considered in msRRHO average.'')')
+    write (*,'(5x,''                     [default: 0.9 (=90%)]'')')
+    write (*,*)
+
+  case ('qcg')
+    write (*,'(1x,''Quantum Cluster Growth (QCG)'')')
+    write (*,'(1x,''General usage :'')')
+    write (*,'(5x,''<solute> -qcg <solvent> [options]'')')
+    write (*,'(1x,''options (additionally to the iMTD-GC options above):'')')
+    write (*,'(5x,''-keepdir           : keep the tmp folder'')')
+    write (*,'(5x,''-nopreopt          : do not perform preoptimization (only for qcg).'')')
+    write (*,'(5x,''-xtbiff            : use the xTB-IFF standalone for docking of solvent'')')
+    write (*,'(5x,''-grow              : cluster generation'')')
+    write (*,'(5x,''-fixsolute         : fix the solute during the growth (recommended for rigid ones)'')')
+    write (*,'(5x,''                   : done automatically for water'')')
+    write (*,'(5x,''-nofix             : fix the solute not during the growth (needed only for water)'')')
+    write (*,'(5x,''-nsolv <INT>       : number of solvent molecules to add'')')
+    write (*,'(5x,''-normdock          : Perform a more extensive docking during grow'')')
+    write (*,'(5x,''-maxsolv           : set limit of convergence, if no number of solutes was given. Default 150 '')')
+    write (*,'(5x,''-wscal <FLOAT>     : Scaling factor for outer wall potential'')')
+    write (*,'(5x,''-samerand          : use same random number for every xtbiff run'')')
+    write (*,'(5x,''-fin_opt_gfn2      : perform GFN2-xTB optimizations for final grow and ensemble structures'')')
+    write (*,'(5x,''-directed <FILE>   : Perform directed solvation at positions defined in <FILE>'')')
+    write (*,'(5x,''-ensemble          : ensemble generation'')')
+    write (*,'(5x,''-qcgmtd            : NCI-MTD CREST ensemble generation (Default)'')')
+    write (*,'(5x,''-ncimtd            : NCI-MTD CREST ensemble generation'')')
+    write (*,'(5x,''-mtd               : MTD for QCG ensemble generation'')')
+    write (*,'(5x,''-md                : normal MD for QCG ensemble search'')')
+    write (*,'(5x,''-enslvl [method]   : define a method for ensemble search. All gfn methods are supported'')')
+    write (*,'(5x,''-clustering        : Turn on clustering for the ensemble search (only for qcgmtd and ncimtd'')')
+    write (*,'(5x,''-esolv             : reference cluster generation and comp. of solvation energy'')')
+    write (*,'(5x,''-gsolv             : reference cluster generation and comp. of solvation free energy'')')
+    write (*,'(5x,''-nclus             : defines how many clusters are taken for reference cluster generation'')')
+    write (*,'(5x,''                   : default 4'')')
+    write (*,'(5x,''-nocff             : switches off the CFF algorithm'')')
+    write (*,'(5x,''-freqscal          : defines frequency scale factor. Only for outprint'')')
+    write (*,'(5x,''-freqlvl [method]  : define a method for frequency computation. All gfn versions are supported'')')
+    write (*,*)
+
+  case ('other')
+    write (*,'(1x,''Other tools for standalone use:'')')
+    write (*,'(5x,''-zsort             : use only the zsort subroutine'')')
+    write (*,'(5x,''                     to sort the z-matrix of the input'')')
+    write (*,'(5x,''                     coord file.'')')
+    write (*,'(5x,''-mdopt <file>      : optimize along trajectory or'')')
+    write (*,'(5x,''                     ensemble file in the XYZ format.'')')
+    write (*,'(5x,''                     Each point on the file is optimized.'')')
+    write (*,'(5x,''-screen <file>     : optimize along ensemble file'')')
+    write (*,'(5x,''                     in the XYZ format. A multilevel'')')
+    write (*,'(5x,''                     optimization is performed with continiously'')')
+    write (*,'(5x,''                     increasing thresholds. After each step'')')
+    write (*,'(5x,''                     the ensemble file is sorted.'')')
+    write (*,'(5x,''-protonate         : find a molecules protomes by using a'')')
+    write (*,'(5x,''                     LMO π- or LP-center approach.'')')
+    write (*,'(5x,''-deprotonate       : find a molecules deprotomers.'')')
+    write (*,'(5x,''-tautomerize       : combine the protonation and deprotonation'')')
+    write (*,'(5x,''                     to find prototropic tautomers.'')')
+    write (*,'(6x,''↳ -trev           : do first the deprotonation and then the'')')
+    write (*,'(8x,''                  protonation in the -tautomerize mode, i.e.,'')')
+    write (*,'(8x,''                  reverse of the default procedure.'')')
+    write (*,'(6x,''↳ -iter <int>     : set number of protonation/deprotonation cycles'')')
+    write (*,'(8x,''                  in the tautomerization script. [default: 2]'')')
+    write (*,'(5x,''-compare <f1> <f2> : compare two ensembles <f1> and <f2>.'')')
+    write (*,'(5x,''                     Both ensembles must have the same'')')
+    write (*,'(5x,''                     order of atoms of the molecule and'')')
+    write (*,'(5x,''                     should contain rotamers.'')')
+    write (*,'(6x,''↳ -maxcomp <int>  : Selcect the lowest <int> conformers'')')
+    write (*,'(8x,''                  out of each ensemble to be compared'')')
+    write (*,'(8x,''                  with "-compare". [default: 10]'')')
+    write (*,'(5x,''-testtopo <file>   : Analyze some stuctural info (topology) for a given file.'')')
+    write (*,'(5x,''-constrain <atoms> : write example file ".xcontrol.sample" for constraints'')')
+    write (*,'(5x,''                     in crest. (see -cinp option above)'')')
+    write (*,'(5x,''-thermo <file>     : Calculate thermo data for given structure. Also requires vibrational'')')
+    write (*,'(5x,''                     frequencies in the TM format, saved as file called "vibspectrum"'')')
+    write (*,'(5x,''-rmsd,-rmsdheavy <file1> <file2>  : Calculate RMSD or heavy atom RMSD between two structures.'')')
+    write (*,'(5x,''                                    Input coords are automatically transformed to Angstroem.'')')
+    write (*,'(5x,''-splitfile <file> [from] [to]     : Split an ensemble from <file> into seperate directories'')')
+    write (*,'(5x,''                                    for each structure. [from] and [to] can be used to select'')')
+    write (*,'(5x,''                                    specific structures from the file.'')')
+    write (*,'(5x,''                                    The new directories are collected in the SPLIT directory.'')')
+    write (*,*)
+
+  end select
+  call confscript_morehelp2()
+  stop '   [-h] displayed. exit.'
+end subroutine confscript_morehelp
+
+subroutine confscript_morehelp2
+  write (*,'(1x, ''Some [options] command line flags can be shown with this help menu via:'')')
+  write (*,'(1x, '' --help [general/compare/conf/thermo/qcg/other]'')')
+  write (*,*)
+  write (*,*) 'View literature references with [--cite]'
+  write (*,*) 'For detailed documentation refer to:'
+  write (*,*) ' https://crest-lab.github.io/crest-docs/'
+  write (*,*)
+end subroutine confscript_morehelp2
 
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 
@@ -374,7 +403,7 @@ subroutine crestcite
   stop '   [--cite] displayed. exit.'
 end subroutine crestcite
 
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+!========================================================================================!
 
 subroutine crestcrest
   write (*,'(7x,''|                                            |'')')
@@ -391,7 +420,7 @@ subroutine crestcrest
   write (*,'(7x,''|                 C R E S T                  |'')')
 end subroutine crestcrest
 
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+!========================================================================================!
 
 subroutine prchd
   write (*,*)
@@ -404,7 +433,8 @@ subroutine prchd
   write (*,'(7x,''========================================'')')
   write (*,*)
 end
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+!========================================================================================!
 
 subroutine header_stereo
   write (*,*)
@@ -419,7 +449,7 @@ subroutine header_stereo
   write (*,*) 'NOTE: This is a work-in-progress project!'
 end subroutine header_stereo
 
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+!========================================================================================!
 
 subroutine prreactorhd
   write (*,*)
@@ -431,7 +461,7 @@ subroutine prreactorhd
   write (*,*)
 end
 
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+!========================================================================================!
 
 subroutine zsortwarning2(env)
   use crest_data
@@ -453,7 +483,8 @@ subroutine zsortwarning2(env)
   end if
 end subroutine zsortwarning2
 
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+!========================================================================================!
+
 subroutine qcg_head()
   implicit none
   write (*,*)
@@ -471,9 +502,12 @@ subroutine qcg_head()
   write (*,*)
 end subroutine qcg_head
 
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-!convert a string in a small header printout
+!========================================================================================!
+
 subroutine smallhead(str)
+!**********************************************
+!> convert a string in a small header printout
+!**********************************************
   use crest_parameters,only:stdout
   implicit none
   character(len=*) :: str
@@ -508,39 +542,39 @@ subroutine underline(str)
   return
 end subroutine underline
 
+!========================================================================================!
+
 function str_center_align(str,ilen) result(res)
-character(len=*), intent(in) :: str
-integer,intent(in) :: ilen
-character(len=:),allocatable :: res
-integer :: i,slen, str_len, pad_left, pad_right
+  character(len=*),intent(in) :: str
+  integer,intent(in) :: ilen
+  character(len=:),allocatable :: res
+  integer :: i,slen,str_len,pad_left,pad_right
 
-str_len = len_trim(str)
-if(str_len >= ilen)then
-  slen = str_len + 2
-else
-  slen = ilen
-endif
-write(*,*) slen,ilen,str_len
-pad_left = (slen - str_len) / 2
-pad_right = slen - pad_left - str_len
+  str_len = len_trim(str)
+  if (str_len >= ilen) then
+    slen = str_len+2
+  else
+    slen = ilen
+  end if
+  write (*,*) slen,ilen,str_len
+  pad_left = (slen-str_len)/2
+  pad_right = slen-pad_left-str_len
 
-res = ""
-write(*,*) pad_left
-do i = 1,pad_left
- res = res // " "
-enddo
+  res = ""
+  write (*,*) pad_left
+  do i = 1,pad_left
+    res = res//" "
+  end do
 !res = repeat(" ",pad_left)
-res = res // trim(str)
+  res = res//trim(str)
 end function str_center_align
 
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-! a warning when the MTD length exceeds 200ps
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+!========================================================================================!
 
 subroutine mtdwarning(lenv)
   implicit none
   real*8 :: lenv
-
+!> a warning when the MTD length exceeds 200ps
   write (*,*)
   write (*,'(a,f5.1,a)') "! WARNING: the estimated MTD time exceeds ",lenv," ps."
   write (*,'(a       )') "! Because the estimate is uncertain, the program restricts"
@@ -551,17 +585,15 @@ subroutine mtdwarning(lenv)
 
 end subroutine mtdwarning
 
-!--------------------------------------------------------------------------------------------
-! iteration cycler printout
-!--------------------------------------------------------------------------------------------
+!========================================================================================!
+
 subroutine printiter
   implicit none
   write (*,*)
-  write (*,'(''*******************************************************************************************'')')
-  write (*,'(''**                        N E W    I T E R A T I O N    C Y C L E                        **'')')
-  write (*,'(''*******************************************************************************************'')')
+  write (*,'(90("*"))')
+  write (*,'("**",25x,"N E W   I T E R A T I O N  C Y C L E",25x,"**")')
+  write (*,'(90("*"))')
 end subroutine printiter
-!--------------------------------------------------------------------------------------------
 subroutine printiter2(i)
   implicit none
   integer :: i
@@ -571,9 +603,12 @@ subroutine printiter2(i)
   write (*,'(90("*"))')
 end subroutine printiter2
 
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-!convert a string in a large header printout
+!========================================================================================!
+
 subroutine largehead(str)
+!**********************************************
+!* convert a string in a large header printout
+!**********************************************
   implicit none
   character(len=*) :: str
   call construct_large_headline('*',str)
@@ -617,28 +652,33 @@ subroutine construct_large_headline(symb,str)
 end subroutine construct_large_headline
 
 !========================================================================================!
-!> metadata from include
-subroutine print_crest_metadata()
-   include 'crest_metadata.fh'
 
-   write(*,'(2x,a,1x,a)') 'CREST version    :',version
-   write(*,'(2x,a,1x,a)') 'timestamp        :',date
-   write(*,'(2x,a,1x,a)') 'commit           :',commit
-   write(*,'(2x,a,1x,a)') 'compiled by      :',author
-   write(*,'(2x,a,1x,a)') 'Fortran compiler :',fcompiler
-   write(*,'(2x,a,1x,a)') 'C compiler       :',ccompiler 
-   write(*,'(2x,a,1x,a)') 'build system     :',bsystem
-   write(*,'(2x,a,1x,a)') '-DWITH_TOMLF     :',tomlfvar
-   write(*,'(2x,a,1x,a)') '-DWITH_GFN0      :',gfn0var
-   write(*,'(2x,a,1x,a)') '-DWITH_GFNFF     :',gfnffvar
-   write(*,'(2x,a,1x,a)') '-DWITH_TBLITE    :',tblitevar
-   write(*,'(2x,a,1x,a)') '-DWITH_XHCFF     :',xhcffvar
+subroutine print_crest_metadata()
+!********************************
+!* print metadata from include
+!********************************
+  include 'crest_metadata.fh'
+
+  write (*,'(2x,a,1x,a)') 'CREST version    :',version
+  write (*,'(2x,a,1x,a)') 'timestamp        :',date
+  write (*,'(2x,a,1x,a)') 'commit           :',commit
+  write (*,'(2x,a,1x,a)') 'compiled by      :',author
+  write (*,'(2x,a,1x,a)') 'Fortran compiler :',fcompiler
+  write (*,'(2x,a,1x,a)') 'C compiler       :',ccompiler
+  write (*,'(2x,a,1x,a)') 'build system     :',bsystem
+  write (*,'(2x,a,1x,a)') '-DWITH_TOMLF     :',tomlfvar
+  write (*,'(2x,a,1x,a)') '-DWITH_GFN0      :',gfn0var
+  write (*,'(2x,a,1x,a)') '-DWITH_GFNFF     :',gfnffvar
+  write (*,'(2x,a,1x,a)') '-DWITH_TBLITE    :',tblitevar
+  write (*,'(2x,a,1x,a)') '-DWITH_XHCFF     :',xhcffvar
 
 end subroutine print_crest_metadata
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!c Confscript dry-run printout
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!========================================================================================!
+!========================================================================================!
+!> Confscript dry-run printout
+!========================================================================================!
+!========================================================================================!
 subroutine crest_dry(env)
   use iso_fortran_env,wp => real64
   use crest_data
@@ -803,14 +843,14 @@ subroutine crest_dry(env)
   end if
 
   if (xtbpr) then
-    if(env%legacy)then
-    write (*,'(/,1x,a)') 'XTB settings'
-    write (*,'(2x,a,a)') 'binary name        (-xnam) : ',trim(env%ProgName)
-    call checkbinary(env)
-    write (*,'(2x,a,a)') 'GFN method         (-gfn)  : ',trim(env%gfnver)
+    if (env%legacy) then
+      write (*,'(/,1x,a)') 'XTB settings'
+      write (*,'(2x,a,a)') 'binary name        (-xnam) : ',trim(env%ProgName)
+      call checkbinary(env)
+      write (*,'(2x,a,a)') 'GFN method         (-gfn)  : ',trim(env%gfnver)
     else
-    write (*,'(/,1x,a)') 'Calculation settings' 
-    endif
+      write (*,'(/,1x,a)') 'Calculation settings'
+    end if
     write (*,'(2x,a,i0)') '(final) opt level  (-opt)  : ',nint(env%optlev)
     if (env%gbsa) then
       if (index(env%solv,'--alpb') .ne. 0) then
@@ -850,7 +890,6 @@ subroutine cat_mod(ch,pre,fname,post)
   character(len=*) :: post
   character(len=256) :: adum
   integer :: ich,io
-
   open (newunit=ich,file=fname)
   do
     read (ich,'(a)',iostat=io) adum
@@ -863,18 +902,15 @@ end subroutine cat_mod
 
 subroutine checkbinary(env)
   use crest_data
-  use iomod, only: checkprog
+  use iomod,only:checkprog
   implicit none
   type(systemdata) :: env
   integer :: r
-
   r = 0
   call checkprog(trim(env%ProgName),r)
-
   if (r .ne. 0) then
     write (*,'(4x,a)') 'Warning! The xtb binary was not found and hence CREST might crash'
   end if
-
   if (env%crestver .eq. crest_solv) then
     call checkprog(trim('xtbiff'),r)
     if (r .ne. 0) then
@@ -884,11 +920,11 @@ subroutine checkbinary(env)
   return
 end subroutine checkbinary
 
+!========================================================================================!
+!========================================================================================!
+!>  QCG-printouts
 !==============================================================================!
-!  QCG-printouts
-!==============================================================================!
-
-!____________________________________________________________________________
+!========================================================================================!
 
 subroutine print_qcg_grow()
   implicit none
@@ -898,9 +934,6 @@ subroutine print_qcg_grow()
   write (*,'(2x,''========================================='')')
   write (*,*)
 end subroutine print_qcg_grow
-
-!____________________________________________________________________________
-
 subroutine pr_qcg_fastgrow()
   implicit none
   write (*,*)
@@ -909,9 +942,6 @@ subroutine pr_qcg_fastgrow()
   write (*,'(2x,''========================================='')')
   write (*,*)
 end subroutine pr_qcg_fastgrow
-
-!____________________________________________________________________________
-
 subroutine print_qcg_ensemble()
   implicit none
   write (*,*)
@@ -920,9 +950,6 @@ subroutine print_qcg_ensemble()
   write (*,'(2x,''========================================='')')
   write (*,*)
 end subroutine print_qcg_ensemble
-
-!____________________________________________________________________________
-
 subroutine print_qcg_opt()
   implicit none
   write (*,*)
@@ -932,9 +959,6 @@ subroutine print_qcg_opt()
   write (*,*)
   write (*,'(2x,''Very tight post optimization of lowest cluster'')')
 end subroutine print_qcg_opt
-
-!____________________________________________________________________________
-
 subroutine pr_qcg_fill()
   implicit none
   write (*,*)
@@ -944,9 +968,6 @@ subroutine pr_qcg_fill()
   write (*,*)
   write (*,'(2x,''CUT-FREEZE-FILL Algorithm to generate reference solvent cluster'')')
 end subroutine pr_qcg_fill
-
-!____________________________________________________________________________
-
 subroutine pr_qcg_freq()
   implicit none
   write (*,*)
@@ -955,9 +976,6 @@ subroutine pr_qcg_freq()
   write (*,'(2x,''========================================='')')
   write (*,*)
 end subroutine pr_qcg_freq
-
-!____________________________________________________________________________
-
 subroutine pr_eval_solute()
   implicit none
   write (*,*)
@@ -968,9 +986,6 @@ subroutine pr_eval_solute()
   write (*,'(2x,''________________________________________________________________________'')')
   write (*,*)
 end subroutine pr_eval_solute
-
-!____________________________________________________________________________
-
 subroutine pr_eval_solvent()
   implicit none
   write (*,*)
@@ -982,9 +997,6 @@ subroutine pr_eval_solvent()
   write (*,'(2x,''________________________________________________________________________'')')
   write (*,*)
 end subroutine pr_eval_solvent
-
-!____________________________________________________________________________
-
 subroutine pr_eval_eval()
   implicit none
   write (*,*)
@@ -997,18 +1009,12 @@ subroutine pr_eval_eval()
   write (*,*)
   write (*,*)
 end subroutine pr_eval_eval
-
-!____________________________________________________________________________
-
 subroutine pr_freq_energy()
   implicit none
   write (*,'(2x,"#       H(T)       SVIB      SROT       STRA      G(T)")')
   write (*,'(2x,"     [kcal/mol]    [      cal/mol/K        ]    [kcal/mol]")')
   write (*,'(2x,"--------------------------------------------------------")')
 end subroutine pr_freq_energy
-
-!____________________________________________________________________________
-
 subroutine pr_eval_1(G,H)
   use iso_fortran_env,only:wp => real64
   implicit none
@@ -1020,9 +1026,6 @@ subroutine pr_eval_1(G,H)
   write (*,'(2x,"-----------------------------------------------------")')
   write (*,*)
 end subroutine pr_eval_1
-
-!____________________________________________________________________________
-
 subroutine pr_eval_2(srange,G,scal)
   use iso_fortran_env,only:wp => real64
   implicit none
@@ -1040,9 +1043,6 @@ subroutine pr_eval_2(srange,G,scal)
   end do
   write (*,'(2x,"-----------------------------------------------------")')
 end subroutine pr_eval_2
-
-!____________________________________________________________________________
-
 subroutine pr_eval_3(srange,freqscal,scal,G)
   use iso_fortran_env,only:wp => real64
   implicit none
@@ -1060,17 +1060,11 @@ subroutine pr_eval_3(srange,freqscal,scal,G)
   write (*,'(2x,"==================================================")')
   write (*,*)
 end subroutine pr_eval_3
-
-!____________________________________________________________________________
-
 subroutine pr_fill_energy()
   implicit none
   write (*,'(x,'' Size'',2x,''Cluster '',2x,''E /Eh '',7x,''De/kcal'',3x,&
           &''Detot/kcal'',2x,''Opt'',4x)')
 end subroutine pr_fill_energy
-
-!____________________________________________________________________________
-
 subroutine pr_ensemble_energy()
   implicit none
   write (*,*)
@@ -1078,9 +1072,6 @@ subroutine pr_ensemble_energy()
            &''Density'',2x,''Efix'',7x,''R   av/act.'',1x,&
            &''Surface'',3x,''Opt'',4x)')
 end subroutine pr_ensemble_energy
-
-!____________________________________________________________________________
-
 subroutine pr_qcg_esolv()
   implicit none
   write (*,*)
@@ -1088,24 +1079,24 @@ subroutine pr_qcg_esolv()
   write (*,'(2x,''|   quantum cluster growth: ESOLV       |'')')
   write (*,'(2x,''|                                       |'')')
 end subroutine pr_qcg_esolv
-
-!____________________________________________________________________________
-
 subroutine pr_grow_energy()
   implicit none
-  write(*,'(x,'' Size'',7x,''E'',8x,''De'',7x,''Detot'',6x,&
+  write (*,'(x,'' Size'',7x,''E'',8x,''De'',7x,''Detot'',6x,&
            &''Density'',5x,''Eatom'',4x,''av. R'', 1x,'' Rlast'',3x,&
            &''Volume'',4x,''Opt'')')
-  write(*,'(12x,''[Eh]'',4x,''[kcal]'',5x,''[kcal]'',5x,&
+  write (*,'(12x,''[Eh]'',4x,''[kcal]'',5x,''[kcal]'',5x,&
            &''[u/Å^3]'',5x,''[kcal]'',3x,''[bohr]'', 1x,''[bohr]'',1x,&
            &''[bohr^3]'')')
 
 end subroutine pr_grow_energy
 
-!==============================================================================!
-!  printout percent calculation for GUI mode
-!==============================================================================!
+!========================================================================================!
+!========================================================================================!
+
 subroutine wrGUIpercent(current,maxv,interval)
+!********************************************
+!* printout percent calculation for GUI mode
+!********************************************
   use iso_fortran_env,wp => real64
   implicit none
   integer :: current,maxv,interval
@@ -1136,20 +1127,67 @@ end subroutine wrGUIpercent
 !=======================================================================================!
 
 subroutine print_frozen(env)
-   use crest_parameters
-   use crest_data
-   implicit none
-   type(systemdata) :: env
-   integer :: i
-   if( env%calc%nfreeze > 0 .and. allocated(env%calc%freezelist))then
-     write(stdout,'(/,a)') repeat('-',50)
-     write(stdout,'(a)') ' FROZEN ATOMS:'
-     do i=1,env%ref%nat
-       if(env%calc%freezelist(i))then
-       write(stdout,'(1x,i0)',advance='no') i
-       endif 
-     enddo
-     write(stdout,'(/,a)') repeat('-',50)
-   endif
+  use crest_parameters
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  integer :: i
+  if (env%calc%nfreeze > 0.and.allocated(env%calc%freezelist)) then
+    write (stdout,'(/,a)') repeat('-',50)
+    write (stdout,'(a)') ' FROZEN ATOMS:'
+    do i = 1,env%ref%nat
+      if (env%calc%freezelist(i)) then
+        write (stdout,'(1x,i0)',advance='no') i
+      end if
+    end do
+    write (stdout,'(/,a)') repeat('-',50)
+  end if
 end subroutine print_frozen
 
+!========================================================================================!
+!========================================================================================!
+
+subroutine progbar(percent,bar)
+      use crest_parameters
+      implicit none
+      real(wp),intent(in) :: percent
+      character(len=52),intent(inout) :: bar
+      integer :: i
+      integer :: done,notdone
+
+      bar='['
+
+      done=nint(percent/2)
+      notdone=50-done
+
+      do i=1,done
+         bar=trim(bar)//'#'
+      enddo
+
+
+      do i=1,notdone
+         bar=trim(bar)//'-'
+      enddo
+
+      bar=trim(bar)//']'
+
+end subroutine progbar
+
+subroutine printprogbar(percent)
+      use crest_parameters
+      implicit none
+      real(wp),intent(in) :: percent
+      character(len=52) :: bar
+
+      if(percent>0.0_wp)then
+        call progbar(percent,bar) 
+      else
+        call progbar(0.0_wp,bar) 
+      endif
+      write(0,FMT="(A1,A52,2x,F6.2,A)",ADVANCE="NO") achar(13), &
+      & bar, percent, '% finished.'
+      
+      flush(0)
+end subroutine printprogbar
+!========================================================================================!
+!========================================================================================!

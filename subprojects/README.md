@@ -8,6 +8,7 @@ Newer versions of CREST use external projects:
 | [`gfn0`](https://github.com/pprcht/gfn0) | A GFN0-xTB standalone library | `-DWITH_GFN0=true` (default) | ✅ |
 | [`gfnff`](https://github.com/pprcht/gfnff) | A GFN-FF standalone library | `-DWITH_GFNFF=true` (default) | ✅ |
 | [`tblite`](https://github.com/tblite/tblite) | A lightweight implementation of the GFN1 and GFN2-xTB Hamiltonians | `-DWITH_TBLITE=true` (default) | ✅ |
+| [`lwoniom`](https://github.com/crest-lab/lwoniom) | A lightweight ONIOM implementation  | `-DWITH_LWONIOM=true` (default) | ✅ |
 <!--
 | [`xhcff`](https://github.com/zellerf/xhcff) | Implementation of the XHCFF force field | `-DWITH_XHCFF=true` | ✅ |
 -->

@@ -50,7 +50,7 @@ subroutine propcalc(iname,imode,env,tim)
   use crest_data
   use iomod
   use strucrd,only:rdensembleparam,rdensemble,wrxyz
-  use utilities, only: boltz2
+  use utilities,only:boltz2
   implicit none
 
   type(systemdata) :: env
@@ -371,7 +371,7 @@ subroutine propcalc(iname,imode,env,tim)
       call wrxyz(ich,nat,at,xyz(:,:,i),trim(str))
     end do
     close (ich)
-    call rename(env%ensemblename, trim(thispath)//'/'//env%ensemblename)
+    call rename(env%ensemblename,trim(thispath)//'/'//env%ensemblename)
     call chdir(thispath)
     if (imode .lt. 59) then !TODO temporary skip for some testing
       env%confgo = .true.
@@ -392,21 +392,21 @@ subroutine propcalc(iname,imode,env,tim)
       write (str,'(3x,f16.10)') eread(i)
       call wrxyz(ich,nat,at,xyz(:,:,i),trim(str))
 
-      call grepcntxt(tmppath,'molecular dipole:',ex,ctmp, 3) 
-      if(ex)then
-        write(ich2,'(a)') trim(ctmp(10:))
+      call grepcntxt(tmppath,'molecular dipole:',ex,ctmp,3)
+      if (ex) then
+        write (ich2,'(a)') trim(ctmp(10:))
       else
-        write(ich2,'(a)') ''
-      endif
+        write (ich2,'(a)') ''
+      end if
     end do
     close (ich)
-    close(ich2)
+    close (ich2)
 
     call rename('crest.dipoles', &
-    & trim(thispath)//'/'//'crest.dipoles')  
+    & trim(thispath)//'/'//'crest.dipoles')
 
-    write(*,*)
-    write(*,*) 'Dipole moments for each conformer (x,y,z,total) written to crest.dipoles'
+    write (*,*)
+    write (*,*) 'Dipole moments for each conformer (x,y,z,total) written to crest.dipoles'
 
   case (999) !singlpoint reranking
     open (newunit=ich,file='crest_property.xyz')
@@ -505,7 +505,6 @@ subroutine prop_OMP_loop(env,TMPCONF,jobcall,pop)
 
   real(wp) :: pthr
   logical :: niceprint
-  character(len=52) :: bar
   real(wp) :: percent
   integer :: vz,k,i,maxpop,io
   character(len=512) :: tmppath
@@ -515,12 +514,12 @@ subroutine prop_OMP_loop(env,TMPCONF,jobcall,pop)
   pthr = env%pthr
   maxpop = maxloc(pop(:),1)
   if (niceprint) then
-    call printemptybar()
+    call printprogbar(0.0_wp)
   end if
   k = 0        ! count finished jobs
 
 !$omp parallel &
-!$omp shared( vz,jobcall,TMPCONF,pop,pthr,percent,k,niceprint,bar,maxpop )
+!$omp shared( vz,jobcall,TMPCONF,pop,pthr,percent,k,niceprint,maxpop )
 !$omp single
   do i = 1,TMPCONF
     vz = i
@@ -530,14 +529,13 @@ subroutine prop_OMP_loop(env,TMPCONF,jobcall,pop)
     write (tmppath,'(a,i0)') 'TMPCONF',vz
     !$omp end critical
     if (pop(vz) .ge. pthr.or.vz .eq. maxpop) then
-      call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
+      call command('cd '//trim(tmppath)//' && '//trim(jobcall),io)
     end if
     !$omp critical
     k = k+1
     if (niceprint) then
       percent = float(k)/float(TMPCONF)*100
-      call progbar(percent,bar)
-      call printprogbar(percent,bar)
+      call printprogbar(percent)
     else
       write (6,'(1x,i0)',advance='no') k
       flush (6)
@@ -559,7 +557,7 @@ subroutine etotprop(TMPCONF,pop,pr)
   use iso_fortran_env,wp => real64
   use crest_data
   use iomod
-  use utilities, only: boltz2
+  use utilities,only:boltz2
   implicit none
   integer,intent(in) :: TMPCONF
   real(wp),intent(inout) :: pop(TMPCONF)
@@ -664,7 +662,7 @@ subroutine wrpropens_pop(env,TMPCONF,n,xyz,at,eread,pthr)
   use crest_data
   use iomod
   use strucrd,only:wrxyz
-  use utilities, only: boltz2
+  use utilities,only:boltz2
   implicit none
 
   type(systemdata) :: env
@@ -718,7 +716,7 @@ subroutine autoir(TMPCONF,imode,env)
   use iso_fortran_env,wp => real64
   use crest_data
   use iomod
-  use utilities, only: boltz2
+  use utilities,only:boltz2
   implicit none
 
   type(systemdata) :: env

@@ -95,6 +95,12 @@ subroutine parseflags(env,arg,nra)
 !>--- check if help is requested or citations shall be diplayed
   do i = 1,nra
     if (any((/character(6)::'-h','-H','--h','--H','--help'/) == trim(arg(i)))) then
+      if(nra > i)then
+        ctmp=trim(arg(i+1))
+        if(ctmp(1:1).ne.'-')then
+          call confscript_morehelp(ctmp)
+        endif
+      endif 
       call confscript_help()
     end if
     if (any((/character(10)::'-cite','--cite','--citation'/) == trim(arg(i)))) then
@@ -310,7 +316,7 @@ subroutine parseflags(env,arg,nra)
 !>--- get the CREST version/runtype
   env%crestver = crest_imtd !> confscript version (v.1 = MF-MD-GC, v.2 = MTD)
   env%runver = 1            !> default
-  env%properties = p_none  !> additional calculations/options before or after confsearch
+  env%properties = p_none   !> additional calculations/options before or after confsearch
   env%properties2 = p_none  !> backup for env%properties
   env%iterativeV2 = .true.  !> iterative crest V2 version
   env%preopt = .true.
@@ -338,18 +344,18 @@ subroutine parseflags(env,arg,nra)
       case ('-v1') !> confscript version 1 (MF-MD-GC)
         env%crestver = crest_mfmdgc
         write (*,'(2x,a,'' : MF-MD-GC'')') trim(arg(i))
-        env%mdtime = 40.0d0       !simulation length of the MD, 40ps total (2*20ps)(default for QMDFF would be 500)
-        env%temps = 1             !number of default MD cycles
+        env%mdtime = 40.0d0       !> simulation length of the MD, 40ps total (2*20ps)(default for QMDFF would be 500)
+        env%temps = 1             !> number of default MD cycles
         env%Maxrestart = 15
-        env%performModef = .true. !do the MF in V1
-        env%trackorigin = .false.      !for v1 there is not much insight from this
+        env%performModef = .true. !> do the MF in V1
+        env%trackorigin = .false. !> for v1 there is not much insight from this
         exit
 
       case ('-v2') !> confscript version 2 (MTD-GC)
         env%crestver = crest_imtd
         write (*,'(2x,a,'' : MTD-GC'')') trim(arg(i))
-        env%iterativeV2 = .false.  !iterative crest V2 version
-        env%Maxrestart = 1       !for non-iterative MTD-GC only
+        env%iterativeV2 = .false.  !> iterative crest V2 version
+        env%Maxrestart = 1       !> for non-iterative MTD-GC only
         exit
 
       case ('-v3','-v2i') !> confscript version 2 but iterativ (iMTD-GC)
@@ -377,8 +383,8 @@ subroutine parseflags(env,arg,nra)
         if ((atmp(1:1) /= '-').and.(len_trim(atmp) .ge. 1)) then
           env%ensemblename = trim(atmp)
         end if
-        call xyz2coord(env%ensemblename,'coord') !write coord from lowest structure
-        env%inputcoords = env%ensemblename !just for a printout
+        call xyz2coord(env%ensemblename,'coord') !> write coord from lowest structure
+        env%inputcoords = env%ensemblename !> just for a printout
         exit
 
       case ('-screen')  !> SCREEN
@@ -429,7 +435,7 @@ subroutine parseflags(env,arg,nra)
         write (*,'(1x,a,1x,a,1x,a)') trim(arg(i)),trim(env%ensemblename),trim(env%ensemblename2)
         exit
 
-      case ('-protonate') !>protonation tool
+      case ('-protonate') !> protonation tool
         env%properties = p_protonate
         write (*,'(2x,a,'' : automated protonation script'')') trim(arg(i))
         exit
@@ -463,8 +469,8 @@ subroutine parseflags(env,arg,nra)
           write (*,'(1x,a,a,a)') 'invalid ensemble file <',trim(env%ensemblename),'>. exit.'
           error stop
         end if
-        call xyz2coord(env%ensemblename,'coord') !write coord from lowest structure
-        env%inputcoords = env%ensemblename !just for a printout
+        call xyz2coord(env%ensemblename,'coord') !> write coord from lowest structure
+        env%inputcoords = env%ensemblename !> just for a printout
         if (argument == '-forall') then
           env%ptb%alldivers = .true.
         end if
@@ -491,22 +497,21 @@ subroutine parseflags(env,arg,nra)
         exit
 
       case ('-solvtool','-qcg')
-!               env%mddumpxyz = 1000
-        ! Set solute file if present
+        !> Set solute file if present
         if(i == 2) env%solu_file = trim(arg(i-1))
-        ! Set solvent file if prensent
-        ! If it is another argument, it doesent matter as solvent file is checke in solvtool
+        !> Set solvent file if prensent
+        !> If it is another argument, it doesent matter as solvent file is checke in solvtool
         if (nra >= i+1) env%solv_file = trim(arg(i+1))
-        ! Set QCG defaults
+        !> Set QCG defaults
         env%preopt = .false.
         env%crestver = crest_solv
         env%QCG = .true.
         env%runver = 3
         env%performCross = .false.
-        env%optlev = 0 !If QCG is invoked, optlevel default is normal
+        env%optlev = 0 !> If QCG is invoked, optlevel default is normal
         env%properties = p_qcg
         env%ewin = 3.0d0
-        env%doOHflip = .false. !Switch off OH-flip
+        env%doOHflip = .false. !> Switch off OH-flip
         if (env%iterativeV2) env%iterativeV2 = .false.
         exit
 
@@ -760,173 +765,95 @@ subroutine parseflags(env,arg,nra)
 !-------- switch between legacy (systemcall) and new code (API) implementations
 !========================================================================================!
       select case (argument)
-      case ('-legacy')
+      case ('-legacy')      !> switch to old xtb-call version where possible
         env%legacy = .true.
-      case ('-newversion')
+      case ('-newversion')  !> switch to newer implementations (CREST >3.0)
         env%legacy = .false.
       end select
-!========================================================================================!
-!-------- flags exclusively for V1 (MF-MD-GC)
-!========================================================================================!
-      if (env%crestver .eq. crest_mfmdgc) then
-        select case (argument) !> V1
-        case ('-m')
-          if (index(arg(i+1),'ff') .ne. 0) then            !turn on qmdff MD mode
-            !env%mdmode=1
-            write (*,'(2x,a,1x,a,'' :'')') trim(arg(i)),trim(arg(i+1))
-            !write(*,'(5x,''QMDFF for MD part requested'')')
-            write (*,'(5x,''QMDFF for MD part requested, but this option is discontinued!'')')
-            write (*,'(5x,''Regular xTB MD is performed instead'')')
-          end if
-          if (index(arg(i+1),'md') .ne. 0) then            !turn on xtb MD mode
-            env%mdmode = 0
-            !env%mdtime=40.0d0
-            write (*,'(2x,a,1x,a,'' :'')') trim(arg(i)),trim(arg(i+1))
-            write (*,'(5x,''xTB MD for MD part requested'')')
-          end if
-        case ('-loose')
-          env%level = 2     !decreases # modes by factor 2
-        case ('-veryloose','-vloose')
-          env%level = 3    !decreases # modes by factor 3
-        case ('-tight')
-          env%level = 0.7   !increases # modes by factor 0.7
-        case ('-mdtemp')           !set md temperature (V1 version)
-          call readl(arg(i+1),xx,j)
-          env%mdtemps(1) = xx(1)
-        case ('-addmd')    !add another QMDFF MD at a temperature
-          call readl(arg(i+1),xx,j)
-          env%temps = env%temps+1
-          env%mdtemps(env%temps) = xx(1)
-        case ('-nomf')
-          env%performModef = .false.                          !skip the modefollowing
-          write (*,'(2x,a,1x,a)') trim(arg(i)),' : skipping MF part.'
-        case ('-nomd')
-          env%performMD = .false.                             !skip the MD part
-          write (*,'(2x,a,1x,a)') trim(arg(i)),' : skipping MD part.'
-        case ('-shake')    !set shake
-          call readl(arg(i+1),xx,j)
-          env%shake = nint(xx(1))
-        case ('-quick')    !performing quick conformational search
-          env%quick = .true.
-          env%runver = 2
-          env%performModef = .true.
-          env%performMD = .true.
-          env%performCross = .false.
-          env%optlev = -1.0d0
-          env%temps = 1
-          env%mdtemps(env%temps) = 400
-        case ('-mrest')     !set max number of restarts
-          call readl(arg(i+1),xx,j)
-          env%Maxrestart = nint(xx(1))
-        case default
-          continue
-        end select !> V1
-      end if
 !========================================================================================!
 !------- flags exclusively for V2 (MTD-GC) V2i/V3 (iMTD-GC) V4 (iMTD-sMTD)
 !========================================================================================!
       if (any((/crest_imtd,crest_imtd2,11/) == env%crestver)) then
         select case (argument) !> V2
-        case ('-mdtemp')                          !set MTD temperature (V2 version)
+        case ('-mdtemp')                          !> set MTD temperature (V2 version)
           call readl(arg(i+1),xx,j)
           env%mdtemp = xx(1)
           env%user_temp = .true.
-        case ('-quick')                           !performing quick conformational search
+        case ('-quick')                           !> performing quick conformational search
           env%quick = .true.
           env%runver = 2
-          !env%thresholds(1)=5.0d0 !smaller energy window
           env%ewin = 5.0d0
-          if (env%optlev > 1.0d0) env%optlev = 1.0d0        !optlev tight for quick run
-        case ('-shake')                           !set shake
+          if (env%optlev > 1.0d0) env%optlev = 1.0d0    !> optlev tight for quick run
+        case ('-shake')                           !> set shake
           call readl(arg(i+1),xx,j)
           env%shake = nint(xx(1))
-        case ('-tstep')                           !set MD timestep in fs
+        case ('-tstep')                           !> set MD timestep in fs
           call readl(arg(i+1),xx,j)
           env%mdstep = xx(1)
           env%user_mdstep = .true.
-        case ('-vbdump')                          !Vbias dump in ps
+        case ('-vbdump')                          !> Vbias dump in ps
           call readl(arg(i+1),xx,j)
           xx(2) = xx(1)*1000
           env%mddump = nint(xx(2))
-        case ('-mdskip')                          !set skipping structures in -mdopt
+        case ('-mdskip')                          !> set skipping structures in -mdopt
           call readl(arg(i+1),xx,j)
           env%mdskip = nint(xx(1))
-        case ('-mddump')                          !set dumpstep for writing structures out of the md
+        case ('-mddump')                          !> set dumpstep for writing structures from MD
           call readl(arg(i+1),xx,j)
           env%mddumpxyz = nint(xx(1))
-        case ('-nomtd')                           !Don't do the MTD in V2
+        case ('-nomtd')                           !> Don't do the MTD in V2
           env%performMTD = .false.
-        case ('-restartopt')                      !go to step 2 of multilevel optimization immideatly
+        case ('-restartopt')                      !> go to step 2 of multilevel optimization immideatly
           env%restartopt = .true.
           env%autozsort = .false.
-        case ('-norotmd')                         !don't do the regular mds after step 2 in multilevel optimization of V2
+        case ('-norotmd')                         !> don't do the regular mds after step 2 in multilevel optimization of V2
           env%rotamermds = .false.
         case ('-rotmd')
           env%rotamermds = .true.
-        case ('-tnmd')                            !temperature for additional normal MDs
+        case ('-tnmd')                            !> temperature for additional normal MDs
           call readl(arg(i+1),xx,j)
           env%nmdtemp = xx(1)
-        case ('-gcmopt')                          !GC multilevel optimization activate in V2
+        case ('-gcmopt')                          !> GC multilevel optimization activate in V2
           env%gcmultiopt = .true.
-        case ('-gcsopt')                          !GC single level optimization in V2
+        case ('-gcsopt')                          !> GC single level optimization in V2
           env%gcmultiopt = .false.
-        case ('-nogcmopt')                        !GC single level optimization in V2
+        case ('-nogcmopt')                        !> GC single level optimization in V2
           env%gcmultiopt = .false.
-        case ('-qmdff')                           !use QMDFF for the MDs in V2?
+        case ('-qmdff')                           !> use QMDFF for the MDs in V2?
           env%useqmdff = .true.
-        case ('-nci')                             !NCI special mode
+        case ('-nci')                             !> NCI special mode
           write (*,'(2x,a,1x,a)') trim(arg(i)),' : Special NCI mode for non-covalently bound complexes or clusters.'
           env%NCI = .true.
           env%runver = 4
           env%autozsort = .false.
           env%performCross = .false.
           env%rotamermds = .false.
-!        case ('-wscal')                           !scale size of wall potential
-!          call readl(arg(i + 1),xx,j)
-!          env%potscal = xx(1)
-!        case ('-wpad')                            !pad size of wall potential
-!          call readl(arg(i + 1),xx,j)
-!          env%potpad = xx(1)
-!          write(*,*) env%potpad
-!        case ('-wall')
-!          env%wallsetup = .true.
-!          write (*,'(2x,a,1x,a)')'--wall:','requesting setup of wall potential'
-!        case ( '-wallxl','-wall-xl')
-!          env%wallsetup = .true.
-!          env%potscal = 1.5_wp
-!          write (*,'(2x,a,1x,a)')'--wall-xl:','requesting setup of wall potential (x1.5 size)'
-!        case ( '-wallxxl','-wall-xxl') 
-!          env%wallsetup = .true.
-!          env%potscal = 2.0_wp
-!          write (*,'(2x,a,1x,a)')'--wall-xxl:','requesting setup of wall potential (x2.0 size)'
-        case ('-squick','-superquick')            !extremely crude quick mode
+        case ('-squick','-superquick')            !> extremely crude quick mode
           write (*,'(2x,a,1x,a)') trim(arg(i)),' : very crude quick-mode (no NORMMD, no GC, crude opt.)'
-          env%rotamermds = .false.      !no NORMMD
-          env%performCross = .false.    !no GC
-          env%quick = .true.            !MTD settings from the quick-mode
-          env%superquick = .true.       !use user-set opt level in Multilevel opt.
+          env%rotamermds = .false.      !> no NORMMD
+          env%performCross = .false.    !> no GC
+          env%quick = .true.            !> MTD settings from the quick-mode
+          env%superquick = .true.       !> use user-set opt level in Multilevel opt.
           env%runver = 5
-          if (env%optlev > 0.0d0) env%optlev = 0.0d0            !user-set opt level
-          !env%thresholds(1)=5.0d0     !smaller energy window
-          env%ewin = 5.0d0              !smaller energy window
-          !env%Maxrestart=1            !remove iterative cycles in V2i
-        case ('-mquick','-megaquick')             !extremely crude quick mode pt.2
+          if (env%optlev > 0.0d0) env%optlev = 0.0d0    !> user-set opt level
+          env%ewin = 5.0d0              !> smaller energy window
+
+        case ('-mquick','-megaquick')   !> extremely crude quick mode pt.2
           write (*,'(2x,a,1x,a)') trim(arg(i)),' : very crude quick-mode (no NORMMD, no GC, crude opt.)'
-          env%rotamermds = .false.      !no NORMMD
-          env%performCross = .false.    !no GC
-          env%quick = .true.            !MTD settings from the quick-mode
-          env%superquick = .true.       !use user-set opt level in Multilevel opt.
-          env%Maxrestart = 1            !only one MTD iteration
+          env%rotamermds = .false.      !> no NORMMD
+          env%performCross = .false.    !> no GC
+          env%quick = .true.            !> MTD settings from the quick-mode
+          env%superquick = .true.       !> use user-set opt level in Multilevel opt.
+          env%Maxrestart = 1            !> only one MTD iteration
           env%runver = 6
-          if (env%optlev > 0.0d0) env%optlev = 0.0d0  !user-set opt level
-          !env%thresholds(1)=2.5d0     !smaller energy window
-          env%ewin = 2.5d0              !smaller energy window
-        case ('-extensive')   !counterpart to quick mode
+          if (env%optlev > 0.0d0) env%optlev = 0.0d0  !> user-set opt level
+          env%ewin = 2.5d0              !> smaller energy window
+
+        case ('-extensive')   !> counterpart to quick mode
           env%slow = .true.
           env%quick = .false.
           env%superquick = .false.
           env%optlev = 0.0d0
-          !env%thresholds(1) = 8.0d0
           env%ewin = 8.0d0
           env%runver = 8
         case ('-static','-staticmtd')
@@ -937,16 +864,15 @@ subroutine parseflags(env,arg,nra)
         !--- iterative version of V2
         if (env%iterativeV2) then
           select case (argument) !> V2i
-          case ('-mrest')                  !set max number of restarts
+          case ('-mrest')                  !> set max number of restarts
             call readl(arg(i+1),xx,j)
             env%Maxrestart = nint(xx(1))
-          case ('-iru')                    !re-use previously found conformers as bias in iterative approach
+          case ('-iru')                    !> re-use previously found conformers as bias in iterative approach
             env%iru = .true.
-          case ('-keepdir','-keeptmp')     ! Do not delete METADYN and NORMMD directories
+          case ('-keepdir','-keeptmp')     !> Do not delete METADYN and NORMMD directories
             env%keepModef = .true.
-            !env%inplaceMode=.false.
-          case ('-singlerun')                             !QCG special mode
-            write (*,'(2x,a,1x,a)') trim(arg(i)),' : run mode with only a single MTD and no iterations (for tessting)'
+          case ('-singlerun')              !> QCG special mode
+            write (*,'(2x,a,1x,a)') trim(arg(i)),' : run mode with only a single MTD and no iterations (for testing)'
             env%runver = 45
             env%Maxrestart = 1
             env%rotamermds = .false.
@@ -961,9 +887,7 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
       if (env%crestver == crest_mdopt.or.env%crestver == crest_screen) then
         select case (argument) !> SCREEN
-        case ('-qmdff')                     !use QMDFF for the MDs in SCREEN/MDOPT?
-          env%useqmdff = .true.
-        case ('-purge')        !Purge special application
+        case ('-purge')        !> Purge special application
           env%optpurge = .true.
         case ('-ethrpurge','-ethrp')
           read (arg(i+1),*,iostat=io) rdum
@@ -1022,46 +946,44 @@ subroutine parseflags(env,arg,nra)
         select case (argument) !> QCG
         case ('-keepdir','-keeptmp')
           env%keepModef = .true.
-        case ('-tstep')                           !set MD timestep in fs
+        case ('-tstep')                           !> set MD timestep in fs
           call readl(arg(i+1),xx,j)
           env%mdstep = xx(1)
           env%user_mdstep = .true.
-        case ('-vbdump')                          !Vbias dump in ps
+        case ('-vbdump')                          !> Vbias dump in ps
           call readl(arg(i+1),xx,j)
           xx(2) = xx(1)*1000
           env%mddump = nint(xx(2))
-        case ('-mdskip')                          !set skipping structures in -mdopt
+        case ('-mdskip')                          !> set skipping structures in -mdopt
           call readl(arg(i+1),xx,j)
           env%mdskip = nint(xx(1))
-        case ('-mddump')                          !set dumpstep for writing structures out of the md
+        case ('-mddump')                          !> set dumpstep for writing structures out of the md
           env%user_dumxyz = .true.
           call readl(arg(i+1),xx,j)
           env%mddumpxyz = nint(xx(1))
-        case ('-nomtd')                           !Don't do the MTD in V2
+        case ('-nomtd')                           !> Don't do the MTD in V2
           env%performMTD = .false.
-        case ('-wscal')                           !scale size of wall potential
+        case ('-wscal')                           !> scale size of wall potential
           call readl(arg(i+1),xx,j)
           env%potscal = xx(1)
           env%user_wscal = .true.
-        case ('-fixsolute')                       !Fix the solute after CMA trafo
+        case ('-fixsolute')                       !> Fix the solute after CMA trafo
           env%constrain_solu = .true.
-        case ('-nofix')                           !No fixing of the solute after CMA trafo
+        case ('-nofix')                           !> No fixing of the solute after CMA trafo
           env%noconst = .true.
-!                case( '-fixens' )                          !Constraining the MTD run
-!                   env%ens_const = .true.
-        case ('-restartopt')                      !go to step 2 of multilevel optimization immideatly
+        case ('-restartopt')                      !> go to step 2 of multilevel optimization immideatly
           env%restartopt = .true.
           env%autozsort = .false.
-        case ('-norotmd')                         !don't do the regular mds after step 2 in multilevel optimization of V2
+        case ('-norotmd')                         !> don't do the regular mds after step 2 in multilevel optimization of V2
           env%rotamermds = .false.
-        case ('-mdtemp')                          !set MTD temperature (V2 version)
+        case ('-mdtemp')                          !> set MTD temperature (V2 version)
           call readl(arg(i+1),xx,j)
           env%mdtemp = xx(1)
           env%user_temp = .true.
-        case ('-tnmd')                            !temperature for additional normal MDs
+        case ('-tnmd')                            !> temperature for additional normal MDs
           call readl(arg(i+1),xx,j)
           env%nmdtemp = xx(1)
-        case ('-shake')                          !set shake
+        case ('-shake')                           !> set shake
           call readl(arg(i+1),xx,j)
           env%shake = nint(xx(1))
         end select !> QCG
@@ -1070,19 +992,19 @@ subroutine parseflags(env,arg,nra)
 !------- other general flags
 !========================================================================================!
       select case (argument) !> ARGPARSER1
-      case ('-dry')             !"dry" run to print settings
+      case ('-dry')             !> "dry" run to print settings
         env%dryrun = .true.
       case ('-nozs')
-        env%autozsort = .false.   !turn off automatic zsort
+        env%autozsort = .false.   !> turn off automatic zsort (default)
       case ('-zs')
-        env%autozsort = .true.    !turn on automatic zsort
+        env%autozsort = .true.    !> turn on automatic zsort
       case ('-nocross')
-        env%performCross = .false.    !skip the genetic crossing
+        env%performCross = .false.    !> skip the genetic crossing
         write (*,'(2x,a,1x,a)') trim(arg(i)),' : skipping GC part.'
       case ('-cross')
-        env%performCross = .true.     !do the genetic crossing
+        env%performCross = .true.     !> do the genetic crossing
         env%autozsort = .true.
-      case ('-opt','-optlev')              !settings for optimization level of GFN-xTB
+      case ('-opt','-optlev')             !> settings for optimization level of GFN-xTB
         env%optlev = optlevnum(arg(i+1))
         write (*,'(2x,a,1x,a)') trim(arg(i)),optlevflag(env%optlev)
       case ('-gfn','-gfn1','-gfn2','-gfn0','-gff','-gfnff')
@@ -1109,8 +1031,7 @@ subroutine parseflags(env,arg,nra)
           write (*,'(2x,a,'' : Use of GFN-FF requested.'')') '--gfnff'
           env%mdstep = 1.5d0
           env%hmass = 5.0d0
-          !call autoBondConstraint('coord',env%forceconst,env%wbofile)
-          ctype = 5 !bond constraint
+          ctype = 5 !> bond constraint activated
           bondconst = .true.
           env%cts%cbonds_md = .true.
           env%checkiso = .true.
@@ -1150,7 +1071,7 @@ subroutine parseflags(env,arg,nra)
         env%reweight = .true.
         env%mdstep = 2.0d0
         env%hmass = 4.0d0
-        ctype = 1 !bond constraint
+        ctype = 1 !> bond constraint
         bondconst = .true.
         env%cts%cbonds_md = .true.
         env%checkiso = .true.
@@ -1169,7 +1090,7 @@ subroutine parseflags(env,arg,nra)
           & ' : adding refinement step (singlepoint on optimized structures)'
         endif
         
-      case ('-charges') !read charges from file for GFN-FF calcs.
+      case ('-charges') !> read charges from file for GFN-FF calcs.
         ctmp = trim(arg(i+1))
         if ((len_trim(ctmp) < 1).or.(ctmp(1:1) == '-')) then
           ctmp = 'charges'
@@ -1214,7 +1135,7 @@ subroutine parseflags(env,arg,nra)
           end if
         end if
 
-      case ('-gbsa','-g','-alpb')                                     !use GBSA implicit solvation
+      case ('-gbsa','-g','-alpb')   !> use GBSA or ALPB implicit solvation
         env%gbsa = .true.
         atmp = adjustl(arg(i+1))
         if (atmp(1:1) .ne. '-'.and.atmp(1:1) .ne. ' ') then
@@ -1227,7 +1148,7 @@ subroutine parseflags(env,arg,nra)
         end if
         write (*,'(2x,a,a)') trim(env%solv),' : implicit solvation'
 
-      case ('-chrg')                                          !create a .CHRG file
+      case ('-chrg')                  !> create a .CHRG file
         call readl(arg(i+1),xx,j)
         open (newunit=ich,file='.CHRG')
         env%chrg = nint(xx(1))
@@ -1236,7 +1157,7 @@ subroutine parseflags(env,arg,nra)
         close (ich)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
 
-      case ('-uhf')                                           !create a .UHF file
+      case ('-uhf')                    !> create a .UHF file
         call readl(arg(i+1),xx,j)
         open (newunit=ich,file='.UHF')
         env%uhf = nint(xx(1))
@@ -1245,44 +1166,44 @@ subroutine parseflags(env,arg,nra)
         close (ich)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
 
-      case ('-len','-mdlen','-mdtime')                        !set md length in ps
+      case ('-len','-mdlen','-mdtime') !> set md length in ps
         atmp = arg(i+1)
         call to_lower(atmp)
         j = index(atmp,'x')
         env%user_mdtime = .true.
-        if (j .ne. 0) then                ! scaling of the md length
+        if (j .ne. 0) then             !> scaling of the md length
           btmp = atmp(j+1:)
           env%scallen = .true.
           call readl(btmp,xx,j)
           env%mdlenfac = xx(1)
-        else                          ! direct setting of the md length
+        else                           !> direct setting of the md length
           call readl(arg(i+1),xx,j)
           env%mdtime = xx(1)
           write (*,'(2x,a,1x,a,1x,a)') trim(arg(i)),trim(arg(i+1)), &
           &    '(MD length in ps)'
         end if
-      case ('-mdscal','-lenscal')                             !scale md length
+      case ('-mdscal','-lenscal')       !> scale md length
         env%scallen = .true.
         call readl(arg(i+1),xx,j)
         env%mdlenfac = xx(1)
-      case ('-nmtd') !set number of MTDs
+      case ('-nmtd') !> set number of MTDs
         env%runver = 787878
         call readl(arg(i+1),xx,j)
         env%nmetadyn = nint(xx(1))
-      case ('-gcmax','-setgcmax')                             !set maximum number of structures for GC
+      case ('-gcmax','-setgcmax')       !> set maximum number of structures for GC
         env%setgcmax = .true.
         call readl(arg(i+1),xx,j)
         env%gcmax = xx(1)
-      case ('-xnam')                                          !select a name for the xTB executeable
+      case ('-xnam')                    !> select a name for the xTB executeable
         env%ProgName = trim(arg(i+1))
         write (*,'(2x,''-xnam :'')')
         write (*,'(5x,''xtb executable was set to: "'',a,''"'')') trim(env%ProgName)
-      case ('-niceprint')                                     !progres bar printout
+      case ('-niceprint')               !> progres bar printout
         env%niceprint = .true.
-      case ('-origin')                                        !track the origin (i.e. the generation step) of each conformer
+      case ('-origin')                  !> track the origin (i.e. the generation step) of each conformer
         env%trackorigin = .true.
         write (*,'(2x,a,1x,a)') trim(arg(i)),': tracking conformer origins.'
-      case ('-constrain')                       !provide a list of atoms to write a .xcontrol.sample
+      case ('-constrain')               !> provide a list of atoms to write a .xcontrol.sample
         ctmp = trim(arg(i+1))
         call quick_constrain_file('coord',env%nat,env%ref%at,ctmp)
       case ('-nocbonds')
@@ -1291,7 +1212,7 @@ subroutine parseflags(env,arg,nra)
         env%cts%cbonds_md = .false.
         inquire (file='bondlengths',exist=ex)
         if (ex) call remove('bondlengths')
-      case ('-cbonds','-cbonds_md','-cbonds_ez')            !constrain all bonds
+      case ('-cbonds','-cbonds_md','-cbonds_ez')  !> constrain all bonds
         ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
           read (ctmp,*,iostat=io) rdum
@@ -1300,14 +1221,14 @@ subroutine parseflags(env,arg,nra)
         ctype = 1
         bondconst = .true.
         env%cts%cbonds_global = .true.
-        if (index(argument,'_md') .ne. 0) then !if the bond constraint shall be present only in the MDs/MTDs
+        if (index(argument,'_md') .ne. 0) then !> if the bond constraint shall be present only in the MDs/MTDs
           env%cts%cbonds_md = .true.
           env%cts%cbonds_global = .false.
         end if
-        if (index(argument,'_ez') .ne. 0) then !if the bond constraint shall be present only in the MDs/MTDs
+        if (index(argument,'_ez') .ne. 0) then !> if the only E/Z shall be constrained
           ctype = 5
         end if
-      case ('-cmetal','-cmetal_md')              !constrain transition metal coordination sites
+      case ('-cmetal','-cmetal_md')            !> constrain transition metal coordination sites
         ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
           read (ctmp,*,iostat=io) rdum
@@ -1320,7 +1241,7 @@ subroutine parseflags(env,arg,nra)
           env%cts%cbonds_md = .true.
           env%cts%cbonds_global = .false.
         end if
-      case ('-cheavy','-fixheavy','-cheavy_md')    !constrain all heavy atom bonds
+      case ('-cheavy','-fixheavy','-cheavy_md')  !> constrain all heavy atom bonds
         ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
           read (ctmp,*,iostat=io) rdum
@@ -1333,7 +1254,7 @@ subroutine parseflags(env,arg,nra)
           env%cts%cbonds_md = .true.
           env%cts%cbonds_global = .false.
         end if
-      case ('-clight','-fixhyd','-clight_md')  !constraint all X-H bonds
+      case ('-clight','-fixhyd','-clight_md')  !> constraint all X-H bonds
         ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
           read (ctmp,*,iostat=io) rdum
@@ -1346,7 +1267,7 @@ subroutine parseflags(env,arg,nra)
           env%cts%cbonds_md = .true.
           env%cts%cbonds_global = .false.
         end if
-      case ('-cfile','-cinp')                                 !specify the constrain file
+      case ('-cfile','-cinp')                   !> specify the constrain file
         ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
           env%constraints = trim(ctmp)
@@ -1359,17 +1280,17 @@ subroutine parseflags(env,arg,nra)
           env%forceconst = xx(1)
         end if
         write (*,'(2x,a,f6.4,a)') '-fc ',env%forceconst,': selected force constant in Eh'
-      case ('-nomlo')   !turn off multilevel optimization
+      case ('-nomlo')   !> turn off multilevel optimization
         env%multilevelopt = .false.
-      case ('-normmd')             !set number of normMDs
+      case ('-normmd')  !> set number of normMDs
         env%rotamermds = .true.
         if (i+1 .le. nra) then
           call readl(arg(i+1),xx,j)
-          env%nrotammds = nint(xx(1))  !how many lowest conformers?
+          env%nrotammds = nint(xx(1))  !> how many lowest conformers?
         end if
         if (i+2 .le. nra) then
           call readl(arg(i+2),xx,j)
-          env%temps = nint(xx(1))     !how many different temperatures
+          env%temps = nint(xx(1))      !> how many different temperatures
         end if
       case ('-rmsdpot','-gesc')
         ctmp = trim(arg(i+1))
@@ -1395,7 +1316,7 @@ subroutine parseflags(env,arg,nra)
         env%gescoptlev = optlevnum(arg(i+1))
       case ('-gescheavy','-heavygesc','-gesc_heavy')
         env%cts%gesc_heavy = .true.
-      case ('-rthr2') !bias rmsd threshold
+      case ('-rthr2') !> bias rmsd threshold
         read (arg(i+1),*,iostat=io) rdum
         if (io == 0) env%rthr2 = rdum
       case ('-kshift')
@@ -1416,10 +1337,10 @@ subroutine parseflags(env,arg,nra)
         write (*,'(2x,a," :",1x,a)') trim(arg(i)), &
         & "output ensemble requested in sdf format"
 
-      case ('-wscal')                           !scale size of wall potential
+      case ('-wscal')                           !> scale size of wall potential
         call readl(arg(i+1),xx,j)
         env%potscal = xx(1)
-      case ('-wpad')                            !scale size of wall potential
+      case ('-wpad')                            !> scale size of wall potential
         call readl(arg(i+1),xx,j)
         env%potpad = xx(1)
       case ('-watoms','-wat')
@@ -1442,7 +1363,7 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
 !------ flags for parallelization / disk space
 !========================================================================================!
-      case ('-T','-P','-parallel')  !set total number of OMP threads, this replaces -P and -O entirely
+      case ('-T','-P','-parallel')  !> set total number of OMP threads, this replaces -P and -O entirely
         call readl(arg(i+1),xx,j)
         if (index(arg(i+1),'-') .ne. 0) xx = 0d0
         env%Threads = nint(xx(1))
@@ -1450,12 +1371,12 @@ subroutine parseflags(env,arg,nra)
         env%threadssetmanual = .true.
         write (*,'(2x,a,1x,i0,1x,a)') trim(arg(i)),nint(xx(1)), &
         &     '(CPUs/Threads selected)'
-      case ('-inplace')     ! activate in-place mode for optimizations (ON by default)
+      case ('-inplace')     !> activate "in-place" mode for optimizations (ON by default)
         env%inplaceMode = .true.
 !========================================================================================!
 !------- CREGEN related flags
 !========================================================================================!
-      case ('-cregen','-oldcregen')                                        !cregen standalone
+      case ('-cregen','-oldcregen')  !> CREGEN standalone use
         env%confgo = .true.
         env%properties = p_cregen
         env%autozsort = .false.
@@ -1478,74 +1399,74 @@ subroutine parseflags(env,arg,nra)
       case ('-oldcr')
         write (*,'(3x,a)') 'Using the old version of the CREGEN subroutine.'
         env%newcregen = .false.
-        env%ethr = 0.1d0 !ETHR old value
-      case ('-enso')                                           !compare two given ensembles
+        env%ethr = 0.1d0 !> ETHR old value
+      case ('-enso')             !> compare two given ensembles
         env%ENSO = .true.
-      case ('-compare')                                        !compare two given ensembles
+      case ('-compare')          !> compare two given ensembles
         env%compareens = .true.
-      case ('-maxcomp')                                        !maximum number of lowest conformers to compare with "-compare"
+      case ('-maxcomp')          !> maximum number of lowest conformers to compare with "-compare"
         call readl(arg(i+1),xx,j)
         env%maxcompare = nint(xx(1))
-      case ('-ewin')                                           !set energy threshold in kcal/mol
+      case ('-ewin')             !> set energy threshold in kcal/mol
         call readl(arg(i+1),xx,j)
         env%ewin = abs(xx(1))
         if (any((/p_protonate,p_deprotonate,p_tautomerize/) == env%properties)) then
           env%ptb%ewin = abs(xx(1))
         end if
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
-      case ('-rthr')                                           !set RMSD thr
+      case ('-rthr')             !> set RMSD thr
         call readl(arg(i+1),xx,j)
         env%rthr = xx(1)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
-      case ('-ethr')                                           !set E thr
+      case ('-ethr')             !> set E thr
         call readl(arg(i+1),xx,j)
         env%ethr = xx(1)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
-      case ('-bthr')                                           !set rot const thr
+      case ('-bthr')             !> set rot const thr
         call readl(arg(i+1),xx,j)
-        env%thresholds(4) = xx(1)  !legacy
+        env%thresholds(4) = xx(1)  !> legacy
         env%bthr2 = xx(1)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
-      case ('-allrot')                                         !use all rotational constants for comparison, instead of mean
+      case ('-allrot')           !> use all rotational constants for comparison, instead of mean
         env%allrot = .true.
-      case ('-athr')                                           !set int. rotation. equal atoms for NMR thr
+      case ('-athr')             !> set int. rotation. equal atoms for NMR thr
         call readl(arg(i+1),xx,j)
         env%athr = xx(1)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
-      case ('-pthr')                                           !set population thr
+      case ('-pthr')             !> set population thr
         call readl(arg(i+1),xx,j)
         rdum = min(1.0_wp,xx(1)) !--> pthr <= 1
         rdum = max(0.0_wp,rdum)  !--> pthr >= 0
         env%pthr = rdum
         write (*,'(2x,a,1x,f6.4)') trim(arg(i)),rdum !trim(arg(i+1))
       case ('-eqv')
-        env%doNMR = .true. !option for the very last confg call
+        env%doNMR = .true. !> option for the very last confg call
       case ('-zsort')
         env%onlyZsort = .true.                                 !perform only the zsort subroutine
         env%autozsort = .true.                                 ! CB: needs to be set to run zsort
         write (*,'(2x,a,1x,a)') trim(arg(i)),' : only using the ZSORT subroutine.'
       case ('-metac')                                        !automatic complete of mag. and chem. methyl equivalencies
         env%methautocorr = .true.
-      case ('-esort')                                        !cregen legacy option
+      case ('-esort')          !> cregen legacy option
         env%esort = .true.
       case ('-debug')
-        env%cgf(1) = .true.    !debug option for confg
+        env%cgf(1) = .true.    !> debug option for confg
       case ('-nowr')
-        env%cgf(2) = .false.   !newfile option for confg
+        env%cgf(2) = .false.   !> newfile option for confg
       case ('-eqan')
-        env%cgf(3) = .true.    !equivalence analysis on (for NMR)
+        env%cgf(3) = .true.    !> equivalence analysis on (for NMR)
       case ('-noeqan')
-        env%cgf(3) = .false.   !equivalence analysis off (for nmr)
+        env%cgf(3) = .false.   !> equivalence analysis off (for nmr)
       case ('-rot')
-        env%cgf(5) = .false.   !just rotamer check
-      case ('-nmr')                                          !NMR mode for confscript
+        env%cgf(5) = .false.   !> just rotamer check
+      case ('-nmr')            !> NMR mode for confscript
         env%doNMR = .true.
         env%optlev = 2.0d0
       case ('-fullcre')
         env%doNMR = .true.
         env%fullcre = .true.
       case ('-heavy')
-        env%cgf(4) = .true.   !perform just the heavy atom RMSD
+        env%cgf(4) = .true.   !> perform just the heavy atom RMSD
         env%heavyrmsd = .true.
       case ('-temp')
         ctmp = trim(arg(i+1))
@@ -1581,19 +1502,19 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
 !-------- PROPERTY CALCULATION related flags
 !========================================================================================!
-      case ('-protonate')             !protonation tool
+      case ('-protonate')             !> protonation tool
         env%properties = p_protonate
         env%autozsort = .false.
         env%ptb%threshsort = .true.
-      case ('-swel')                  !switch out H+ to something else in protonation script
+      case ('-swel')                  !> switch out H+ to something else in protonation script
         if (env%properties .eq. -3) then
           call swparse(arg(i+1),env%ptb)
         end if
-      case ('-deprotonate')           !deprotonation tool
+      case ('-deprotonate')           !> deprotonation tool
         env%properties = p_deprotonate
         env%autozsort = .false.
         env%ptb%threshsort = .true.
-      case ('-tautomerize')           !tautomerization tool
+      case ('-tautomerize')           !> tautomerization tool
         env%properties = p_tautomerize
         env%autozsort = .false.
         env%ptb%threshsort = .true.
@@ -1607,18 +1528,18 @@ subroutine parseflags(env,arg,nra)
         env%ptb%threshsort = .true.
         env%runver = 33
         env%relax = .true.
-        env%performCross = .false.                              !skip the genetic crossing
+        env%performCross = .false.  !> skip the genetic crossing
         env%trackorigin = .false.
         env%Maxrestart = 1
       case ('-relax')
         env%runver = 33
         env%relax = .true.
-        env%performCross = .false.                              !skip the genetic crossing
+        env%performCross = .false.  !> skip the genetic crossing
         env%trackorigin = .false.
         env%Maxrestart = 1
       case ('-trev','-tdp')
-        env%ptb%deprotprot = .true. !switch to deprotonation-first mode in tautomerization
-      case ('-iter')                  !number of Protonation/Deprotonation cycles in Tautomerization
+        env%ptb%deprotprot = .true. !> switch to deprotonation-first mode in tautomerization
+      case ('-iter')                !> number of Protonation/Deprotonation cycles in Tautomerization
         call readl(arg(i+1),xx,j)
         env%ptb%iter = nint(xx(1))
       case ('-texcl','-blacklist')
@@ -1689,16 +1610,16 @@ subroutine parseflags(env,arg,nra)
       case ('-ssthr','-entropy_sthr')
         read (arg(i+1),*,iostat=io) rdum
         if (io == 0) env%emtd%sconvthr = rdum
-      case ('-rrhoav')             ! see above in the first specification of -rrhoav
+      case ('-rrhoav')             !> see above in the first specification of -rrhoav
         env%properties = p_rrhoaverage
         call read_bhess_ref(env,'coord')
       case ('-avbhess')
-        env%thermo%avbhess = .true.  !use bhess in rrhoav for all structures (expensive)
+        env%thermo%avbhess = .true. !> use bhess in rrhoav for all structures (expensive)
       case ('-avchess')
-        env%thermo%constrhess = .true.   !apply constraints during rrhoav routine
+        env%thermo%constrhess = .true.   !> apply constraints during rrhoav routine
       case ('-printpop')
-        env%thermo%printpop = .true. !print a file with free energy pop. at different T
-      case ('-noref')              ! dont use a bhess reference
+        env%thermo%printpop = .true. !> print a file with free energy pop. at different T
+      case ('-noref')              !> dont use a bhess reference
         env%emtd%bhess = .false.
       case ('-ref')
         env%emtd%bhess = .true.
@@ -1734,7 +1655,7 @@ subroutine parseflags(env,arg,nra)
         if (io == 0.and.(index(arg(i+1),'-') .eq. 0)) then
           env%thermo%fscal = rdum
         end if
-      case ('-trange')    !provide a range of temperatures (min max step) for entropy evaluation
+      case ('-trange')    !> provide a range of temperatures (min max step) for entropy evaluation
         read (arg(i+1),*,iostat=io) rdum
         if (io == 0.and.(index(arg(i+1),'-') .eq. 0)) then
           env%thermo%trange(1) = rdum  !> T start
@@ -1785,7 +1706,7 @@ subroutine parseflags(env,arg,nra)
         env%docking_qcg_flag = ''
       case ('-fin_opt_gfn2')
         env%final_gfn2_opt = .true.
-      case ('-directed') !specify the directed list
+      case ('-directed') !> specify the directed list
         env%qcg_flag = .true.
         ctmp = trim(arg(i + 1))
         if (ctmp(1:1) .ne. '-') then
@@ -1925,7 +1846,7 @@ subroutine parseflags(env,arg,nra)
           end if
         end if
       case ('-pccap')
-        if (i+1 .le. nra) then !second argument is the max. number of PCs
+        if (i+1 .le. nra) then !> second argument is the max. number of PCs
           read (arg(i+1),*,iostat=io) j
           if (io == 0.and.(index(arg(i+1),'-') .eq. 0)) then
             env%pccap = j
@@ -1952,6 +1873,9 @@ subroutine parseflags(env,arg,nra)
 !---------- PROPERTY MODE
 !========================================================================================!
       case ('-prop')
+!>----------------------------------------------------------------
+!> NOTE: These flags are outdated and using them is discouraged!
+!>----------------------------------------------------------------
         if ((env%properties == p_none.or.    &
         &  env%properties == p_propcalc)) then         !property selection
           ctmp = trim(arg(i+1))
@@ -2169,7 +2093,7 @@ subroutine parseflags(env,arg,nra)
 
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
-!> FALLBACK setup of new calculator
+!> FALLBACK setup of new calculator (important CREST >3.0 handling things)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
   if (.not.env%legacy.and.env%calc%ncalculations == 0) then
@@ -2205,10 +2129,14 @@ end subroutine parseflags
 !=========================================================================================!
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
-!=========================================================================================!
-!> Parse the "confscriptrc" and set-block in the input file
-!=========================================================================================!
 subroutine parseRC2(env,bondconst)
+!*****************************************
+!* subroutine parseRC2
+!* Parse the "confscriptrc" and set-block
+!* in the input file
+!* NOTE: this routine is very old, chances
+!* are that some things are obsolete now
+!******************************************
   use iso_fortran_env,wp => real64
   use crest_data
   use iomod
@@ -2359,11 +2287,14 @@ subroutine parseRC2(env,bondconst)
 end subroutine parseRC2
 
 !========================================================================================!
-!> Convert given input coordinate file into a "coord" file (TM format)
-!> If the input is in SDF format, document the info to convert the
-!> final ensemble back into this format
-!========================================================================================!
+
 subroutine inputcoords(env,arg)
+!***********************************************************************
+!* subroutine inputcoords
+!* Convert given input coordinate file into a "coord" file (TM format)
+!* If the input is in SDF format, document the info to convert the
+!* final ensemble back into this format
+!***********************************************************************
   use crest_parameters
   use crest_data
   use strucrd
@@ -2459,3 +2390,6 @@ subroutine inputcoords(env,arg)
 
   return
 end subroutine inputcoords
+
+!========================================================================================!
+!========================================================================================!

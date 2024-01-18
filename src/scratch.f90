@@ -46,12 +46,10 @@ subroutine scrdir(env)
   call copy('.CHRG',trim(env%scratchdir)//'/'//'.CHRG')
   call copy('.UHF',trim(env%scratchdir)//'/'//'.UHF')
 
-  write(stdout,'(a)',advance='no') 'Copying data to scratch directory ...'
-  flush(stdout)
-  call command('scp -r ./* '//trim(env%scratchdir)//'/') 
-  write(stdout,*) 'done.'
-
-
+  write (stdout,'(a)',advance='no') 'Copying data to scratch directory ...'
+  flush (stdout)
+  call command('scp -r ./* '//trim(env%scratchdir)//'/')
+  write (stdout,*) 'done.'
 
   call chdir(trim(env%scratchdir))
 
@@ -69,16 +67,16 @@ subroutine scrend(env)
     return
   end if
 
-  write(stdout,'(/,a)',advance='no') 'Retrieving data from scratch directory ...'
-  flush(stdout) 
+  write (stdout,'(/,a)',advance='no') 'Retrieving data from scratch directory ...'
+  flush (stdout)
   call command('scp -r '//trim(env%scratchdir)//'/* '//trim(env%homedir)//'/')
-  write(stdout,*) 'done.'
+  write (stdout,*) 'done.'
 
   if (.not.env%keepScratch) then
-    write(stdout,'(a)',advance='no') 'Removing scratch directory ...'
-    flush(stdout)
+    write (stdout,'(a)',advance='no') 'Removing scratch directory ...'
+    flush (stdout)
     call rmrf(env%scratchdir)
-    write(stdout,*) 'done.'
+    write (stdout,*) 'done.'
   end if
 
   return

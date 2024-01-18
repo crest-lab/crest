@@ -22,7 +22,7 @@ module utilities
   use ls_rmsd
   implicit none
   private
-  
+
   !> subroutines
   public :: boltz2
   public :: boltz
@@ -416,7 +416,6 @@ contains  !> MODULE PROCEDURES START HERE
     close (ich2)
     call rename('.setdgtmp',fname)
   end subroutine clear_setblock
-
 
 !========================================================================================!
 

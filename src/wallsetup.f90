@@ -31,7 +31,7 @@ module wall_setup
 
   real(wp),parameter,private :: pi43 = pi*(4.0_wp/3.0_wp)
   real(wp),parameter,private :: third = 1.0_wp/3.0_wp
-  
+
   logical,parameter,private :: debug = .true.
 
 !========================================================================================!
@@ -130,15 +130,15 @@ contains !> MODULE PROCEDURES START HERE
     else
       ppad = 0.0_wp
     end if
-  
-!>--- calculate the box 
+
+!>--- calculate the box
     boxvol = getbox2(mol%nat,mol%xyz,mol%at,box)
     rabc(1:3) = box(1:3,3)/2.0_wp  !> radius, half the box length
 
 !>--- add 3AA and scale further by a user-defined factor, if necessary
-    rabc = (rabc + 3.0_wp*aatoau + ppad) * pscal
-    
-    if(debug) call wall_dummypot(rabc,mol%xyz,mol%at,mol%nat)
+    rabc = (rabc+3.0_wp*aatoau+ppad)*pscal
+
+    if (debug) call wall_dummypot(rabc,mol%xyz,mol%at,mol%nat)
 
   end subroutine boxpot_core
 
@@ -189,33 +189,32 @@ contains !> MODULE PROCEDURES START HERE
     end do
 
     point = 0.0d0
-  ! Generate points on the surface of the ellipsoid
-  a = ellips(1)
-  b = ellips(2)
-  c = ellips(3) 
-  num_points = 20
-  vol = (4.0d0/3.0d0)*pi*a*b*c
-  !write(*,*) vol,sqrt(vol),sqrt(sqrt(vol))
-  !p = 1.6075d0
-  !surf = 4.0d0*pi*( ((a**p)*(b**p) + (a**p)*(c**p) + (b**p)*(c**p))/3.0d0)**(1.0d0/p)
-  !write(*,*) surf,sqrt(surf),sqrt(sqrt(surf))
-  num_points = ceiling(sqrt(sqrt(vol)))
-  num_points = max(num_points,8)
-  do i = 1, num_points
-    ! Generate evenly spaced spherical coordinates
-    theta = real((i - 1)) * pi / real((num_points))
-  do j = 1, num_points
-    ! Generate evenly spaced spherical coordinates
-    phi = 2.0d0 * pi * real((j - 1)) / real((num_points))
+    ! Generate points on the surface of the ellipsoid
+    a = ellips(1)
+    b = ellips(2)
+    c = ellips(3)
+    num_points = 20
+    vol = (4.0d0/3.0d0)*pi*a*b*c
+    !write(*,*) vol,sqrt(vol),sqrt(sqrt(vol))
+    !p = 1.6075d0
+    !surf = 4.0d0*pi*( ((a**p)*(b**p) + (a**p)*(c**p) + (b**p)*(c**p))/3.0d0)**(1.0d0/p)
+    !write(*,*) surf,sqrt(surf),sqrt(sqrt(surf))
+    num_points = ceiling(sqrt(sqrt(vol)))
+    num_points = max(num_points,8)
+    do i = 1,num_points
+      ! Generate evenly spaced spherical coordinates
+      theta = real((i-1))*pi/real((num_points))
+      do j = 1,num_points
+        ! Generate evenly spaced spherical coordinates
+        phi = 2.0d0*pi*real((j-1))/real((num_points))
 
-    ! Calculate Cartesian coordinates using parametric equations
-    point(1) = a * sin(theta) * cos(phi)
-    point(2) = b * sin(theta) * sin(phi)
-    point(3) = c * cos(theta)
-    write(ich,'(3F24.12,5x,a2)') point(1:3),'he'
-  end do
-  end do
-
+        ! Calculate Cartesian coordinates using parametric equations
+        point(1) = a*sin(theta)*cos(phi)
+        point(2) = b*sin(theta)*sin(phi)
+        point(3) = c*cos(theta)
+        write (ich,'(3F24.12,5x,a2)') point(1:3),'he'
+      end do
+    end do
 
     write (ich,'(a)') "$end"
     close (ich)
@@ -276,7 +275,7 @@ contains !> MODULE PROCEDURES START HERE
     integer :: i
     real(wp),allocatable :: rat(:)
     real(wp) :: rcovmax
-    allocate(rat(n))
+    allocate (rat(n))
     do i = 1,n
       rat(i) = rcov(at(i))
     end do

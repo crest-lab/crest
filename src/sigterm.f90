@@ -17,24 +17,24 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 subroutine wsigint !> Ctrl+C
-  use crest_parameters, only:stderr,stdout
-  use crest_restartlog, only: dump_restart
+  use crest_parameters,only:stderr,stdout
+  use crest_restartlog,only:dump_restart
   use ConfSolv_module
   integer :: myunit,io
-  write(*,*)
+  write (*,*)
   write (stderr,'(" recieved SIGINT, trying to terminate CREST...")')
   !call dump_restart()
-  call cs_shutdown(io)  
+  call cs_shutdown(io)
   call exit(1)
   error stop
 end subroutine wsigint
 
 subroutine wsigquit !> Ctrl+D or Ctrl+\
-  use crest_parameters, only:stderr,stdout
-  use crest_restartlog, only: dump_restart 
+  use crest_parameters,only:stderr,stdout
+  use crest_restartlog,only:dump_restart
   use ConfSolv_module
   integer :: myunit,io
-  write(*,*)
+  write (*,*)
   write (stderr,'(" recieved SIGQUIT, trying to terminate CREST...")')
   !call dump_restart()
   call cs_shutdown(io)
@@ -43,11 +43,11 @@ subroutine wsigquit !> Ctrl+D or Ctrl+\
 end subroutine wsigquit
 
 subroutine wsigterm !> Recieved by the "kill" pid command
-  use crest_parameters, only:stderr,stdout
-  use crest_restartlog, only: dump_restart 
+  use crest_parameters,only:stderr,stdout
+  use crest_restartlog,only:dump_restart
   use ConfSolv_module
-  integer :: io 
-  write(stdout,*)
+  integer :: io
+  write (stdout,*)
   write (stderr,'(" recieved SIGTERM, trying to terminate CREST...")')
   !call dump_restart()
   call cs_shutdown(io)
@@ -56,12 +56,12 @@ subroutine wsigterm !> Recieved by the "kill" pid command
 end subroutine wsigterm
 
 subroutine wsigkill
-  use crest_parameters, only:stderr,stdout
-  use crest_restartlog, only: dump_restart
+  use crest_parameters,only:stderr,stdout
+  use crest_restartlog,only:dump_restart
   use ConfSolv_module
   integer :: io
-  !call dump_restart() 
-  call cs_shutdown(io) 
+  !call dump_restart()
+  call cs_shutdown(io)
   error stop 'CREST recieved SIGKILL.'
 end subroutine wsigkill
 
