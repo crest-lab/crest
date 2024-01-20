@@ -18,7 +18,7 @@ project(
   LANGUAGES "Fortran" "C"
   VERSION "3.0"
 )
-set(SOVERSION "dev")
+set(SOVERSION "pre")
 
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
