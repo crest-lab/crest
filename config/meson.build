@@ -295,6 +295,5 @@ config = configuration_data({
   'xhcffvar': get_option('WITH_XHCFF'),
   'lwoniomvar': get_option('WITH_LWONIOM'),
 })
-#message(get_option('WITH_TOMLF'))
 
 
