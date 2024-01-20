@@ -2335,7 +2335,7 @@ subroutine inputcoords(env,arg)
   if (ex.and.arg(1:1) .ne. '-') then
     call mol%open(arg)
     call mol%write('coord')
-    call mol%write('struc.xyz')
+    call mol%write('crest_input_copy.xyz')
     call mol%deallocate()
     inputfile = trim(arg)
   else

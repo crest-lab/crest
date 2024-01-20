@@ -4,18 +4,18 @@
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2Fc9cp06869d%20-blue)](http://dx.doi.org/10.1039/c9cp06869d)
 ![example workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![Github Downloads All Releases](https://img.shields.io/github/downloads/crest-lab/crest/total)](https://github.com/crest-lab/crest/releases)
 
-
-CREST (originally abrreviated from Conformer-Rotamer Ensemble Sampling Tool) is a tool for the exploration of the low-energy molecular chemical space.
+CREST (originally abbreviated from ***C***onformer-***R***otamer ***E***nsemble ***S***ampling ***T***ool) is a program for the automated exploration of the low-energy molecular chemical space.
 It functions as an OMP scheduler for calculations at with efficient force-field and semiempirical quantum mechanical methods such as xTB, and provides
-many capabilities for creation and analysis of structure ensembles.
+a variety capabilities for creation and analysis of structure ensembles.
 
 <div align="center">
 <img src="./assets/newtoc.png" alt="CREST" width="700">
 </div>
 
 ---
-**NOTE: This is the 3.0 pre-release. Please report any bugs or issues ASAP. The program can be switched back to it's previous behaviour via the `--legacy` option.**
+**NOTE: This is the 3.0 pre-release. Please report any bugs or issues ASAP. The program can be switched back to its previous behaviour via the `--legacy` option.**
 
 ---
 
@@ -25,11 +25,10 @@ many capabilities for creation and analysis of structure ensembles.
 The CREST documentation with installation instructions and application examples is hosted at <https://crest-lab.github.io/crest-docs/>.
 
 
----
-
 ## Installation quick guide
 
 For any installation make sure that you have correctly installed and sourced the [`xtb`](https://github.com/grimme-lab/xtb) program before attempting any calculations with CREST.
+**While `xtb` is technically not needed for the primary runtypes of CREST versions >3.0 thanks to an integration of [`tblite`](https://github.com/tblite/tblite), some functionalities, like QCG, still require it!**
 
 There are multiple possible ways of installing CREST. 
 For building the program from source we recommend the Intel `ifort` and `icc` compilers (tested with the 2021 version).
@@ -42,7 +41,7 @@ Detailed build instructions can be found at <https://crest-lab.github.io/crest-d
 To use the statically linked binaries (Intel compilers)
 that can be found at the [release page](https://github.com/crest-lab/crest/releases),
 of this repository.
-The most recent program version is automatically build (`meson`/`ifort`) from the main branch and can be found at the [continous release page](https://github.com/crest-lab/crest/releases/tag/latest).
+The most recent program version is automatically build (`meson`/`ifort`) from the main branch and can be found at the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest).
 Simply unpack the binary and add it to your *PATH* variable.
 ```bash
 unzip crest.zip
@@ -88,13 +87,14 @@ meson install -C _build
 ```
 
 The `meson` build of CREST is mainly focused on and tested with the Intel `ifort`/`icc` compilers.
-When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Compatibility with the GNU compilers might be limited, however.
+When using newer versions of Intel's oneAPI, replacing `icc` with `icx` should work. Please refrain from using `ifx` instead of `ifort`, however.
+When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Compatibility with the GNU compilers might be limited. We recommend the CMake build (see below) in this instance.
 
 By default the `meson` build will create a **statically** linked binary.
 </details>
 
 <details>
-<summary><h4><code>cmake</code> build</h4></summary>
+<summary><h4><code>CMake</code> build</h4></summary>
 <!-- blank line to recover markdown format-->
 
 For the setup of CMake see also the [CMake setup](https://github.com/grimme-lab/xtb/blob/master/cmake/README.adoc) page hosted at the `xtb` repository.
@@ -108,9 +108,9 @@ and then to build the CREST binary
 make -C _build
 ```
 
-The CMake build of CREST is focused on and tested with the GNU `gfortran`/`gcc` compilers. The Intel compilers could technically be used as well, but in our experience 
+The CMake build of CREST is focused on and tested with the GNU `gfortran`/`gcc` compilers. The Intel compilers could technically be used as well, but in our experience the respective build is more fragile than its static `meson` counterpart.
 
-By default the `cmake` build will create a **dynamically** linked binary.
+By default the `CMake` build will create a **dynamically** linked binary.
 </details>
 
 <details>

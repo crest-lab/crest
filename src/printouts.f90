@@ -88,9 +88,9 @@ subroutine box3(version,date,commit,author)
   write (logo(5),'(''║           \___|_|_\___|___/ |_|            ║'')')
   write (logo(6),'(''║                                            ║'')')
   write (logo(7),'(''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
-  write (logo(8),'(''║          based on the GFN methods          ║'')')
+  write (logo(8),'(''║          based on the xTB methods          ║'')')
   write (logo(9),'(''║                                            ║'')')
-  write (logo(10),'(''╚════════════════════════════════════════════╝'')')
+  write (logo(10),'("╚════════════════════════════════════════════╝")')
   do i = 1,10
     write (*,'(a,a)') repeat(" ",pad_left),trim(logo(i))
   end do
@@ -103,7 +103,7 @@ subroutine disclaimer
   write (*,'(3x,a)') 'This program is distributed in the hope that it will be useful,'
   write (*,'(3x,a)') 'but WITHOUT ANY WARRANTY; without even the implied warranty of'
   write (*,'(3x,a)') 'MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the'
-  write (*,'(3x,a)') 'GNU Lesser General Public License for more details.'
+  write (*,'(3x,a)') 'GNU Lesser General Public License (LGPL) for more details.'
 
 end subroutine disclaimer
 
