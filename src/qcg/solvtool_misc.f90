@@ -831,7 +831,7 @@ subroutine ens_freq(env, fname, NTMP, TMPdir, opt)
    end if
 
    k = 0 !counting the finished jobs
-   call printprogbar()
+   call printprogbar(0.0_wp)
 
 !--- Jobcall
    if (.not. opt) then

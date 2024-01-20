@@ -61,7 +61,6 @@ subroutine parseflags(env,arg,nra)
   integer :: ctype
   logical :: ex,bondconst
   character(len=:),allocatable :: argument
-  logical,external :: isatty
 
   allocate (xx(10),floats(3),strings(3))
   ctmp = ''
@@ -2049,7 +2048,7 @@ subroutine parseflags(env,arg,nra)
 
 !>-- turn off niceprint if we are not writing to terminal
   if(env%niceprint)then
-    env%niceprint = isatty(output_unit)
+    env%niceprint = myisatty(output_unit)
   endif
 
 !>-- driver for optimization along trajectory, additional settings

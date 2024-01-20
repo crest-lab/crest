@@ -33,8 +33,6 @@ module dynamics_module
   !======================================================================================!
   !--- private module variables and parameters
   private
-  integer :: i,j,k,l,ich,och,io
-  logical :: ex
 
   !>--- some constants and name mappings
   real(wp),parameter :: amutoau = amutokg*kgtome
@@ -170,6 +168,8 @@ contains  !> MODULE PROCEDURES START HERE
     if (dat%shake) then
       if(calc%nfreeze > 0)then
         dat%shk%freezeptr => calc%freezelist
+      else
+        nullify(dat%shk%freezeptr)
       endif
       call init_shake(mol%nat,mol%at,mol%xyz,dat%shk,pr)
       dat%nshake = dat%shk%ncons
@@ -512,6 +512,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(out) :: iostatus
     real(wp) :: dum
     integer :: idum
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
 
     iostatus = 0
 
@@ -542,6 +544,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: n
     real(wp),intent(in) :: velo(3,n),mass(n)
     real(wp),intent(out) :: e
+    integer :: i
     e = 0.0_wp
     do i = 1,n
       e = e+mass(i)*(velo(1,i)**2+velo(2,i)**2+velo(3,i)**2)
@@ -560,7 +563,8 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),intent(in) :: epot
     real(wp),intent(in) :: temp
     logical,intent(in) :: pr
-
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
     integer :: nreg
     real(wp) :: bave,bavt,slope
 
@@ -593,8 +597,9 @@ contains  !> MODULE PROCEDURES START HERE
     subroutine regress(n1,n2,rege,slope)
       implicit none
       real(wp) :: rege(*),slope
-      integer :: n1,n2,n,i
+      integer :: n1,n2,n
       real(wp) :: sx,sy,sxx,sxy,x
+      integer :: i,j,k,l,ich,och,io
 
       n = n2-n1+1
       sx = 0.0_wp
@@ -646,7 +651,8 @@ contains  !> MODULE PROCEDURES START HERE
     type(coord) :: mol
     type(mddata) :: dat
     real(wp),intent(in) :: velo(3,mol%nat)
-    integer :: io,ich
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
     character(len=256) :: atmp
     if (.not.allocated(dat%restartfile)) then
       write (atmp,'(a,i0,a)') 'crest_',dat%md_index,'.mdrestart'
@@ -670,7 +676,8 @@ contains  !> MODULE PROCEDURES START HERE
     logical,intent(out) :: fail
     real(wp) :: dum
     character(len=256) :: atmp
-    integer :: io,ich
+    integer :: i,j,k,l,ich,och,io
+    logical :: ex
 
     fail = .false.
 
@@ -769,11 +776,11 @@ contains  !> MODULE PROCEDURES START HERE
 
   subroutine thermostating(mol,dat,t,scal)
     implicit none
-
     type(coord) :: mol
     type(mddata) :: dat
     real(wp),intent(in) :: t
     real(wp),intent(out) :: scal
+    integer :: i,j,k,l,ich,och,io
 
     scal = 1.0_wp
 
@@ -795,6 +802,7 @@ contains  !> MODULE PROCEDURES START HERE
     implicit none
     type(mddata) :: dat
     logical,intent(in) :: pr
+    integer :: i,j,k,l,ich,och,io
 
     if (.not.pr) return
     if (dat%thermostat) then
@@ -1181,5 +1189,6 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
   end subroutine md_defaults_fallback
+!========================================================================================!
 !========================================================================================!
 end module dynamics_module

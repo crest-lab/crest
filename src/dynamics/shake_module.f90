@@ -84,7 +84,7 @@ module shake_module
     real(wp),allocatable :: xyzt(:,:)
 
     !>--- pointer to the freeze list
-    logical, pointer :: freezeptr(:)
+    logical,pointer :: freezeptr(:)
 
   end type shakedata
 
@@ -119,6 +119,7 @@ contains !> MODULE PROCEDURES START HERE
     integer,allocatable :: list(:)
     real(wp) :: rco
     logical :: metalbond,rcut,checkfreeze
+    integer :: nfrz
 
     integer :: n2
     integer,allocatable :: cons2(:,:)
@@ -130,6 +131,12 @@ contains !> MODULE PROCEDURES START HERE
     nconsu = 0
     n2 = 0
     checkfreeze = associated(shk%freezeptr)
+    !> gfortran workaround
+    if(checkfreeze)then !> gfortran check
+      nfrz = size(shk%freezeptr,1)
+    else
+      nfrz = 0  
+    endif
 
 !>--- count user-defined bonds
     if ((shk%nusr > 0) .and. allocated(shk%conslistu)) then
@@ -149,7 +156,7 @@ contains !> MODULE PROCEDURES START HERE
             if (j .ne. i) then
 
               !> check if BOTH are frozen
-              if(checkfreeze)then
+              if(checkfreeze.and.j<=nfrz.and.i<=nfrz)then
                 if( shk%freezeptr(i) .and. shk%freezeptr(j) ) cycle
               endif 
               
@@ -188,7 +195,7 @@ contains !> MODULE PROCEDURES START HERE
             if (i .eq. j) cycle
 
             !>--- if both are frozen, no SHAKE!
-            if(checkfreeze)then
+            if(checkfreeze.and.j<=nfrz.and.i<=nfrz)then
               if( shk%freezeptr(i) .and. shk%freezeptr(j) ) cycle
             endif
 

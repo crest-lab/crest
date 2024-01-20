@@ -802,8 +802,8 @@ contains  !> MODULE PROCEDURES START HERE
     class(refdata) :: self
     type(coord) :: mol
     mol%nat = self%nat
-    mol%at = self%at
-    mol%xyz = self%xyz
+    if(allocated(self%at)) mol%at = self%at
+    if(allocated(self%xyz)) mol%xyz = self%xyz
     mol%chrg = self%ichrg
     mol%uhf = self%uhf
     return

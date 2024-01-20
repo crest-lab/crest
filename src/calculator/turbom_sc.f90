@@ -34,8 +34,9 @@ module turbom_sc
   private
   integer,parameter :: nf = 6
   character(len=*),parameter :: oldfiles(nf) = [&
-          & 'energy','ceh.charges','output','.data', &
-          & 'NOT_CONVERGED','gp3restart' ]
+          & 'energy       ','ceh.charges  ', &
+          & 'output       ','.data        ', &
+          & 'NOT_CONVERGED','gp3restart   ' ]
   character(len=*),parameter :: ridft = 'ridft' !> Turbomoles 'ridft'
   character(len=*),parameter :: xyzn = 'coord'  !> input coords must be in coord
   character(len=*),parameter :: ef = 'energy'   !> energy will be read from file energy

@@ -24,6 +24,7 @@ list(APPEND srcs
   "${dir}/gfnff_api.F90"
   "${dir}/lj.f90"
   "${dir}/lwoniom.F90"
+  "${dir}/oniom_hessian.F90"
   "${dir}/nonadiabatic.f90"
   "${dir}/tblite_api.F90"
   "${dir}/api_helpers.F90"

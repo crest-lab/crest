@@ -758,6 +758,23 @@ contains !> MODULE PROCEDURES START HERE
 !=========================================================================================!
 !=========================================================================================!
 !=========================================================================================!
+
+!> a wrapper for the intrinsic isatty function.
+!> ifort only seems to work if isatty is declard as external
+!> while gfortran does not want that...
+  function myisatty(channel) result(term)
+    implicit none
+    integer,intent(in) :: channel
+    logical :: term
+#ifdef __INTEL_COMPILER
+    logical,external :: isatty
+#endif
+    term = isatty(channel) 
+  end function myisatty
+
+!=========================================================================================!
+!=========================================================================================!
+!=========================================================================================!
 !> type conversion routines
 !> 8 bit integers
   subroutine i8_to_string(i_in,str_out)

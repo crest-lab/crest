@@ -591,7 +591,7 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
   integer :: i,io
   logical :: pr
 !=======================================================!
-  type(calcdata) :: calc
+  type(calcdata),target :: calc
   type(shakedata) :: shk
 
   real(wp) :: energy
@@ -624,6 +624,12 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
       shk%shake_mode = env%mddat%shk%shake_mode
       call move_alloc(calc%calcs(1)%wbo,shk%wbo)
     end if
+
+    if(calc%nfreeze > 0)then
+      shk%freezeptr => calc%freezelist
+    else
+      nullify(shk%freezeptr)
+    endif
 
     shk%shake_mode = env%shake
     mddat%shk = shk

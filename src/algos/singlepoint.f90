@@ -120,7 +120,7 @@ subroutine crest_singlepoint(env,tim)
     write (stdout,*)
   end if
 
-  if(all(calc%calcs(:)%rdgrad == .false.))then
+  if(all(calc%calcs(:)%rdgrad .eqv. .false.))then
     write (stdout,'(a)') '> No gradients calculated'
   else 
   write (stdout,'(a)') '> Final molecular gradient ( Eh/a0 ):'

@@ -222,7 +222,7 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
 
 !$OMP PARALLEL PRIVATE(i,j,k,m, zdum,cdum, rval,rval2, fail) &
 !$OMP PRIVATE(Udum,xdum,ydum,gdum) &
-!$OMP SHARED(erel,ewin,nat,at,zref,zmat,na,nb,nc,rcov,cnref ) &
+!$OMP SHARED(erel,ewin,nat,at,zref,zmat,na,nb,nc,cnref ) &
 !$OMP SHARED(cthr,rthrbohr,rthrbohr100,rms,xyzgen,maxgen,maxgen2) &
 !$OMP SHARED(ncount,nmaxref,ncheck,ncheckstep) &
 !$OMP SHARED(ierr,rcount,ident,rmsdavg,ntaken,rmsdcheck,stop_crossing,huge_number )
