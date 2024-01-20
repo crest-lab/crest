@@ -1,4 +1,4 @@
-# Conformer-Rotamer Ensemble Sampling Tool
+# CREST
 
 [![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest)](https://github.com/crest-lab/crest/releases/latest)
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2Fc9cp06869d%20-blue)](http://dx.doi.org/10.1039/c9cp06869d)
@@ -6,16 +6,18 @@
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 
 
-This is the offical repository of the CREST program developed by the Grimme group in Bonn.
-
-CREST is an extension to the [`xtb`](https://github.com/grimme-lab/xtb) program.
-It functions as an IO based OMP scheduler (*i.e.*, calculations are
-performed by the `xtb` program) and tool for the creation and analysation of
-structure ensembles.
+CREST (originally abrreviated from Conformer-Rotamer Ensemble Sampling Tool) is a tool for the exploration of the low-energy molecular chemical space.
+It functions as an OMP scheduler for calculations at with efficient force-field and semiempirical quantum mechanical methods such as xTB, and provides
+many capabilities for creation and analysis of structure ensembles.
 
 <div align="center">
-<img src="./assets/crest.png" alt="CREST" width="200">
+<img src="./assets/newtoc.png" alt="CREST" width="700">
 </div>
+
+---
+**NOTE: This is the 3.0 pre-release. Please report any bugs or issues ASAP. The program can be switched back to it's previous behaviour via the `--legacy` option.**
+
+---
 
 
 ## Documentation
@@ -33,12 +35,6 @@ There are multiple possible ways of installing CREST.
 For building the program from source we recommend the Intel `ifort` and `icc` compilers (tested with the 2021 version).
 
 Detailed build instructions can be found at <https://crest-lab.github.io/crest-docs/page/installation>.
-
-
-
-
-
-
 
 
 ### Precompiled binaries
@@ -142,7 +138,7 @@ The confa-forge distribution is based on a CMake/`gfortran` build.
 
 ---
 
-## Citations
+### Citations
 
 1. P. Pracht, F. Bohle, S. Grimme, *Phys. Chem. Chem. Phys.*, **2020**, 22, 7169-7192.
   DOI: [10.1039/C9CP06869D](https://dx.doi.org/10.1039/C9CP06869D)
@@ -161,7 +157,7 @@ The confa-forge distribution is based on a CMake/`gfortran` build.
 
 6. P. Pracht, C. Bannwarth, *J. Chem. Theory Comput.*, **2022**, *18 (10)*, 6370-6385. DOI: [10.1021/acs.jctc.2c00578](https://dx.doi.org/10.1021/acs.jctc.2c00578)
 
-## License
+### License
 
 CREST is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
