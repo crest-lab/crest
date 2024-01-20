@@ -283,7 +283,7 @@ contains
       end do
     end do
 
-    deallocate (coordtmp)
+    deallocate (z,y,x,coordtmp)
 
     return
   end subroutine axis_3
@@ -1261,6 +1261,6 @@ pure subroutine eigvec3x3(a, w, q)
 
 end subroutine eigvec3x3
 
-
+!========================================================================================!
 !========================================================================================!
 end module axis_module

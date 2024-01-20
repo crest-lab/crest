@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 Sebastian Spicher, Christoph Plett, Philipp Pracht
+! Copyright (C) 2023 Christoph Plett, Sebastian Spicher, Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -36,7 +36,7 @@ subroutine crest_solvtool(env, tim)
    type(zmolecule) :: solute, solvent, cluster, cluster_backup 
    type(ensemble) :: full_ensemble, solvent_ensemble
 
-   integer :: progress
+   integer :: progress,io
    character(len=512) :: thispath
 
    real(wp), parameter         :: eh = 627.509541d0
@@ -52,9 +52,15 @@ subroutine crest_solvtool(env, tim)
    !>-----------------------------------
    call qcg_head()
    !>-----------------------------------
-!> Check, if xtbiff is present
+
+!> Check, if xtb is present
+   call checkprog_silent(env%ProgName,.true.,iostat=io)
+   if(io /= 0 ) error stop 'No xtb found'
+
+!> Check, if xtbiff is present (if it is required)
    if (env%use_xtbiff) then
-      call check_prog_path_iff(env)
+      call checkprog_silent(env%ProgIFF,.true.,iostat=io)
+      if(io /= 0 ) error stop 'No xtbiff found'
    else
       write (*, *)
       write (*, *) '  The use of the aISS algorithm is requested (recommend).'
@@ -164,7 +170,7 @@ subroutine qcg_setup(env, solu, solv)
    type(systemdata):: env
    type(zmolecule) :: solv, solu
 
-   integer :: io, f, r, v, ich
+   integer :: io, f, r
    integer :: num_O, num_H, i
    character(len=*), parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
    logical :: e_there, tmp, used_tmp
@@ -173,41 +179,27 @@ subroutine qcg_setup(env, solu, solv)
    character(len=80)  :: atmp
    character(len=20)  :: gfnver_tmp
 
-
    call getcwd(thispath)
 
+   ! Remove scratch dir, if present
    inquire (file='./qcg_tmp/solute_properties/solute', exist=tmp)
    if (tmp) call rmrf('qcg_tmp') !User given scratch dir will be removed anyway after run
 
+   ! Make scratch directories
    if (env%scratchdir .eq. '') then !check if scratch was not set
       env%scratchdir = 'qcg_tmp'
       io = makedir('qcg_tmp')
    end if
-
-   call copysub('solute', trim(env%scratchdir))
-   call copysub('solvent', env%scratchdir)
-   call env%wrtCHRG(env%scratchdir) !Write .CHRG and .UHF with 3 lines for xtb docking
+   if(env%fixfile /= 'none selected') then
+      call copysub(env%fixfile, env%scratchdir)
+   end if
    call chdir(env%scratchdir)
 
    f = makedir('solute_properties')
+   if(env%fixfile /= 'none selected') then
+      call copysub(env%fixfile, env%scratchdir)
+   end if
    r = makedir('solvent_properties')
-   v = makedir('tmp_grow')
-
-   call chdir('tmp_grow')
-   call getcwd(tmp_grow)
-   call chdir(thispath)
-   call chdir(env%scratchdir)
-
-   call copysub('solute', 'solute_properties')
-   call copysub('.CHRG', 'solute_properties')
-   call copysub('.UHF', 'solute_properties')
-   call copysub('solvent', 'solvent_properties')
-
-   call copysub('.CHRG', tmp_grow)
-   call copysub('.UHF', tmp_grow)
-
-   call remove('solute')
-   call remove('solvent')
 
    if (.not. env%nopreopt) then
       write (*, *)
@@ -221,9 +213,7 @@ subroutine qcg_setup(env, solu, solv)
 
 !---- Properties solute
    call chdir('solute_properties')
-   env%ref%nat = solu%nat
-   env%ref%at = solu%at
-   env%ref%xyz = solu%xyz
+   call env%wrtCHRG('') !Write three lines in QCG mode, but xtb anyway only reads first one
 
 !---- Geometry preoptimization solute
    if (env%final_gfn2_opt) then !If GFN2 final opt, solute also GFN2 optimized
@@ -232,30 +222,7 @@ subroutine qcg_setup(env, solu, solv)
    end if
 
    if ((.not. env%nopreopt) .and. (solu%nat /= 1)) then
-      call wrc0('coord', solu%nat, solu%at, solu%xyz) !write coord for xtbopt routine
-      if (env%cts%used) then
-         call wrc0('coord.ref', solu%nat, solu%at, solu%xyz) !write coord for xtbopt routine
-      end if
-!---- coord setup section
-      open (newunit=ich, file='coord')
-      do
-         read (ich, '(a)', iostat=io) atmp
-         if (io < 0) exit
-         if (index(atmp, '$coord') .ne. 0) cycle
-         if (index(atmp(1:1), '$') .ne. 0) then
-            !write(ich,'(a)')'$end'
-            exit
-         end if
-      end do
-      !add constraints (only if given, else the routine returns)
-      call write_cts(ich, env%cts)
-      call write_cts_biasext(ich, env%cts)
-      write (ich, '(a)') '$end'
-      close (ich)
-
-      call xtbopt(env)
-      call rdcoord('coord', solu%nat, solu%at, solu%xyz)
-      call remove('coord')
+      call xtb_opt_qcg(env, solu, .true.)
    end if
 
 !--- Axistrf
@@ -265,9 +232,9 @@ subroutine qcg_setup(env, solu, solv)
 !---- LMO/SP-Computation solute
    if (env%use_xtbiff) then
       write (*, *) 'Generating LMOs for solute'
-      call xtb_lmo(env, 'solute')!,solu%chrg)
+      call xtb_lmo(env, 'solute')
    else
-      call xtbsp3(env, 'solute')
+      call xtb_sp_qcg(env, 'solute')
    end if
 
    if (env%final_gfn2_opt) then !If GFN2 final opt, solute also GFN2 optimized
@@ -283,9 +250,6 @@ subroutine qcg_setup(env, solu, solv)
 
    if (env%use_xtbiff) then
       call rename('xtblmoinfo', 'solute.lmo')
-      call copysub('solute.lmo', tmp_grow)
-   else
-      call copysub('solute', tmp_grow)
    end if
 
    call chdir(thispath)
@@ -297,16 +261,11 @@ subroutine qcg_setup(env, solu, solv)
 !---- Properties solvent
    call chdir(env%scratchdir)
    call chdir('solvent_properties')
-   env%ref%nat = solv%nat
-   env%ref%at = solv%at
-   env%ref%xyz = solv%xyz
+   !No charges for solvent written. This is currently not possible
 
 !---- Geometry preoptimization solvent
    if ((.not. env%nopreopt) .and. (solv%nat /= 1)) then
-      call wrc0('coord', solv%nat, solv%at, solv%xyz) !write coord for xtbopt routine
-      call xtbopt(env)
-      call rdcoord('coord', solv%nat, solv%at, solv%xyz)
-      call remove('coord')
+      call xtb_opt_qcg(env, solv, .false.)
    end if
    call wrc0('solvent', solv%nat, solv%at, solv%xyz)
 
@@ -315,7 +274,7 @@ subroutine qcg_setup(env, solu, solv)
       write (*, *) 'Generating LMOs for solvent'
       call xtb_lmo(env, 'solvent')!,solv%chrg)
    else
-      call xtbsp3(env, 'solvent')
+      call xtb_sp_qcg(env, 'solvent')
    end if
 
    call grepval('xtb.out', '| TOTAL ENERGY', e_there, solv%energy)
@@ -327,9 +286,6 @@ subroutine qcg_setup(env, solu, solv)
 
    if (env%use_xtbiff) then
       call rename('xtblmoinfo', 'solvent.lmo')
-      call copysub('solvent.lmo', tmp_grow)
-   else
-      call copysub('solvent', tmp_grow)
    end if
 
    call chdir(thispath)
@@ -371,18 +327,13 @@ subroutine read_qcg_input(env, solu, solv)
    logical                        :: pr
    real(wp), parameter            :: amutokg = 1.66053886E-27
    real(wp), parameter            :: third = 1.0d0/3.0d0
-   integer                        :: i, ich
+   integer                        :: i
    real(wp)                       :: r_solu, r_solv
 
    pr = .true.
 
-!--- Read in nat, at, xyz
-   call simpletopo_file('solute', solu, .false., .false., '')
-   allocate (solu%xyz(3, solu%nat))
-   call rdcoord('solute', solu%nat, solu%at, solu%xyz)
-   call simpletopo_file('solvent', solv, .false., .false., '')
-   allocate (solv%xyz(3, solv%nat))
-   call rdcoord('solvent', solv%nat, solv%at, solv%xyz)
+!--- Read in solu and solv coordinates and make solute and solvent file in WD
+   call inputcoords_qcg(env, solu, solv)
 
 !--- CMA-Trafo
    call cma_shifting(solu, solv)
@@ -420,7 +371,6 @@ subroutine read_qcg_input(env, solu, solv)
               &Please use the aISS algorithm of xtb.'
       call read_directed_input(env)
    end if
-
 
 end subroutine read_qcg_input
 
@@ -498,7 +448,7 @@ end subroutine read_directed_input
 
 
 subroutine qcg_grow(env, solu, solv, clus, tim)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -511,7 +461,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 
    integer                    :: minE_pos, m
    integer                    :: iter = 1
-   integer                    :: i, j, io
+   integer                    :: i, j, io, v
    integer                    :: max_cycle
    logical                    :: e_there, high_e, success, neg_E
    real(wp)                   :: etmp(500)
@@ -595,10 +545,18 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
    call get_ellipsoid(env, solu, solv, clus, .true.)
    call pr_grow_energy()
 
-   if (env%cts%used) call copysub(env%solu_file, env%scratchdir)
    call chdir(env%scratchdir)
-   if (env%cts%used) call copysub(env%solu_file, 'tmp_grow')
+   v = makedir('tmp_grow')
+   if(env%fixfile /= 'none selected') then
+      call copysub(env%fixfile, 'tmp_grow')
+   end if
+   if (env%use_xtbiff) then
+     call copy('solute_properties/solute.lmo', 'tmp_grow/solute.lmo')
+     call copy('solvent_properties/solvent.lmo', 'tmp_grow/solvent.lmo')
+   end if
    call chdir('tmp_grow')
+   call wrc0('solute', solu%nat, solu%at, solu%xyz)
+   call wrc0('solvent', solv%nat, solv%at, solv%xyz)
 
    call ellipsout('solute_cavity.coord', clus%nat, clus%at, clus%xyz, solu%ell_abc)
    solv%ell_abc = clus%ell_abc
@@ -648,7 +606,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
                call check_dock(neg_E)
             end if
 
-!!! If Interaction Energy is not negativ and existent, wall pot. too small and increase
+!-- If Interaction Energy is not negativ and existent, wall pot. too small and increase
             if (neg_E) then
                success = .true.
             else
@@ -883,12 +841,12 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 end subroutine qcg_grow
 
 subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
    use strucrd
-
+   use utilities
    implicit none
 
    type(systemdata)           :: env
@@ -1013,7 +971,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    !For newcregen: If env%crestver .eq. crest_solv .and. .not. env%QCG then conffile .eq. .true.
    env%QCG = .false. 
    call inputcoords(env, 'crest_input')
-   call iV2defaultGF(env)         !Setting MTD parameter
+   call defaultGF(env)         !Setting MTD parameter
 
 !--- Special constraints for gff to safeguard stability
    if (env%ensemble_opt .eq. '--gff') then
@@ -1038,6 +996,15 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    case (-1:0) !qcgmtd/Crest runtype
 
       !Defaults
+      !General settings:
+      if (.not. env%user_mdstep) then
+         if (env%ensemble_opt .EQ. '--gff') then
+            env%mdstep = 1.5d0
+         else
+            env%mdstep = 5.0d0
+         end if
+      end if
+      !Runtype specific settings:
       if(env%ensemble_method == 0) then
          if (.not. env%user_dumxyz) then
             env%mddumpxyz = 200
@@ -1180,7 +1147,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
          call copy('coord', 'ref.coord')
          call chdir(tmppath2)
 
-         call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
 
          inquire (file=trim(tmppath)//'/'//'xtb.trj', exist=ex)
          if (.not. ex .or. io .ne. 0) then
@@ -1216,7 +1183,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
 
          call chdir(tmppath2)
 
-         call execute_command_line('cd '//trim(tmppath)//' && '//trim(jobcall), exitstat=io)
+         call command('cd '//trim(tmppath)//' && '//trim(jobcall), io)
 
          inquire (file=trim(tmppath)//'/'//'xtb.trj', exist=ex)
          if (.not. ex .or. io .ne. 0) then
@@ -1531,7 +1498,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
 end subroutine qcg_ensemble
 
 subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -1667,7 +1634,7 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
       call chdir(to)
       call wrc0('cluster.coord', clus%nat, clus%at, clus%xyz)
       call wr_cluster_cut('cluster.coord', solu%nat, solv%nat, env%nsolv, 'solute_cut.coord', 'solvent_shell.coord')
-      call xtbsp3(env, 'solvent_shell.coord')
+      call xtb_sp_qcg(env, 'solvent_shell.coord')
       call grepval('xtb.out', '| TOTAL ENERGY', ex, e_empty(i))
       call copy('solvent_shell.coord', 'solvent_cluster.coord')
       call copy('solvent_cluster.coord', 'filled_cluster.coord')
@@ -1997,7 +1964,7 @@ subroutine qcg_cff(env, solu, solv, clus, ens, solv_ens, tim)
 end subroutine qcg_cff
 
 subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
-   use iso_fortran_env, wp => real64
+   use crest_parameters
    use crest_data
    use iomod
    use zdata
@@ -2443,7 +2410,7 @@ subroutine write_qcg_setup(env)
 end subroutine write_qcg_setup
 
 subroutine get_sphere(pr, zmol, r_logical)
-   use iso_fortran_env, wp => real64
+   use crest_parameters, only : wp
    use zdata
 
    implicit none
@@ -2635,7 +2602,7 @@ subroutine get_ellipsoid(env, solu, solv, clus, pr1)
 end subroutine get_ellipsoid
 
 subroutine getmaxrad(n, at, xyz, r)
-   use iso_fortran_env, wp => real64
+   use crest_parameters, only : wp
    implicit none
    real(wp) :: xyz(3, n), r
    integer :: n, at(n)
@@ -2798,13 +2765,13 @@ subroutine get_interaction_E(env, solu, solv, clus, iter, E_inter)
    call wr_cluster_cut('cluster.coord', solu%nat, solv%nat, iter, 'solute_cut.coord', 'solvent_cut.coord')
 
 !--- Perform single point calculations and recieve energies
-   call xtbsp3(env, 'solute_cut.coord')
+   call xtb_sp_qcg(env, 'solute_cut.coord')
    call grepval('xtb.out', '| TOTAL ENERGY', e_there, e_solute)
    if (.not. e_there) write (*, *) 'Solute energy not found'
-   call xtbsp3(env, 'solvent_cut.coord')
+   call xtb_sp_qcg(env, 'solvent_cut.coord')
    call grepval('xtb.out', '| TOTAL ENERGY', e_there, e_solvent)
    if (.not. e_there) write (*, *) 'Solvent energy not found'
-   call xtbsp3(env, 'cluster.coord')
+   call xtb_sp_qcg(env, 'cluster.coord')
    call grepval('xtb.out', '| TOTAL ENERGY', e_there, e_cluster)
    if (.not. e_there) write (*, *) 'Cluster energy not found'
 
@@ -3324,30 +3291,6 @@ subroutine qcg_cleanup(env)
 
 end subroutine qcg_cleanup
 
-subroutine check_prog_path_iff(env)
-   use crest_data
-   implicit none
-   type(systemdata):: env    ! MAIN STORAGE OS SYSTEM DATA
-   character(len=512)           :: prog
-   character(len=256)           :: str
-   character(len=256)           :: path
-   integer                      :: ios, io
-
-   prog = env%ProgIFF
-   write (str, '("which ",a," > ",a,"_path 2>/dev/null")') trim(prog), trim(prog)
-   call execute_command_line(trim(str), exitstat=io)
-   write (str, '(a,"_path")') trim(prog)
-   str = trim(str)
-   open (unit=27, file=str, iostat=ios)
-   read (27, '(a)', iostat=ios) path
-   if (ios .ne. 0) then
-      write (0, *) 'No xtb-IFF found. This is currently required for ', &
-      & 'QCG and available at https:/github.com/grimme-lab/xtbiff/'
-      error stop
-   end if
-
-end subroutine check_prog_path_iff
-
 subroutine write_reference(env, solu, clus)
    use iso_fortran_env, wp => real64
    use crest_data
@@ -3368,3 +3311,80 @@ subroutine write_reference(env, solu, clus)
    call wrc0(env%fixfile, ref_clus%nat, ref_clus%at, ref_clus%xyz)
 
 end subroutine write_reference
+
+
+!========================================================================================!
+!> Convert given QCG coordinate files into (TM format)
+!> Write "solute" and "solvent" coordinate files
+!========================================================================================!
+subroutine inputcoords_qcg(env, solute, solvent)
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  use strucrd
+  use zdata
+  use iomod
+  implicit none
+
+  type(systemdata), intent(inout) :: env
+  type(zmolecule), intent(out) :: solute, solvent
+
+  logical :: ex11,ex21,solu,solv
+  type(coord) :: mol
+  type(zmolecule) :: zmol,zmol1
+  integer :: i
+
+!--------------------Checking for input-------------!
+
+  !Solute
+  inquire (file=env%solu_file,exist=ex11)
+  inquire (file='solute',exist=solu)
+  if (solu) call copy('solute','solute.old') !Backup solute file
+  if ((.not. ex11) .and. (.not. solu)) then
+    error stop 'No (valid) solute file! exit.'
+  else if ((.not. ex11) .and. (solu)) then
+    env%solu_file = 'solute'
+  end if
+
+  !Solvent
+  inquire (file=env%solv_file,exist=ex21)
+  inquire (file='solvent',exist=solv)
+  if (solu) call copy('solvent','solvent.old') !Backup solvent file
+  if ((.not. ex21) .and. (.not. solv)) then
+    error stop 'No (valid) solvent file! exit.'
+  else if ((.not. ex11) .and. (solu)) then
+    env%solu_file = 'solvent'
+  end if
+
+!---------------Handling solute---------------------!
+  call mol%open(env%solu_file)
+  call mol%write('solute')
+  solute%nat = mol%nat
+  solute%at = mol%at
+  solute%xyz = mol%xyz
+  call mol%deallocate()
+
+  !--- if the input was a SDF file, special handling
+  env%sdfformat = .false.
+  call checkcoordtype(env%solu_file,i)
+  if (i == 31.or.i == 32) then
+    !Add sdf stuff here, if somebody needs it
+  end if
+
+!---------------Handling solvent---------------------!
+
+  call mol%open(env%solv_file)
+  call mol%write('solvent')
+  solvent%nat = mol%nat
+  solvent%at = mol%at
+  solvent%xyz = mol%xyz
+  call mol%deallocate()
+
+  !--- if the input was a SDF file, special handling
+  env%sdfformat = .false.
+  call checkcoordtype(env%solv_file,i)
+  if (i == 31.or.i == 32) then
+    !Add sdf stuff here, if somebody needs it
+  end if
+
+  return
+end subroutine inputcoords_qcg

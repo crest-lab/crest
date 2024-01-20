@@ -1,0 +1,22 @@
+diff --git a/meson.build b/meson.build
+index 9384afd..e4b73bb 100644
+--- a/meson.build
++++ b/meson.build
+@@ -57,7 +57,7 @@ tblite_dep = declare_dependency(
+ )
+ 
+ # Add executable targets
+-subdir('app')
++#subdir('app')
+ 
+ # Package the license files
+ tblite_lic = files(
+@@ -121,7 +121,7 @@ if install
+ endif
+ 
+ # add the testsuite
+-subdir('test')
++#subdir('test')
+ 
+ if get_option('python')
+   subdir('python/tblite')

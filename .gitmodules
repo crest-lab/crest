@@ -1,0 +1,22 @@
+[submodule "subprojects/gfn0"]
+	path = subprojects/gfn0
+	url = https://github.com/pprcht/gfn0.git
+    branch = main
+[submodule "subprojects/toml-f"]
+	path = subprojects/toml-f
+	url = https://github.com/toml-f/toml-f.git
+    branch = main
+[submodule "subprojects/gfnff"]
+	path = subprojects/gfnff
+	url = https://github.com/pprcht/gfnff.git
+    branch = master 
+[submodule "subprojects/tblite"]
+	path = subprojects/tblite
+#	 url = https://github.com/tblite/tblite.git
+#    branch = main
+    url = https://github.com/pprcht/tblite.git
+    branch = ompleak
+[submodule "subprojects/lwoniom"]
+	path = subprojects/lwoniom
+	url = https://github.com/crest-lab/lwoniom
+    branch = main

@@ -17,39 +17,68 @@
 project(
   'crest',
   'fortran', 'c',
-  version: '2.12.0',
-  meson_version: '>=0.55',
+  version: '3.0pre',
+  license: 'LGPL-3.0-or-later',
+  meson_version: '>=0.63',
   default_options: [
     'buildtype=debugoptimized',
+    'default_library=static',
+    'c_link_args=-static',
+    'fortran_link_args=-static',
   ],
 )
+install = not (meson.is_subproject() and get_option('default_library') == 'static')
 
-# General configuration information
+
+# =================================== #
+## General configuration information ##
+# =================================== #
 exe_deps = []
 subdir('config')
 
+# create the metadata file with the configured data
+configure_file(
+  input: files('assets/template/metadata.f90'),
+  output: 'crest_metadata.fh',
+  configuration : config,
+)
+
+
 # Documentation
-subdir('docs')
+#subdir('docs')
 
 # Collect source of the project
 prog = []
 srcs = []
 subdir('src')
 
-crest_exe = executable(
+
+# Create library target
+crest_lib = library(
   meson.project_name(),
-  sources: srcs + prog,
+  sources: srcs,
   dependencies: exe_deps,
-  install: true,
-  link_language: 'fortran',
+#  include_directories: include_directories('include'),
 )
 
-#declare dependencies
-crest_inc = []
+# Export as dependency
+crest_inc = crest_lib.private_dir_include()
 crest_dep = declare_dependency(
+  link_with: crest_lib,
   include_directories: crest_inc,
   dependencies: exe_deps,
 )
+
+
+# Create executable target
+crest_exe = executable(
+  meson.project_name(),
+  sources: prog,
+  dependencies: crest_dep,
+  install: install,
+  link_language: 'fortran',
+)
+
 
 
 # add the testsuite separate meson.build 
