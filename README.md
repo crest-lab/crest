@@ -7,11 +7,11 @@
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/crest-lab/crest/total)](https://github.com/crest-lab/crest/releases)
 
 CREST (originally abbreviated from ***C***onformer-***R***otamer ***E***nsemble ***S***ampling ***T***ool) is a program for the automated exploration of the low-energy molecular chemical space.
-It functions as an OMP scheduler for calculations at with efficient force-field and semiempirical quantum mechanical methods such as xTB, and provides
+It functions as an OMP scheduler for calculations with efficient force-field and semiempirical quantum mechanical methods such as xTB, and provides
 a variety capabilities for creation and analysis of structure ensembles.
 
 <div align="center">
-<img src="./assets/newtoc.png" alt="CREST" width="700">
+<img src="./assets/newtoc.png" alt="CREST" width="750">
 </div>
 
 ---
