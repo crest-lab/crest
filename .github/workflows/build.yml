@@ -54,7 +54,7 @@ jobs:
         printenv >> $GITHUB_ENV
 
     - name: Install meson
-      run: pip3 install meson==0.63.3 ninja
+      run: pip3 install meson==1.2.0 ninja
 
     - name: Git Sumbodules (including tblite patch)
       run: |
