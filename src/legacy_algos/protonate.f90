@@ -204,7 +204,7 @@ subroutine xtblmo(env)
   implicit none
   type(systemdata) :: env
   character(len=80) :: fname
-  character(len=512) :: jobcall
+  character(len=:),allocatable :: jobcall
   integer :: io
   character(len=*),parameter :: pipe = ' > xtb.out 2>/dev/null'
 
@@ -218,8 +218,10 @@ subroutine xtblmo(env)
 !---- jobcall
   write (*,*)
   write (*,'('' LMO calculation ... '')',advance='no')
-  write (jobcall,'(a,1x,a,1x,a,'' --sp --lmo'',1x,a)') &
-  &     trim(env%ProgName),trim(fname),trim(env%gfnver),trim(env%solv)
+  jobcall = trim(env%ProgName)
+  jobcall = trim(jobcall)//' '//trim(fname)
+  jobcall = trim(jobcall)//' '//trim(env%gfnver)
+  jobcall = trim(jobcall)//' --sp --lmo '//trim(env%solv) 
   jobcall = trim(jobcall)//trim(pipe)
   call command(trim(jobcall),io)
   write (*,'(''done.'')')

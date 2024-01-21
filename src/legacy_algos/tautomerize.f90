@@ -414,26 +414,24 @@ subroutine protens(ens,env,prot,tim)
   real(wp) :: percent
 
   character(len=*)   :: ens
-  character(len=32)  :: dirn
   character(len=256) :: thispath,tmppath
   character(len=256) :: filename
   character(len=128) :: inpnam,outnam
-  character(len=512) :: jobcall
-
+  character(len=:),allocatable :: jobcall
+  
   logical :: niceprint
 
   real(wp),allocatable :: xyz(:,:,:),eread(:)
   integer,allocatable  :: at(:)
-
+  character(len=*),parameter :: dirn='PROT'
   !call printprotcy
 
 !--- some settings
   call getcwd(thispath)
-  dirn = 'PROT'
   niceprint = env%niceprint
   refchrg = env%chrg
 
-  r = makedir(trim(dirn))
+  r = makedir(dirn)
 
 !--- read the file
   call rdensembleparam(ens,nat,nall)
@@ -443,11 +441,11 @@ subroutine protens(ens,env,prot,tim)
   natp = nat+1
 
 !--- change dir
-  call chdir(trim(dirn))
+  call chdir(dirn)
   call getcwd(tmppath)
 !--- make new dirs
   do i = 1,nall
-    write (filename,'(a,i0)') trim(dirn),i
+    write (filename,'(a,i0)') dirn,i
     r = makedir(trim(filename))
     call chdir(trim(filename))
     call wrc0('coord',nat,at,xyz(:,:,i))
@@ -464,8 +462,12 @@ subroutine protens(ens,env,prot,tim)
   end if
 
 !--- creating the job
-  write (jobcall,'(a,1x,a,1x,a,'' --sp --lmo '',a,1x,a,a)') &
-  &     trim(env%ProgName),'coord',trim(env%gfnver),trim(env%solv),' > xtb.out 2>/dev/null'
+  jobcall = trim(env%ProgName)
+  jobcall = trim(jobcall)//' '//'coord'
+  jobcall = trim(jobcall)//' '//trim(env%gfnver)
+  jobcall = trim(jobcall)//' --sp --lmo '//trim(env%solv)
+  jobcall = trim(jobcall)//' > xtb.out 2>/dev/null'
+  
 
 !--- calculation loop for LMOs
   call tim%start(1,'LMO calc.')
@@ -475,30 +477,32 @@ subroutine protens(ens,env,prot,tim)
   if (niceprint) then
     call printprogbar(0.0_wp)
   end if
-!$omp parallel &
-!$omp shared( vz,jobcall,nall,dirn,percent,k,niceprint )
-!$omp single
+
+!!$omp parallel &
+!!$omp shared( vz,jobcall,nall,percent,k,niceprint ) &
+!!$omp private(filename)
+!!$omp single
   do i = 1,nall
     vz = i
-    !$omp task firstprivate( vz ) private( filename,io )
+!    !$omp task firstprivate( vz ) private( io )
     call initsignal()
-    write (filename,'(a,i0)') trim(dirn),vz
+    write (filename,'(a,i0)') dirn,vz
     call command('cd '//trim(filename)//' && '//trim(jobcall),io)
-    !$omp critical
+!   !$omp critical
     k = k+1
     if (niceprint) then
       percent = float(k)/float(nall)*100.0d0
       call printprogbar(percent)
     else
-      write (6,'(1x,i0)',advance='no') k
-      flush (6)
+      write (stdout,'(1x,i0)',advance='no') k
+      flush (stdout)
     end if
-    !$omp end critical
-    !$omp end task
+!    !$omp end critical
+!    !$omp end task
   end do
-!$omp taskwait
-!$omp end single
-!$omp end parallel
+!!$omp taskwait
+!!$omp end single
+!!$omp end parallel
   !--- this is a test for BASF
   if (env%threads > 8) then
     call sleep(5)
@@ -507,7 +511,7 @@ subroutine protens(ens,env,prot,tim)
   write (*,'(a)',advance='no') 'Collecting generated protomers ...'
   jobcall = trim(tmppath)//'/'//'protomers.xyz'
   do i = 1,nall
-    write (filename,'(a,i0)') trim(dirn),i
+    write (filename,'(a,i0)') dirn,i
     call chdir(trim(filename))
     call coord2xyz('coordprot.0','struc_0.xyz')
     call appendto('struc_0.xyz',jobcall)
@@ -565,7 +569,7 @@ subroutine protens(ens,env,prot,tim)
 
 !--- change back to original dir and copy the file with optimized protomers
   call chdir(thispath)
-  write (jobcall,'(a,a,a)') trim(tmppath),'/','protonated.xyz'
+  jobcall = trim(tmppath)//'/'//'protonared.xyz' 
   call rename(trim(jobcall),'protonated.xyz')
   call rmrf(dirn)
   return
