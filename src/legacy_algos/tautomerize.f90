@@ -569,7 +569,7 @@ subroutine protens(ens,env,prot,tim)
 
 !--- change back to original dir and copy the file with optimized protomers
   call chdir(thispath)
-  jobcall = trim(tmppath)//'/'//'protonared.xyz' 
+  jobcall = trim(tmppath)//'/'//'protonated.xyz' 
   call rename(trim(jobcall),'protonated.xyz')
   call rmrf(dirn)
   return
