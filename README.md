@@ -8,7 +8,7 @@
 
 CREST (originally abbreviated from ***C***onformer-***R***otamer ***E***nsemble ***S***ampling ***T***ool) is a program for the automated exploration of the low-energy molecular chemical space.
 It functions as an OMP scheduler for calculations with efficient force-field and semiempirical quantum mechanical methods such as xTB, and provides
-a variety capabilities for creation and analysis of structure ensembles.
+a variety of capabilities for creation and analysis of structure ensembles.
 
 <div align="center">
 <img src="./assets/newtoc.png" alt="CREST" width="750">
@@ -22,8 +22,12 @@ a variety capabilities for creation and analysis of structure ensembles.
 
 ## Documentation
 
-The CREST documentation with installation instructions and application examples is hosted at <https://crest-lab.github.io/crest-docs/>.
+The CREST documentation with installation instructions and application examples is hosted at: <br>
+<div align="center">
 
+[**https://crest-lab.github.io/crest-docs/**](https://crest-lab.github.io/crest-docs/)
+
+</div>
 
 ## Installation quick guide
 
@@ -31,7 +35,7 @@ For any installation make sure that you have correctly installed and sourced the
 **While `xtb` is technically not needed for the primary runtypes of CREST versions >3.0 thanks to an integration of [`tblite`](https://github.com/tblite/tblite), some functionalities, like QCG, still require it!**
 
 There are multiple possible ways of installing CREST. 
-For building the program from source we recommend the Intel `ifort` and `icc` compilers (tested with the 2021 version).
+For building the program from source we recommend the Intel `ifort` and `icc` compilers (the [continuous release build](https://github.com/crest-lab/crest/releases/tag/latest) uses the 2023.1.0 version of these compilers).
 
 Detailed build instructions can be found at <https://crest-lab.github.io/crest-docs/page/installation>.
 
