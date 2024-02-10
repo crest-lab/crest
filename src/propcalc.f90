@@ -51,6 +51,7 @@ subroutine propcalc(iname,imode,env,tim)
   use iomod
   use strucrd,only:rdensembleparam,rdensemble,wrxyz
   use utilities,only:boltz2
+  use cregen_interface
   implicit none
 
   type(systemdata) :: env

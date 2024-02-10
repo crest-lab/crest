@@ -37,6 +37,8 @@ subroutine crest_playground(env,tim)
   use adjacency
   use zdata
   use probabilities_module
+  use parse_csv
+  use cregen_interface
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -55,7 +57,7 @@ subroutine crest_playground(env,tim)
   type(zmolecule) :: zmol
 
   real(wp) :: energy
-  real(wp),allocatable :: grad(:,:),geo(:,:)
+  real(wp),allocatable :: grad(:,:),geo(:,:),csv(:,:)
   integer,allocatable :: na(:),nb(:),nc(:),at2(:)
   integer :: nat2
   real(wp),allocatable :: mu(:)
@@ -78,6 +80,7 @@ subroutine crest_playground(env,tim)
   write(*,*) 
 !========================================================================================!
 
+  call newcregen(env,0,'foobar.xyz') 
 
 !========================================================================================!
   call tim%stop(14)

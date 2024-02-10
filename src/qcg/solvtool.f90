@@ -847,6 +847,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    use zdata
    use strucrd
    use utilities
+   use cregen_interface
    implicit none
 
    type(systemdata)           :: env

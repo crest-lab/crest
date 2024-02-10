@@ -32,6 +32,7 @@ subroutine crest_search_entropy(env,tim)
   use shake_module
   use iomod
   use utilities
+  use cregen_interface
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim

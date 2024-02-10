@@ -25,6 +25,7 @@ subroutine mdopt_legacy(env,tim)
   use iomod
   use strucrd,only:rdensembleparam,rdensemble
   use utilities
+  use cregen_interface
   implicit none
 
   type(systemdata) :: env

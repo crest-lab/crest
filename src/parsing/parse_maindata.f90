@@ -273,6 +273,7 @@ contains   !> MODULE PROCEDURES START HERE
     integer :: i
 !>--- add ConfSolv as refinement level to give a ΔΔGsoln
     call env%addrefine(refine%ConfSolv)
+    env%refine_presort = .true.
 
 !>--- parse the arguments
     do i = 1,blk%nkv
@@ -291,9 +292,13 @@ contains   !> MODULE PROCEDURES START HERE
         if (kv%na == 2) then
           cs_solvent = trim(kv%value_rawa(1))
           cs_smiles = trim(kv%value_rawa(2))
+        else if(index(kv%value_c,'.csv').ne.0)then
+          cs_solvfile = kv%value_c
         else
           cs_solvent = kv%value_c
         end if
+      case('solvent_csv','solvfile')
+        cs_solvfile = kv%value_c
       case ('solvent_name')
         cs_solvent = kv%value_c
       case ('solvent_smiles')

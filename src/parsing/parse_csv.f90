@@ -46,6 +46,16 @@ module parse_csv
     module procedure :: parse_csv_columnnumber_real
   end interface parse_csv_column_real
 
+  public :: parse_csv_allcolumns
+  interface parse_csv_allcolumns
+    module procedure :: parse_csv_allcolumns_real
+  end interface parse_csv_allcolumns
+
+  public :: parse_csv_file_row
+  interface parse_csv_file_row
+    module procedure :: parse_csv_file_rownumber
+  end interface parse_csv_file_row
+
 !========================================================================================!
 !========================================================================================!
 contains  !> MODULE PROCEDURES START HERE
@@ -125,8 +135,46 @@ contains  !> MODULE PROCEDURES START HERE
         if (debug) write (*,*) trim(column(i))
       end do
     end if
+    call file%close()
     !if (debug) stop
   end subroutine parse_csv_file_columnnumber
+
+
+  subroutine parse_csv_file_rownumber(fname,getrow,row)
+!*********************************************
+!* Routine for parsing the csv file fname
+!* and get a column as array of strings
+!*********************************************
+    implicit none
+    character(len=*),intent(in) :: fname
+    integer,intent(in) :: getrow
+    character(len=:),intent(out),allocatable :: row(:)
+    logical :: ex
+    character(len=:),allocatable :: hdr
+    integer :: i,j,k,l,nrow,ncol
+    type(filetype) :: file
+
+    inquire (file=fname,exist=ex)
+    if (.not.ex) return
+    call file%open(fname)
+
+    call csv_params(file,nrow,ncol)
+    if (debug) write (*,*) 'nrow',nrow
+    if (debug) write (*,*) 'ncol',ncol
+    l = file%lwidth
+    allocate (row(nrow),source=repeat(' ',l))
+
+    if (debug) write (*,*) 'trying to get row elements',getrow
+    if (getrow > 0.and.getrow <= nrow) then
+      do i = 1,ncol
+        !if (debug) write(*,*) file%line(i)
+        row(i) = get_column_element(file%line(getrow),i)
+        if (debug) write (*,*) trim(row(i))
+      end do
+    end if
+    call file%close()
+    !if (debug) stop
+ end subroutine parse_csv_file_rownumber
 
 !========================================================================================!
 
@@ -188,6 +236,57 @@ contains  !> MODULE PROCEDURES START HERE
     deallocate (strcolumn)
     if (debug) stop
   end subroutine parse_csv_columnnumber_real
+
+
+  subroutine parse_csv_allcolumns_real(fname,columns,cols,rows)
+!*********************************************
+!* Routine for parsing the csv file fname
+!* and get a matrix of all columns/rows
+!*********************************************
+    implicit none
+    character(len=*),intent(in) :: fname
+    real(wp),intent(out),allocatable :: columns(:,:)
+    integer,intent(out),optional :: cols,rows
+    character(len=:),allocatable :: strcolumn
+    type(filetype) :: file
+    logical :: ex
+    integer :: getcol,i,j,k,l,io,nrow,ncol
+    real(wp) :: dum
+
+    inquire (file=fname,exist=ex)
+    if (.not.ex) return
+    call file%open(fname)
+
+    call csv_params(file,nrow,ncol)
+    if (debug) write (*,*) 'nrow',nrow
+    if (debug) write (*,*) 'ncol',ncol
+    l = file%lwidth
+    strcolumn=repeat(' ',l)
+    allocate (columns(ncol,nrow-1), source=0.0_wp)
+
+    if (debug) write (*,*) 'trying to get column',getcol
+    do i = 2,nrow
+      k = i-1 !> to skip header
+      do getcol=1,ncol
+        strcolumn = get_column_element(file%line(i),getcol)
+        if (debug) write (*,*) trim(strcolumn)
+        read (strcolumn,*,iostat=io) dum
+        if (io == 0) columns(getcol,k) = dum
+        if (debug) write (*,*) dum
+           
+      end do
+    enddo
+    deallocate(strcolumn)
+
+    if(present(cols))then
+       cols = ncol
+    endif
+    if(present(rows))then
+       rows = nrow-1  !> not counting the header lines
+    endif
+
+    call file%close()
+  end subroutine parse_csv_allcolumns_real
 
 !========================================================================================!
 

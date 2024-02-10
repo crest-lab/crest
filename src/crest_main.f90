@@ -111,7 +111,10 @@ program CREST
       end if
     end if
     if (env%newcregen) then
+      block
+      use cregen_interface
       call newcregen(env,0)
+      end block
     else
       call cregen2(env)
     end if

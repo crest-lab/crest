@@ -30,6 +30,7 @@ subroutine crest_refine(env,input,output)
   use crest_data
   use crest_calculator
   use strucrd
+  use cregen_interface
   implicit none
   type(systemdata),intent(inout) :: env
   character(len=*),intent(in) :: input
@@ -54,6 +55,14 @@ subroutine crest_refine(env,input,output)
   else
     outname = input  !> overwrite
   end if
+
+!>--- presorting step, if necessary
+  if(env%refine_presort)then
+    call newcregen(env,0,input)
+    call rename('crest_ensemble.xyz',input)
+  endif
+
+!>--- read in
   call rdensemble(input,nat,nall,at,xyz,eread)
   allocate (etmp(nall),source=0.0_wp)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
@@ -91,11 +100,9 @@ subroutine crest_refine(env,input,output)
       case(refine%confsolv)
         write (stdout,'("> ConfSolv: ΔΔGsoln estimation from 3D directed message passing neural networks (D-MPNN)")')
         call confsolv_request( input, nall, env%threads, etmp, io)
-        !eread(:) = eread(:) + etmp(:)
         if(io == 0)then
         eread(:) = etmp(:)*kcaltoau  !> since CREGEN deals with Eh energies
         endif   
-
       end select
       write(stdout,*) 
     end do

@@ -27,6 +27,7 @@ subroutine confscript2i_legacy(env,tim)
   use iomod
   use strucrd,only:coord2xyz,xyz2coord
   use utilities
+  use cregen_interface
   implicit none
   type(systemdata) :: env
   type(timer)   :: tim
