@@ -115,10 +115,13 @@ contains   !> MODULE PROCEDURES START HERE
         env%preopt = .false.
         env%crestver = crest_sp
         env%testnumgrad = .true.
-      case ('ancopt','optimize')
+      case ('ancopt','optimize','ohess')
         env%preopt = .false.
         env%crestver = crest_optimize
         env%optlev = 0.0_wp
+        if(val.eq.'ohess')then
+          env%crest_ohess=.true.
+        endif   
       case ('ancopt_ensemble','optimize_ensemble','mdopt')
         env%preopt = .false.
         env%crestver = crest_mdopt2
@@ -274,6 +277,7 @@ contains   !> MODULE PROCEDURES START HERE
 !>--- add ConfSolv as refinement level to give a ΔΔGsoln
     call env%addrefine(refine%ConfSolv)
     env%refine_presort = .true.
+    env%ewin = 100.0_wp
 
 !>--- parse the arguments
     do i = 1,blk%nkv

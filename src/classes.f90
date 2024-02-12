@@ -484,6 +484,7 @@ module crest_data
     logical :: compareens            !> try to correlate 2 given Ensemble files
     logical :: confgo                !> perform only the CREGEN routine ?
     logical :: constrain_solu        !> constrain the solute
+    logical :: crest_ohess = .false. !> append numerical Hessian after optimization
     logical :: doNMR                 !> determine NMR equivalencies in CREGEN ?
     logical :: dryrun = .false.      !> dryrun to print settings
     logical :: ENSO                  !> some options for usage of CREST within ENSO

@@ -201,10 +201,9 @@ subroutine parseflags(env,arg,nra)
   env%level = 1             !> full number of modes
   env%performMD = .true.    !do the MD in V1
   env%keepModef = .true.    !keep the MODEF* directories ate the end?
-  !>---some md defaults
+!>---some md defaults
   env%mdmode = 0            !1=qmdff, 0=normal md
-  env%mdtime = -1.0d0       !dummy argument, the actual MD length is set depending
-  !on the number of atoms and number of meta-MDs
+  env%mdtime = -1.0d0       !dummy argument, the actual MD length is set depending on the number of atoms and number of meta-MDs
   env%snapshots = 100       !number of snapshots to be taken from the MD
   env%temps = -1            !dummy argument for normMDs
   env%shake = 2             !SHAKE on
@@ -228,7 +227,7 @@ subroutine parseflags(env,arg,nra)
   env%s6opt = 20.0d0      !  "
   env%Maxrestart = 5       !maximum number of restarts
 
-!--- Settings for MTD-GC (V2)
+!>--- Settings for MTD-GC (V2)
   env%restartopt = .false.  !> jump to second iteration of the Multilevel optimization (V2 only)
   env%rotamermds = .true.   !> do some additional mds for the lowermost conformers in V2 (after first step of multilevel optimization)
   env%gcmultiopt = .true.   !> optimize in two steps after GC (loose/vtight) in V2 ? !SG
@@ -236,7 +235,7 @@ subroutine parseflags(env,arg,nra)
   env%metadynset = .false.  !> is the metadyn prepared? (V2)
   env%useqmdff = .false.    !> use qmdff for the MDs?
   env%iru = .false.         !> re-use previously found conformers as bias in iterative approach
-  !>--- array to determine if RMSD are included
+!>--- array to determine if RMSD are included
   env%keepModef = .false.   !> delete intermediate Directories
   env%nmetadyn = 0          !> number of METADYNs (dummy argument at this point; set later)
 
@@ -280,11 +279,9 @@ subroutine parseflags(env,arg,nra)
   env%ptb%protdeprot = .false. !> (tautomerize) do first protonation and then deprotonation
   env%ptb%deprotprot = .false. !> (tautomerize) do first deprotonation and then protonation
   env%ptb%strictPDT = .false.  !> strict mode (i.e. bond constraints) for (de)protonation,tautomerization
-  !call protreffrag(env)    !> ref. number of fragments in file
   env%pclean = .false.       !> cleanup option for property mode
 
 !>--- options for principal component analysis (PCA) and clustering
-  !env%pcmeasure='zmat'
   env%pcmeasure = 'dihedral'
 
 !>--- thermo options
@@ -295,6 +292,9 @@ subroutine parseflags(env,arg,nra)
   env%thermo%pcap = 50000   !> limit number of structures
   env%thermo%sthr = 25.0d0  !> rotor cutoff
   env%thermo%fscal = 1.0d0   !> frequency scaling factor
+
+!>--- other things
+  env%crest_ohess = .false.
 
 !>--- options for QCG
   env%cff = .true.
@@ -677,10 +677,11 @@ subroutine parseflags(env,arg,nra)
         env%legacy = .false.
         exit
 
-      case ('-opt','-optimize','-ancopt') !> ANCOPT structure optimization (uses new calculator routines)
+      case ('-opt','-optimize','-ancopt','-ohess') !> ANCOPT structure optimization (uses new calculator routines)
         env%preopt = .false.
         env%crestver = crest_optimize
         env%legacy = .false.
+        if(argument.eq.'-ohess') env%crest_ohess=.true.
         exit
 
       case ('-dynamics','-dyn') !> molecular dynamics (uses new calculator routines)
