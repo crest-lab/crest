@@ -149,6 +149,15 @@ subroutine crest_optimization(env,tim)
   deallocate (grad)
 !========================================================================================!
   call tim%stop(14)
+
+!========================================================================================!
+!>--- append numerical hessian calculation
+  if( io == 0 .and. env%crest_ohess )then
+    call env%ref%load(molnew)      !> load the optimized geometry
+    call crest_numhess(env,tim) !> run the numerical hessian
+  endif
+
+!========================================================================================!
   return
 end subroutine crest_optimization
 

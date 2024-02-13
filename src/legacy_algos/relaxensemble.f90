@@ -28,6 +28,7 @@ subroutine relaxensemble(fname,env,tim)
       use crest_data
       use strucrd
       use iomod
+      use cregen_interface
       implicit none
 
       character(len=*) :: fname

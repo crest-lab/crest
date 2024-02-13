@@ -829,6 +829,7 @@ subroutine cross3(env)
   use crest_data
   use iomod
   use utilities
+  use cregen_interface
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
   real(wp) :: ewinbackup
@@ -899,6 +900,7 @@ end subroutine cross3
 !---------------------------------------------------------------------
 subroutine confg_chk3(env)
   use crest_data
+  use cregen_interface 
   implicit none
   type(systemdata) :: env    !> MAIN SYSTEM DATA
 
@@ -1190,6 +1192,7 @@ subroutine emtdcopy(env,iter,stopiter,broken)
   use iomod
   use strucrd
   use utilities 
+  use cregen_interface
   implicit none
   type(systemdata) :: env
   integer :: iter,iter2

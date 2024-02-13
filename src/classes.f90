@@ -484,6 +484,7 @@ module crest_data
     logical :: compareens            !> try to correlate 2 given Ensemble files
     logical :: confgo                !> perform only the CREGEN routine ?
     logical :: constrain_solu        !> constrain the solute
+    logical :: crest_ohess = .false. !> append numerical Hessian after optimization
     logical :: doNMR                 !> determine NMR equivalencies in CREGEN ?
     logical :: dryrun = .false.      !> dryrun to print settings
     logical :: ENSO                  !> some options for usage of CREST within ENSO
@@ -537,6 +538,8 @@ module crest_data
     logical :: reweight = .false.    !> reweight structures on the fly after optimizations (i.e. do SPs)?
     logical :: riso = .false.        !> take only isomers in reactor mode
     logical :: rotamermds            !> do additional MDs after second  multilevel OPT step in V2 ?
+    logical :: refine_presort = .false.  !> run CREGEN at the beginning of crest_refine?
+    logical :: refine_esort   = .false.  !> if CREGEN is run after crest_refine, only sort energy?
     logical :: sameRandomNumber = .false. !> QCG related, choose same random number for iff
     logical :: scallen               !> scale the automatically determined MD length by some factor?
     logical :: scratch               !> use scratch directory

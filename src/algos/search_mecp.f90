@@ -6,6 +6,7 @@ subroutine crest_search_mecp(env,tim)
   use strucrd
   use dynamics_module
   use shake_module
+  use cregen_interface
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim

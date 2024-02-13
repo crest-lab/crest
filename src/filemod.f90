@@ -415,7 +415,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: lwidth
     character(len=*) :: fname
     integer :: ich,io
-    character(len=1024) :: str
+    character(len=5000) :: str
     open (newunit=ich,file=fname)
     lwidth = 0
     do

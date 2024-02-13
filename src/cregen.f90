@@ -31,14 +31,40 @@
 !=========================================================================================!
 !=========================================================================================!
 
-subroutine newcregen(env,quickset)
+module cregen_interface
+!*******************************************************
+!* module to load an interface to the newcregen routine
+!* mandatory to handle the optional input arguments
+!*******************************************************
+  implicit none
+  interface
+    subroutine newcregen(env,quickset,infile)
+      use crest_parameters
+      use crest_data
+      use crest_restartlog
+      use strucrd
+      implicit none
+      type(systemdata),intent(inout) :: env
+      integer,intent(in),optional :: quickset
+      character(len=*),intent(in),optional :: infile
+    end subroutine newcregen
+  end interface
+end module cregen_interface
+
+subroutine newcregen(env,quickset,infile)
+!****************************
+!* The main CREGEN routine
+!****************************
   use crest_parameters
   use crest_data
   use crest_restartlog
   use strucrd
   implicit none
-  type(systemdata) :: env      !> MAIN STORAGE OS SYSTEM DATA
-  integer,optional :: quickset !> quick access to predefined CREGEN modes
+  !> INPUT
+  type(systemdata),intent(inout) :: env   !> MAIN STORAGE OS SYSTEM DATA
+  integer,intent(in),optional :: quickset !> quick access to predefined CREGEN modes
+  character(len=*),intent(in),optional :: infile
+  !> LOCAL
   integer :: simpleset
   character(len=258) :: fname  !> input file
   character(len=258) :: oname  !> sorted output file
@@ -61,14 +87,8 @@ subroutine newcregen(env,quickset)
   integer,allocatable :: degen(:,:)
 
 !>--- float data
-  real(wp) :: ewin
-  real(wp) :: rthr
-  real(wp) :: bthr
-  real(wp) :: pthr
-  real(wp) :: ethr
-  real(wp) :: athr
-  real(wp) :: T
-  real(wp) :: couthr
+  real(wp) :: ewin,rthr,bthr,pthr,ethr,athr
+  real(wp) :: T,couthr
 
 !>--- boolean data
   logical :: checkbroken
@@ -83,6 +103,7 @@ subroutine newcregen(env,quickset)
   logical :: bonusfiles
   logical :: anal
   logical :: saveelow = .true.
+  logical :: userinput
 
 !>--- printout directions
   integer :: prch  !> the main printout channel
@@ -101,9 +122,18 @@ subroutine newcregen(env,quickset)
   end if
 
 !>-- determine filenames and output channel
-  call cregen_files(env,fname,oname,cname,simpleset,prch)
+  if (present(infile)) then
+    fname = trim(infile)
+    userinput = .true.
+  else
+    fname = trim(env%ensemblename)
+    userinput = .false.
+  end if
+  call cregen_files(env,fname,oname,cname,simpleset,userinput,prch)
+
 !>-- determine which printouts are required
   call cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
+
 !>-- determine which subroutines are required
   call cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
   &  repairord,newfile,conffile,bonusfiles,anal,topocheck,checkez)
@@ -275,7 +305,7 @@ end subroutine newcregen
 !=========================================================================================!
 !=========================================================================================!
 
-subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
+subroutine cregen_files(env,fname,oname,cname,simpleset,userinput,iounit)
 !*************************************************************
 !* subroutine cregen_files
 !* handle all settings regarding input and output file names
@@ -291,6 +321,7 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
   character(len=*) :: oname  !> output ensemble name (including rotamers)
   character(len=*) :: cname  !> output ensemble name (only conformers)
   integer,intent(in) :: simpleset
+  logical,intent(in) :: userinput !> was an input file given via the optional subroutine arg?
   integer,intent(out) :: iounit
   character(len=:),allocatable :: outfile
   logical :: ex
@@ -314,10 +345,12 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,iounit)
     open (newunit=iounit,file=outfile)
   end if
 
-  fname = trim(env%ensemblename)
-  if (env%confgo.and.(index(trim(fname),'none selected') .eq. 0)) then
-    fname = trim(env%ensemblename)
-    oname = trim(env%ensemblename)//'.sorted'
+  if ((env%confgo.and.(index(trim(fname),'none selected') .eq. 0)) &
+  &    .OR.userinput) then
+    if (.not.userinput) then
+      fname = trim(env%ensemblename)
+    end if
+    oname = trim(fname)//'.sorted'
     cname = 'crest_ensemble.xyz'
     if (env%fullcre) then
       env%ensemblename = trim(oname)
@@ -414,18 +447,18 @@ subroutine cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
   logical,intent(out) :: topocheck
   logical,intent(out) :: checkez
 
-  checkbroken = .true.  !fragmentized structures are sorted out
-  sortE = .true.  !sort based on energy
-  sortRMSD = .true.  !sort based on RMSD
-  sortRMSD2 = .false. !check groups for whole ensemble
-  repairord = .true.  !double-check the sorted Ensemble
+  checkbroken = .true. !> fragmentized structures are sorted out
+  sortE = .true.       !> sort based on energy
+  sortRMSD = .true.    !> sort based on RMSD
+  sortRMSD2 = .false.  !> check groups for whole ensemble
+  repairord = .true.   !> double-check the sorted Ensemble
 
-  newfile = .true.  !sorted input file
+  newfile = .true.  !> sorted input file
 
-  conffile = .true. !sorted unique structure file
+  conffile = .true. !> sorted unique structure file
 
-  topocheck = env%checktopo !topology is compared to reference structure
-  checkez = env%checkiso  !check for C=C cis/trans isomerizations
+  topocheck = env%checktopo !> topology is compared to reference structure
+  checkez = env%checkiso    !> check for C=C cis/trans isomerizations
   if (env%relax) then
     topocheck = .false.
   end if
@@ -514,10 +547,7 @@ subroutine cregen_filldata2(simpleset,ewin)
   implicit none
   integer,intent(in) :: simpleset
   real(wp),intent(out) :: ewin
-  if (simpleset == 6) then
-    ewin = 100000
-  end if
-  if (simpleset == 12) then
+  if (simpleset == 6.or.simpleset == 12) then
     ewin = huge(ewin)
   end if
   return
@@ -580,7 +610,7 @@ subroutine discardbroken(ch,env,topocheck,nat,nall,at,xyz,comments,newnall)
   real(wp),intent(inout) :: xyz(3,nat,nall)
   character(len=*),intent(inout) :: comments(nall)
   integer,intent(out) :: newnall
-  !> LOCAL 
+  !> LOCAL
   integer :: llan
   integer,allocatable :: order(:),orderref(:)
   integer :: nat0
@@ -841,9 +871,9 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
 
 contains
   subroutine nezcc(nat,at,xyz,cn,ntopo,topo,ncc)
-  !***************************************************
-  !* Check how many (potential) C=C bonds are present
-  !***************************************************
+    !***************************************************
+    !* Check how many (potential) C=C bonds are present
+    !***************************************************
     use crest_parameters
     integer,intent(in)  :: nat
     integer,intent(in)  :: at(nat)
@@ -877,9 +907,9 @@ contains
     return
   end subroutine nezcc
   subroutine ezccat(nat,at,xyz,cn,ntopo,topo,ncc,ezat)
-  !********************************************************
-  !* Check which atoms can be used for C=C dihedral angles
-  !********************************************************
+    !********************************************************
+    !* Check which atoms can be used for C=C dihedral angles
+    !********************************************************
     use crest_parameters
     integer,intent(in)  :: nat
     integer,intent(in)  :: at(nat)
@@ -935,9 +965,9 @@ contains
     return
   end subroutine ezccat
   subroutine ezccdihed(nat,xyz,ncc,ezat,ezdihed)
-  !********************************************************
-  !* Check which atoms can be used for C=C dihedral angles
-  !********************************************************
+    !********************************************************
+    !* Check which atoms can be used for C=C dihedral angles
+    !********************************************************
     use crest_parameters
     integer,intent(in)  :: nat
     real(wp),intent(in) :: xyz(3,nat)
@@ -2068,7 +2098,7 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
     if (k .gt. 2) then
       equiv(0,i,ig) = k    !> CH3 etc
     else
-      equiv(0,i,ig) = 1    !> this makes CH2-CH2 not mag. equiv. 
+      equiv(0,i,ig) = 1    !> this makes CH2-CH2 not mag. equiv.
     end if
   end do
   jnd = 1
@@ -2484,7 +2514,7 @@ end subroutine cregen_conffile
 
 subroutine cregen_rmsdalign(nat,nall,at,xyz)
 !*****************************************************
-!* Algin all structures in xyz to the first structure 
+!* Algin all structures in xyz to the first structure
 !* in the ensemble based on the heavy-atom RMSD
 !*****************************************************
   use crest_parameters,only:wp
