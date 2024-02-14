@@ -80,6 +80,7 @@ module crest_data
   integer,parameter,public :: crest_numhessian = 269
   integer,parameter,public :: crest_scanning   = 270
   integer,parameter,public :: crest_rigcon     = 271
+  integer,parameter,public :: crest_trialopt   = 272
 !>> <<!
   integer,parameter,public :: crest_test       = 456
 
