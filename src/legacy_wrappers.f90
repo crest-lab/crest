@@ -327,6 +327,7 @@ subroutine trialOPT(env)
 !* saved to env%ref and checks for changes in the topology
 !**********************************************************
   use crest_data
+  use crest_parameters, only: stdout
   implicit none
   !> INPUT
   type(systemdata) :: env
@@ -336,6 +337,12 @@ subroutine trialOPT(env)
   else
     call trialOPT_calculator(env)
   end if
+
+  if(env%crestver == crest_trialopt)then
+!>-- if we reach this point in the standalone trialopt the geometry is ok!
+   write(stdout,*)
+   stop 'Geometry ok!'
+  endif
 end subroutine trialOPT
 
 !================================================================================!

@@ -684,6 +684,11 @@ subroutine parseflags(env,arg,nra)
         if(argument.eq.'-ohess') env%crest_ohess=.true.
         exit
 
+      case ('-trialopt')  !> test optimization with topocheck
+        env%preopt = .false.
+        env%crestver = crest_trialopt
+        exit
+
       case ('-dynamics','-dyn') !> molecular dynamics (uses new calculator routines)
         env%preopt = .false.
         env%crestver = crest_moldyn
@@ -2043,7 +2048,7 @@ subroutine parseflags(env,arg,nra)
     env%autozsort = .false.
   end if
 
-  if (.not.env%preopt) then
+  if (.not.env%preopt .and. env%crestver.ne.crest_trialopt) then
     if (allocated(env%ref%topo)) deallocate (env%ref%topo)
   end if
 
@@ -2372,7 +2377,7 @@ subroutine inputcoords(env,arg)
   env%ref%ichrg = env%chrg
   env%ref%uhf = env%uhf
 !>-- topology save
-  if (any((/crest_mfmdgc,crest_imtd,crest_imtd2/) == env%crestver)) then
+  if (any((/crest_mfmdgc,crest_imtd,crest_imtd2,crest_trialopt/) == env%crestver)) then
     if (.not.env%autozsort) then
       env%ref%ntopo = mol%nat*(mol%nat+1)/2
       allocate (env%ref%topo(env%ref%ntopo))

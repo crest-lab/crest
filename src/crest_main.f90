@@ -285,6 +285,9 @@ program CREST
   case (crest_rigcon) !> rule-based conformer generation
     call crest_rigidconf(env,tim)
 
+  case (crest_trialopt) !> test optimization standalone
+    call trialOPT(env)    
+
   case (crest_test)
     call crest_playground(env,tim)
 
