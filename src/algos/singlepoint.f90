@@ -230,3 +230,96 @@ subroutine crest_xtbsp(env,xtblevel,molin)
   call mol%deallocate()
 end subroutine crest_xtbsp
 
+!========================================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!========================================================================================!
+subroutine crest_ensemble_singlepoints(env,tim)
+!***********************************************
+!* subroutine crest_ensemble_singlepoints
+!* This routine implements a standalone runtype
+!* to perform singlepoint evaluations along an
+!* ensemble or trajectory file.
+!***********************************************
+  use crest_parameters,only:wp,stdout,bohr,angstrom
+  use crest_data
+  use crest_calculator
+  use strucrd
+  use optimize_module
+  use utilities, only: dumpenergies
+  implicit none
+  type(systemdata),intent(inout) :: env
+  type(timer),intent(inout)      :: tim
+  type(coord) :: mol,molnew
+  integer :: i,j,k,l,io,ich,c
+  logical :: pr,wr,ex
+!========================================================================================!
+  type(calcdata) :: calc
+
+  real(wp) :: energy,gnorm
+  real(wp),allocatable :: grad(:,:)
+
+  character(len=:),allocatable :: ensnam
+  integer :: nat,nall
+  real(wp),allocatable :: eread(:)
+  real(wp),allocatable :: xyz(:,:,:)
+  integer,allocatable  :: at(:)
+  character(len=80) :: atmp
+  real(wp) :: percent
+  character(len=52) :: bar
+!========================================================================================!
+ write (*,*)
+!>--- check for the ensemble file
+  inquire (file=env%ensemblename,exist=ex)
+  if (ex) then
+    ensnam = env%ensemblename
+  else
+    write (stdout,*) 'no ensemble file provided.'
+    return
+  end if
+
+!>--- start the timer
+  call tim%start(14,'Ensemble singlepoints')
+
+!>---- read the input ensemble
+  call rdensembleparam(ensnam,nat,nall)
+  if (nall .lt. 1) return
+  allocate (xyz(3,nat,nall),at(nat),eread(nall))
+  call rdensemble(ensnam,nat,nall,at,xyz,eread)
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!>--- Important: crest_oloop requires coordinates in Bohrs
+  xyz = xyz / bohr
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+
+!>--- set OMP parallelization
+  if (env%autothreads) then
+    !>--- usually, one thread per xtb job
+    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
+  end if
+!========================================================================================!
+  !>--- printout header
+  write (stdout,*)
+  write (stdout,'(10x,"┍",49("━"),"┑")')
+  write (stdout,'(10x,"│",14x,a,14x,"│")') "ENSEMBLE SINGLEPOINTS"
+  write (stdout,'(10x,"┕",49("━"),"┙")')
+  write (stdout,*)
+  write (stdout,'(1x,a,i0,a,1x,a)') 'Evaluationg all ',nall,' structures of file',trim(ensnam)
+  !>--- call the loop
+  call crest_sploop(env,nat,nall,at,xyz,eread,.true.)
+
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!>--- Important: ensemble file must be written in AA
+  xyz = xyz / angstrom
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!>--- write output ensemble
+  call wrensemble(ensemblefile,nat,nall,at,xyz,eread)
+  write(stdout,'(/,a,a,a)') 'Ensemble with updated energies written to <',ensemblefile,'>'
+
+  call dumpenergies('crest.energies',eread)
+  write(stdout,'(/,a,a,a)') 'List of energies written to <','crest.energies','>' 
+
+  deallocate (eread,at,xyz)
+!========================================================================================!
+  call tim%stop(14)
+  return
+end subroutine crest_ensemble_singlepoints
+

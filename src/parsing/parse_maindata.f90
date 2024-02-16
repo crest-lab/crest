@@ -129,6 +129,10 @@ contains   !> MODULE PROCEDURES START HERE
       case ('screen_ensemble','screen')
         env%preopt = .false.
         env%crestver = crest_screen
+      case ('ensemble_singlepoints','ensemblesp','mdsp')
+        env%preopt = .false.
+        env%crestver = crest_ensemblesp
+
       case ('md','mtd','metadynamics','dynamics')
         env%preopt = .false.
         env%crestver = crest_moldyn

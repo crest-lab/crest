@@ -398,6 +398,20 @@ subroutine parseflags(env,arg,nra)
         env%inputcoords = env%ensemblename !just for a printout
         exit
 
+      case ('-mdsp','-ensemblesp') !> Singlepoints along ensemble
+        env%crestver = crest_ensemblesp
+        atmp = ''
+        env%preopt = .false.
+        env%ensemblename = 'none selected'
+        if (nra .ge. (i+1)) atmp = adjustl(arg(i+1))
+        if ((atmp(1:1) /= '-').and.(len_trim(atmp) .ge. 1)) then
+          env%ensemblename = trim(atmp)
+        end if
+        call xyz2coord(env%ensemblename,'coord') !> write coord from lowest structure
+        env%inputcoords = env%ensemblename !> just for a printout
+        exit
+
+
       case ('-pka','-pKa')  !> pKa calculation script
         env%crestver = crest_pka
         env%runver = 33
@@ -1037,7 +1051,9 @@ subroutine parseflags(env,arg,nra)
           env%mdstep = 1.5d0
           env%hmass = 5.0d0
           ctype = 5 !> bond constraint activated
-          bondconst = .true.
+          if (any((/crest_imtd,crest_imtd2/) == env%crestver)) then
+            bondconst = .true.
+          endif
           env%cts%cbonds_md = .true.
           env%checkiso = .true.
         case ('stereoisomers')
