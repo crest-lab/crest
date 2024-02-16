@@ -99,8 +99,8 @@ contains  !> MODULE PROCEDURES START HERE
       write (stdout,'(/,a,i0)') 'Shutting down http://localhost/',cs_port
       call kill(cs_pid,9,io)
       deallocate (cs_pid)
+      call cs_shutdown2(io)
     end if
-    call cs_shutdown2(io)
 
   end subroutine cs_shutdown
 
