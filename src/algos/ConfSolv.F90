@@ -405,7 +405,7 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: dum
     open(newunit=ich,file='confsolv.dat')
     do i = 1,nall
-      k = mapping(i)+2
+      k = mapping(i)+1
       write(ich,'(f15.8,1x,a)') gsoln(i),trim(headers(k))
     end do
     close(ich)
@@ -479,6 +479,7 @@ subroutine confsolv_request(ensname,nall,ncpus,gsoln,io)
   !> pass the user-defined solvents-csv, or do a single solvent
   if (allocated(cs_solvfile)) then
     write (stdout,'(2x,a,a)') 'Requested ΔΔGsoln for solvents in ',cs_solvfile
+    call parse_csv_file_column(cs_solvfile,1,headers)
   else
     if (allocated(cs_solvent).and.allocated(cs_smiles)) then
       write (stdout,'(2x,a,a,3a)') 'Requested ΔΔGsoln for ',cs_solvent,' (SMILES: ',trim(cs_smiles),')'
@@ -487,6 +488,7 @@ subroutine confsolv_request(ensname,nall,ncpus,gsoln,io)
       write (stdout,'(2x,a,a,a)') 'Requested ΔΔGsoln for ',cs_solvent,' (trying to find SMILES ...)'
       call cs_write_solvent_csv(cs_solvent)
     end if
+    allocate(headers(2), source=trim(cs_solvent))
   end if
   write (stdout,'(2x,a,a)') 'Processing ensemble file ',trim(ensname)
 
@@ -533,9 +535,8 @@ subroutine confsolv_request(ensname,nall,ncpus,gsoln,io)
   call parse_csv_allcolumns('confsolv.csv',data,cols=ncol,rows=nrow)
   write (stdout,*) 'done.'
   if (nrow == nall) then
-    allocate(mapping(nall))
+    if(.not.allocated(mapping)) allocate(mapping(nall))
     call confsolv_select_gsoln(nall,ncol,data,gsoln,mapping)
-    call parse_csv_file_row('confsolv.csv',1,headers)
     call confsolv_dump_gsoln(nall,ncol,gsoln,mapping,headers) 
   else
     write (stdout,'(a)') '**ERROR** dimension mismatch in confsolv_request'

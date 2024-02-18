@@ -166,9 +166,10 @@ contains  !> MODULE PROCEDURES START HERE
 
     if (debug) write (*,*) 'trying to get row elements',getrow
     if (getrow > 0.and.getrow <= nrow) then
+      write(*,*) ncol,l
       do i = 1,ncol
-        !if (debug) write(*,*) file%line(i)
-        row(i) = get_column_element(file%line(getrow),i)
+        write(*,*) trim(get_column_element(file%line(getrow),i) )
+        !row(i) = get_column_element(file%line(getrow),i)
         if (debug) write (*,*) trim(row(i))
       end do
     end if
