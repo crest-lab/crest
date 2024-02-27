@@ -27,6 +27,7 @@ add_subdirectory("rigidconf")
 add_subdirectory("discretize")
 add_subdirectory("entropy")
 add_subdirectory("legacy_algos")
+add_subdirectory("msreact")
 
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -59,8 +60,6 @@ list(APPEND srcs
   "${dir}/marqfit.f90"
   "${dir}/minitools.f90"
   "${dir}/miscdata.f90"
-  "${dir}/msmod.f90"
-  "${dir}/msreact.f90"
   "${dir}/ncigeo.f90"
   "${dir}/ompmklset.F90"
   "${dir}/printouts.f90"

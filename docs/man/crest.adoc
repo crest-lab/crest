@@ -275,6 +275,47 @@ The user is able to include additional constraints to **ALL** xtb**(1)** calcula
   Sum of population for structures considered in msRRHO average.
   [_default_: **0.9** (= 90%)]
 
+=== options for MSREACT automated mass spectra fragment generator
+
+    *-msreact*::
+      start the msreact mode
+
+    *-msnoattrh*::
+      deactivate attractive potential between hydrogen and LMO centers
+
+    *-msnshifts* _int_::  
+      perform n optimizations with randomly shifted atom postions (default 0)
+
+    *-msnshifts* _int_::  
+      perform n optimizations with randomly shifted atom postions and repulsive potential applied to bonds (default 0)
+
+    *-msnbonds* _int_::  
+      maximum number of bonds between atoms pairs for applying repulsive potential (default 3) 
+
+    *-msmolbar*::
+      sort out topological duplicates by molbar codes (requires  sourced "molbar")
+
+    *-msinchi*::
+      sort out topological duplicates by inchi codes (requires  sourced "obabel")
+
+    *-msnfrag* _int_:: 
+        number of fragments that are printed by msreact (random selection)
+    
+    *-msiso*::
+      print only non-dissociated structures (isomers)
+
+    *-msnoiso*::
+      print only dissociated structures
+
+    *-mslargeprint*::
+        do not remove temporary files and MSDIR with constrained optimizations
+
+    *-chrg* _int_:: 
+      set the molecules´ charge
+    
+    *-ewin* _float_::       
+      set energy window in for sorting out fragments kcal/mol, [default: 200.0 kcal/mol] 
+  
 === Other tools for standalone use
 
 *-zsort*::

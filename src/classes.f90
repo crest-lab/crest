@@ -471,6 +471,19 @@ module crest_data
     type(lwoniom_input),allocatable :: ONIOM_input
     !================================================!
 
+    !>--- msreact mode settings
+    logical :: msnoiso =.false. ! print only dissociated structures in msreact
+    logical :: msiso =.false. ! only print non-dissociated structures in msreact
+    logical :: msmolbar =.false. ! sort out duplicates by molbar
+    logical :: msinchi =.false. ! sort out duplicates by inchi
+    logical :: mslargeprint=.false. ! dont remove temporary files
+    logical :: msattrh=.true. ! add attractive potential for H-atoms
+    integer :: msnbonds = 3 ! distance of bonds up to nonds are stretched
+    integer :: msnshifts = 0 ! number of random shifts applied to whole mol
+    integer :: msnshifts2 = 0 ! number of random shifts applied to whole mol
+    integer :: msnfrag = 0 !number of fragments that are printed in msreact mode
+    character(len=80) :: msinput = '' !name of input file for msreact
+
     !>--- general logical data
     logical :: allrot = .true.       !> use all rotational constants for check instead of mean?
     logical :: altopt = .false.
@@ -567,7 +580,6 @@ module crest_data
     logical :: water = .false.       !> true if water is used as solvent (only QCG)
     logical :: wallsetup = .false.   !> set up a wall potential?
     logical :: wbotopo = .false.     !> set up topo with WBOs
-
   contains
     procedure :: allocate => allocate_metadyn
     procedure :: deallocate => deallocate_metadyn
