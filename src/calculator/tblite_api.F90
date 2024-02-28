@@ -173,7 +173,7 @@ contains  !>--- Module routines start here
     class(tblite_solvation_type),allocatable :: solv
     type(solvation_input),allocatable :: solv_inp
     type(solvent_data) :: solv_data
-    character(len=:),allocatable :: str
+    character(len=:),allocatable :: str,solvdum
     logical :: pr
 
     real(wp) :: etemp_au,energy
@@ -182,6 +182,8 @@ contains  !>--- Module routines start here
       return
     end if
 
+    !> special case: tblite dosen't know 'h2o', only 'water'
+
     pr = (ctx%verbosity > 0)
 
     !>--- make an mctcmol object from mol
@@ -189,7 +191,12 @@ contains  !>--- Module routines start here
 
     if(pr) call ctx%message("tblite> setting up tblite implicit solvation")
     !>--- generat solvation parametrization
-    solv_data = get_solvent_data(solvent)
+    if(solvent == 'h2o')then !> special case: tblite doesn't know 'h2o', only 'water' ...
+      solvdum = 'water'
+    else
+      solvdum = solvent
+    endif
+    solv_data = get_solvent_data(solvdum)
     if (solv_data%eps <= 0.0_wp) then
       if(pr) call ctx%message("tblite> Unknown solvent!")
       return
@@ -197,15 +204,15 @@ contains  !>--- Module routines start here
     allocate (solv_inp)
     select case (trim(smodel))
     case ('gbsa')
-      if(pr) call ctx%message("tblite> using GBSA/"//solvent)
+      if(pr) call ctx%message("tblite> using GBSA/"//solvdum)
       allocate (solv_inp%alpb)
       solv_inp%alpb = alpb_input(solv_data%eps,alpb=.false.)
     case ('cpcm')
-      if(pr) call ctx%message("tblite> using CPCM/"//solvent)
+      if(pr) call ctx%message("tblite> using CPCM/"//solvdum)
       allocate (solv_inp%cpcm)
       solv_inp%cpcm = cpcm_input(solv_data%eps)
     case ('alpb')
-      if(pr) call ctx%message("tblite> using ALPB/"//solvent)
+      if(pr) call ctx%message("tblite> using ALPB/"//solvdum)
       allocate (solv_inp%alpb)
       solv_inp%alpb = alpb_input(solv_data%eps,alpb=.true.)
     case default
