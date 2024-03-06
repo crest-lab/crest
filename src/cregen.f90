@@ -28,6 +28,7 @@
 !>              6 - energy sorting only
 !>              9 - no sorting, only check groups
 !>             12 - no topology check, turn ewin to infty
+!>             13 - no topology check, ewin and rmsd checking (msreact settings)
 !=========================================================================================!
 !=========================================================================================!
 
@@ -364,6 +365,11 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,userinput,iounit)
     oname = "crest_mecp_search.xyz.sorted"
     cname = "crest_ensemble.xyz"
   end if
+  if (simpleset == 13) then !> MSREACT files
+    fname = "crest_unique_products.xyz"
+    oname = "crest_unique_products.sorted"
+    cname = "crest_msreact_products.xyz"
+  end if
   if (simpleset == 15) then !> crossing files
     call checkname_xyz('confcross',fname,oname)
     cname = trim(fname)//'.unique'
@@ -418,6 +424,13 @@ subroutine cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
     pr2 = .false.
     pr3 = .false.
     pr4 = .true.
+  end if
+
+  if (simpleset == 13) then
+    pr1 = .false.
+    pr2 = .false.
+    pr3 = .false.
+    pr4 = .false.
   end if
 
   return
@@ -514,6 +527,21 @@ subroutine cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
     bonusfiles = .false.
     anal = .false.
   end if
+
+  if(simpleset == 13)then  !msreact mode 
+    checkbroken = .false.
+    sorte = .true.
+    sortRMSD = .true.
+    sortRMSD2 = .false.
+    repairord = .false.
+    newfile = .true.
+    conffile = .true.
+    topocheck = .false.
+    checkez = .false.
+    bonusfiles= .false.
+    anal = .false.
+
+  endif    
 
   return
 end subroutine cregen_director

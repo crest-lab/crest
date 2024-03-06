@@ -299,7 +299,34 @@ subroutine confscript_morehelp(flag)
     write (*,'(5x,''-freqscal          : defines frequency scale factor. Only for outprint'')')
     write (*,'(5x,''-freqlvl [method]  : define a method for frequency computation. All gfn versions are supported'')')
     write (*,*)
-
+ 
+  case('msreact')
+    write (*,'(1x,'' mass spectral fragment generator (msreact)'')')
+    write (*,'(1x,''General usage :'')')
+    write (*,'(5x,''<input> -msreact [options]'')')
+    write (*,'(1x,''options:'')')
+    write(*,'(5x,''-msnoattrh           : deactivate attractive potential between hydrogen and LMO centers)'')')
+    write(*,'(5x,''-msnshifts [int]     : perform n optimizations with randomly shifted atom postions (default 0) '')')
+    write(*,'(5x,''-msnshifts2 [int]    : perform n optimizations with randomly shifted atom postions and repulsive potential applied to bonds (default 0) '')')
+    write(*,'(5x ''-msnbonds [int]      : maximum number of bonds between atoms pairs for applying repulsive potential (default 3)'')')
+    write(*,'(5x,''-msmolbar            : sort out topological duplicates by molbar codes (requires  sourced "molbar")'')')
+    write(*,'(5x,''-msinchi             : sort out topological duplicates by inchi codes (requires  sourced "obabel")'')')
+    write(*,'(5x ''-msnfrag [int]       : number of fragments that are printed by msreact (random selection)'')')
+    write(*,'(5x,''-msiso               : print only non-dissociated structures (isomers)'')')
+    write(*,'(5x,''-msnoiso             : print only dissociated structures'')')
+    write(*,'(5x,''-mslargeprint        : do not remove temporary files and MSDIR do not remove temporary files and MSDIR with constrained optimizations'')')
+    write (*,'(5x,''-chrg <int>         : set the molecules´ charge'')')
+    write (*,'(5x,''-ewin <real>        : set energy window in for sorting out fragments kcal/mol,'')')
+    write (*,'(5x,''                     [default: 200.0 kcal/mol] '')')
+    write (*,'(5x,''-msinput <file>     : read in an input file with special settings for msreact'')')
+    write (*,'(5x,''keywords for inputfile:'')')
+    write (*,'(5x,'' fragdist <real>     : increase distance between fragments xyz structures (default 0 Angstrom) '')')
+    write (*,'(5x,'' atomshift <real>    :  shift of atoms in random atom displacement (default 0.75 Angstrom)'')')
+    write (*,'(5x,'' distthr_attr <real> : distance threshold in Angstrom for H-LMO attraction (default 4.0 Angstrom) '')')
+    write (*,'(5x,'' fc_rep <real>       : force constant for repulsive potential between atom pairs (default 0.5) '')')
+    write (*,'(5x,'' fc_attr <real>      : force constant for attractive potential between hydrogen and LMO centers (default -0.5) '')')
+    write (*,'(5x,'' etemp <real>        : electronic temperature in xTB optimizations'')')
+    
   case ('other')
     write (*,'(1x,''Other tools for standalone use:'')')
     write (*,'(5x,''-zsort             : use only the zsort subroutine'')')
@@ -501,6 +528,27 @@ subroutine qcg_head()
   write (*,'(/,3x,''S. Spicher, C. Plett, P. Pracht, A. Hansen, S. Grimme, JCTC, 2022, 18, 3174-3189.'')')
   write (*,*)
 end subroutine qcg_head
+
+!========================================================================================!
+
+subroutine msreact_head()
+    implicit none
+    write (*,*)
+    write (*,'(2x,''========================================'')')
+    write (*,'(2x,''|                                      |'')')
+    write (*,'(2x,''|               MSREACT                |'')')
+    write (*,'(2x,''| automated MS fragment generator      |'')')
+    write (*,'(2x,''|                                      |'')')
+    write (*,'(2x,''|       University of Bonn, MCTC       |'')')
+    write (*,'(2x,''========================================'')')
+    write (*,'(2x,'' S. Grimme, P. Pracht, J. Gorges.'')')
+    write (*,*)
+    write (*,'(3x,''Cite work conducted with this code as'')')
+    write (*,'(/,3x,''Philipp Pracht, Stefan Grimme, Christoph Bannwarth, Fabian Bohle, Sebastian Ehlert, Gereon Feldmann,'')')
+    write (*,'(3x,''Johannes Gorges, Marcel Müller, Tim Neudecker, Christoph Plett, Sebastian Spicher, Pit Steinbach,'')')
+    write (*,'(3x,''Patryk A. Wesolowski, and Felix Zeller J. Chem. Phys., 2024, submitted.'')')
+    write (*,*)
+  end subroutine msreact_head
 
 !========================================================================================!
 

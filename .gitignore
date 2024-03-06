@@ -1,6 +1,8 @@
 *.o
 *.mod
 *.tgz
+*.i90
+*__genmod.f90
 github_bin/
 build_majestix
 build_commands

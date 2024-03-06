@@ -305,6 +305,17 @@ subroutine parseflags(env,arg,nra)
   env%solv_file = ''
   env%solu_file = ''
 
+!>--- options for msreact
+  env%msiso = .false.  ! msiso and msnoiso are mutually exclusive !!!
+  env%msnoiso = .false.
+  env%msmolbar = .false.
+  env%mslargeprint=.false. ! dont remove temporary files
+  env%msattrh=.true. ! add attractive potential for H-atoms
+  env%msnbonds = 3 ! distance of bonds up to nonds are stretched
+  env%msnshifts = 0 ! number of random shifts applied to whole mol
+  env%msnshifts2 = 0 ! number of random shifts applied to whole mol
+  env%msnfrag = 0 !number of fragments that are printed in msreact mode
+
 !&>
 
 !=========================================================================================!
@@ -536,10 +547,11 @@ subroutine parseflags(env,arg,nra)
         env%autozsort = .false.
         exit
 
-      case ('-msreact')
+    case ('-msreact')
         env%crestver = crest_msreac
         env%preopt = .false.
         env%presp = .true.
+        env%ewin = 200.0d0 !> 200 kcal for msreact
 
       case ('-splitfile')
         ctmp = trim(arg(i+1))
@@ -1006,6 +1018,43 @@ subroutine parseflags(env,arg,nra)
           call readl(arg(i+1),xx,j)
           env%shake = nint(xx(1))
         end select !> QCG
+      end if
+
+!========================================================================================!
+!------- Flags for msreact
+!========================================================================================!
+      if (env%crestver == crest_msreac) then
+        select case (argument) !> msreact
+        case('-msnoiso') !> filter out non fragmentated structures in msreact
+          env%msnoiso=.true.
+        case('-msiso') !> filter out fragmentated structures in msreact
+          env%msiso=.true.
+        case('-msnbonds') ! give number of bonds up to which bias potential is added between atoms default 3
+          call readl(arg(i + 1),xx,j)
+          env%msnbonds = xx(1)
+        case('-msnshifts') ! give number of times atoms are randomly shifted before optimization
+          call readl(arg(i + 1),xx,j)
+          env%msnshifts = xx(1)
+        case('-msnshifts2') ! give number of times atoms are randomly shifted before applying the constrained optimization default 0 
+          call readl(arg(i + 1),xx,j)
+          env%msnshifts2 = xx(1)
+        case('-msnfrag') ! give number of structures that should be generated
+          call readl(arg(i + 1),xx,j)
+          env%msnfrag = xx(1)
+        case('-msmolbar') !> filter out structures with same molbar code in msreact
+          env%msmolbar=.true.
+        case('-msinchi') !> filter out structures with same inchi code in msreact
+            env%msinchi=.true.
+        case('-msnoattrh') !> add attractive potential for H-atoms
+          env%msattrh=.false.
+        case('-mslargeprint') !> additional printouts and keep MSDIR
+          env%mslargeprint=.true.
+        case('-msinput') ! give number of times atoms are randomly shifted before applying the constrained optimization default 0 
+            ctmp = trim(arg(i+1))
+            if (ctmp(1:1) .ne. '-') then
+              env%msinput = trim(ctmp)
+            end if
+        end select !> msreact
       end if
 !========================================================================================!
 !------- other general flags

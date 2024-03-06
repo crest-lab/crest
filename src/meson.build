@@ -26,6 +26,7 @@ subdir('rigidconf')
 subdir('discretize')
 subdir('entropy')
 subdir('legacy_algos')
+subdir('msreact')
 
 
 srcs += files(
@@ -56,8 +57,6 @@ srcs += files(
   'marqfit.f90',
   'minitools.f90',
   'miscdata.f90',
-  'msmod.f90',
-  'msreact.f90',
   'ncigeo.f90',
   'ompmklset.F90',
   'printouts.f90',
