@@ -17,6 +17,7 @@
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules;${CMAKE_MODULE_PATH}")
 
 # Options for enabling or disabling features
+option(STATICLINK "Build a static binary" ON)
 option(WITH_OPENMP "Enable OpenMP support" ON)
 option(WITH_TBLITE "Enable support for tblite" OFF)
 option(WITH_TOMLF "Enable support for toml-f" OFF)
@@ -46,13 +47,14 @@ set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}")
 
 # Handling dependencies and features
 
-# Find LAPACK
+# Find LAPACK & BLAS
+if(STATICLINK)
+  set(BLA_STATIC ON)
+endif()
 find_package(LAPACK REQUIRED)
 if(LAPACK_FOUND)
   list(APPEND libs ${LAPACK_LIBRARIES})
 endif()
-
-# Find BLAS
 find_package(BLAS REQUIRED)
 if(BLAS_FOUND)
   list(APPEND libs ${BLAS_LIBRARIES})
@@ -63,7 +65,7 @@ if(WITH_OPENMP)
   find_package(OpenMP REQUIRED)
   if(OpenMP_Fortran_FOUND)
     #list(APPEND libs OpenMP::OpenMP_Fortran)
-    list(APPEND libs ${OpenMP_Fortran_LIBRARIES})
+    list(APPEND omp ${OpenMP_Fortran_LIBRARIES})
   endif()
 endif()
 
@@ -99,11 +101,10 @@ endif()
 
 # GFN-FF
 if(WITH_GFNFF)
-  find_package(GFNFF REQUIRED)
-  if(GFNFF_FOUND)
+  find_package("gfnff" REQUIRED)
+  if(gfnff_FOUND)
     add_definitions(-DWITH_GFNFF)
-    include_directories(${GFNFF_INCLUDE_DIRS})
-    list(APPEND libs ${GFNFF_LIBRARIES})
+    list(APPEND libs gfnff::gfnff)
   endif()
 endif()
 
@@ -128,6 +129,7 @@ if(WITH_XHCFF)
 endif()
 
 # IMPORTANT
+set(omp ${omp} PARENT_SCOPE)
 set(libs ${libs} PARENT_SCOPE)
 
 ##########################################################################################
@@ -167,5 +169,3 @@ configure_file(
 
 #########################################################################################
 #########################################################################################
-
-

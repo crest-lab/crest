@@ -22,13 +22,16 @@ if(NOT DEFINED "${_pkg}_FIND_METHOD")
   if(DEFINED "${PROJECT_NAME}-dependency-method")
     set("${_pkg}_FIND_METHOD" "${${PROJECT_NAME}-dependency-method}")
   else()
-    set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")
+    #set("${_pkg}_FIND_METHOD" "cmake" "pkgconf" "subproject" "fetch")
+    set("${_pkg}_FIND_METHOD" "subproject" "fetch") 
   endif()
   set("_${_pkg}_FIND_METHOD")
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/crest-utils.cmake")
 
+
+message(STATUS "${${_pkg}_FIND_METHOD}")
 crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
 
 if(TARGET "gfnff::gfnff")
@@ -36,7 +39,7 @@ if(TARGET "gfnff::gfnff")
 else()
   set (found FALSE)
 endif()
-message("-- Found GFN-FF: ${found}")
+message(STATUS "Found GFN-FF: ${found}")
 
 if(DEFINED "_${_pkg}_FIND_METHOD")
   unset("${_pkg}_FIND_METHOD")

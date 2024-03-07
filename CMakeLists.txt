@@ -16,7 +16,6 @@ set(prog)  # src/crest_main.f90 will be added
 add_subdirectory(src)    # Source files
 
 
-
 # Define executable with the main program source included
 add_executable(${PROJECT_NAME} ${prog} ${srcs})
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -25,8 +24,17 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
   OUTPUT_NAME ${PROJECT_NAME}
 )
 
+
 # Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE ${libs})
+if(STATICLINK)
+#  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+#  set(BUILD_SHARED_LIBS OFF)
+#  set(CMAKE_EXE_LINKER_FLAGS "-static")
+  message(STATUS "STATIC build requested")
+  target_link_libraries(${PROJECT_NAME} PRIVATE -static ${libs})
+else()
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${libs})
+endif()
 
 # Installation rules for the executable
 install(TARGETS ${PROJECT_NAME}
