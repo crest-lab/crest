@@ -63,6 +63,14 @@ subroutine protonate(env,tim)
 
   logical :: ex
 
+  interface
+    subroutine xtblmo(env, print)
+      import :: systemdata
+      type(systemdata) :: env
+      logical, optional :: print
+    end subroutine xtblmo
+  end interface
+
 !--- printout & clean directory
   call protclean
   call prothead
@@ -87,7 +95,7 @@ subroutine protonate(env,tim)
 
 !--- do the xTB calculation for the LMOs
   call tim%start(1,'LMO calc.')
-  call xtblmo(env)
+  call xtblmo(env,.true.)
   call tim%stop(1)
   inquire (file='coordprot.0',exist=ex)
   if (.not.ex) then
