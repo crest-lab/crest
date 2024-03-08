@@ -77,7 +77,26 @@ For more information about builds including subprojects see [here](./subprojects
 
 Some basic build instructions can be found in the following dropdown tabs:
 
+
+
 <details open>
+<summary><h4><code>CMake</code> build</h4></summary>
+<!-- blank line to recover markdown format-->
+
+Building CREST with CMake works with the following chain of commands (in this example with `gfortran/gcc` compilers):
+```bash
+export FC=gfortran CC=gcc
+cmake -B _build -DCMAKE_BUILD_TYPE=Release
+```
+and then to build the CREST binary
+```bash
+make -C _build
+```
+
+The `CMake` build typically requires access to shared libraries of LAPACK and OpenMP. They must be present in the library paths at compile and runtime.
+</details>
+
+<details>
 <summary><h4><code>meson</code> build</h4></summary>
 <!-- blank line to recover markdown format-->
 
@@ -97,25 +116,6 @@ When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to th
 By default the `meson` build will create a **statically** linked binary.
 </details>
 
-<details>
-<summary><h4><code>CMake</code> build</h4></summary>
-<!-- blank line to recover markdown format-->
-
-For the setup of CMake see also the [CMake setup](https://github.com/grimme-lab/xtb/blob/master/cmake/README.adoc) page hosted at the `xtb` repository.
-Building CREST with CMake works with the following chain of commands:
-```bash
-export FC=gfortran CC=gcc
-cmake -B _build -DCMAKE_BUILD_TYPE=Release
-```
-and then to build the CREST binary
-```bash
-make -C _build
-```
-
-The CMake build of CREST is focused on and tested with the GNU `gfortran`/`gcc` compilers. The Intel compilers could technically be used as well, but in our experience the respective build is more fragile than its static `meson` counterpart.
-
-By default the `CMake` build will create a **dynamically** linked binary.
-</details>
 
 <details>
 <summary><h4>Conda build</h4></summary>
