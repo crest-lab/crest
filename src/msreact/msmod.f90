@@ -356,7 +356,7 @@ contains  !> MODULE PROCEDURES START HERE
     close (ich)
     basicatlist = pack(dumlist,dumlist .ne. 0) ! sort out zeroes
     nbaseat = size(basicatlist)
-    write (*,"('Protonation sites at atom positions:', *(i))") (basicatlist(i),i=1,nbaseat)
+    write (*,"('Protonation sites at atom positions:', *(i5))") (basicatlist(i),i=1,nbaseat)
     call remove('xtb.out')
   end subroutine readbasicpos
 
@@ -583,7 +583,7 @@ contains  !> MODULE PROCEDURES START HERE
     ! molbar on multiple core is faster but was unstable in some cases, single core more stable
     !write(jobcall,'(a)') 'molbar *temp.xyz -s  > molbar.out'
 
-    write (jobcall,'(a,i,a)') 'molbar *temp.xyz -s -T ',env%threads,' > molbar.out'
+    write (jobcall,'(a,i0,a)') 'molbar *temp.xyz -s -T ',env%threads,' > molbar.out'
     write (*,*) "Calling molbar for sorting out duplicates by molbar"
 
     call execute_command_line(trim(jobcall))
