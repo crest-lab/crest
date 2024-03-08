@@ -32,7 +32,7 @@ subroutine cregen2(env)
       use axis_module
       use miscdata, only: rcov
       use utilities
-   !$ use omp_lib
+      use omp_lib
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
 

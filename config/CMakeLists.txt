@@ -13,21 +13,34 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
+# Set the module path for CMake includes
 
+#########################################################################################
+#########################################################################################
+# Add modules to the CMake build 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" PARENT_SCOPE)
+
+# specify module installation directory
 install(
   DIRECTORY
   "${CMAKE_CURRENT_SOURCE_DIR}/modules/"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
 )
 
-set(
-  module-dir
-  "${PROJECT_NAME}/${CMAKE_Fortran_COMPILER_ID}-${CMAKE_Fortran_COMPILER_VERSION}"
-)
-set(module-dir "${module-dir}" PARENT_SCOPE)
+# Options for enabling or disabling features
+option(WITH_OpenMP  "Enable OpenMP support"       TRUE)
+option(WITH_TBLITE  "Enable support for tblite"   TRUE)
+option(WITH_TOMLF   "Enable support for toml-f"   TRUE)
+option(WITH_GFN0    "Enable support for GFN0-xTB" TRUE)
+option(WITH_GFNFF   "Enable support for GFN-FF"   TRUE)
+option(WITH_XHCFF   "Enable support for XHCFF"    FALSE)
+option(WITH_LWONIOM "Enable support for lwONIOM"  TRUE)
 
+option(STATICBUILD  "Attempt to link everything statically" FALSE) # doesn't work yet
+
+#########################################################################################
+#########################################################################################
 
 # Set build type as CMake does not provide defaults
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -42,57 +55,28 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   )
 endif()
 
+#########################################################################################
+#########################################################################################
 
-### Options and defaults
-
-include("${CMAKE_CURRENT_SOURCE_DIR}/modules/crest-utils.cmake")
-set(fortran_minimal_versions "GNU;7.5" "Intel;19.0")
-check_minimal_compiler_version("Fortran" "${fortran_minimal_versions}")
-
-option(WITH_OpenMP "Enable support for shared memory parallelisation with OpenMP" TRUE)
-
-option(WITH_TBLITE "Enable build with the lightweight tight-binding library" TRUE)
-
-option(WITH_TOMLF "Enable build with toml-f support" TRUE)
-
-option(WITH_GFN0 "Enable build with GFN0-xTB support" TRUE)
-
-option(WITH_GFNFF "Enable build with GFN-FF support" TRUE)
-
-option(WITH_XHCFF "Enable build with XHCFF support" FALSE)
-
-option(WITH_LWONIOM "Enable build with lwONIOM support" TRUE)
-
-if(NOT DEFINED "${PROJECT_NAME}-dependency-method")
-  set(
-    "${PROJECT_NAME}-dependency-method"
-    "subproject" "cmake" "pkgconf" "fetch"
-  )
-endif()
-
-#
-# Compiler settings
-#
+# Compiler settings for GNU and Intel Fortran compilers
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
-#  set(dialect "-fdefault-real-8 -fdefault-double-8 -ffree-line-length-none -fbacktrace")
   set(dialect "-g -O0 -fbacktrace -ffree-line-length-none -fbacktrace")
-  set(bounds "-fbounds-check")
+  set(bounds "-fbounds-check -ffpe-trap=invalid,zero,overflow")
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+  set(dialect "-g -O2 -r8 -align array64byte -traceback")
+  set(bounds "-check all -fpe0")
+else()
+  message(FATAL_ERROR "Please use an Intel or GNU compiler!")
 endif()
-if(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
-#  set(dialect "-axAVX2 -r8 -traceback")
-  set(dialect "-g -O2 -r8 -align array64byte -traceback") 
-  set(bounds "-check bounds")
-endif()
-if(CMAKE_Fortran_COMPILER_ID MATCHES "PGI")
-  set(dialect "-Mbackslash -Mallocatable=03 -r8 -traceback")
-endif()
+
+# Apply the compiler flags
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SCOPE)
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}" PARENT_SCOPE)
 
+#########################################################################################
+#########################################################################################
 
-#
 # Populate crest_metadata.fh
-#
 set(version ${PROJECT_VERSION}${SOVERSION})
 execute_process(COMMAND git show -s --format=%h
   RESULT_VARIABLE git_return
@@ -111,7 +95,7 @@ set(fcver ${CMAKE_Fortran_COMPILER_VERSION})
 set(ccid ${CMAKE_C_COMPILER_ID})
 set(ccver ${CMAKE_C_COMPILER_VERSION})
 set(bsystem "cmake ${CMAKE_VERSION}")
-set(tomlfvar "${WITH_TOMLF}")#string(TOLOWER "${MY_BOOL}" ${WITH_TOMLF}))
+set(tomlfvar "${WITH_TOMLF}")
 set(gfn0var "${WITH_GFN0}")
 set(gfnffvar "${WITH_GFNFF}")
 set(tblitevar "${WITH_TBLITE}")
@@ -123,12 +107,6 @@ configure_file(
   "${PROJECT_BINARY_DIR}/crest_metadata.fh"
   @ONLY
 )
-# gfortran needs the file at another place...
-configure_file(
-  "${PROJECT_SOURCE_DIR}/assets/template/metadata.f90"
-  "${PROJECT_BINARY_DIR}/include/crest_metadata.fh"
-  @ONLY
-)
 
-
-
+#########################################################################################
+#########################################################################################
