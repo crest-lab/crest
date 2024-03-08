@@ -10,4 +10,4 @@ character(len=*),parameter :: gfn0var = "@gfn0var@"
 character(len=*),parameter :: gfnffvar = "@gfnffvar@"
 character(len=*),parameter :: tblitevar = "@tblitevar@"
 character(len=*),parameter :: xhcffvar = "@xhcffvar@"
-
+character(len=*),parameter :: lwoniomvar = "@lwoniomvar@"

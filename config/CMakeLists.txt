@@ -14,17 +14,46 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 # Set the module path for CMake includes
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules;${CMAKE_MODULE_PATH}")
+
+#########################################################################################
+#########################################################################################
+# Add modules to the CMake build 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/modules")
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" PARENT_SCOPE)
+
+# specify module installation directory
+install(
+  DIRECTORY
+  "${CMAKE_CURRENT_SOURCE_DIR}/modules/"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+)
 
 # Options for enabling or disabling features
-option(STATICLINK "Build a static binary" ON)
-option(WITH_OPENMP "Enable OpenMP support" ON)
-option(WITH_TBLITE "Enable support for tblite" OFF)
-option(WITH_TOMLF "Enable support for toml-f" OFF)
-option(WITH_GFN0 "Enable support for GFN0-xTB" OFF)
-option(WITH_GFNFF "Enable support for GFN-FF" OFF)
-option(WITH_XHCFF "Enable support for XHCFF" OFF)
-option(WITH_LWONIOM "Enable support for lwONIOM" OFF)
+option(WITH_OpenMP  "Enable OpenMP support"       TRUE)
+option(WITH_TBLITE  "Enable support for tblite"   TRUE)
+option(WITH_TOMLF   "Enable support for toml-f"   TRUE)
+option(WITH_GFN0    "Enable support for GFN0-xTB" TRUE)
+option(WITH_GFNFF   "Enable support for GFN-FF"   TRUE)
+option(WITH_XHCFF   "Enable support for XHCFF"    FALSE)
+option(WITH_LWONIOM "Enable support for lwONIOM"  TRUE)
+
+option(STATICBUILD  "Attempt to link everything statically" FALSE) # doesn't work yet
+
+#########################################################################################
+#########################################################################################
+
+# Set build type as CMake does not provide defaults
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(
+    CMAKE_BUILD_TYPE "RelWithDebInfo"
+    CACHE STRING "Build type to be used."
+    FORCE
+  )
+  message(
+    STATUS
+    "Setting build type to '${CMAKE_BUILD_TYPE}' as none was specified."
+  )
+endif()
 
 #########################################################################################
 #########################################################################################
@@ -32,108 +61,20 @@ option(WITH_LWONIOM "Enable support for lwONIOM" OFF)
 # Compiler settings for GNU and Intel Fortran compilers
 if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU")
   set(dialect "-g -O0 -fbacktrace -ffree-line-length-none -fbacktrace")
-  set(bounds "-fbounds-check")
+  set(bounds "-fbounds-check -ffpe-trap=invalid,zero,overflow")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
   set(dialect "-g -O2 -r8 -align array64byte -traceback")
-  set(bounds "-check bounds")
+  set(bounds "-check all -fpe0")
+else()
+  message(FATAL_ERROR "Please use an Intel or GNU compiler!")
 endif()
 
 # Apply the compiler flags
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}")
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}")
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${bounds}" PARENT_SCOPE)
+set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${dialect}" PARENT_SCOPE)
 
 #########################################################################################
 #########################################################################################
-
-# Handling dependencies and features
-
-# Find LAPACK & BLAS
-if(STATICLINK)
-  set(BLA_STATIC ON)
-endif()
-find_package(LAPACK REQUIRED)
-if(LAPACK_FOUND)
-  list(APPEND libs ${LAPACK_LIBRARIES})
-endif()
-find_package(BLAS REQUIRED)
-if(BLAS_FOUND)
-  list(APPEND libs ${BLAS_LIBRARIES})
-endif()
-
-# OpenMP
-if(WITH_OPENMP)
-  find_package(OpenMP REQUIRED)
-  if(OpenMP_Fortran_FOUND)
-    #list(APPEND libs OpenMP::OpenMP_Fortran)
-    list(APPEND omp ${OpenMP_Fortran_LIBRARIES})
-  endif()
-endif()
-
-# tblite
-if(WITH_TBLITE)
-  find_package(tblite REQUIRED)
-  if(tblite_FOUND)
-    add_definitions(-DWITH_TBLITE)
-    include_directories(${tblite_INCLUDE_DIRS})
-    list(APPEND libs ${tblite_LIBRARIES})
-  endif()
-endif()
-
-# toml-f
-if(WITH_TOMLF)
-  find_package(toml-f REQUIRED)
-  if(toml-f_FOUND)
-    add_definitions(-DWITH_TOMLF)
-    include_directories(${toml-f_INCLUDE_DIRS})
-    list(APPEND libs ${tomlf_LIBRARIES})
-  endif()
-endif()
-
-# GFN0-xTB
-if(WITH_GFN0)
-  find_package(GFN0 REQUIRED)
-  if(GFN0_FOUND)
-    add_definitions(-DWITH_GFN0)
-    include_directories(${GFN0_INCLUDE_DIRS})
-    list(APPEND libs ${GFN0_LIBRARIES})
-  endif()
-endif()
-
-# GFN-FF
-if(WITH_GFNFF)
-  find_package("gfnff" REQUIRED)
-  if(gfnff_FOUND)
-    add_definitions(-DWITH_GFNFF)
-    list(APPEND libs gfnff::gfnff)
-  endif()
-endif()
-
-# lwONIOM
-if(WITH_LWONIOM)
-  find_package(LWONIOM REQUIRED)
-  if(LWONIOM_FOUND)
-    add_definitions(-DWITH_LWONIOM)
-    include_directories(${LWONIOM_INCLUDE_DIRS})
-    list(APPEND libs ${LWONIOM_LIBRARIES})
-  endif()
-endif()
-
-# XHCFF
-if(WITH_XHCFF)
-  find_package(XHCFF REQUIRED)
-  if(XHCFF_FOUND)
-    add_definitions(-DWITH_XHCFF)
-    include_directories(${XHCFF_INCLUDE_DIRS})
-    list(APPEND libs ${XHCFF_LIBRARIES})
-  endif()
-endif()
-
-# IMPORTANT
-set(omp ${omp} PARENT_SCOPE)
-set(libs ${libs} PARENT_SCOPE)
-
-##########################################################################################
-##########################################################################################
 
 # Populate crest_metadata.fh
 set(version ${PROJECT_VERSION}${SOVERSION})

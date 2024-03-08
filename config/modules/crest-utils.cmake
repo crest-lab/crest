@@ -14,6 +14,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
+#########################################################################################
+#########################################################################################
+
 # Handling of subproject dependencies
 macro(
   "crest_find_package"
@@ -24,12 +27,17 @@ macro(
   string(TOLOWER "${package}" _pkg_lc)
   string(TOUPPER "${package}" _pkg_uc)
 
+
+  # iterate through lookup types in order
   foreach(method ${methods})
 
     if(TARGET "${package}::${package}")
       break()
     endif()
 
+#########################################################################################
+
+    # look for a <package>-config.cmake on the system 
     if("${method}" STREQUAL "cmake")
       if(DEFINED "${_pkg_uc}_DIR")
         set("_${_pkg_uc}_DIR")
@@ -42,6 +50,9 @@ macro(
       endif()
     endif()
 
+#########################################################################################
+
+    # look for dependency via pkgconf
     if("${method}" STREQUAL "pkgconf")
       find_package(PkgConfig QUIET)
       pkg_check_modules("${_pkg_uc}" QUIET "${package}")
@@ -63,6 +74,9 @@ macro(
       endif()
     endif()
 
+#########################################################################################
+
+    # look for SOURCE in the subprojects directory (we usually prefer this one)
     if("${method}" STREQUAL "subproject")
       if(NOT DEFINED "${_pkg_uc}_SUBPROJECT")
         set("_${_pkg_uc}_SUBPROJECT")
@@ -89,6 +103,9 @@ macro(
       endif()
     endif()
 
+#########################################################################################
+
+    # finally, we can try to download sources
     if("${method}" STREQUAL "fetch")
       message(STATUS "Retrieving ${package} from ${url}")
       include(FetchContent)
@@ -111,6 +128,8 @@ macro(
 
       break()
     endif()
+
+#########################################################################################
 
   endforeach()
 
@@ -138,9 +157,10 @@ macro(
   endif()
 endmacro()
 
-#
+#########################################################################################
+#########################################################################################
+
 # Check current compiler version requirements.
-#
 function (check_minimal_compiler_version lang compiler_versions)
   while(compiler_versions)
     list(POP_FRONT compiler_versions compiler version)
