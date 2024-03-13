@@ -10,13 +10,14 @@
 	path = subprojects/gfnff
 	url = https://github.com/pprcht/gfnff.git
     branch = master 
-[submodule "subprojects/tblite"]
-	path = subprojects/tblite
-#	 url = https://github.com/tblite/tblite.git
-#    branch = main
-    url = https://github.com/pprcht/tblite.git
-    branch = ompleak
 [submodule "subprojects/lwoniom"]
 	path = subprojects/lwoniom
 	url = https://github.com/crest-lab/lwoniom
+    branch = main
+[submodule "subprojects/test-drive"]
+	path = subprojects/test-drive
+	url = https://github.com/fortran-lang/test-drive.git
+[submodule "subprojects/tblite"]
+	path = subprojects/tblite
+	url = https://github.com/tblite/tblite.git
     branch = main
