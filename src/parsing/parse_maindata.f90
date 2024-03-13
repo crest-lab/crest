@@ -218,6 +218,8 @@ contains   !> MODULE PROCEDURES START HERE
       if (val) then
         call read_restart(env)
       end if
+    case ('multilevelopt')
+      env%multilevelopt = val 
     end select
     return
   end subroutine parse_main_bool
