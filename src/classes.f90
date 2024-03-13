@@ -522,7 +522,7 @@ module crest_data
     logical :: legacy = .false.       !> switch between the original system call routines of crest and newer, e.g. tblite implementations
     logical :: metadynset            !> is the number of MTDs already set (V2) ?
     logical :: methautocorr          !> try to automatically include Methyl equivalencies in CREGEN ?
-    logical :: multilevelopt         !> perform the multileveloptimization
+    logical :: multilevelopt =.true. !> perform the multileveloptimization
     logical :: newcregen = .false.   !> use the CREGEN rewrite
     logical :: NCI                   !> NCI special usage
     logical :: niceprint             !> make a nice progress-bar printout

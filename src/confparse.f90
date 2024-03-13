@@ -1350,7 +1350,7 @@ subroutine parseflags(env,arg,nra)
           env%forceconst = xx(1)
         end if
         write (*,'(2x,a,f6.4,a)') '-fc ',env%forceconst,': selected force constant in Eh'
-      case ('-nomlo')   !> turn off multilevel optimization
+      case ('-nomlo','-no-multilevel')   !> turn off multilevel optimization
         env%multilevelopt = .false.
       case ('-normmd')  !> set number of normMDs
         env%rotamermds = .true.

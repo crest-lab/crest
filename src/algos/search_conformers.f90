@@ -281,7 +281,7 @@ subroutine crest_multilevel_wrap(env,ensnam,level)
 end subroutine crest_multilevel_wrap
 
 !========================================================================================!
-subroutine crest_multilevel_oloop(env,ensnam,multilevel)
+subroutine crest_multilevel_oloop(env,ensnam,multilevel_in)
 !*******************************************************
 !* multilevel optimization loop.
 !* construct consecutive optimizations starting with
@@ -297,18 +297,19 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
   implicit none
   type(systemdata) :: env 
   character(len=*),intent(in) :: ensnam
-  logical,intent(in) :: multilevel(6)
+  logical,intent(in) :: multilevel_in(6)
   integer :: nat,nall
   real(wp),allocatable :: eread(:)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
   logical :: dump,pr
   character(len=128) :: inpnam,outnam
-  integer :: i,l
+  integer :: i,l,k
   real(wp) :: ewinbackup,rthrbackup
   real(wp) :: hlowbackup
   integer :: microbackup
   integer :: optlevelbackup
+  logical :: multilevel(6)
 
   interface 
     subroutine crest_refine(env,input,output)
@@ -326,6 +327,15 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel)
   optlevelbackup = env%calc%optlev
   hlowbackup     = env%calc%hlow_opt
   microbackup    = env%calc%micro_opt
+
+!>--- set multilevels, or enforce just one
+  multilevel(:) = .false.
+  if(env%multilevelopt)then
+     multilevel(:) = multilevel_in(:)    
+  else
+    k = optlevmap_alt(env%optlev)
+    multilevel(k) = .true.
+  endif
 
   pr = .false.
   l = count(multilevel)

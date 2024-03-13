@@ -279,3 +279,61 @@ target_include_directories(
    $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>
 )
 
+
+###############################################################################
+########################### Install Instructions ##############################
+###############################################################################
+
+# Build output artifacts
+if (WITH_OBJECT)
+   install(
+      TARGETS
+      "lib-${PROJECT_NAME}-static"
+      "lib-${PROJECT_NAME}-shared"
+      "${PROJECT_NAME}-exe"
+      EXPORT "${PROJECT_NAME}-targets"
+      LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+      ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+      RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+      INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+   )
+else()
+   install(
+      TARGETS
+      "lib-${PROJECT_NAME}-static"
+      "${PROJECT_NAME}-exe"
+      EXPORT "${PROJECT_NAME}-targets"
+      ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+      RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+      INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+   )
+endif()
+install(
+  EXPORT
+  "${PROJECT_NAME}-targets"
+  NAMESPACE
+  "${PROJECT_NAME}::"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+)
+install(
+  DIRECTORY
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+)
+install(
+  DIRECTORY
+  "${CMAKE_CURRENT_BINARY_DIR}/include/"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${module-dir}"
+)
+# Package license files
+install(
+  FILES
+  "COPYING"
+  "COPYING.LESSER"
+  DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/${PROJECT_NAME}"
+)
+
+##############################################################################
+################################ Testing #####################################
+##############################################################################
+
