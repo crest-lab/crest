@@ -14,9 +14,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-set(_lib "tblite")
-set(_pkg "TBLITE")
-set(_url "https://github.com/tblite/tblite")
+set(_lib "test-drive")
+set(_pkg "TEST-DRIVE")
+set(_url "https://github.com/fortran-lang/test-drive")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
   set("${_pkg}_FIND_METHOD" "subproject" "cmake" "fetch" "pkgconf")
@@ -24,18 +24,14 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/crest-utils.cmake")
 
-set(temp_with_tests ${WITH_TESTS}) # Save the current value of WITH_TESTS
-set(WITH_TESTS FALSE CACHE BOOL "Temporarily disable tests for the tblite subproject" FORCE)
-set(WITH_API FALSE)
 crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
 
-set(found FALSE)
-if(TARGET "tblite::tblite")
+if(TARGET "${_lib}::${_lib}")
   set (found TRUE)
+else()
+  set (found FALSE)
 endif()
-message(STATUS "Found tblite: ${found}")
-
-set(WITH_TESTS ${temp_with_tests} CACHE BOOL "Enable tests for the main project" FORCE)
+message(STATUS "Found test-drive: ${found}")
 
 unset(_lib)
 unset(_pkg)
