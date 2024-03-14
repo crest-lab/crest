@@ -5,6 +5,7 @@ set(
   "gfnff"
   "gfn0"
   "gfn0occ"
+  "optimization"
 )
 set(
   test-srcs

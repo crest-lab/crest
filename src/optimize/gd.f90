@@ -238,9 +238,9 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- for too large energy rise, rewind step. otherwise go to next iteration
           if (.not.lowered) then
-            write (*,'(" * ENERGY RISE detected. Rewind and try again with smaller step ...")')
+            if(pr) write (*,'(" * ENERGY RISE detected. Rewind and try again with smaller step ...")')
             molopt%xyz = molopt%xyz-displ
-            write (*,*) jjj,maxmicro
+            !write (*,*) jjj,maxmicro
             if (jjj == maxmicro) then
               write (*,'(" * FAILED to perform gradient descent! Something is very wrong ...")')
               converged = .false.

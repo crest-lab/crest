@@ -100,11 +100,6 @@ jobs:
         tar xvf xtb-*.tar.xz
         echo ${{ env.PWD }}/xtb-${{ env.XTB_VERSION }}/bin >> $GITHUB_PATH
 
-#    - name: Run example 0
-#      run: |
-#        bash run.sh
-#      working-directory: examples/expl-0
-
 
   continuous-delivery:
     if: github.event_name == 'push'
@@ -118,7 +113,7 @@ jobs:
       OUTPUT_INTEL: crest-latest.tar.xz
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install github-release
       run: |

@@ -1,4 +1,4 @@
-name: CI
+name: CMake build and unit tests
 on: [push, pull_request]
 
 env:
@@ -24,7 +24,7 @@ jobs:
         python-version: 3.x
 
     - name: Install CMake
-      run: pip3 install ninja cmake
+      run: pip3 install cmake
 
     - name: Git Sumbodules Setup
       run: |
