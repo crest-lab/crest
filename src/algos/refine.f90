@@ -55,7 +55,7 @@ subroutine crest_refine(env,input,output)
   else
     outname = input  !> overwrite
   end if
-
+ 
 !>--- presorting step, if necessary
   if(env%refine_presort)then
     call newcregen(env,0,input)
