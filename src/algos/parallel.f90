@@ -306,7 +306,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
       eread(zcopy) = energy
       xyz(:,:,zcopy) = molsnew(job)%xyz(:,:)
     else
-      eread(zcopy) = 0.0_wp
+      eread(zcopy) = 1.0_wp
     end if
     k = k+1
     !>--- print progress

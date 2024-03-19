@@ -2,15 +2,15 @@
 
 Newer versions of CREST use external projects:
 
-| Library | Description | Build Option | git submodule |
-| ------- | ----------- | ------------ | :-----------: |
-| [`toml-f`](https://github.com/toml-f/toml-f) | A TOML parser for Fortran | `-DWITH_TOMLF=true` (default) | ✅ |
-| [`gfn0`](https://github.com/pprcht/gfn0) | A GFN0-xTB standalone library | `-DWITH_GFN0=true` (default) | ✅ |
-| [`gfnff`](https://github.com/pprcht/gfnff) | A GFN-FF standalone library | `-DWITH_GFNFF=true` (default) | ✅ |
-| [`tblite`](https://github.com/tblite/tblite) | A lightweight implementation of the GFN1 and GFN2-xTB Hamiltonians | `-DWITH_TBLITE=true` (default) | ✅ |
-| [`lwoniom`](https://github.com/crest-lab/lwoniom) | A lightweight ONIOM implementation  | `-DWITH_LWONIOM=true` (default) | ✅ |
+| Library | Description | Build Option | git submodule | CMake build | `meson` build |
+| ------- | ----------- | ------------ | :-----------: | :---------: | :-----------: |
+| [`toml-f`](https://github.com/toml-f/toml-f) | A TOML parser for Fortran | `-DWITH_TOMLF=true` (default) | ✅ | ✅ | ✅ |
+| [`gfn0`](https://github.com/pprcht/gfn0) | A GFN0-xTB standalone library | `-DWITH_GFN0=true` (default) | ✅ | ✅ | ✅ |
+| [`gfnff`](https://github.com/pprcht/gfnff) | A GFN-FF standalone library | `-DWITH_GFNFF=true` (default) | ✅ | ✅ | ✅ |
+| [`tblite`](https://github.com/tblite/tblite) | A lightweight implementation of the GFN1 and GFN2-xTB Hamiltonians | `-DWITH_TBLITE=true` (default) | ✅ | ✅ | ✅ |
+| [`lwoniom`](https://github.com/crest-lab/lwoniom) | A lightweight ONIOM implementation  | `-DWITH_LWONIOM=true` (default) | ✅ | ✅ | ✅ |
 <!--
-| [`xhcff`](https://github.com/zellerf/xhcff) | Implementation of the XHCFF force field | `-DWITH_XHCFF=true` | ✅ |
+| [`xhcff`](https://github.com/zellerf/xhcff) | Implementation of the XHCFF force field | `-DWITH_XHCFF=true` | ✅ | ✅ | ✅ |
 -->
 
 
@@ -30,3 +30,4 @@ git submodule update --remote
 ```
 can be used.
 
+Alternatively, a source directory of the respective project can be placed in the subprojects directory, or a symbolic link can be set.

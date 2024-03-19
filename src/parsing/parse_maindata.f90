@@ -220,6 +220,8 @@ contains   !> MODULE PROCEDURES START HERE
       end if
     case ('multilevelopt')
       env%multilevelopt = val 
+    case ('refine_presort')
+      env%refine_presort = val
     end select
     return
   end subroutine parse_main_bool
@@ -282,7 +284,7 @@ contains   !> MODULE PROCEDURES START HERE
     integer :: i
 !>--- add ConfSolv as refinement level to give a ΔΔGsoln
     call env%addrefine(refine%ConfSolv)
-    env%refine_presort = .true.
+    !env%refine_presort = .true.
     env%ewin = 100.0_wp
 
 !>--- parse the arguments

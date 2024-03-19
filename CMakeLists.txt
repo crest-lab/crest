@@ -57,6 +57,11 @@ if(NOT TARGET "OpenMP::OpenMP_Fortran" AND WITH_OpenMP)
   find_package("OpenMP" REQUIRED)
 endif()
 
+# Fortran unit test interface (also used by other subprojects)
+if(NOT TARGET "test-drive::test-drive" AND WITH_TESTS)
+   find_package("test-drive" REQUIRED)
+endif()
+
 # TOML-F (needs to be imported before tblite)
 if(NOT TARGET "toml-f::toml-f" AND WITH_TOMLF)
    find_package("toml-f" REQUIRED)
@@ -334,6 +339,10 @@ install(
 )
 
 ##############################################################################
-################################ Testing #####################################
+############################# Unit Tests #####################################
 ##############################################################################
 
+if (WITH_TESTS)
+  enable_testing()
+  add_subdirectory("test")
+endif()

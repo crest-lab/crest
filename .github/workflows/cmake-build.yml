@@ -1,0 +1,46 @@
+name: CMake build and unit tests
+on: [push, pull_request]
+
+env:
+  BUILD_DIR: _build
+
+jobs:
+  gcc-cmake-build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        fc: [gfortran-10]
+        cc: [gcc-10]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.x
+
+    - name: Install CMake
+      run: pip3 install cmake
+
+    - name: Git Sumbodules Setup
+      run: |
+        git submodule update --init
+
+    - name: Configure build
+      run: cmake -B ${{ env.BUILD_DIR }}
+      env:
+        FC: ${{ matrix.fc }}
+        CC: ${{ matrix.cc }}
+
+    - name: Build project
+      run: cmake --build ${{ env.BUILD_DIR }}
+
+    - name: Run unit tests
+      run: make test
+      working-directory: ${{ env.BUILD_DIR }}
+      env:
+        OMP_NUM_THREADS: 2,1

@@ -61,12 +61,12 @@ Working and tested builds of CREST (mostly on Ubuntu 20.04 LTS):
 
 | Build System | Compiler | Linear Algebra Backend | Build type     | Status     |
 |--------------|----------|------------------------|:--------------:|:----------:|
-| CMake | GNU (gcc 10.3.0)  | [OpenBLAS](https://github.com/xianyi/OpenBLAS) (with OpenMP) | dynamic | ✅ |
-| CMake | GNU (gcc 10.3.0)  |  [MKL shared (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ✅ |
-| CMake | GNU (gcc 9.5.0)  |  [MKL shared (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ✅ |
-| CMake | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ✅ |
-| Meson | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ |
-| Meson | [Intel (`ifort` 2021.9.0/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ |
+| CMake 3.28.3 | GNU (gcc 10.3.0)  | [OpenBLAS](https://github.com/xianyi/OpenBLAS) (with OpenMP) | dynamic | ✅ |
+| CMake 3.28.3 | GNU (gcc 10.3.0)  |  [MKL shared (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ✅ |
+| CMake 3.28.3 | GNU (gcc 9.5.0)  |  [MKL shared (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ✅ |
+| CMake 3.28.3 | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ✅ |
+| Meson 1.2.0 | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ |
+| Meson 1.2.0 | [Intel (`ifort` 2021.9.0/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ |
 
 
 
