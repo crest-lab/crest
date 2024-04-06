@@ -30,9 +30,7 @@ project(
   VERSION  3.0 
   DESCRIPTION "A tool for the exploration of low-energy chemical space"
 )
-set(SOVERSION "pre")
-
-#enable_testing()
+#set(SOVERSION "pre")
 
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
