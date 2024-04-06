@@ -713,7 +713,6 @@ contains !> MODULE PROCEDURES START HERE
         allocate (constr%ref(n),source=0.0_wp)
         constr%ref(:) = real(kv%value_fa(:))
       end select
-      write(*,*) n
 
     case ('wscal') !> scaling factor if the wall potential is automatically set up
       if(kv%id == valuetypes%int)then

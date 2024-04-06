@@ -15,10 +15,6 @@ a variety of capabilities for creation and analysis of structure ensembles.
 </div>
 
 ---
-**NOTE: This is the 3.0 pre-release. Please report any bugs or issues ASAP. The program can be switched back to its previous behaviour via the `--legacy` option.**
-
----
-
 
 ## Documentation
 
@@ -88,7 +84,7 @@ Some basic build instructions can be found in the following dropdown tabs:
 Building CREST with CMake works with the following chain of commands (in this example with `gfortran/gcc` compilers):
 ```bash
 export FC=gfortran CC=gcc
-cmake -B _build -DCMAKE_BUILD_TYPE=Release
+cmake -B _build
 ```
 and then to build the CREST binary
 ```bash
@@ -162,6 +158,100 @@ The confa-forge distribution is based on a CMake/`gfortran` build.
   *18*, 3174-3189. DOI: [10.1021/acs.jctc.2c00239](https://dx.doi.org/10.1021/acs.jctc.2c00239)
 
 6. P. Pracht, C. Bannwarth, *J. Chem. Theory Comput.*, **2022**, *18 (10)*, 6370-6385. DOI: [10.1021/acs.jctc.2c00578](https://dx.doi.org/10.1021/acs.jctc.2c00578)
+
+7. P. Pracht, S. Grimme, C. Bannwarth, F. Bohle, S. Ehlert, G. Feldmann, J. Gorges, M. Müller, T. Neudecker, C. Plett, S. Spicher, P. Steinbach, P. Wesołowski, F. Zeller, *J. Chem. Phys.*, **2024**, *160*, 114110. DOI: [10.1063/5.0197592](https://doi.org/10.1063/5.0197592)
+
+<details>
+<summary><h4>BibTex entries</h4></summary>
+<!-- blank line to recover markdown format-->
+
+```
+@article{Pracht2020,
+  author ="Pracht, Philipp and Bohle, Fabian and Grimme, Stefan",
+  title  ="Automated exploration of the low-energy chemical space with fast quantum chemical methods",
+  journal  ="Phys. Chem. Chem. Phys.",
+  year  ="2020",
+  volume  ="22",
+  issue  ="14",
+  pages  ="7169-7192",
+  doi  ="10.1039/C9CP06869D"
+}
+
+@article{Grimme2019,
+  author = {Grimme, Stefan},
+  title = {Exploration of Chemical Compound, Conformer, and Reaction Space with Meta-Dynamics Simulations Based on Tight-Binding Quantum Chemical Calculations},
+  journal = {J. Chem. Theory Comput.},
+  volume = {15},
+  number = {5},
+  pages = {2847-2862},
+  year = {2019},
+  doi = {10.1021/acs.jctc.9b00143}
+}
+
+@article{Pracht2021,
+  author ="Pracht, Philipp and Grimme, Stefan",
+  title  ="Calculation of absolute molecular entropies and heat capacities made simple",
+  journal  ="Chem. Sci.",
+  year  ="2021",
+  volume  ="12",
+  issue  ="19",
+  pages  ="6551-6568",
+  doi  ="10.1039/D1SC00621E",
+  url  ="http://dx.doi.org/10.1039/D1SC00621E"
+}
+
+@article{Pracht2017,
+  author = {Pracht, Philipp and Bauer, Christoph Alexander and Grimme, Stefan},
+  title = {Automated and efficient quantum chemical determination and energetic ranking of molecular protonation sites},
+  journal = {J. Comput. Chem.},
+  volume = {38},
+  number = {30},
+  pages = {2618-2631},
+  doi = {https://doi.org/10.1002/jcc.24922},
+  url = {https://onlinelibrary.wiley.com/doi/abs/10.1002/jcc.24922},
+  year = {2017}
+}
+
+@article{Spicher2022,
+  author = {Spicher, Sebastian and Plett, Christoph and Pracht, Philipp and Hansen, Andreas and Grimme, Stefan},
+  title = {Automated Molecular Cluster Growing for Explicit Solvation by Efficient Force Field and Tight Binding Methods},
+  journal = {J. Chem. Theory Comput.},
+  volume = {18},
+  number = {5},
+  pages = {3174-3189},
+  year = {2022},
+  doi = {10.1021/acs.jctc.2c00239}
+}
+
+@article{Pracht2022,
+  author = {Pracht, Philipp and Bannwarth, Christoph},
+  title = {Fast Screening of Minimum Energy Crossing Points with Semiempirical Tight-Binding Methods},
+  journal = {J. Chem. Theory Comput.},
+  volume = {18},
+  number = {10},
+  pages = {6370-6385},
+  year = {2022},
+  doi = {10.1021/acs.jctc.2c00578}
+}
+
+@article{Pracht2024,
+  author = {Pracht, Philipp and Grimme, Stefan and Bannwarth, Christoph and Bohle, Fabian and Ehlert, Sebastian and Feldmann, Gereon and Gorges, Johannes and M\"uller, Marcel and Neudecker, Tim and Plett, Christoph and Spicher, Sebastian and Steinbach, Pit and Weso\{}lowski, Patryk A. and Zeller, Felix},
+  title = "{CREST - A program for the exploration of low-energy molecular chemical space}",
+  journal = {J. Chem. Phys.},
+  volume = {160},
+  number = {11},
+  pages = {114110},
+  year = {2024},
+  month = {03},
+  issn = {0021-9606},
+  doi = {10.1063/5.0197592},
+  url = {https://doi.org/10.1063/5.0197592}
+}
+```
+</details>
+
+
+
 
 ### License
 
