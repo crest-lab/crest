@@ -33,6 +33,7 @@ module tblite_api
   use tblite_wavefunction,only:sad_guess,eeq_guess
   use tblite_xtb, tblite_calculator => xtb_calculator 
   use tblite_results,only:tblite_resultstype => results_type
+  use tblite_wavefunction_mulliken, only : get_molecular_dipole_moment
 #endif
   use wiberg_mayer,only:get_wbo_rhf
   implicit none
@@ -73,6 +74,9 @@ module tblite_api
     integer :: gfn1 = 1
     integer :: gfn2 = 2
     integer :: ipea1 = 3
+    !> the guesses can be used for charges, but NOT for e+grd!
+    integer :: eeq_guess = 4
+    integer :: ceh_guess = 5 
   end type enum_tblite_method
   type(enum_tblite_method),parameter,public :: xtblvl = enum_tblite_method()
 
@@ -89,6 +93,7 @@ module tblite_api
   public :: tblite_setup,tblite_singlepoint,tblite_addsettings
   public :: tblite_getwbos
   public :: tblite_add_solv
+  public :: tblite_getdipole
 
 !========================================================================================!
 !========================================================================================!
@@ -343,6 +348,28 @@ contains  !>--- Module routines start here
     &         tbres%overlap,tbcalc%bas%ao2at,wbo)
 #endif
   end subroutine tblite_getwbos
+
+!========================================================================================!
+ 
+
+  subroutine tblite_getdipole(mol,chrg,uhf,wfn,dipole)
+!**************************************
+!* obtain molecular dipole from tblite
+!**************************************
+    implicit none
+    type(coord) :: mol
+    integer :: chrg,uhf
+    type(wavefunction_type)  :: wfn
+    real(wp),intent(out) :: dipole(3)
+#ifdef WITH_TBLITE
+    type(structure_type) :: mctcmol
+    dipole = 0.0_wp
+    call tblite_mol2mol(mol,chrg,uhf,mctcmol)
+    call get_molecular_dipole_moment(mctcmol, wfn%qat(:, 1), wfn%dpat(:, :, 1), dipole)  
+#else
+    dipole = 0.0_wp
+#endif
+  end subroutine tblite_getdipole
 
 !========================================================================================!
 end module tblite_api

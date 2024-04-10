@@ -44,8 +44,11 @@ contains  !> MODULE PROCEDURES START HERE
 !=========================================================================================!
 !=========================================================================================!
 
-  !Returns the Frequencies from a Hessian in cm-1
+
   subroutine frequencies(nat,at,xyz,nat3,calc,prj_mw_hess,freq,io)
+!*************************************************
+!* Returns the Frequencies from a Hessian in cm-1
+!*************************************************
     implicit none
 
     integer,intent(in) :: nat
@@ -93,11 +96,12 @@ contains  !> MODULE PROCEDURES START HERE
 
   end subroutine frequencies
 
+
   subroutine mass_weight_hess(nat,at,nat3,hess)
     use atmasses
     implicit none
 
-    !Mass weighting the Hessian
+    !> Mass weighting the Hessian
     integer,intent(in) :: nat                   !Number of atoms
     integer,intent(in) :: at(nat)               !atomic number of all atoms
 
@@ -128,8 +132,9 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine mass_weight_hess
 
   subroutine dsqtoh(n,a,b)
-
-    !converts upper triangle of a matrix into a vector
+!****************************************************
+!* converts upper triangle of a matrix into a vector
+!****************************************************
     implicit none
     integer,intent(in)  :: n
     real(wp),intent(in) :: a(n,n)
@@ -147,7 +152,9 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine dsqtoh
 
   subroutine dhtosq(n,a,b)
-    !converts upper triangle vector into a symmetric matrix
+!*********************************************************
+!* converts upper triangle vector into a symmetric matrix
+!*********************************************************
     implicit none
     integer,intent(in)  :: n
     real(wp),intent(out) :: a(n,n)
@@ -166,33 +173,47 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end subroutine dhtosq
 
-  !Profjection of the translational and rotational contributions to the numerical Hessian plus the mass-weighting of the Hessian
+!=========================================================================================!
+
   subroutine prj_mw_hess(nat,at,nat3,xyz,hess)
+!***************************************************************
+!* Projection of the translational and rotational DOF out of 
+!* the numerical Hessian plus the mass-weighting of the Hessian
+!***************************************************************
     implicit none
 
     integer,intent(in) :: nat,nat3
-    integer :: at(nat),ich
+    integer :: at(nat)
     real(wp),intent(inout) :: hess(nat3,nat3)
-    real(wp) ::  hess_ut(nat3*(nat3+1)/2),pmode(nat3,1)
     real(wp) ::  xyz(3,nat)
+    !real(wp) ::  hess_ut(nat3*(nat3+1)/2),pmode(nat3,1)
+    real(wp),allocatable ::  hess_ut(:),pmode(:,:)
 
-    !Transforms matrix of the upper triangle vector
+    allocate(hess_ut(nat3*(nat3+1)/2), source=0.0_wp)
+    allocate(pmode(nat3,1), source=0.0_wp)
+
+    !> Transforms matrix of the upper triangle vector
     call dsqtoh(nat3,hess,hess_ut)
 
-    !Projection
+    !> Projection
     call trproj(nat,nat3,xyz,hess_ut,.false.,0,pmode,1)
 
-    !Transforms vector of the upper triangle into matrix
+    !> Transforms vector of the upper triangle into matrix
     call dhtosq(nat3,hess,hess_ut)
 
-    !Mass weighting
+    !> Mass weighting
     call mass_weight_hess(nat,at,nat3,hess)
 
+    deallocate(pmode,hess_ut)
   end subroutine prj_mw_hess
 
-  ! Prints the vibration spectrum of the a system. The intensity is only artficially included as 1000 for every vibration!!
-  subroutine print_vib_spectrum(nat,at,nat3,xyz,freq,dir,fname)
+!=========================================================================================!
 
+  subroutine print_vib_spectrum(nat,at,nat3,xyz,freq,dir,fname)
+!*********************************************************************
+!* Prints the frequencies in Turbomoles "vibspectrum" format 
+!* The intensity is only artficially set to 1000 for every vibration!!
+!**********************************************************************
     integer,intent(in) :: nat,nat3
     integer :: at(nat),i
     real(wp) ::  xyz(3,nat)
@@ -232,10 +253,13 @@ contains  !> MODULE PROCEDURES START HERE
 
   end subroutine print_vib_spectrum
 
-  !Prints the vibration spectrum of the a system as a g98.out.
-  !Routine is adapted from the xtb code.
-  subroutine print_g98_fake(nat,at,nat3,xyz,freq,hess,dir,fname)
+!=========================================================================================!
 
+  subroutine print_g98_fake(nat,at,nat3,xyz,freq,hess,dir,fname)
+!****************************************************************
+!* Prints the vibration spectrum of the a system as a g98.out.
+!* Routine is adapted from the xtb code.
+!****************************************************************
     integer,intent(in) :: nat,nat3
     integer :: at(nat)
     integer  :: gu,i,j,ka,kb,kc,la,lb,k
@@ -346,9 +370,13 @@ contains  !> MODULE PROCEDURES START HERE
 
   end subroutine print_g98_fake
 
-  !Prints the numerical hessian
-  subroutine print_hessian(hess,nat3,dir,fname)
+!=========================================================================================!
 
+
+  subroutine print_hessian(hess,nat3,dir,fname)
+!*******************************
+!* Prints the numerical hessian
+!*******************************
     integer :: nat3,i,j,k
     real(wp) :: hess(nat3,nat3)
     character(len=*) :: fname
@@ -392,9 +420,13 @@ contains  !> MODULE PROCEDURES START HERE
 
   end subroutine print_hessian
 
-  !Effective Hessian at an MECP is computed via Eq. 27 and Eq. 28 in https://doi.org/10.1002/qua.25124
-  subroutine effective_hessian(nat,nat3,grad1_i,grad2_i,hess1,hess2,heff)
+!=========================================================================================!
 
+  subroutine effective_hessian(nat,nat3,grad1_i,grad2_i,hess1,hess2,heff)
+!******************************************************************
+!* Effective Hessian at an MECP is computed via Eq. 27 and Eq. 28 
+!* in https://doi.org/10.1002/qua.25124
+!******************************************************************
     implicit none
     integer,intent(in) :: nat,nat3
     integer :: i,j,ii

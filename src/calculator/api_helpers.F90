@@ -154,35 +154,31 @@ contains    !> MODULE PROCEDURES START HERE
       allocate (calc%tblite)
       loadnew = .true.
     end if
-    !if (.not.allocated(calc%tblite%wfn)) then
-    !  allocate (calc%tblite%wfn)
-    !  loadnew = .true.
-    !end if
-    !if (.not.allocated(calc%tblite%calc)) then
-    !  allocate (calc%tblite%calc)
-    !  loadnew = .true.
-    !end if
-    !if (.not.allocated(calc%tblite%ctx)) then
-    !  allocate (calc%tblite%ctx)
-    !  loadnew = .true.
-    !end if
-    !if (.not.allocated(calc%tblite%res)) then
-    !  allocate (calc%tblite%res)
-    !  loadnew = .true.
-    !end if
     if (calc%apiclean) loadnew = .true.
   end subroutine tblite_init
-  subroutine tblite_wbos(calc,mol,iostatus)
+  subroutine tblite_properties(calc,mol,iostatus)
+!********************************************************
+!* Obtain tblite-calculated properties (where available)
+!********************************************************
     implicit none
     type(calculation_settings),intent(inout) :: calc
     type(coord),intent(in) :: mol
     integer,intent(out) :: iostatus
+    integer :: chrg, uhf
     iostatus = 0
-    if (.not.calc%rdwbo) return
-    if (allocated(calc%wbo)) deallocate (calc%wbo)
-    allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
-    call tblite_getwbos(calc%tblite%calc,calc%tblite%wfn,calc%tblite%res,mol%nat,calc%wbo)
-  end subroutine tblite_wbos
+!> WBOs
+    if (calc%rdwbo)then
+      if (allocated(calc%wbo)) deallocate (calc%wbo)
+      allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
+      call tblite_getwbos(calc%tblite%calc,calc%tblite%wfn,calc%tblite%res,mol%nat,calc%wbo)
+    endif
+!> Molecular dipole moment
+    if(calc%rddip)then
+     chrg = calc%chrg
+     uhf = calc%uhf
+     call tblite_getdipole(mol,chrg,uhf,calc%tblite%wfn,calc%dipole)
+    endif
+  end subroutine tblite_properties
 
 !========================================================================================!
 

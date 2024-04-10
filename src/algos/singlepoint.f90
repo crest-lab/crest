@@ -34,7 +34,7 @@ subroutine crest_singlepoint(env,tim)
   use crest_data
   use crest_calculator
   use strucrd
-  use gradreader_module, only: write_engrad
+  use gradreader_module,only:write_engrad
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -46,7 +46,7 @@ subroutine crest_singlepoint(env,tim)
   type(calcdata) :: calc
   real(wp) :: accuracy,etemp
 
-  real(wp) :: energy
+  real(wp) :: energy,dip
   real(wp),allocatable :: grad(:,:)
 
   character(len=*),parameter :: partial = '∂E/∂'
@@ -120,16 +120,33 @@ subroutine crest_singlepoint(env,tim)
     write (stdout,*)
   end if
 
-  if(all(calc%calcs(:)%rdgrad .eqv. .false.))then
+  if (any(calc%calcs(:)%rddip)) then
+    write (stdout,*)
+    write (stdout,*) 'Molecular dipole moments (a.u.):'
+    do k = 1,calc%ncalculations
+      if (calc%calcs(k)%rddip) then
+        dip = norm2(calc%calcs(k)%dipole)
+        write (stdout,'("> ",a,i0)') 'Calculation level ',k
+        write (stdout,'(a10,a10,a10,a12)') 'x','y','z','tot (Debye)'
+        write (stdout,'(4f10.3)') calc%calcs(k)%dipole(:),dip*autod
+      end if
+    end do
+    write (stdout,*)
+    write (stdout,'(a)') repeat('-',80)
+  else
+    write (stdout,*)
+  end if
+
+  if (all(calc%calcs(:)%rdgrad.eqv..false.)) then
     write (stdout,'(a)') '> No gradients calculated'
-  else 
-  write (stdout,'(a)') '> Final molecular gradient ( Eh/a0 ):'
-  write (stdout,'(13x,a,13x,a,13x,a)') partial//'x',partial//'y',partial//'z'
-  do i = 1,mol%nat
-    write (stdout,'(3f18.8)') grad(1:3,i)
-  end do
-  write (stdout,'(a,f18.8,a)') '> Gradient norm:',norm2(grad),' Eh/a0'
-  endif
+  else
+    write (stdout,'(a)') '> Final molecular gradient ( Eh/a0 ):'
+    write (stdout,'(13x,a,13x,a,13x,a)') partial//'x',partial//'y',partial//'z'
+    do i = 1,mol%nat
+      write (stdout,'(3f18.8)') grad(1:3,i)
+    end do
+    write (stdout,'(a,f18.8,a)') '> Gradient norm:',norm2(grad),' Eh/a0'
+  end if
 
   if (calc%ncalculations > 1) then
     write (stdout,*)
@@ -148,12 +165,12 @@ subroutine crest_singlepoint(env,tim)
   write (stdout,'(1x,a,f20.10,a)') 'GRADIENT NORM',norm2(grad),' Eh/a0'
   write (stdout,'(a)') repeat('=',40)
 
-  write(stdout,'(1x,a)') 'Writing crest.engrad ...' 
+  write (stdout,'(1x,a)') 'Writing crest.engrad ...'
   call write_engrad('crest.engrad',energy,grad)
 
-  if(env%testnumgrad)then
+  if (env%testnumgrad) then
     call numgrad(mol,calc,grad)
-  endif 
+  end if
 
   deallocate (grad)
 !========================================================================================!
@@ -173,7 +190,7 @@ subroutine crest_xtbsp(env,xtblevel,molin)
 !*  xtblevel - quick selection of calc. level
 !*  molin    - molecule data
 !********************************************************************
-  use crest_parameters 
+  use crest_parameters
   use crest_data
   use crest_calculator
   use strucrd
@@ -245,7 +262,7 @@ subroutine crest_ensemble_singlepoints(env,tim)
   use crest_calculator
   use strucrd
   use optimize_module
-  use utilities, only: dumpenergies
+  use utilities,only:dumpenergies
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -267,7 +284,7 @@ subroutine crest_ensemble_singlepoints(env,tim)
   real(wp) :: percent
   character(len=52) :: bar
 !========================================================================================!
- write (*,*)
+  write (*,*)
 !>--- check for the ensemble file
   inquire (file=env%ensemblename,exist=ex)
   if (ex) then
@@ -287,7 +304,7 @@ subroutine crest_ensemble_singlepoints(env,tim)
   call rdensemble(ensnam,nat,nall,at,xyz,eread)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>--- Important: crest_oloop requires coordinates in Bohrs
-  xyz = xyz / bohr
+  xyz = xyz/bohr
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 
 !>--- set OMP parallelization
@@ -308,14 +325,14 @@ subroutine crest_ensemble_singlepoints(env,tim)
 
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>--- Important: ensemble file must be written in AA
-  xyz = xyz / angstrom
+  xyz = xyz/angstrom
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !>--- write output ensemble
   call wrensemble(ensemblefile,nat,nall,at,xyz,eread)
-  write(stdout,'(/,a,a,a)') 'Ensemble with updated energies written to <',ensemblefile,'>'
+  write (stdout,'(/,a,a,a)') 'Ensemble with updated energies written to <',ensemblefile,'>'
 
   call dumpenergies('crest.energies',eread)
-  write(stdout,'(/,a,a,a)') 'List of energies written to <','crest.energies','>' 
+  write (stdout,'(/,a,a,a)') 'List of energies written to <','crest.energies','>'
 
   deallocate (eread,at,xyz)
 !========================================================================================!

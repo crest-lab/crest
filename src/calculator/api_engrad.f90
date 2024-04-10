@@ -103,7 +103,7 @@ contains    !> MODULE PROCEDURES START HERE
 
 !>--- postprocessing, getting other data
     !$omp critical
-    call tblite_wbos(calc,mol,iostatus)
+    call tblite_properties(calc,mol,iostatus)
     !$omp end critical
 
     return

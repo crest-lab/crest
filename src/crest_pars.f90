@@ -35,6 +35,15 @@ module crest_parameters
   real(wp),parameter,public :: planck = 6.62606957e-34_wp ! J*s
   real(wp),parameter,public :: hbar = planck/(2.0_wp*pi)
 
+  real(wp),public,parameter :: lightspeed = 137.0359990740_wp 
+  !> femtosectons to atomic time units
+  real(wp), public, parameter :: fstoau = 41.3413733365614_wp
+  !> Coulomb to atomic charge units (electrons)
+  real(wp), public, parameter :: autoc = 1.6021766208e-19_wp
+  !> Debye to atomic units
+  real(wp), public, parameter :: autod = autoc * lightspeed * autoaa**2 * fstoau * 1.0e+16_wp
+  real(wp), public, parameter :: dtoau = 1.0_wp / autod
+
   character(len=1),public,parameter :: sep = '/'
   character(len=12),public,parameter :: dev0 = ' 2>/dev/null'
 

@@ -116,8 +116,10 @@ subroutine crest_numhess(env,tim)
     allocate (hess(nat3,nat3,calc%ncalculations),source=0.0_wp)
     allocate (freq(nat3,n_freqs),source=0.0_wp)
 
-    !>-- Computes numerical Hessians and stores them individually for each level
+!*********************************************************************************
+!>--- Computes numerical Hessians and stores them individually for each level
     call numhess2(mol%nat,mol%at,mol%xyz,calc,hess,io)
+!*********************************************************************************
 
     write (stdout,*) 'done.'
     write (stdout,*)
@@ -178,6 +180,9 @@ subroutine crest_numhess(env,tim)
 
         !>-- Prints Hessian
         call print_hessian(hess(:,:,i),nat3,'','numhess'//trim(adjustl(atmp)))
+
+        !>--- Print dipole gradients (if they exist)
+        call calc%calcs(i)%dumpdipgrad('dipgrad'//trim(adjustl(atmp)))
 
         !>-- Projects and mass-weights the Hessian
         call prj_mw_hess(mol%nat,mol%at,nat3,mol%xyz,hess(:,:,i))
