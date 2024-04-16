@@ -373,7 +373,7 @@ contains  !> MODULE PROCEDURES START HERE
     nvar1 = OPT%nvar+1             !> dimension of RF calculation
     npvar = OPT%nvar*(nvar1)/2   !> packed size of Hessian (note the abuse of nvar1!)
     npvar1 = nvar1*(nvar1+1)/2 !> packed size of augmented Hessian
-    allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1))
+    allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1), source=0.0_sp)
     !$omp end critical
 
 !! ========================================================================
@@ -502,9 +502,6 @@ contains  !> MODULE PROCEDURES START HERE
       Aaug(1:npvar) = real(OPT%hess(1:npvar),sp)
       Aaug(npvar+1:npvar1-1) = real(gint(1:OPT%nvar),sp)
       Aaug(npvar1) = 0.0_sp
-      Uaug(:,1) = 0.0_sp
-      Uaug(nvar1,1) = 1.0_sp
-      eaug(:) = 0.0_sp
 
 !>--- choose solver
       if (exact.or.nvar1 .lt. 50) then
@@ -530,7 +527,6 @@ contains  !> MODULE PROCEDURES START HERE
         exit main_loop
       end if
       displ(1:OPT%nvar) = Uaug(1:OPT%nvar,1)/Uaug(nvar1,1)
-
 
 !>--- rescale displacement if necessary
       maxd = alp*sqrt(ddot(OPT%nvar,displ,1,displ,1))
