@@ -15,7 +15,7 @@ module test_optimization
 
 !========================================================================================!
 !========================================================================================!
-contains  !> Unit tests for using gfnff in crest
+contains  !> Unit tests for using geometry optimization routines in CREST
 !========================================================================================!
 !========================================================================================!
 
@@ -29,6 +29,7 @@ contains  !> Unit tests for using gfnff in crest
 #ifdef WITH_GFNFF
     new_unittest("Compiled gfnff subproject     ",test_compiled_gfnff), &
     new_unittest("optimization (ANCOPT)         ",test_ancopt), &
+    new_unittest("optimization (ANCOPT,sspevx)  ",test_ancoptsmall), &
     new_unittest("optimization (grad. descent)  ",test_gradientdescent), &
     new_unittest("optimization (RFO)            ",test_rfo) &
 #else
@@ -81,6 +82,47 @@ contains  !> Unit tests for using gfnff in crest
 
     deallocate (grad)
   end subroutine test_ancopt
+
+!========================================================================================!
+
+  subroutine test_ancoptsmall(error)
+!*****************************************************
+!* Test ANCOPT with a small molecule to trigger exact
+!* Hessian eigenvalue calculation via LAPACK's sspevx
+!*****************************************************
+    type(error_type),allocatable,intent(out) :: error
+    type(calcdata) :: calc
+    type(calculation_settings) :: sett
+    type(coord) :: mol,molnew
+    real(wp) :: energy
+    real(wp),allocatable :: grad(:,:)
+    integer :: io
+    logical :: wr,pr
+!&<
+    real(wp),parameter :: e_ref = -0.630873310757319_wp
+!&>
+
+    !> setup
+    call sett%create('gfnff')
+    call calc%add(sett)
+    call get_testmol('methane',mol)
+    allocate (grad(3,mol%nat))
+
+    !> calculation
+    wr = .false.
+    pr = .false.
+    call optimize_geometry(mol,molnew,calc,energy,grad,pr,wr,io)
+    !write(*,'(F25.15)') energy
+    !write(*,'(3(F20.15,"_wp,")," &")') grad
+    call check(error,io,0)
+    if (allocated(error)) return
+
+    call check(error,energy,e_ref,thr=1e-6_wp)
+    if (allocated(error)) return
+
+    deallocate (grad)
+  end subroutine test_ancoptsmall
+
 
 !========================================================================================!
   subroutine test_gradientdescent(error)
