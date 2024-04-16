@@ -646,7 +646,7 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
     call defaultGF(env)
     write (stdout,*) 'list of applied metadynamics Vbias parameters:'
     do i = 1,env%nmetadyn
-      write (stdout,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(i)/env%rednat,env%metadexp(i)
+      write (stdout,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(i),env%metadexp(i)
     end do
     write (stdout,*)
 
@@ -695,7 +695,7 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
   allocate (mtds(nsim))
   do i = 1,nsim
     if (mddats(i)%simtype == type_mtd) then
-      mtds(i)%kpush = env%metadfac(i)/env%rednat
+      mtds(i)%kpush = env%metadfac(i)
       mtds(i)%alpha = env%metadexp(i)
       mtds(i)%cvdump_fs = float(env%mddump)
       mtds(i)%mtdtype = cv_rmsd
