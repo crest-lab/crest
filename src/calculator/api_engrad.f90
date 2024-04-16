@@ -266,7 +266,7 @@ contains    !> MODULE PROCEDURES START HERE
 
 !>--- postprocessing, getting other data
     !$omp critical
-    call gfnff_wbos(calc,mol,iostatus)
+    call gfnff_properties(calc,mol,iostatus)
     !$omp end critical
 
     return

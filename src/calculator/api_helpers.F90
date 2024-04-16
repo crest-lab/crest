@@ -319,7 +319,7 @@ contains    !> MODULE PROCEDURES START HERE
     if (calc%apiclean) loadnew = .true.
 #endif
   end subroutine gfnff_init
-  subroutine gfnff_wbos(calc,mol,iostatus)
+  subroutine gfnff_properties(calc,mol,iostatus)
     implicit none
     type(calculation_settings),intent(inout) :: calc
     type(coord),intent(in) :: mol
@@ -327,12 +327,16 @@ contains    !> MODULE PROCEDURES START HERE
     integer :: i,j
     iostatus = 0
 #ifdef WITH_GFNFF
-    if (.not.calc%rdwbo) return
+    if (calc%rdwbo)then
     if (allocated(calc%wbo)) deallocate (calc%wbo)
     allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
     call gfnff_getwbos(calc%ff_dat,mol%nat,calc%wbo)
+    endif
+    if(calc%rddip)then
+     calc%dipole = matmul(calc%ff_dat%nlist%q, transpose(mol%xyz))
+    endif
 #endif
-  end subroutine gfnff_wbos
+  end subroutine gfnff_properties
 
 !========================================================================================!
 
