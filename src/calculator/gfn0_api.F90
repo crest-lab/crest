@@ -235,21 +235,17 @@ contains  !>--- Module routines start here
     integer,intent(in) :: nat
     real(wp),intent(out) :: wbo(nat,nat)
     real(wp),allocatable :: Pa(:,:),Pb(:,:)
-    integer ndim
+    integer :: ndim
     wbo = 0.0_wp
 #ifdef WITH_GFN0
-!    call get_wbo_rhf(nat, g0calc%basis%nao, g0calc%wfn%P, &
-!    &         g0calc%wfn%S, g0calc%basis%aoat2, wbo)
 
     ndim=g0calc%basis%nao
     allocate(Pa(ndim,ndim),Pb(ndim,ndim))
     call density_matrix(ndim,g0calc%wfn%focca,g0calc%wfn%C,Pa)
     call density_matrix(ndim,g0calc%wfn%foccb,g0calc%wfn%C,Pb)
-    wbo=0.0_wp
     call get_wbo(nat, g0calc%basis%nao, Pa,Pb, &
     &         g0calc%wfn%S, g0calc%basis%aoat2, wbo)
 
-    !call prmat(6,wbo,nat,nat,'WBO_uhf')
     deallocate(Pa,Pb)
 #endif   
   end subroutine gfn0_getwbos

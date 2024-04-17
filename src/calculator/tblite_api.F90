@@ -37,7 +37,7 @@ module tblite_api
   use tblite_ceh_singlepoint,only:ceh_guess
   use tblite_ceh_ceh,only:new_ceh_calculator
 #endif
-  use wiberg_mayer,only:get_wbo_rhf
+  use wiberg_mayer
   implicit none
   private
 
@@ -379,24 +379,32 @@ contains  !> MODULE PROCEDURES START HERE
     type(tblite_data),intent(inout) :: tblite
     integer,intent(in) :: nat
     real(wp),intent(out) :: wbo(nat,nat)
-    real(wp),allocatable :: SI(:,:)
+    real(wp),allocatable :: S(:,:)
     integer :: nao,i
+    real(wp),allocatable :: focca(:),foccb(:)
+    real(wp),allocatable :: Pa(:,:),Pb(:,:)
     wbo = 0.0_wp
 #ifdef WITH_TBLITE
     select case (tblite%lvl)
     case default
-      call get_wbo_rhf(nat,tblite%calc%bas%nao,tblite%wfn%density, &
-      &         tblite%res%overlap,tblite%calc%bas%ao2at,wbo)
+
+      nao = tblite%calc%bas%nao
+      allocate(Pa(nao,nao),Pb(nao,nao))
+      call split_foccab(nao,tblite%wfn%focc, tblite%wfn%nel(1), tblite%wfn%nel(2), &
+      & focca, foccb)
+      call density_matrix(nao,focca,tblite%wfn%coeff(:,:,1),Pa)
+      call density_matrix(nao,foccb,tblite%wfn%coeff(:,:,1),Pb)
+      call get_wbo(nat, nao, Pa,Pb, tblite%res%overlap, tblite%calc%bas%ao2at, wbo)
 
     case (xtblvl%ceh)
     !> no external access to the overlap in CEH, hence use the Wiberg BO with S=I
       nao = tblite%calc%bas%nao
-      allocate(SI(nao,nao), source=0.0_wp) 
+      allocate(S(nao,nao), source=0.0_wp) 
       do i=1,nao
-        SI(i,i) = 1.0_wp
+        S(i,i) = 1.0_wp
       enddo
       call get_wbo_rhf(nat,tblite%calc%bas%nao,tblite%wfn%density, &
-      &                SI,tblite%calc%bas%ao2at,wbo)
+      &                S,tblite%calc%bas%ao2at,wbo)
       wbo = wbo*2.0_wp !> somehow this is much better
 
     case( xtblvl%eeq )
