@@ -108,6 +108,10 @@ module calc_type
     logical :: rdwbo = .false.
     real(wp),allocatable :: wbo(:,:)
 
+    !> atomic charges
+    logical :: rdqat = .false.
+    real(wp),allocatable :: qat(:)
+    
     !> dipole and dipole gradient
     logical :: rddip = .false.
     real(wp) :: dipole(3) = 0.0_wp
@@ -801,10 +805,12 @@ contains  !>--- Module routines start here
     !> more info
     if (self%id == jobtype%tblite) then
       select case (self%tblitelvl)
-      case (2)
+      case (xtblvl%gfn2)
         write (iunit,fmt4) 'GFN2-xTB level'
-      case (1)
+      case (xtblvl%gfn1)
         write (iunit,fmt4) 'GFN1-xTB level'
+      case (xtblvl%ceh)
+        write (iunit,fmt4) 'Charge Extended Hückel (CEH) model'
       end select
     end if
     if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &

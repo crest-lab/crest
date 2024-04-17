@@ -107,7 +107,7 @@ subroutine crest_singlepoint(env,tim)
         write (stdout,'(a12,a12,a10)') 'Atom A','Atom B','BO(A-B)'
         do i = 1,mol%nat
           do j = 1,i-1
-            if (calc%calcs(k)%wbo(i,j) > 0.0002_wp) then
+            if (calc%calcs(k)%wbo(i,j) > 0.01_wp) then
               write (stdout,*) i,j,calc%calcs(k)%wbo(i,j)
             end if
           end do

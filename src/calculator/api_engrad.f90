@@ -35,7 +35,7 @@ module api_engrad
   use gfnff_api
   use xhcff_api
   implicit none
-  !--- private module variables and parameters
+!>--- private module variables and parameters
   private
 
   public :: tblite_engrad
@@ -84,20 +84,19 @@ contains    !> MODULE PROCEDURES START HERE
 
 !>-- populate parameters and wavefunction
     if (loadnew) then
-      call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp, &
-      &    calc%tblite%ctx,calc%tblite%wfn,calc%tblite%calc)
-      call tblite_addsettings(calc%tblite%calc,calc%maxscc,calc%rdwbo,calc%saveint)
-      call tblite_add_solv(mol,calc%chrg,calc%uhf, &
-      &    calc%tblite%ctx,calc%tblite%wfn,calc%tblite%calc, &
+      call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp,calc%tblite)
+
+      call tblite_addsettings(calc%tblite,calc%maxscc,calc%rdwbo,calc%saveint,calc%accuracy)
+
+      call tblite_add_solv(mol,calc%chrg,calc%uhf, calc%tblite, &
       &    calc%solvmodel,calc%solvent)
     end if
     !$omp end critical
 
 !>--- do the engrad call
     call initsignal()
-    call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%accuracy, &
-    & calc%tblite%ctx,calc%tblite%wfn,calc%tblite%calc, &
-    & energy,grad,calc%tblite%res,iostatus)
+    call tblite_singlepoint(mol,calc%chrg,calc%uhf, calc%tblite, &
+    &                       energy,grad,iostatus)
     if (iostatus /= 0) return
     call api_print_e_grd(pr,calc%tblite%ctx%unit,mol,energy,grad)
 

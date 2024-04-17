@@ -18,7 +18,6 @@
 !================================================================================!
 
 module api_helpers
-
   use iso_fortran_env,only:wp => real64,stdout => output_unit
   use strucrd
   use calc_type
@@ -27,7 +26,6 @@ module api_helpers
   use tblite_api
   use gfn0_api
   use gfnff_api
-!=========================================================================================!
   implicit none
   public
 
@@ -117,7 +115,6 @@ contains    !> MODULE PROCEDURES START HERE
         reopen = .true.
       end if
       if(.not.ex .and. (calc%prch .ne. stdout)) reopen=.true. !> for the first time the file needs opening
-      !if (.not.ex.and.append) reopen = .true.
         if (allocated(calc%calcspace)) then
           ex = directory_exist(calc%calcspace)
           if (.not.ex) then
@@ -168,16 +165,22 @@ contains    !> MODULE PROCEDURES START HERE
     iostatus = 0
 !> WBOs
     if (calc%rdwbo)then
-      if (allocated(calc%wbo)) deallocate (calc%wbo)
-      allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
-      call tblite_getwbos(calc%tblite%calc,calc%tblite%wfn,calc%tblite%res,mol%nat,calc%wbo)
+      if (.not.allocated(calc%wbo)) &
+      & allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
+      call tblite_getwbos(calc%tblite, mol%nat, calc%wbo)
     endif
 !> Molecular dipole moment
     if(calc%rddip)then
      chrg = calc%chrg
      uhf = calc%uhf
-     call tblite_getdipole(mol,chrg,uhf,calc%tblite%wfn,calc%dipole)
+     call tblite_getdipole(mol,chrg,uhf,calc%tblite,calc%dipole)
     endif
+!> Atomic charges
+    if(calc%rdqat)then
+      if(.not.allocated(calc%qat)) &
+      & allocate(calc%qat(mol%nat), source=0.0_wp)
+      call tblite_getcharges(mol,calc%tblite,calc%qat)
+    endif 
   end subroutine tblite_properties
 
 !========================================================================================!
@@ -355,5 +358,6 @@ contains    !> MODULE PROCEDURES START HERE
 #endif
   end subroutine xhcff_initcheck
 
+!========================================================================================!
 !========================================================================================!
 end module api_helpers
