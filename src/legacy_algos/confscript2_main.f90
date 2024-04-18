@@ -86,7 +86,7 @@ subroutine confscript2i_legacy(env,tim)
     write (*,*)
     write (*,*) 'list of Vbias parameters applied:'
     do m = 1,env%nmetadyn
-      write (*,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(m) / env%rednat,env%metadexp(m)
+      write (*,'(''$metadyn '',f10.5,f8.3,i5)') env%metadfac(m),env%metadexp(m)
     end do
   end if
 

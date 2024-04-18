@@ -27,10 +27,9 @@ endif()
 project(
   crest
   LANGUAGES "C" "Fortran"
-  VERSION  3.0 
+  VERSION  3.0.1 
   DESCRIPTION "A tool for the exploration of low-energy chemical space"
 )
-#set(SOVERSION "pre")
 
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)

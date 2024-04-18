@@ -18,7 +18,6 @@
 !================================================================================!
 
 module api_helpers
-
   use iso_fortran_env,only:wp => real64,stdout => output_unit
   use strucrd
   use calc_type
@@ -27,7 +26,6 @@ module api_helpers
   use tblite_api
   use gfn0_api
   use gfnff_api
-!=========================================================================================!
   implicit none
   public
 
@@ -116,18 +114,17 @@ contains    !> MODULE PROCEDURES START HERE
         close (calc%prch)
         reopen = .true.
       end if
-      if(.not.ex .and. (calc%prch .ne. stdout)) reopen=.true. !> for the first time the file needs opening
-      !if (.not.ex.and.append) reopen = .true.
-        if (allocated(calc%calcspace)) then
-          ex = directory_exist(calc%calcspace)
-          if (.not.ex) then
-            io = makedir(trim(calc%calcspace))
-          end if
-          cpath = calc%calcspace//sep//fname
-        else
-          cpath = fname
+      if (.not.ex.and.(calc%prch .ne. stdout)) reopen = .true. !> for the first time the file needs opening
+      if (allocated(calc%calcspace)) then
+        ex = directory_exist(calc%calcspace)
+        if (.not.ex) then
+          io = makedir(trim(calc%calcspace))
         end if
-      if(reopen)then
+        cpath = calc%calcspace//sep//fname
+      else
+        cpath = fname
+      end if
+      if (reopen) then
         !> NOTE: this requires a predifined print channel!
         open (unit=calc%prch,file=cpath)
 
@@ -136,7 +133,7 @@ contains    !> MODULE PROCEDURES START HERE
         write (calc%prch,'(a)') '> new calculation'
         write (calc%prch,'(a,/)') repeat('%',50)
       end if
-        deallocate (cpath)
+      deallocate (cpath)
 
       call api_print_input_structure(pr,calc%prch,mol)
     end if
@@ -154,35 +151,37 @@ contains    !> MODULE PROCEDURES START HERE
       allocate (calc%tblite)
       loadnew = .true.
     end if
-    !if (.not.allocated(calc%tblite%wfn)) then
-    !  allocate (calc%tblite%wfn)
-    !  loadnew = .true.
-    !end if
-    !if (.not.allocated(calc%tblite%calc)) then
-    !  allocate (calc%tblite%calc)
-    !  loadnew = .true.
-    !end if
-    !if (.not.allocated(calc%tblite%ctx)) then
-    !  allocate (calc%tblite%ctx)
-    !  loadnew = .true.
-    !end if
-    !if (.not.allocated(calc%tblite%res)) then
-    !  allocate (calc%tblite%res)
-    !  loadnew = .true.
-    !end if
     if (calc%apiclean) loadnew = .true.
   end subroutine tblite_init
-  subroutine tblite_wbos(calc,mol,iostatus)
+  subroutine tblite_properties(calc,mol,iostatus)
+!********************************************************
+!* Obtain tblite-calculated properties (where available)
+!********************************************************
     implicit none
     type(calculation_settings),intent(inout) :: calc
     type(coord),intent(in) :: mol
     integer,intent(out) :: iostatus
+    integer :: chrg,uhf
     iostatus = 0
-    if (.not.calc%rdwbo) return
-    if (allocated(calc%wbo)) deallocate (calc%wbo)
-    allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
-    call tblite_getwbos(calc%tblite%calc,calc%tblite%wfn,calc%tblite%res,mol%nat,calc%wbo)
-  end subroutine tblite_wbos
+!> WBOs
+    if (calc%rdwbo) then
+      if (.not.allocated(calc%wbo)) &
+      & allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
+      call tblite_getwbos(calc%tblite,mol%nat,calc%wbo)
+    end if
+!> Molecular dipole moment
+    if (calc%rddip) then
+      chrg = calc%chrg
+      uhf = calc%uhf
+      call tblite_getdipole(mol,chrg,uhf,calc%tblite,calc%dipole)
+    end if
+!> Atomic charges
+    if (calc%rdqat) then
+      if (.not.allocated(calc%qat)) &
+      & allocate (calc%qat(mol%nat),source=0.0_wp)
+      call tblite_getcharges(mol,calc%tblite,calc%qat)
+    end if
+  end subroutine tblite_properties
 
 !========================================================================================!
 
@@ -224,7 +223,7 @@ contains    !> MODULE PROCEDURES START HERE
     call gfn0_addsettings(mol,g0calc,etemp=calc%etemp)
 #endif
   end subroutine gfn0_init3
-  subroutine gfn0_wbos(calc,g0calc,mol,iostatus)
+  subroutine gfn0_properties(calc,g0calc,mol,iostatus)
     implicit none
     type(calculation_settings),intent(inout) :: calc
     type(gfn0_data),intent(inout) :: g0calc
@@ -232,12 +231,18 @@ contains    !> MODULE PROCEDURES START HERE
     integer,intent(out) :: iostatus
     iostatus = 0
 #ifdef WITH_GFN0
-    if (.not.calc%rdwbo) return
-    if (allocated(calc%wbo)) deallocate (calc%wbo)
-    allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
-    call gfn0_getwbos(g0calc,mol%nat,calc%wbo)
+!>--- Bond orders
+    if (calc%rdwbo) then
+      if (.not.allocated(calc%wbo)) &
+      & allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
+      call gfn0_getwbos(g0calc,mol%nat,calc%wbo)
+    end if
+!>--- dipole moments
+    if (calc%rddip) then
+      call gfn0_getdipole(g0calc,mol,calc%dipole)
+    end if
 #endif
-  end subroutine gfn0_wbos
+  end subroutine gfn0_properties
 
 !========================================================================================!
 
@@ -303,17 +308,17 @@ contains    !> MODULE PROCEDURES START HERE
 
       !> some restart options
       calc%ff_dat%restart = calc%restart
-      if(allocated(calc%restartfile))then
+      if (allocated(calc%restartfile)) then
         calc%ff_dat%restartfile = calc%restartfile
-      endif
-      if(allocated(calc%refgeo))then
+      end if
+      if (allocated(calc%refgeo)) then
         calc%ff_dat%refgeo = calc%refgeo
-      endif
-      if(allocated(calc%parametrisation))then
+      end if
+      if (allocated(calc%parametrisation)) then
         calc%ff_dat%refgeo = calc%parametrisation
-      endif
+      end if
 
-    endif
+    end if
     if (allocated(calc%solvent)) then
       if (.not.allocated(calc%ff_dat%solvent)) then
         allocate (calc%ff_dat%solvent,source=trim(calc%solvent))
@@ -323,7 +328,7 @@ contains    !> MODULE PROCEDURES START HERE
     if (calc%apiclean) loadnew = .true.
 #endif
   end subroutine gfnff_init
-  subroutine gfnff_wbos(calc,mol,iostatus)
+  subroutine gfnff_properties(calc,mol,iostatus)
     implicit none
     type(calculation_settings),intent(inout) :: calc
     type(coord),intent(in) :: mol
@@ -331,12 +336,16 @@ contains    !> MODULE PROCEDURES START HERE
     integer :: i,j
     iostatus = 0
 #ifdef WITH_GFNFF
-    if (.not.calc%rdwbo) return
-    if (allocated(calc%wbo)) deallocate (calc%wbo)
-    allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
-    call gfnff_getwbos(calc%ff_dat,mol%nat,calc%wbo)
+    if (calc%rdwbo) then
+      if (allocated(calc%wbo)) deallocate (calc%wbo)
+      allocate (calc%wbo(mol%nat,mol%nat),source=0.0_wp)
+      call gfnff_getwbos(calc%ff_dat,mol%nat,calc%wbo)
+    end if
+    if (calc%rddip) then
+      calc%dipole = matmul(calc%ff_dat%nlist%q,transpose(mol%xyz))
+    end if
 #endif
-  end subroutine gfnff_wbos
+  end subroutine gfnff_properties
 
 !========================================================================================!
 
@@ -355,5 +364,6 @@ contains    !> MODULE PROCEDURES START HERE
 #endif
   end subroutine xhcff_initcheck
 
+!========================================================================================!
 !========================================================================================!
 end module api_helpers

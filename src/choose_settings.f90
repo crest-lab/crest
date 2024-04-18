@@ -294,11 +294,11 @@ subroutine defaultGF(env)
           nk = 3
           nrem = 0
           nmtdyn = (na*nk)+2
-          call env%allocate(nmtdyn)   !allocate k(Vbias) and α(Vbias)
-          alp = 1.3 ! start value alpha
-          kstart = 0.0030 ! start value k
-          alpinc = (5./3.) ! increment
-          kinc = 2.0     ! increment
+          call env%allocate(nmtdyn) !> allocate k(Vbias) and α(Vbias)
+          alp = 1.3                 !> start value alpha
+          kstart = 0.003d0          !> start value k
+          alpinc = (5.0d0/3.0d0)    !> increment alpha
+          kinc = 2.0d0              !> increment k
 
           !-- two additional MTDs with extreme values
           env%metadfac(nmtdyn-1) = 0.001*env%rednat
@@ -312,10 +312,10 @@ subroutine defaultGF(env)
           na = 6
           nk = 4
           nmtdyn = na*nk
-          alp = 1.3 ! start value alpha
-          kstart = 0.003d00 ! start value k
-          alpinc = (4./3.) ! increment
-          kinc = (3./2.)     ! increment
+          alp = 1.3          !> start value alpha
+          kstart = 0.003d0   !> start value k
+          alpinc = (4.0d0/3.0d0)   !> increment alpha
+          kinc = (3.0d0/2.0d0)     !> increment k
           !======================================================!
         end if
       end select
@@ -330,9 +330,9 @@ subroutine defaultGF(env)
           if (m > nmtdynmax) cycle !> skip the last nrem setups
           env%metadfac(m) = k*env%rednat*env%mtd_kscal
           env%metadexp(m) = alp
-          k = k/kinc ! increment
+          k = k/kinc     !> increment k
         end do
-        alp = alp/alpinc ! increment
+        alp = alp/alpinc !> increment alpha
       end do
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++!
     end if

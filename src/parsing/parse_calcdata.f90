@@ -262,10 +262,13 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%tblite
       case ('gfn2','gfn2-xtb')
         job%id = jobtype%tblite
-        job%tblitelvl = 2
+        job%tblitelvl = xtblvl%gfn2
       case ('gfn1','gfn1-xtb')
         job%id = jobtype%tblite
-        job%tblitelvl = 1
+        job%tblitelvl = xtblvl%gfn1
+      case ('ceh')
+        job%id = jobtype%tblite
+        job%tblitelvl = xtblvl%ceh
       case ('gfn0','gfn0-xtb')
         job%id = jobtype%gfn0
       case ('gfn0*','gfn0*-xtb')
@@ -327,6 +330,10 @@ contains !> MODULE PROCEDURES START HERE
         job%tblitelvl = xtblvl%gfn1
       case ('ipea1')
         job%tblitelvl = xtblvl%ipea1
+      case ('ceh')
+        job%tblitelvl = xtblvl%ceh
+      case ('eeq','d4eeq')
+        job%tblitelvl = xtblvl%eeq
       case default
         job%tblitelvl = xtblvl%unknown
       end select

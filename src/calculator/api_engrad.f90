@@ -35,7 +35,7 @@ module api_engrad
   use gfnff_api
   use xhcff_api
   implicit none
-  !--- private module variables and parameters
+!>--- private module variables and parameters
   private
 
   public :: tblite_engrad
@@ -74,36 +74,35 @@ contains    !> MODULE PROCEDURES START HERE
     call tblite_init(calc,loadnew)
 !>--- tblite printout handling
     call api_handle_output(calc,'tblite.out',mol,pr)
-    if(pr)then
-       !> tblite uses its context (ctx)( type, rather than calc%prch
-       calc%tblite%ctx%unit = calc%prch
-       calc%tblite%ctx%verbosity = 1 
+    if (pr) then
+      !> tblite uses its context (ctx)( type, rather than calc%prch
+      calc%tblite%ctx%unit = calc%prch
+      calc%tblite%ctx%verbosity = 1
     else
-       calc%tblite%ctx%verbosity = 0
-    endif
+      calc%tblite%ctx%verbosity = 0
+    end if
 
 !>-- populate parameters and wavefunction
     if (loadnew) then
-      call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp, &
-      &    calc%tblite%ctx,calc%tblite%wfn,calc%tblite%calc)
-      call tblite_addsettings(calc%tblite%calc,calc%maxscc,calc%rdwbo,calc%saveint)
-      call tblite_add_solv(mol,calc%chrg,calc%uhf, &
-      &    calc%tblite%ctx,calc%tblite%wfn,calc%tblite%calc, &
+      call tblite_setup(mol,calc%chrg,calc%uhf,calc%tblitelvl,calc%etemp,calc%tblite)
+
+      call tblite_addsettings(calc%tblite,calc%maxscc,calc%rdwbo,calc%saveint,calc%accuracy)
+
+      call tblite_add_solv(mol,calc%chrg,calc%uhf,calc%tblite, &
       &    calc%solvmodel,calc%solvent)
     end if
     !$omp end critical
 
 !>--- do the engrad call
     call initsignal()
-    call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%accuracy, &
-    & calc%tblite%ctx,calc%tblite%wfn,calc%tblite%calc, &
-    & energy,grad,calc%tblite%res,iostatus)
+    call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%tblite, &
+    &                       energy,grad,iostatus)
     if (iostatus /= 0) return
     call api_print_e_grd(pr,calc%tblite%ctx%unit,mol,energy,grad)
 
 !>--- postprocessing, getting other data
     !$omp critical
-    call tblite_wbos(calc,mol,iostatus)
+    call tblite_properties(calc,mol,iostatus)
     !$omp end critical
 
     return
@@ -113,7 +112,7 @@ contains    !> MODULE PROCEDURES START HERE
 
   subroutine gfn0_engrad(mol,calc,g0calc,energy,grad,iostatus)
 !************************************************
-!* Interface singlepoint call between CREST and 
+!* Interface singlepoint call between CREST and
 !* the GFN0 engrad standard implementation
 !************************************************
     implicit none
@@ -159,7 +158,7 @@ contains    !> MODULE PROCEDURES START HERE
 
 !>--- postprocessing, getting other data
     !$omp critical
-    call gfn0_wbos(calc,calc%g0calc,mol,iostatus)
+    call gfn0_properties(calc,calc%g0calc,mol,iostatus)
     !$omp end critical
 
     return
@@ -169,8 +168,8 @@ contains    !> MODULE PROCEDURES START HERE
 
   subroutine gfn0occ_engrad(mol,calc,g0calc,energy,grad,iostatus)
 !************************************************
-!* Interface singlepoint call between CREST and 
-!* the GFN0 multi-occupation implementation 
+!* Interface singlepoint call between CREST and
+!* the GFN0 multi-occupation implementation
 !************************************************
     implicit none
     !> INPUT
@@ -214,7 +213,7 @@ contains    !> MODULE PROCEDURES START HERE
 
 !>--- postprocessing, getting other data
     !$omp critical
-    call gfn0_wbos(calc,g0calc,mol,iostatus)
+    call gfn0_properties(calc,g0calc,mol,iostatus)
     !$omp end critical
 
     return
@@ -244,7 +243,7 @@ contains    !> MODULE PROCEDURES START HERE
     !$omp critical
     call gfnff_init(calc,loadnew)
 !>--- printout handling
-    call api_handle_output(calc,'gfnff.out',mol,pr) 
+    call api_handle_output(calc,'gfnff.out',mol,pr)
 
 !>--- populate parameters and neighbourlists
     if (loadnew) then
@@ -266,7 +265,7 @@ contains    !> MODULE PROCEDURES START HERE
 
 !>--- postprocessing, getting other data
     !$omp critical
-    call gfnff_wbos(calc,mol,iostatus)
+    call gfnff_properties(calc,mol,iostatus)
     !$omp end critical
 
     return

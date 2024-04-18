@@ -49,6 +49,7 @@ module gfn0_api
   public :: gfn0_getwbos
   public :: gfn0_gen_occ
   public :: gfn0_print
+  public :: gfn0_getdipole
 
 !========================================================================================!
 !========================================================================================!
@@ -93,25 +94,25 @@ contains  !>--- Module routines start here
       if (allocated(g0calc%gbsa)) deallocate (g0calc%gbsa)
       allocate (g0calc%gbsa)
       if (present(model)) then
-        select case(model)
-        case('alpb')
-        call gfn0_gbsa_init(mol%nat,mol%at,.true.,solv,g0calc%gbsa)
+        select case (model)
+        case ('alpb')
+          call gfn0_gbsa_init(mol%nat,mol%at,.true.,solv,g0calc%gbsa)
         case default !> default GBSA
-        call gfn0_gbsa_init(mol%nat,mol%at,.false.,solv,g0calc%gbsa)
+          call gfn0_gbsa_init(mol%nat,mol%at,.false.,solv,g0calc%gbsa)
         end select
       else
         call gfn0_gbsa_init(mol%nat,mol%at,.false.,solv,g0calc%gbsa)
       end if
     end if
-    if(present(etemp))then
+    if (present(etemp)) then
       g0calc%xtbData%etemp = max(0.0_wp,etemp)
-    endif
-    if(present(loadwbo))then
-      if(loadwbo)then
+    end if
+    if (present(loadwbo)) then
+      if (loadwbo) then
         nao = g0calc%basis%nao
-        if(.not.allocated(g0calc%wfn%S)) allocate(g0calc%wfn%S(nao,nao), source=0.0_wp)
-      endif
-    endif
+        if (.not.allocated(g0calc%wfn%S)) allocate (g0calc%wfn%S(nao,nao),source=0.0_wp)
+      end if
+    end if
 #else
     write (stdout,*) 'Error: Compiled without GFN0-xTB support!'
     write (stdout,*) 'Use -DWITH_GFN0=true in the setup to enable this function'
@@ -134,22 +135,22 @@ contains  !>--- Module routines start here
     integer,intent(out) :: iostatus
     type(gfn0_results),intent(inout),optional :: res
     !> LOCAL
-    logical :: fail 
+    logical :: fail
     energy = 0.0_wp
     gradient = 0.0_wp
     iostatus = 0
     fail = .false.
 #ifdef WITH_GFN0
-    if (present(res)) then
-      call gfn0_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,g0calc, &
-      &          energy,gradient,fail,res)
-    else
-      call gfn0_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,g0calc, &
-      &          energy,gradient,fail)
-    end if
-    if(fail)then
+    !if (present(res)) then
+    call gfn0_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,g0calc, &
+    &          energy,gradient,fail,res=res)
+    ! else
+    !   call gfn0_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,g0calc, &
+    !   &          energy,gradient,fail)
+    ! end if
+    if (fail) then
       iostatus = -1
-    endif
+    end if
 #else
     write (stdout,*) 'Error: Compiled without GFN0-xTB support!'
     write (stdout,*) 'Use -DWITH_GFN0=true in the setup to enable this function'
@@ -166,7 +167,6 @@ contains  !>--- Module routines start here
     integer,intent(in) :: chrg
     integer,intent(in) :: uhf
     type(gfn0_data),intent(inout) :: g0calc
-!    real(wp),intent(in) :: occ(g0calc%basis%nao, nlev)
     real(wp),intent(in) :: occ(:)
     !> OUTPUT
     real(wp),intent(out) :: energy
@@ -177,19 +177,19 @@ contains  !>--- Module routines start here
     logical :: fail
     energy = 0.0_wp
     gradient = 0.0_wp
-    iostatus = 0 
+    iostatus = 0
     fail = .false.
 #ifdef WITH_GFN0
-    if (present(res)) then
-      call gfn0_occ_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,occ,g0calc, &
-      &          energy,gradient,fail,res)
-    else
-      call gfn0_occ_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,occ,g0calc, &
-      &          energy,gradient,fail)
-    end if
-    if(fail)then
+    !if (present(res)) then
+    call gfn0_occ_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,occ,g0calc, &
+    &          energy,gradient,fail,res=res)
+    !else
+    !  call gfn0_occ_singlepoint(mol%nat,mol%at,mol%xyz,chrg,uhf,occ,g0calc, &
+    !  &          energy,gradient,fail)
+    !end if
+    if (fail) then
       iostatus = -1
-    endif
+    end if
 #else
     write (stdout,*) 'Error: Compiled without GFN0-xTB support!'
     write (stdout,*) 'Use -DWITH_GFN0=true in the setup to enable this function'
@@ -212,10 +212,9 @@ contains  !>--- Module routines start here
 #endif
   end subroutine gfn0_gen_occ
 
-
 !========================================================================================!
 
-   subroutine gfn0_print(iunit,g0calc,res)
+  subroutine gfn0_print(iunit,g0calc,res)
     implicit none
     integer,intent(in) :: iunit
     type(gfn0_data),intent(in) :: g0calc
@@ -224,36 +223,50 @@ contains  !>--- Module routines start here
     call gfn0_print_summary(iunit,g0calc,res)
 #endif
     return
-   end subroutine gfn0_print
-
+  end subroutine gfn0_print
 
 !========================================================================================!
-!> obtain wbos from gfn0
+
   subroutine gfn0_getwbos(g0calc,nat,wbo)
+!*************************
+!* obtain wbos from gfn0
+!*************************
     implicit none
     type(gfn0_data),intent(in) :: g0calc
     integer,intent(in) :: nat
     real(wp),intent(out) :: wbo(nat,nat)
     real(wp),allocatable :: Pa(:,:),Pb(:,:)
-    integer ndim
+    integer :: ndim
     wbo = 0.0_wp
 #ifdef WITH_GFN0
-!    call get_wbo_rhf(nat, g0calc%basis%nao, g0calc%wfn%P, &
-!    &         g0calc%wfn%S, g0calc%basis%aoat2, wbo)
 
-    ndim=g0calc%basis%nao
-    allocate(Pa(ndim,ndim),Pb(ndim,ndim))
+    ndim = g0calc%basis%nao
+    allocate (Pa(ndim,ndim),Pb(ndim,ndim))
     call density_matrix(ndim,g0calc%wfn%focca,g0calc%wfn%C,Pa)
     call density_matrix(ndim,g0calc%wfn%foccb,g0calc%wfn%C,Pb)
-    wbo=0.0_wp
-    call get_wbo(nat, g0calc%basis%nao, Pa,Pb, &
-    &         g0calc%wfn%S, g0calc%basis%aoat2, wbo)
+    call get_wbo(nat,g0calc%basis%nao,Pa,Pb, &
+    &         g0calc%wfn%S,g0calc%basis%aoat2,wbo)
 
-    !call prmat(6,wbo,nat,nat,'WBO_uhf')
-    deallocate(Pa,Pb)
-#endif   
+    deallocate (Pa,Pb)
+#endif
   end subroutine gfn0_getwbos
 
+!========================================================================================!
+
+  subroutine gfn0_getdipole(g0calc,mol,dipole)
+!*****************************************
+!* obtain molecular dipole from gfn0 wfn
+!* Note, these come directly from an EEQ!
+!*****************************************
+    implicit none
+    type(gfn0_data),intent(in) :: g0calc
+    type(coord),intent(in) :: mol
+    real(wp),intent(out) :: dipole(3)
+    dipole = 0.0_wp
+#ifdef WITH_GFN0
+    dipole = matmul(mol%xyz,g0calc%wfn%q)
+#endif
+  end subroutine gfn0_getdipole
 
 !========================================================================================!
 !========================================================================================!

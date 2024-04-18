@@ -373,7 +373,7 @@ contains  !> MODULE PROCEDURES START HERE
     nvar1 = OPT%nvar+1             !> dimension of RF calculation
     npvar = OPT%nvar*(nvar1)/2   !> packed size of Hessian (note the abuse of nvar1!)
     npvar1 = nvar1*(nvar1+1)/2 !> packed size of augmented Hessian
-    allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1))
+    allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1), source=0.0_sp)
     !$omp end critical
 
 !! ========================================================================
@@ -528,14 +528,7 @@ contains  !> MODULE PROCEDURES START HERE
       end if
       displ(1:OPT%nvar) = Uaug(1:OPT%nvar,1)/Uaug(nvar1,1)
 
-!>--- check if step is too large, just cut off everything thats to large
-      !do j = 1,OPT%nvar
-      !  if (abs(displ(j)) .gt. maxdispl) then
-      !    if (displ(j) < 0) displ(j) = -maxdispl
-      !    if (displ(j) > 0) displ(j) = maxdispl
-      !  end if
-      !end do
-!>--- maybe more consistent version is to rescale displacement
+!>--- rescale displacement if necessary
       maxd = alp*sqrt(ddot(OPT%nvar,displ,1,displ,1))
       if (maxd > maxdispl) then
         if (pr) write (*,'(" * rescaling step by",f14.7)') maxdispl/maxd

@@ -39,8 +39,6 @@ subroutine env2calc(env,calc,molin)
   type(coord) :: mol
 
 !>--- Calculator level
-!> do not do this, there might be constraints already set up
-!  call calc%reset()
 
 !>-- defaults to whatever env has selected or gfn0
   call cal%create(trim(env%gfnver))
@@ -52,6 +50,12 @@ subroutine env2calc(env,calc,molin)
   cal%chrg = env%chrg
 !>-- obtain WBOs OFF by default
   cal%rdwbo = .false.
+  cal%rddip = .true.
+  !> except for SP runtype (from command line!)
+  if( env%crestver == crest_sp )then
+    cal%rdwbo = .true.
+    cal%rddip = .true.
+  endif
 
   !> implicit solvation
   if (env%gbsa) then
@@ -69,9 +73,7 @@ subroutine env2calc(env,calc,molin)
   cal%apiclean = .false.
 
   call cal%autocomplete(1)
-
   call calc%add(cal)
-
 
 !>--- Refinement level
   if (trim(env%gfnver2) .ne. '') then

@@ -108,11 +108,15 @@ module calc_type
     logical :: rdwbo = .false.
     real(wp),allocatable :: wbo(:,:)
 
+    !> atomic charges
+    logical :: rdqat = .false.
+    real(wp),allocatable :: qat(:)
+    
     !> dipole and dipole gradient
     logical :: rddip = .false.
-    real(wp) :: dip(3) = 0
+    real(wp) :: dipole(3) = 0.0_wp
     logical :: rddipgrad = .false.
-    real(wp),allocatable :: dipgrad(:,:,:)
+    real(wp),allocatable :: dipgrad(:,:)
 
 !>--- API constructs
     integer  :: tblitelvl = 2
@@ -164,6 +168,7 @@ module calc_type
     procedure :: info => calculation_settings_info
     procedure :: create => create_calclevel_shortcut
     procedure :: norestarts => calculation_settings_norestarts
+    procedure :: dumpdipgrad => calculation_dump_dipgrad
   end type calculation_settings
 !=========================================================================================!
 
@@ -345,7 +350,7 @@ contains  !>--- Module routines start here
 
     self%rdwbo = .false.
     self%rddip = .false.
-    self%dip = 0.0_wp
+    self%dipole = 0.0_wp
     self%rddipgrad = .false.
     self%gradtype = 0
     self%gradfmt = 0
@@ -663,6 +668,21 @@ contains  !>--- Module routines start here
     self%prch = dum
   end subroutine calculation_settings_printid
 
+
+  subroutine calculation_dump_dipgrad(self,filename)
+    implicit none
+    class(calculation_settings) :: self
+    character(len=*),intent(in) :: filename
+    integer :: i,j,ich
+    if(.not.allocated(self%dipgrad)) return 
+    open(newunit=ich,file=filename)
+    do i=1,size(self%dipgrad,2)
+      write(ich,'(3f20.10)') self%dipgrad(1:3,i)
+    enddo 
+    close(ich)
+  end subroutine calculation_dump_dipgrad
+
+
 !=========================================================================================!
 
   subroutine calculation_ONIOMexpand(self)
@@ -785,10 +805,12 @@ contains  !>--- Module routines start here
     !> more info
     if (self%id == jobtype%tblite) then
       select case (self%tblitelvl)
-      case (2)
+      case (xtblvl%gfn2)
         write (iunit,fmt4) 'GFN2-xTB level'
-      case (1)
+      case (xtblvl%gfn1)
         write (iunit,fmt4) 'GFN1-xTB level'
+      case (xtblvl%ceh)
+        write (iunit,fmt4) 'Charge Extended Hückel (CEH) model'
       end select
     end if
     if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &

@@ -36,7 +36,7 @@ module dynamics_module
 
   !>--- some constants and name mappings
   real(wp),parameter :: amutoau = amutokg*kgtome
-  real(wp),parameter :: fstoau = 41.3413733365614_wp
+  !real(wp),parameter :: fstoau = 41.3413733365614_wp
 
   !>-- filetypes as integers
   integer,parameter,public :: type_md = 1

@@ -36,6 +36,20 @@ module testmol
     &  shape(caffeine_xyz))
 !&>
 
+!&<
+  !> distorted methane
+  integer,parameter ::  methane_nat = 5
+  integer, parameter :: methane_at(methane_nat) = [6,1,1,1,1]
+  real(wp),parameter :: methane_xyz(3,methane_nat) =    reshape(&
+    & [-2.901604086313, 2.032342621828, -0.000007558904, &  
+    &  -4.142827301385, 1.660246889672,  1.875960807537, &
+    &  -4.354204487169, 0.990001535591, -1.470244961017, &
+    &  -3.376685347364, 4.088767344235, -0.405769514737, &
+    &  -1.351217548539, 1.424026988612,  0.000022676711],&
+    &  shape(methane_xyz))
+!&>
+
+
     public :: get_testmol
 
 contains
@@ -44,7 +58,14 @@ contains
     character(len=*),intent(in) :: name
     type(coord),intent(out) :: mol
     select case(name)
-
+    case('methane')
+      mol%nat = methane_nat
+      allocate(mol%at(mol%nat))
+      mol%at(:) = methane_at(:)
+      allocate(mol%xyz(3,mol%nat))
+      mol%xyz(:,:) = methane_xyz(:,:)
+      mol%chrg = 0
+      mol%uhf = 0
     case default
       !> caffeine
       mol%nat = caffeine_nat

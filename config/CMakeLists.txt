@@ -108,6 +108,12 @@ configure_file(
   "${PROJECT_BINARY_DIR}/crest_metadata.fh"
   @ONLY
 )
+# just to be safe, create it also in include/
+configure_file(
+  "${PROJECT_SOURCE_DIR}/assets/template/metadata.f90"
+  "${PROJECT_BINARY_DIR}/include/crest_metadata.fh"
+  @ONLY
+)
 
 #########################################################################################
 #########################################################################################
