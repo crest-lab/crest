@@ -29,15 +29,15 @@ subroutine xtb_sp_qcg(env, fname)
    type(systemdata) :: env
    character(len=512) :: jobcall
    character(*), parameter :: pipe = ' > xtb.out 2> /dev/null'
-   integer :: io
+   integer :: io,T,Tn
    call remove('gfnff_topo')
    call remove('energy')
    call remove('charges')
    call remove('xtbrestart')
+
 !---- setting threads
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) !set the global OMP/MKL variables for the xtb jobs
-   end if
+   call new_ompautoset(env,'auto',1,T,Tn)
+
 !---- jobcall
    write (jobcall, '(a,1x,a,1x,a,'' --sp '',a,1x,a)') &
    &     trim(env%ProgName), trim(fname), trim(env%gfnver), trim(env%solv), trim(pipe)
@@ -70,16 +70,15 @@ subroutine xtb_opt_qcg(env, zmol, constrain)
    logical :: constrain
    logical :: const
    character(*), parameter :: pipe = ' > xtb_opt.out 2> /dev/null'
-   integer :: io
+   integer :: io,T,Tn
 
 !--- Write coordinated
    fname = 'coord'
    call wrc0(fname, zmol%nat, zmol%at, zmol%xyz) !write coord for xtbopt routine
 
 !---- setting threads
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) !set the global OMP/MKL variables for the xtb jobs
-   end if
+   call new_ompautoset(env,'auto',1,T,Tn)
+
 !---- jobcall & Handling constraints
    if(constrain .AND. env%cts%used) then
      call write_constraint(env, fname, 'xcontrol')
@@ -116,13 +115,12 @@ subroutine xtb_lmo(env, fname)!,chrg)
    character(len=*), intent(in)     :: fname
    character(len=80)               :: pipe
    character(len=512)              :: jobcall
+   integer :: T,Tn
 
    pipe = ' > xtb.out 2>/dev/null'
 
 !---- setting threads
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) !set the global OMP/MKL variables for the xtb jobs
-   end if
+   call new_ompautoset(env,'auto',1,T,Tn)
 
 !---- jobcall, special gbsa treatment not needed, as the entire flag is included in env%solv
    write (jobcall, '(a,1x,a,1x,a,'' --sp --lmo '',a)') &
@@ -156,14 +154,13 @@ subroutine xtb_iff(env, file_lmo1, file_lmo2, solu, clus)
    character(len=80)               :: pipe
    character(len=512)              :: jobcall
    character(len=*)                :: file_lmo1, file_lmo2
+   integer :: T,Tn
 
 !--- Option setting
    pipe = ' > iff.out 2>/dev/null'
 
 !--- Setting threads
-!         if(env%autothreads)then
-   call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) !set the global OMP/MKL variables for the xtb jobs
-!         endif
+   call new_ompautoset(env,'auto',1,T,Tn)
 
 !--- Jobcall
    if (env%sameRandomNumber) then
@@ -201,7 +198,7 @@ subroutine xtb_dock(env, fnameA, fnameB, solu, clus)
    character(len=*), intent(in)    :: fnameA, fnameB
    character(len=80)               :: pipe
    character(len=512)              :: jobcall
-   integer                         :: i, ich
+   integer                         :: i, ich, T, Tn
 
    call remove('xtb_dock.out')
    call remove('xcontrol')
@@ -227,11 +224,9 @@ subroutine xtb_dock(env, fnameA, fnameB, solu, clus)
    end if
 
 !--- Setting threads
-!   if(env%autothreads)then
-   call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) !set the global OMP/MKL variables for the xtb jobs
-!   endif
+   call new_ompautoset(env,'auto',1,T,Tn)
 
-   !--- Jobcall docking
+!--- Jobcall docking
    write (jobcall, '(a,1x,''dock'',1x,a,1x,a,1x,a,1x,f4.2,1x,''--nfrag1'',1x,i0,1x,a,1x&
            & ''--input xcontrol > xtb_dock.out'',a)') &
            &     trim(env%ProgName), trim(fnameA), trim(fnameB), trim(env%gfnver),&
@@ -264,6 +259,7 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
    logical, optional, intent(in)   :: without_pot
    character(len=80)               :: pipe
    character(len=512)              :: jobcall
+   integer :: T,Tn
 
    if (env%niceprint) then
       call printprogbar(0.0_wp)
@@ -278,9 +274,8 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
    end if
 
 !--- Setting threads
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) !set the global OMP/MKL variables for the xtb jobs
-   end if
+   call new_ompautoset(env,'auto',1,T,Tn)
+
 
 !--- Jobcall optimization
    if (.not. without_pot) then
@@ -324,12 +319,12 @@ subroutine ensemble_lmo(env, fname, self, NTMP, TMPdir, conv)
 
    implicit none
    type(systemdata)                :: env
-   type(zmolecule), intent(in)      :: self
-   character(len=*), intent(in)     :: fname      !file base name
-   character(len=*), intent(in)     :: TMPdir     !directory name
-   integer, intent(in)              :: NTMP       !number of structures to be optimized
-   integer, intent(in)              :: conv(env%nqcgclust + 1)
-   integer                         :: i, k
+   type(zmolecule), intent(in)     :: self
+   character(len=*), intent(in)    :: fname      !file base name
+   character(len=*), intent(in)    :: TMPdir     !directory name
+   integer, intent(in)             :: NTMP       !number of structures to be optimized
+   integer, intent(in)             :: conv(env%nqcgclust + 1)
+   integer                         :: i, k,T, Tn
    integer                         :: vz
    character(len=20)               :: pipe
    character(len=512)              :: thispath, tmppath
@@ -337,9 +332,7 @@ subroutine ensemble_lmo(env, fname, self, NTMP, TMPdir, conv)
    real(wp)                        :: percent
 
 ! setting the threads for correct parallelization
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, NTMP)
-   end if
+   call new_ompautoset(env,'auto',NTMP,T,Tn)
 
    pipe = '2>/dev/null'
 
@@ -394,19 +387,19 @@ subroutine ensemble_iff(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, NTMP
    implicit none
    type(systemdata)                :: env
 
-   character(len=*), intent(in)     :: TMPdir     !directory name
-   integer, intent(in)              :: NTMP       !number of structures to be optimized
-   integer, intent(in)              :: nfrag1     !#atoms of larger fragment
-   integer, intent(in)              :: conv(env%nqcgclust + 1)
-   real(wp), intent(in)             :: outer_ell_abc(env%nqcgclust, 3)
+   character(len=*), intent(in)    :: TMPdir     !directory name
+   integer, intent(in)             :: NTMP       !number of structures to be optimized
+   integer, intent(in)             :: nfrag1     !#atoms of larger fragment
+   integer, intent(in)             :: conv(env%nqcgclust + 1)
+   real(wp), intent(in)            :: outer_ell_abc(env%nqcgclust, 3)
 
    integer                         :: i, k
-   integer                         :: vz
+   integer                         :: vz,T,Tn
    character(len=20)               :: pipe
    character(len=512)              :: tmppath
    character(len=1024)             :: jobcall
-   character(len=64), intent(in)    :: frag1_file
-   character(len=64), intent(in)    :: frag2_file
+   character(len=64), intent(in)   :: frag1_file
+   character(len=64), intent(in)   :: frag2_file
    character(len=64)               :: frag1
    character(len=64)               :: frag2
    real(wp)                        :: percent
@@ -417,9 +410,7 @@ subroutine ensemble_iff(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, NTMP
    frag2 = 'solvent.lmo'
 
 ! setting the threads for correct parallelization
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, NTMP)
-   end if
+   call new_ompautoset(env,'auto',NTMP,T,Tn)
 
    k = 0 !counting the finished jobs
 
@@ -473,12 +464,12 @@ subroutine ensemble_dock(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, n_s
    integer, intent(in)              :: n_shell, n_solvent
 
    integer                         :: i, k
-   integer                         :: vz
+   integer                         :: vz, T,Tn
    character(len=20)               :: pipe
    character(len=1024)             :: jobcall
    character(len=512)              :: thispath, tmppath
-   character(len=*), intent(in)     :: frag1_file
-   character(len=*), intent(in)     :: frag2_file
+   character(len=*), intent(in)    :: frag1_file
+   character(len=*), intent(in)    :: frag2_file
    character(len=64)               :: frag1
    character(len=64)               :: frag2
    real(wp)                        :: percent
@@ -492,9 +483,7 @@ subroutine ensemble_dock(env, outer_ell_abc, nfrag1, frag1_file, frag2_file, n_s
    call getcwd(thispath)
 
 ! setting the threads for correct parallelization
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, NTMP)
-   end if
+   call new_ompautoset(env,'auto',NTMP,T,Tn)
 
    write (jobcall, '(a,1x,''dock'',1x,a,1x,a,1x,a,1x,f4.2,1x,''--nfrag1'',1x,i0,1x,&
            & ''--input xcontrol --fast > xtb_dock.out '',a)') &
@@ -565,7 +554,7 @@ subroutine cff_opt(postopt, env, fname, n12, NTMP, TMPdir, conv, nothing_added)
    logical, intent(in)              :: postopt
    logical, intent(in)              :: nothing_added(env%nqcgclust)
    integer                         :: i, k, n12
-   integer                         :: vz
+   integer                         :: vz,T,Tn
    integer                         :: ich31
    character(len=20)               :: pipe
    character(len=512)              :: thispath, tmppath
@@ -574,9 +563,7 @@ subroutine cff_opt(postopt, env, fname, n12, NTMP, TMPdir, conv, nothing_added)
    real(wp)                        :: percent
 
 ! setting the threads for correct parallelization
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, NTMP)
-   end if
+   call new_ompautoset(env,'auto',NTMP,T,Tn)
 
    if (postopt) then
       write (*, '(2x,''Starting optimizations + SP  of structures'')')
@@ -722,16 +709,14 @@ subroutine ens_sp(env, fname, NTMP, TMPdir)
    integer, intent(inout)           :: NTMP       !number of structures to be optimized
 
    integer                         :: i, k
-   integer                         :: vz
+   integer                         :: vz, T, Tn
    character(len=20)               :: pipe
    character(len=512)              :: thispath, tmppath
    character(len=1024)             :: jobcall
    real(wp)                        :: percent
 
 ! setting the threads for correct parallelization
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, NTMP)
-   end if
+   call new_ompautoset(env,'auto',NTMP,T,Tn)
 
    write (*, '(2x,''Single point computation with GBSA model'')')
    write (*, '(2x,i0,'' jobs to do.'')') NTMP
@@ -806,7 +791,7 @@ subroutine ens_freq(env, fname, NTMP, TMPdir, opt)
    integer, intent(inout)           :: NTMP       !number of structures to be optimized
 
    integer                         :: i, k
-   integer                         :: vz
+   integer                         :: vz, T,Tn
    character(len=20)               :: pipe
    character(len=512)              :: thispath, tmppath
    character(len=1024)             :: jobcall
@@ -814,9 +799,7 @@ subroutine ens_freq(env, fname, NTMP, TMPdir, opt)
    logical                         :: opt
 
 ! setting the threads for correct parallelization
-   if (env%autothreads) then
-      call ompautoset(env%threads, 7, env%omp, env%MAXRUN, NTMP)
-   end if
+   call new_ompautoset(env,'auto',NTMP,T,Tn)
 
    write (*, '(2x,''Starting reoptimizations + Frequency computation of ensemble'')')
    write (*, '(2x,i0,'' jobs to do.'')') NTMP

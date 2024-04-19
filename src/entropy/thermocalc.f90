@@ -635,7 +635,7 @@ subroutine calcSrrhoav(env,ensname)
   real(wp),allocatable :: c0(:,:)
   real(wp),allocatable :: sref(:)
   character(len=64) :: atmp
-  integer :: i,j,k,ich,io,popf,ii
+  integer :: i,j,k,ich,io,popf,ii,T,Tn
   logical :: ex
   logical :: niceprint
   real(wp) :: percent
@@ -755,9 +755,7 @@ subroutine calcSrrhoav(env,ensname)
   niceprint = env%niceprint
 
 !>--- OMP stuff
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,ncalc) !set global OMP/MKL variable for xtb jobs
-  end if
+  call new_ompautoset(env,'auto',ncalc,T,Tn)
 
 !>--- the parallel loop
   avbhess = env%thermo%avbhess

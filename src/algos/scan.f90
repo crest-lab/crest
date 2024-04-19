@@ -57,7 +57,7 @@ subroutine crest_scan(env,tim)
   write (stdout,*) "|___/\___\__,_|_| |_|"
   write (stdout,*) "                     "
 !========================================================================================!
-  call ompset_max(env%threads)
+  call new_ompautoset(env,'max',0,i,j)
   call ompprint_intern()
   call tim%start(14,'Coordinate scan')
 !========================================================================================!

@@ -146,12 +146,8 @@ subroutine normalMD_para_OMP(env,lconf,ntemps)
   deallocate (eread,xyz)
 
 !---- some settings
-
   tot = lconf*ntemps  !total number of MDs
-
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,tot) !set the global OMP/MKL variables for the xtb jobs
-  end if
+  call new_ompautoset(env,'auto',tot,i,j)
 
   if (env%nmdtemp .lt. 0.0d0) then
     newtemp = 400.00d0
@@ -385,10 +381,7 @@ subroutine entropyMD_para_OMP(env)
     deallocate (eread,xyz)
 
 !---- some settings
-
-    if (env%autothreads) then
-      call ompautoset(env%threads,7,env%omp,env%MAXRUN,tot) !set the global OMP/MKL variables for the xtb jobs
-    end if
+    call new_ompautoset(env,'auto',tot,i,j)
 
     !--- Temperature
     newtemp = env%nmdtemp

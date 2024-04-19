@@ -20,53 +20,23 @@
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !c OMP and MKL parallelization settings
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!xTB uses OMP parallelization. This can be controlled by setting
-!the MKL_NUM_THREADS and OMP_NUM_THREADS enviornment variables.
 
-subroutine ompmklset(omp,maxrun,maximum)
+subroutine ompmklset(threads)
   use omp_lib
-  use iomod
   implicit none
-  integer :: omp,maxrun
-  real*8 :: omp1,omp2
-  integer :: dummy5,io
-  logical :: maximum
+  integer,intent(in) :: threads
 
-  if (omp .gt. OMP_GET_NUM_PROCS()) then
-    omp = OMP_GET_NUM_PROCS()
-  end if
-
-  if (maximum) then
-    dummy5 = omp*MAXRUN
-    io = setenv('OMP_NUM_THREADS',dummy5)
-    io = setenv('MKL_NUM_THREADS',dummy5)
-  else
-    io = setenv('OMP_NUM_THREADS',omp)
-    io = setenv('MKL_NUM_THREADS',omp)
-
-    write (*,*)
-    write (*,*) '==================================='
-    write (*,'(''  # threads ='',9x,i3)') omp
-    dummy5 = omp*MAXRUN
-    if (dummy5 .gt. OMP_GET_NUM_PROCS()) then
-      write (*,*) '! Warning: unreasonable combination of         !'
-      write (*,*) '! # of threads and # of parallel xTB calls.    !'
-      write (*,*) '! Adjusted to:                                 !'
-      omp1 = real(OMP_GET_NUM_PROCS())
-      omp2 = real(omp)
-      MAXRUN = floor((omp1/omp2))
-    end if
-    write (*,'(''  parallel xTB calls:''1x,i3)') MAXRUN
-    write (*,*) '==================================='
-    write (*,*)
-  end if
+  call OMP_Set_Num_Threads(threads)
+#ifdef WITH_MKL
+  call MKL_Set_Num_Threads(threads)
+#endif
 end subroutine ompmklset
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !c OMP and MKL parallelization settings (short routine)
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-subroutine ompquickset(omp)
+subroutine ompenvset(omp)
   use iomod
   implicit none
   integer,intent(in) :: omp
@@ -75,127 +45,75 @@ subroutine ompquickset(omp)
   io = setenv('OMP_NUM_THREADS',omp)
   io = setenv('MKL_NUM_THREADS',omp)
 
-end subroutine ompquickset
-
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!c OMP and MKL parallelization settings, getting the settings with maximum number of OMP threads
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-subroutine ompset_max(threads)
-  use iomod
-  implicit none
-  integer,intent(in) :: threads
-  integer :: io
-
-  io = setenv('OMP_NUM_THREADS',threads)
-  io = setenv('MKL_NUM_THREADS',threads)
-  call OMP_Set_Num_Threads(threads)
-#ifdef WITH_MKL
-  call MKL_Set_Num_Threads(threads)
-#endif
-end subroutine ompset_max
-
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!c OMP and MKL parallelization settings, getting the settings with minimum number of OMP threads
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-subroutine ompset_min(omp,maxrun)
-  use iomod
-  implicit none
-  integer,intent(inout) :: omp,maxrun
-  integer :: io
-
-  maxrun = omp*maxrun
-  omp = 1
-
-  io = setenv('OMP_NUM_THREADS',omp)
-  io = setenv('MKL_NUM_THREADS',omp)
-
-end subroutine ompset_min
+end subroutine ompenvset
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !c OMP and MKL autoset switchcase routine
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-subroutine ompautoset(threads,mode,omp,maxrun,factor)
+subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
   use omp_lib
+  use crest_data
+  use crest_parameters,only:wp
   implicit none
-  integer,intent(in) :: mode,factor
-  integer,intent(inout) :: threads,omp,maxrun
-  real*8 :: dum1
+  type(systemdata),intent(inout) :: env
+  character(len=*),intent(in)    :: modus
+  integer,intent(in)  :: maxjobs
+  integer,intent(out) :: parallel_jobs
+  integer,intent(out) :: cores_per_job
+  integer :: T,Tdiff
+  real(wp) :: Tfrac,Tfloor
 
-  if (threads .eq. 0) then                    !special case
-    threads = OMP_GET_NUM_PROCS()
-  end if
+  !> The default, all threads allocated to CREST
+  T = env%threads
+  parallel_jobs = T
+  cores_per_job = 1
+  !> More settings, nested parallelization reset
+  call omp_set_max_active_levels(1)
+  !call omp_set_dynamic(.true.)
 
-  if (threads .gt. OMP_GET_NUM_PROCS()) then  !limitation critirium 1: don't try to use more threads than available
-    threads = OMP_GET_NUM_PROCS()
-  end if
-
-  if ((maxrun .gt. threads).or.(omp .gt. threads)) then   !limitation critirium 2: don't use stupid maxrun or omp settings
-    maxrun = threads
-    omp = 1
-  end if
-
-  dum1 = float(omp)*float(maxrun)
-  if (dum1 .lt. float(threads)) then !limitation critirium 3: use the maximum number of threads
-    maxrun = threads
-    omp = 1
-  end if
-
-  select case (mode)
-  case (1)   !maximum number of OMP threads
-    call ompset_max(threads)
-  case (2)   !maximum number of parallel jobs
-    call ompset_min(omp,maxrun)
-  case (3)   !run multiple jobs each on multiple threads
-    dum1 = float(threads)/float(factor)
-    if (dum1 .ge. 2) then
-      maxrun = factor
-      omp = floor(dum1)
-      call ompquickset(omp)
-    else
-      call ompset_min(omp,maxrun)
+  select case (modus)
+  case ('auto','auto_nested')
+    !> distribute jobs automatically:
+    !> if more cores are available than maxjobs, try to distribute remaining
+    !> threads EVENLY for each job
+    if (maxjobs > 0.and.T > maxjobs) then
+      parallel_jobs = maxjobs
+      Tfrac = real(T)/real(maxjobs)
+      Tfloor = floor(Tfrac)
+      cores_per_job = max(nint(Tfloor),1)
     end if
-  case (4) !max number of threads for confscript internal routines (does not apply to the system calls)
-    call OMP_Set_Num_Threads(threads)
-#ifdef WITH_MKL
-    call MKL_Set_Num_Threads(threads)
-#endif
-  case (5) !max number of threads for confscript to 1 (so that confscript itself doesn't block to many cores)
-    call OMP_Set_Num_Threads(1)
-#ifdef WITH_MKL
-    call MKL_Set_Num_Threads(1)
-#endif
-  case (6) !case 2 combined with case 4, for OMP parallel task loop ---> each individual xTB job has only 1 thread, confscript has maximum number of threads to manage task list
-    call ompset_min(omp,maxrun)
-    call OMP_Set_Num_Threads(maxrun)
-#ifdef WITH_MKL
-    call MKL_Set_Num_Threads(maxrun)
-#endif
-  case (7) !case 3, but for OMP parallelization
-    dum1 = float(threads)/float(factor)
-    if (dum1 .ge. 2) then
-      maxrun = factor
-      omp = floor(dum1)
-      call ompquickset(omp)
-    else
-      call ompset_min(omp,maxrun)
+    if (index(modus,'_nested') .ne. 0) then
+      if (env%omp_allow_nested) then
+        !> We should never need more than two active nested layers
+        call omp_set_max_active_levels(2)
+        !else
+        !  parallel_jobs = T
+      end if
     end if
-    call OMP_Set_Num_Threads(maxrun)
-#ifdef WITH_MKL
-    call MKL_Set_Num_Threads(maxrun)
-#endif
-  case (8) !--- set OMP threads to max. or a given maximum, i.e. use an upper limit for the threads
-    omp = min(threads,factor)
-    maxrun = 1
-    call ompquickset(omp)
-    call OMP_Set_Num_Threads(maxrun)
-#ifdef WITH_MKL
-    call MKL_Set_Num_Threads(maxrun)
-#endif
-  case default  !done if omp and MAXRUN are valid and
-    call ompquickset(omp)
+
+  case ('max')
+    !> Both intern and environment variable threads to max
+    parallel_jobs = T
+    cores_per_job = T
+
+  case ('min','serial')
+    !> Both intern and environment variable threads to one (like a serial program)
+    parallel_jobs = 1
+    cores_per_job = 1
+
+  case ('subprocess')
+    !> CREST itself uses one thread, and but the environment variable is set to max
+    !> which is useful when driving a single subprocess/systemcall
+    parallel_jobs = 1
+    cores_per_job = T
+
   end select
 
-end subroutine ompautoset
+  !> apply the calculated settings
+  call ompmklset(parallel_jobs)
+  call ompenvset(cores_per_job)
+
+end subroutine new_ompautoset
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !c get omp/mkl automatically from the global variables
@@ -219,26 +137,6 @@ subroutine ompgetauto(threads,omp,maxrun)
   omp = nproc
 
 end subroutine ompgetauto
-
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!c print omp/mkl automatically from the global variables
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-subroutine ompprint()
-  use omp_lib
-  implicit none
-  integer :: nproc
-  integer :: r
-  character(len=256) :: val
-
-  call getenv('OMP_NUM_THREADS',val)
-  read (val,*,iostat=r) nproc
-  if (r .ne. 0) then
-    nproc = 1
-  end if
-  write (*,*) '============================='
-  write (*,*) ' # threads =',nproc
-  write (*,*) '============================='
-end subroutine ompprint
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 !c print omp/mkl threads that are used at the moment

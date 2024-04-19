@@ -37,7 +37,7 @@ subroutine compare_ensembles(env)
   integer :: be,ed
   integer :: tr1,tr2
   integer :: nat
-  integer :: dum
+  integer :: dum,T,Tn
   integer :: nat1,nat2
   integer :: nall1,nall2
   integer :: nconf1,nconf2
@@ -191,9 +191,7 @@ subroutine compare_ensembles(env)
     end do
 
 !---- set the threads for the RMSD calculation (OMP parallel)
-    if (env%autothreads) then
-      call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) !mode=4 --> Program intern Threads max
-    end if
+    call new_ompautoset(env,'max',0,T,Tn)
 
 !---- printout
     call smallhead('Comparing the Ensembles')

@@ -408,7 +408,7 @@ subroutine protens(ens,env,prot,tim)
 
   integer :: ich,natp,nallout
   integer :: nat,nall
-  integer :: i,k,r
+  integer :: i,j,k,r
   integer :: vz,io,refchrg
 
   real(wp) :: percent
@@ -457,9 +457,7 @@ subroutine protens(ens,env,prot,tim)
   deallocate (eread,at,xyz)
 
 !--- thread stuff
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall) !set the global OMP/MKL variables for the xtb jobs
-  end if
+  call new_ompautoset(env,'auto',nall,i,j)
 
 !--- creating the job
   jobcall = trim(env%ProgName)

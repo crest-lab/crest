@@ -222,6 +222,9 @@ contains   !> MODULE PROCEDURES START HERE
       env%multilevelopt = val 
     case ('refine_presort')
       env%refine_presort = val
+
+    case ('omp_nested')
+      env%omp_allow_nested = val
     end select
     return
   end subroutine parse_main_bool

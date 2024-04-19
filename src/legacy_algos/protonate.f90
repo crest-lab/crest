@@ -213,14 +213,13 @@ subroutine xtblmo(env,print)
   type(systemdata) :: env
   character(len=80) :: fname
   character(len=:),allocatable :: jobcall
-  integer :: io
+  integer :: io,T,Tn
   character(len=*),parameter :: pipe = ' > xtb.out 2>/dev/null'
   logical, optional :: print ! leave the xtb.out file (e.g. for msreact mode)
 
 !---- setting threads
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
-  end if
+  call new_ompautoset(env,'auto',1,T,Tn)
+
 !---- new plain coord file
   fname = 'tmpcoord'
   call copy('coord',fname)

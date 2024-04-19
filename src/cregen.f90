@@ -2632,10 +2632,10 @@ subroutine cregen_setthreads(ch,env,pr)
   type(systemdata) :: env
   integer :: ch
   logical :: pr
-  integer :: TID,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM,nproc
+  integer :: TID,OMP_GET_NUM_THREADS,OMP_GET_THREAD_NUM,nproc,T,Tn
 !>---- setting the threads for OMP parallel usage
   if (env%autothreads) then
-    call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) !mode=4 --> Program intern Threads max
+    call new_ompautoset(env,'max',0,T,Tn)
 !$OMP PARALLEL PRIVATE(TID)
     TID = OMP_GET_THREAD_NUM()
     IF (TID .EQ. 0.and.pr) THEN

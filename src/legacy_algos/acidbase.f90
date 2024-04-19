@@ -385,9 +385,7 @@ subroutine rewrite_AB_ensemble(env,acensemble,baensemble)
       bchrg=env%chrg-1
       bhess=.true.
 
-      if(env%autothreads)then
-            call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
-      endif
+      call new_ompautoset(env,'auto',1,i,j)
 
 !-- first, read the acid ensemble and calculate the free energies
       write(*,*) 'Acid ensemble: ',trim(acensemble)

@@ -45,7 +45,7 @@ subroutine confopt(env,xyz,TMPCONF,confcross)
       logical,intent(in) :: confcross ! used after confcross?
 
       integer :: i
-      integer :: vz
+      integer :: vz, T,Tn
       integer :: fileid
 
       character(len=20) :: pipe
@@ -65,9 +65,7 @@ subroutine confopt(env,xyz,TMPCONF,confcross)
       character(len=128) :: comment
 
 ! setting the threads for correct parallelization
-      if(env%autothreads)then
-        call ompautoset(env%threads,7,env%omp,env%MAXRUN,TMPCONF) !set global OMP/MKL variable for xtb jobs
-      endif
+      call new_ompautoset(env,'auto',TMPCONF,T,Tn)
 
       write(*,'(1x,''Starting optimization of generated structures'')')
       write(*,'(1x,i0,'' jobs to do.'')')TMPCONF
@@ -276,7 +274,7 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
          integer :: i,k,l
          integer :: ich,r,io
          integer :: nall
-         integer :: vz,TMPCONF
+         integer :: vz,TMPCONF,T,Tn
          integer,allocatable  :: at0(:)
          logical :: xo
 
@@ -362,9 +360,7 @@ subroutine MDopt_para_inplace(env,ensnam,multilev)
       k=0
 
 ! setting the threads for correct parallelization
-      if(env%autothreads)then
-        call ompautoset(env%threads,7,env%omp,env%MAXRUN,TMPCONF) !set global OMP/MKL variable for xtb jobs
-      endif
+      call new_ompautoset(env,'auto',TMPCONF,T,Tn)
 
       write(*,'(1x,a,i0,a,a,a)')'Optimizing all ',nall,' structures from file "',trim(ensnam),'" ...'
 

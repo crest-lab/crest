@@ -856,7 +856,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    type(timer)                :: tim
 
    integer                    :: i, j, k
-   integer                    :: io, f, r, ich
+   integer                    :: io, f, r, ich,T,Tn
    integer                    :: minpos
    character(len=512)         :: thispath, resultspath, tmppath, tmppath2
    character(len=512)         :: scratchdir_tmp
@@ -1032,10 +1032,7 @@ subroutine qcg_ensemble(env, solu, solv, clus, ens, tim, fname_results)
    case (1:2) ! Single MD or MTD
 
       !---- Setting threads
-      if (env%autothreads) then
-         !set the global OMP/MKL variables for the xtb jobs
-         call ompautoset(env%threads, 7, env%omp, env%MAXRUN, 1) 
-      end if
+      call new_ompautoset(env,'auto',1,T,Tn)
 
       !--- Setting new defaults for MD/MTD in qcg
       if (env%mdtemp .lt. 0.0d0) then

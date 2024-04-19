@@ -208,7 +208,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=:),allocatable :: jobcall
     logical :: fin
     character(len=256) :: atmp
-    integer :: ich,iost,io,i
+    integer :: ich,iost,io,i,T,Tn
     type(coord) :: mol
     integer :: ntopo
     integer,allocatable :: topo(:)
@@ -218,9 +218,7 @@ contains  !> MODULE PROCEDURES START HERE
     logical :: ldum
 
 !---- setting threads
-    if (env%autothreads) then
-      call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
-    end if
+    call new_ompautoset(env,'auto',1,T,Tn)
 
 !---- small header
     write (*,*)

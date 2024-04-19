@@ -30,7 +30,7 @@ subroutine xtbsp_legacy(env,xtblevel)
   integer,optional :: xtblevel
   character(len=80) :: fname,xtbflag
   character(len=512) :: jobcall
-  integer :: io
+  integer :: io,T,Tn
   character(*),parameter :: pipe = ' >xtb.out 2>/dev/null'
 !---- some options
   !pipe=' > xtb.out 2>/dev/null'
@@ -56,9 +56,8 @@ subroutine xtbsp_legacy(env,xtblevel)
     xtbflag = trim(env%gfnver)
   end if
 !---- setting threads
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
-  end if
+  call new_ompautoset(env,'auto',1,T,Tn)
+
 !---- new plain coord file
   fname = 'tmpcoord'
   call copy('coord',fname)
@@ -94,15 +93,14 @@ subroutine xtbsp2_legacy(fname,env)
   character(len=512) :: jobcall
   character(*),parameter :: pipe = ' > xtbcalc.out 2>/dev/null'
   character(len=4) :: chrgstr
-  integer :: io
+  integer :: io,T,Tn
   call remove('gfnff_topo')
   call remove('energy')
   if (.not.env%chargesfile) call remove('charges')
   call remove('xtbrestart')
 !---- setting threads
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
-  end if
+  call new_ompautoset(env,'auto',1,T,Tn)
+
 !---- jobcall
   jobcall = ""
   jobcall = trim(jobcall)//trim(env%ProgName)
@@ -143,7 +141,7 @@ subroutine xtbopt_legacy(env)
   logical :: fin
   character(len=256) :: atmp
   character(len=4) :: chrgstr
-  integer :: ich,iost,io,i
+  integer :: ich,iost,io,i,T,Tn
   type(coord) :: mol
   integer :: ntopo
   integer,allocatable :: topo(:)
@@ -163,9 +161,8 @@ subroutine xtbopt_legacy(env)
   call remove('xtbrestart')
 
 !---- setting threads
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,1) !set the global OMP/MKL variables for the xtb jobs
-  end if
+  call new_ompautoset(env,'auto',1,T,Tn)
+
 !---- new plain coord file
   fname = 'tmpcoord'
   call wrc0(fname,env%ref%nat,env%ref%at,env%ref%xyz)
@@ -306,7 +303,7 @@ subroutine MetaMD_para_OMP(env)
 
   type(systemdata) :: env
 
-  integer :: i,vz
+  integer :: i,vz,T,Tn
   real(wp) :: time
   character(len=512) :: thispath,tmppath
   character(len=512) :: jobcall
@@ -314,10 +311,7 @@ subroutine MetaMD_para_OMP(env)
   integer :: dum,io
   logical :: ex
 
-  if (env%autothreads) then
-    dum = env%nmetadyn
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,dum) !set the global OMP/MKL variables for the xtb jobs
-  end if
+  call new_ompautoset(env,'auto',env%nmetadyn,T,Tn)
 
   time = env%mdtime !for some reason this is necessary
 
@@ -903,8 +897,8 @@ subroutine confg_chk3(env)
   use cregen_interface 
   implicit none
   type(systemdata) :: env    !> MAIN SYSTEM DATA
-
-  call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) !mode=4 --> Program intern Threads max
+  integer :: T,Tn
+  call new_ompautoset(env,'max',0,T,Tn) 
   !>-- Special handling qcg, no RMSD,
   !    because a CMA transformed structure would cause wrong wall pot.
   if (env%crestver .eq. crest_solv) then
@@ -912,7 +906,6 @@ subroutine confg_chk3(env)
   else
     call newcregen(env,0)
   end if
-  call ompautoset(env%threads,5,env%omp,env%MAXRUN,0) !mode=5 --> Program intern Threads min
 end subroutine confg_chk3
 
 !---------------------------------------------------------------------
