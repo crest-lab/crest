@@ -349,6 +349,7 @@ subroutine trialOPT_warning(env,mol,success)
     allocate (topo(ntopo))
     allocate (changed(mol%nat),source=.false.)
     call quicktopo(mol%nat,mol%at,mol%xyz,ntopo,topo)
+    tchange = .false.
     do i = 1,ntopo
       if (topo(i) .ne. env%ref%topo(i)) then
         tchange = .true.
