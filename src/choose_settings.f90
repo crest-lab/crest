@@ -135,7 +135,9 @@ subroutine md_length_setup(env)
   & env%mdtime*float(env%nmetadyn),env%nmetadyn
 
 !> A MTD Vbias snapshot is taken every 1 ps
-  env%metadlist(:) = ceiling(env%mdtime)
+  if(allocated(env%metadlist))then
+    env%metadlist(:) = ceiling(env%mdtime)
+  endif
 
   return
 end subroutine md_length_setup

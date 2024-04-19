@@ -435,8 +435,8 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   type(coord) :: mol
   type(coord),allocatable :: moltmps(:)
   integer :: i,j,io,ich
-  logical :: pr,ex
-  integer :: T
+  logical :: pr,ex,nested
+  integer :: T,Tn
   real(wp) :: percent
   character(len=80) :: atmp
   character(len=*),parameter :: mdir = 'MDFILES'
@@ -453,12 +453,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
      return
    endif
 
-!>--- set threads
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nsim)
-  end if
-
-  !>--- check if we have any MD & calculation settings allocated
+!>--- check if we have any MD & calculation settings allocated
   if (.not.env%mddat%requested) then
     write (stdout,*) 'MD requested, but no MD settings present.'
     return
@@ -468,7 +463,9 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   end if
 
 !>--- prepare calculation containers for parallelization (one per thread)
-  T = env%threads
+  call new_ompautoset(env,'auto_nested',nsim,T,Tn) 
+  nested = env%omp_allow_nested
+
   allocate (calculations(T),source=env%calc)
   allocate (moltmps(T),source=mol)
   allocate (grdtmp(3,mol%nat),source=0.0_wp)
@@ -498,12 +495,16 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
 
   !>--- run the MDs
   !$omp parallel &
-  !$omp shared(env,calculations,mddats,mol,pr,percent,ich, moltmps)
+  !$omp shared(env,calculations,mddats,mol,pr,percent,ich, moltmps, nested,Tn)
   !$omp single
   do i = 1,nsim
 
     call initsignal()
     vz = i
+
+    !>--- OpenMP nested region threads
+    if(nested) call ompmklset(Tn)
+
     !$omp task firstprivate( vz ) private( job,thread_id,io,ex )
     call initsignal()
 
@@ -741,8 +742,8 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   type(coord) :: mols(nsim)
   type(coord),allocatable :: moltmps(:)
   integer :: i,j,io,ich
-  logical :: pr,ex
-  integer :: T
+  logical :: pr,ex,nested
+  integer :: T,Tn
   real(wp) :: percent
   character(len=80) :: atmp
   character(len=*),parameter :: mdir = 'MDFILES'
@@ -757,11 +758,6 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
      return
    endif
 
-!>--- set threads
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nsim)
-  end if
-
 !>--- check if we have any MD & calculation settings allocated
   if (.not.env%mddat%requested) then
     write (stdout,*) 'MD requested, but no MD settings present.'
@@ -772,7 +768,9 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   end if
 
 !>--- prepare calculation objects for parallelization (one per thread)
-  T = env%threads
+  call new_ompautoset(env,'auto_nested',nsim,T,Tn)
+  nested = env%omp_allow_nested
+
   allocate (calculations(T),source=env%calc)
   allocate (moltmps(T),source=mols(1))
   do i = 1,T
@@ -796,12 +794,16 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
 
 !>--- run the MDs
   !$omp parallel &
-  !$omp shared(env,calculations,mddats,mols,pr,percent,ich, moltmps,profiler)
+  !$omp shared(env,calculations,mddats,mols,pr,percent,ich, moltmps,profiler, nested,Tn)
   !$omp single
   do i = 1,nsim
 
     call initsignal()
     vz = i
+
+    !>--- OpenMP nested region threads
+    if(nested) call ompmklset(Tn)
+
     !$omp task firstprivate( vz ) private( job,thread_id,io,ex )
     call initsignal()
 
@@ -951,7 +953,6 @@ subroutine parallel_md_finish_printout(MD,vz,io,profiler)
 
   !$omp critical
 
-  !write(stdout,'(a)') repeat('-',45)
   if (MD%simtype == type_mtd) then
     if (MD%cvtype(1) == cv_rmsd_static) then
       write (atmp,'(a)') '*sMTD'
@@ -966,8 +967,6 @@ subroutine parallel_md_finish_printout(MD,vz,io,profiler)
   else
     write (btmp,'(a,1x,i3,a)') trim(atmp),vz,' terminated with early'
   end if
-  !write (stdout,'("* ",i0,a)') MD%dumped,' structures written to trajectory file'
-  !write(btmp,'(a,1x,i0,a)') trim(atmp),vz,' runtime'
   call profiler%write_timing(stdout,vz,trim(btmp))
 
   !$omp end critical

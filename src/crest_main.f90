@@ -68,13 +68,12 @@ program CREST
 !>   OMP_NUM_THREAD handling
 !=========================================================================================!
   if (.not.env%autothreads) then
-    call ompquickset(env%omp)
+    call ompenvset(env%omp)
   else
     if (.not.env%threadssetmanual) then
       call ompgetauto(env%threads,env%omp,env%MAXRUN)
-      !call ompprint()
     end if
-    call ompautoset(env%threads,0,env%omp,env%MAXRUN,0)   !<--- default
+    call new_ompautoset(env,'max',0,i,j)
   end if
 
 !=========================================================================================!

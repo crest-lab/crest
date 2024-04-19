@@ -11,7 +11,7 @@ subroutine crest_search_mecp(env,tim)
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
   type(coord) :: mol,molnew
-  integer :: i,j,k,l,io,ich,m
+  integer :: i,j,k,l,io,ich,m,T,Tn
   logical :: pr,wr
 !===========================================================!
   type(calcdata) :: calc
@@ -96,11 +96,10 @@ subroutine crest_search_mecp(env,tim)
 
   write (stdout,'(1x,a,i0,a,a,a)') 'Optimizing all ',nall, &
   & ' structures from file "',trim(ensnam),'" ...'
-  !>--- set threads
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
-  end if
-  !>--- optimize
+!>--- set threads
+  call new_ompautoset(env,'auto',nall,T,Tn)
+
+!>--- optimize
   call tim%start(3,'Geometry optimization')
   dump = .true.
   call crest_oloop(env,nat,nall,at,xyz,eread,dump)

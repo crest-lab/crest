@@ -721,16 +721,12 @@ subroutine reactorreopt(env,nat,at,nall,xyz,taken,frags,ndirs)
     deallocate(mask)
 
     ! setting the threads for correct parallelization
-    if(env%autothreads)then
-        call ompautoset(env%threads,7,env%omp,env%MAXRUN,ndirs) 
-    endif
+    call new_ompautoset(env,'auto',ndirs,i,j)
     write(*,'(1x,''Starting optimization of reactor products'')')
     write(*,'(1x,i0,'' jobs to do.'')')ndirs
 
     write(jobcall,'(a,1x,a,1x,a,1x,a)')trim(env%ProgName),xnam, &
-   &  trim(env%gfnver),'--opt >xtb.out 2>>xtb.out'
-    !write(*,*)'Syscall would is:'
-    !write(*,*) trim(jobcall)
+    &  trim(env%gfnver),'--opt >xtb.out 2>>xtb.out'
     call opt_OMP_loop(ndirs,'TMPFRG',jobcall,env%niceprint)
     write(*,'(/,1x,a)') 'done.'
     call chdir(trim(thispath)) !return

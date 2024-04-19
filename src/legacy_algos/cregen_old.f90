@@ -117,7 +117,7 @@ subroutine cregen2(env)
 
 !---- setting the threads for OMP parallel usage
       if(autothreads)then
-         call ompautoset(threads,4,omp,MAXRUN,0) !mode=4 --> Program intern Threads max
+         call new_ompautoset(env,'max',0,i,j)
 !$OMP PARALLEL PRIVATE(TID)
       TID = OMP_GET_THREAD_NUM()
       IF (TID .EQ. 0) THEN

@@ -39,15 +39,12 @@ subroutine trialMD_legacy(env)
   real(wp),allocatable :: gdum(:,:),Udum(:,:),xdum(:),ydum(:)  !rmsd dummy stuff
 
   logical :: shakefail,mdfail,ex
-  integer :: sysio
+  integer :: sysio,T,Tn
 
   allocate (gdum(3,3),Udum(3,3),xdum(3),ydum(3))
 
 !>--- some settings
-  if (env%autothreads) then
-    !> use maximum number of threads for the xtb   job, with a maximum of 8
-    call ompautoset(env%threads,8,env%omp,env%MAXRUN,8)
-  end if
+  call new_ompautoset(env,'auto',1,T,Tn)
 
   call getcwd(thispath)
 

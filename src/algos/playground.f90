@@ -39,6 +39,7 @@ subroutine crest_playground(env,tim)
   use probabilities_module
   use parse_csv
   use cregen_interface
+  use dynamics_module
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -62,6 +63,13 @@ subroutine crest_playground(env,tim)
   integer :: nat2
   real(wp),allocatable :: mu(:)
   real(wp) :: kappa,rrad
+
+  integer :: nsim
+  character(len=:),allocatable :: ensnam
+  type(mddata) :: mddat
+  type(mddata),allocatable :: mddats(:)
+
+
 !========================================================================================!
   call tim%start(14,'Test implementation') 
 !========================================================================================!
@@ -80,7 +88,23 @@ subroutine crest_playground(env,tim)
   write(*,*) 
 !========================================================================================!
 
-  call newcregen(env,0,'foobar.xyz') 
+!>--- sets the MD length according to a flexibility measure
+  call md_length_setup(env)
+!>--- create the MD calculator saved to env
+  call env_to_mddat(env)
+
+
+    nsim = 3
+    call crest_search_multimd_init(env,mol,mddat,nsim)
+    allocate (mddats(nsim), source=mddat)
+    call crest_search_multimd_init2(env,mddats,nsim)
+
+    call crest_search_multimd(env,mol,mddats,nsim)
+!>--- a file called crest_dynamics.trj should have been written
+    ensnam = 'crest_dynamics.trj'
+!>--- deallocate for next iteration
+    if(allocated(mddats))deallocate(mddats)
+
 
 !========================================================================================!
   call tim%stop(14)

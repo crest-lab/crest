@@ -87,7 +87,7 @@ subroutine propcalc(iname,imode,env,tim)
 
   real(wp) :: pthr,sumpop
   integer :: maxpop
-  integer :: nat,nall,ng
+  integer :: nat,nall,ng,T,Tn
   logical :: ex,update
   logical :: niceprint
 
@@ -239,9 +239,7 @@ subroutine propcalc(iname,imode,env,tim)
   end if
 
 !--- setting the threads for correct parallelization
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,TMPCONF) !set global OMP/MKL variable for xtb jobs
-  end if
+  call new_ompautoset(env,'auto',TMPCONF,T,Tn)
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
   call chdir(thispath)

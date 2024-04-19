@@ -62,13 +62,11 @@ subroutine trialMD_calculator(env)
   type(calcdata) :: tmpcalc
   real(wp) :: energy
   real(wp),allocatable :: grd(:,:)
-
+  integer :: T,Tn
   character(len=*),parameter :: dirnam = 'TRIALMD'
 
 !>--- OMP settings (should be set to 1 to simulate max parallelization)
-  if (env%autothreads) then
-    call ompautoset(env%threads,8,env%omp,env%MAXRUN,1)
-  end if
+  call new_ompautoset(env,'min',0,T,Tn)
 
   call getcwd(thispath)
 
@@ -79,7 +77,6 @@ subroutine trialMD_calculator(env)
 !>--- set up mol and MD calculator
   prefac = 0.003d0*env%rednat !> Vbias k
   alpha = 0.5d0         !> Vbias alpha
-  !Vdumpfreq = 10000     !> Vbias dumpfrequency, i.e., never updated !SG
 
   call env%ref%to(molstart)
   MDSTART = env%mddat         !> env%mddat should already be set up at this point
@@ -282,13 +279,13 @@ subroutine trialOPT_calculator(env)
   !> LOCAL
   type(coord) :: mol,molopt
   type(calcdata) :: tmpcalc
-  integer :: io
+  integer :: io,T,Tn
   real(wp) :: energy
   real(wp),allocatable :: grd(:,:)
   logical :: success,pr,wr
 
 !>--- get all available threads
-  call ompset_max(env%threads)
+  call new_ompautoset(env,'max',0,T,Tn)
 
 !>--- small header
   write (stdout,*)

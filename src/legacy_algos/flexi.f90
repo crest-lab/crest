@@ -25,7 +25,7 @@ subroutine nciflexi_legacy(env,flexval)
   type(systemdata) :: env
   character(len=80) :: fname
   character(len=512) :: jobcall
-  integer :: io
+  integer :: io,T,Tn
   logical :: ex
   real(wp) :: ehb,edisp
   real(wp) :: flexval
@@ -42,9 +42,7 @@ subroutine nciflexi_legacy(env,flexval)
   call remove('xtbrestart')
 
 !>--- setting threads
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,1)
-  end if
+  call new_ompautoset(env,'auto',1,T,Tn)
 
 !>--- new plain coord file
   fname = 'tmp.coord'

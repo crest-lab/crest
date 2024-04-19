@@ -33,7 +33,7 @@ subroutine crest_optimization(env,tim)
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
   type(coord) :: mol,molnew
-  integer :: i,j,k,l,io,ich
+  integer :: i,j,k,l,io,ich,T,Tn
   logical :: pr,wr
 !========================================================================================!
   type(calcdata) :: calc
@@ -44,7 +44,7 @@ subroutine crest_optimization(env,tim)
   character(len=80) :: atmp
   character(len=*),parameter :: partial = '∂E/∂'
 !========================================================================================!
-  call ompset_max(env%threads)
+  call new_ompautoset(env,'max',0,T,Tn)
   call ompprint_intern()
   call tim%start(14,'Geometry optimization')
 !========================================================================================!
@@ -180,7 +180,7 @@ subroutine crest_ensemble_optimization(env,tim)
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
   type(coord) :: mol,molnew
-  integer :: i,j,k,l,io,ich,c
+  integer :: i,j,k,l,io,ich,c,T,Tn
   logical :: pr,wr,ex
 !========================================================================================!
   type(calcdata) :: calc
@@ -222,20 +222,17 @@ subroutine crest_ensemble_optimization(env,tim)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 
 !>--- set OMP parallelization
-  if (env%autothreads) then
-    !>--- usually, one thread per xtb job
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
-  end if
+  call new_ompautoset(env,'auto',nall,T,Tn)
 
 !========================================================================================!
-  !>--- printout header
+!>--- printout header
   write (stdout,*)
   write (stdout,'(10x,"┍",49("━"),"┑")')
   write (stdout,'(10x,"│",14x,a,14x,"│")') "ENSEMBLE OPTIMIZATION"
   write (stdout,'(10x,"┕",49("━"),"┙")')
   write (stdout,*)
   write (stdout,'(1x,a,i0,a,1x,a)') 'Optimizing all ',nall,' structures of file',trim(ensnam)
-  !>--- call the loop
+!>--- call the loop
   call crest_oloop(env,nat,nall,at,xyz,eread,.true.)
 
 !========================================================================================!
@@ -257,7 +254,7 @@ subroutine crest_ensemble_optimization(env,tim)
   write(stdout,'(/,a,a,a)') 'Optimized ensemble written to <',ensemblefile,'>'
 
 !========================================================================================!
-  !>--- (optional) refinement step
+!>--- (optional) refinement step
   if (allocated(env%refine_queue)) then
     write(stdout,*)
     call crest_refine(env,ensemblefile,ensemblefile//'.refine')
@@ -289,7 +286,7 @@ subroutine crest_ensemble_screening(env,tim)
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
   type(coord) :: mol,molnew
-  integer :: i,j,k,l,io,ich,c
+  integer :: i,j,k,l,io,ich,c,T,Tn
   logical :: pr,wr,ex
 !========================================================================================!
   type(calcdata) :: calc
@@ -325,13 +322,10 @@ subroutine crest_ensemble_screening(env,tim)
   if (nall .lt. 1) return
 
 !>--- set OMP parallelization
-  if (env%autothreads) then
-    !>--- usually, one thread per xtb job
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
-  end if
+  call new_ompautoset(env,'auto',nall,T,Tn)
 
 !========================================================================================!
-  !>--- printout header
+!>--- printout header
   write (stdout,*)
   write (stdout,'(10x,"┍",48("━"),"┑")')
   write (stdout,'(10x,"│",15x,a,15x,"│")') "ENSEMBLE SCREENING"
@@ -342,18 +336,18 @@ subroutine crest_ensemble_screening(env,tim)
   write (stdout,'(1x,a,a)') 'Input file: ','<'//trim(ensnam)//'>'
   write (stdout,'(1x,a,i0,a)') 'Containing ',nall,' structures.'
 
-  !>--- call the loop
+!>--- call the loop
   call rmrfw('crest_rotamers_')
   call optlev_to_multilev(3.0d0,multilevel)
   call crest_multilevel_oloop(env,ensnam,multilevel)
  
-!---- printout
+!>--- printout
   call catdel('cregen.out.tmp')
   write (stdout,'(/,1x,a,1x,a)') 'Final ensemble on file','<'//trim(ensemblefile)//'>'
 
   call rename(conformerfile,trim(ensemblefile))
 
-!---- clean up
+!>--- clean up
   call screen_cleanup
 
 

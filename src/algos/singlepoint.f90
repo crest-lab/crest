@@ -39,7 +39,7 @@ subroutine crest_singlepoint(env,tim)
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
   type(coord) :: mol,molnew
-  integer :: i,j,k,l,io,ich
+  integer :: i,j,k,l,io,ich,T,Tn
   logical :: pr,wr
   character(len=80) :: atmp
 !========================================================================================!
@@ -61,7 +61,7 @@ subroutine crest_singlepoint(env,tim)
   write (stdout,*) "             |___/       |_|                      "
   write (stdout,*)
 !========================================================================================!
-  call ompset_max(env%threads)
+  call new_ompautoset(env,'max',0,T,Tn)
   call ompprint_intern()
   call tim%start(14,'Singlepoint calculation')
 !========================================================================================!
@@ -276,7 +276,7 @@ subroutine crest_ensemble_singlepoints(env,tim)
   real(wp),allocatable :: grad(:,:)
 
   character(len=:),allocatable :: ensnam
-  integer :: nat,nall
+  integer :: nat,nall,T,Tn
   real(wp),allocatable :: eread(:)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
@@ -308,10 +308,8 @@ subroutine crest_ensemble_singlepoints(env,tim)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 
 !>--- set OMP parallelization
-  if (env%autothreads) then
-    !>--- usually, one thread per xtb job
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
-  end if
+  call new_ompautoset(env,'auto',nall,T,Tn)
+
 !========================================================================================!
   !>--- printout header
   write (stdout,*)

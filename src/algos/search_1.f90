@@ -38,7 +38,7 @@ subroutine crest_search_1(env,tim)
   integer :: nsim
 
   character(len=:),allocatable :: ensnam
-  integer :: nat,nall
+  integer :: nat,nall,T,Tn
   real(wp),allocatable :: eread(:)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
@@ -75,7 +75,7 @@ subroutine crest_search_1(env,tim)
   call tim%start(2,'Molecular dynamics (MD)')
   call crest_search_multimd(env,mol,mddats,nsim)
   call tim%stop(2)
-  !>--- a file called crest_dynamics.trj should have been written
+!>--- a file called crest_dynamics.trj should have been written
   ensnam = 'crest_dynamics.trj'
 
 !==========================================================!
@@ -86,7 +86,7 @@ subroutine crest_search_1(env,tim)
   write(stdout,'(1x,a)') 'Ensemble Optimization'
   write(stdout,'(1x,a)') '---------------------'
 
-  !>--- read ensemble
+!>--- read ensemble
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) then
     write(stdout,*) 'empty ensemble file'
@@ -101,11 +101,11 @@ subroutine crest_search_1(env,tim)
  
   write(stdout,'(1x,a,i0,a,a,a)')'Optimizing all ',nall, &
   & ' structures from file "',trim(ensnam),'" ...'
-  !>--- set threads
-  if (env%autothreads) then
-    call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
-  end if
-  !>--- optimize
+
+!>--- set threads
+  call new_ompautoset(env,'auto',nall,T,Tn) 
+
+!>--- optimize
   call tim%start(3,'Geometry optimization')
   dump = .true.
   call crest_oloop(env,nat,nall,at,xyz,eread,dump)

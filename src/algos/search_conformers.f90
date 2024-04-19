@@ -304,7 +304,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel_in)
   integer,allocatable  :: at(:)
   logical :: dump,pr
   character(len=128) :: inpnam,outnam
-  integer :: i,l,k
+  integer :: i,l,k,T,Tn
   real(wp) :: ewinbackup,rthrbackup
   real(wp) :: hlowbackup
   integer :: microbackup
@@ -370,7 +370,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel_in)
   do i=1,6
     if(multilevel(i))then
      !>--- set threads
-       call ompautoset(env%threads,7,env%omp,env%MAXRUN,nall)
+       call new_ompautoset(env,'auto',nall,T,Tn)
      !>--- set optimization parameters
        call set_multilevel_options(env,i,.true.)
      !>--- run parallel optimizations

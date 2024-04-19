@@ -28,7 +28,7 @@ subroutine crest_moleculardynamics(env,tim)
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
   type(coord) :: mol,molnew
-  integer :: i,j,k,l,io,ich
+  integer :: i,j,k,l,io,ich,T,Tn
   logical :: pr,wr
 !========================================================================================!
   type(calcdata) :: calc
@@ -51,7 +51,7 @@ subroutine crest_moleculardynamics(env,tim)
   write(stdout,*) "        |___/                                   "
   write(stdout,*)
 !========================================================================================!
-  call ompset_max(env%threads)
+  call new_ompautoset(env,'max',0,T,Tn)
   call ompprint_intern()
   call tim%start(14,'Molecular dynamics (MD)')
   call env%ref%to(mol)
@@ -60,10 +60,6 @@ subroutine crest_moleculardynamics(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 !========================================================================================!
-
-  !>--- parallelization settings
-  !call ompautoset(env%threads,7,env%omp,env%MAXRUN,1)
-  !call ompprint_intern()
 
   pr = .true.
   !>--- default settings from env

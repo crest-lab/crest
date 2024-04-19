@@ -47,6 +47,7 @@ subroutine crest_crossing(env,maxgen,fname,maxpairs)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
   real(wp) :: percent,maxtmp
+  integer :: T,Tn
 !========================================================================================!
 !>--- check for the ensemble file
   if (present(fname)) then
@@ -76,7 +77,7 @@ subroutine crest_crossing(env,maxgen,fname,maxpairs)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 
 !>--- set OMP parallelization, use max number of threads
-  call ompautoset(env%threads,4,env%omp,env%MAXRUN,0) 
+  call new_ompautoset(env,'max',0,T,Tn)
 
 !========================================================================================!
 !>--- thresholds

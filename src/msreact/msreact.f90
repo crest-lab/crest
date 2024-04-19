@@ -51,7 +51,7 @@ subroutine msreact_handler(env,tim)
   integer :: nat
   integer,allocatable :: pair(:)
   integer,allocatable :: paths(:,:)
-  integer :: k
+  integer :: k,T,Tn
   integer :: nisomers,nfragpairs
   real(wp) :: molmass
   real(wp) :: estart ! energy of input structure
@@ -80,9 +80,7 @@ subroutine msreact_handler(env,tim)
   call msreact_topowrap(mso%pl%mol(1),pair,paths,'wbo')
 
   !-- setting the threads for correct parallelization
-  if (env%autothreads) then
-    call ompautoset(env%threads,6,env%omp,env%MAXRUN,0) !set global OMP/MKL variable for xtb jobs
-  end if
+  call new_ompautoset(env,'auto',0,T,Tn)
 
   !-- do the directory setup and optimizations
   call msreact(env,mso,nat,pair)
@@ -154,7 +152,7 @@ subroutine msreact(env,mso,nat,pair)
   integer :: i,j,k,l
   integer :: p
   integer :: np
-  integer :: io
+  integer :: io,T,Tn
   integer ::  nbaseat ! number of lewis basic atoms according to a xTB LMO analysis
   integer,allocatable :: basicatlist(:) ! list of lewis basic atoms according to a xTB LMO analysis
 
@@ -162,7 +160,7 @@ subroutine msreact(env,mso,nat,pair)
   character(len=40) :: pdir
   character(len=30) :: base
   character(len=512) :: thisdir
-  real(wp)             :: constr_dist
+  real(wp) :: constr_dist
 
   inmol = mso%pl%mol(1)
 
@@ -200,9 +198,7 @@ subroutine msreact(env,mso,nat,pair)
     call chdir(subdir)
     write (*,*) "Add attractive potential for H-shifts:"
     !-- setting the threads for correct parallelization (were changed in xtblmo call)
-    if (env%autothreads) then
-      call ompautoset(env%threads,6,env%omp,env%MAXRUN,0) !set global OMP/MKL variable for xtb jobs
-    end if
+    call new_ompautoset(env,'auto',0,T,Tn)
     do i = 1,nat
       do j = i,nat
         k = lin(i,j)

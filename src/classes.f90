@@ -330,14 +330,17 @@ module crest_data
     integer  :: nat              !> number of atoms
     integer  :: chrg             !> molecular charge
     integer  :: uhf              !>  nα - nβ electrons
-    integer  :: MAXRUN           !> number of parallel xtb jobs
-    integer  :: omp              !> OMP/MKL_NUM_THREADS
-    integer  :: Threads          !> Total number of threads (=omp*MAXRUN)
     integer  :: rednat           !> reduced Nat, if atom list is given
     real(wp) :: optlev
     real(wp) :: forceconst       !> forceconstant (mainly for gff iMTD-GC)
 
     real(wp) :: dummypercent
+
+    !>--- parallelization
+    integer :: MAXRUN = 1      !> number of cores per job
+    integer :: omp = 1         !> OMP/MKL_NUM_THREADS
+    integer :: Threads = 1     !> Total number of threads (=omp*MAXRUN)
+    logical :: omp_allow_nested = .true.  !> allow nested OpenMP threadding
 
     !>--- various names and flags
     character(len=128) :: ensemblename   !> ensemble input name for SCREEN,MDOPT and CREGEN
