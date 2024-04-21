@@ -17,9 +17,9 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 !c OMP and MKL parallelization settings
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
 subroutine ompmklset(threads)
   use omp_lib
@@ -32,9 +32,9 @@ subroutine ompmklset(threads)
 #endif
 end subroutine ompmklset
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 !c OMP and MKL parallelization settings (short routine)
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 
 subroutine ompenvset(omp)
   use iomod
@@ -47,9 +47,10 @@ subroutine ompenvset(omp)
 
 end subroutine ompenvset
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 !c OMP and MKL autoset switchcase routine
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
+
 subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
   use omp_lib
   use crest_data
@@ -82,12 +83,10 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
       Tfloor = floor(Tfrac)
       cores_per_job = max(nint(Tfloor),1)
     end if
-    if (index(modus,'_nested') .ne. 0) then
+    if (index(modus,'_nested') .ne. 0 .and. cores_per_job > 1) then
       if (env%omp_allow_nested) then
         !> We should never need more than two active nested layers
         call omp_set_max_active_levels(2)
-        !else
-        !  parallel_jobs = T
       end if
     end if
 
@@ -115,9 +114,10 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
 
 end subroutine new_ompautoset
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 !c get omp/mkl automatically from the global variables
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
+
 subroutine ompgetauto(threads,omp,maxrun)
   use omp_lib
   use iomod
@@ -138,9 +138,9 @@ subroutine ompgetauto(threads,omp,maxrun)
 
 end subroutine ompgetauto
 
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 !c print omp/mkl threads that are used at the moment
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 subroutine ompprint_intern()
   use omp_lib
   implicit none

@@ -138,8 +138,10 @@ contains  !> MODULE PROCEDURES START HERE
     iostatus = 0
     dum1 = 1.0_wp
     dum2 = 1.0_wp
+    if(n>0)then
     calc%etmp = 0.0_wp
     calc%grdtmp = 0.0_wp
+    endif
     !$omp end critical
 
 !**************************************
@@ -635,17 +637,33 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: energy,el,er
     real(wp),allocatable :: hess(:,:)
     logical :: consgeo
-    integer :: i,j,k,n3,io
+    integer :: i,j,k,n3,io,ncons
 
-    if (calc%nconstraints <= 0) return
+    ncons = calc%nconstraints
+    if (ncons <= 0) return
     !>--- skip if only nonadiabatic constraints
 
-    dummycalc = calc !> new dummy calculation
-    dummycalc%id = -1000  !> set to something arbitrary so that only constraints are considered
+    !> new dummy calculation
+    !> set to something arbitrary so that only constraints are considered
+    !> and copy the neccesities
+    dummycalc%id = -1000
     dummycalc%ncalculations = 0
     dummycalc%pr_energies = .false.
+    
+    !> copy the constraints
+    dummycalc%nfreeze = calc%nfreeze 
+    dummycalc%nconstraints = ncons
+    !$omp critical
+    allocate(dummycalc%cons( ncons ))
+    do i=1,ncons
+      dummycalc%cons(i) = calc%cons(i)   
+    enddo
+    if(calc%nfreeze > 0)then
+     dummycalc%freezelist = calc%freezelist
+    endif
     n3 = nat*3
     allocate (hess(n3,n3),source=0.0_wp)
+    !$omp end critical
 
     call numhess1(nat,at,xyz,dummycalc,hess,io)
 
@@ -656,7 +674,7 @@ contains  !> MODULE PROCEDURES START HERE
         phess(k) = phess(k)+0.5_wp*(hess(j,i)+hess(i,j))
       end do
     end do
-
+    
     deallocate (hess)
     return
   end subroutine constrhess

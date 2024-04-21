@@ -146,7 +146,7 @@ jobs:
       run: >-
         github-release ${{ env.RELEASE_COMMAND }}
         --tag ${{ env.RELEASE_TAG }}
-        --name "Continous release version"
+        --name "Continuous release version"
         --description "$DESCRIPTION"
         --pre-release
       env:
