@@ -75,6 +75,11 @@ subroutine protonate(env,tim)
   call protclean
   call prothead
 
+!>--- check method
+  if(trim(env%gfnver) .eq. '--gff')then
+     error stop 'protonate unavailable with GFN-FF -> need LMOs'
+  endif
+
   if (.not.allocated(env%ptb%atmap)) allocate (env%ptb%atmap(env%nat))
   if (.not.env%ptb%strictPDT.and..not.env%ptb%fixPDT) then
 !--- sort the input file (H atoms to the bottom)

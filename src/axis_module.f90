@@ -73,8 +73,12 @@ module axis_module
     module procedure CMAxyz
     module procedure CMAv
   end interface cma
+  public :: CMAtrf
 
-contains
+!========================================================================================!
+!========================================================================================!
+contains  !> MODULE PROCEDURES START HERE
+!========================================================================================!
 !========================================================================================!
 !> subroutine axis_0
 !> This is the original axis routine for calculating the
