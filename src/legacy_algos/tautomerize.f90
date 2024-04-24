@@ -62,6 +62,11 @@ subroutine tautomerize(env,tim)
   call tautclean
   call tauthead
 
+!>--- check method
+  if(trim(env%gfnver) .eq. '--gff')then
+     error stop 'tautomerize unavailable with GFN-FF -> need LMOs'
+  endif
+
   if (.not.allocated(env%ptb%atmap)) allocate (env%ptb%atmap(env%nat))
   if (.not.env%ptb%strictPDT.and..not.env%ptb%fixPDT) then
 !--- sort the input file (H atoms to the bottom)

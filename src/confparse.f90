@@ -710,6 +710,12 @@ subroutine parseflags(env,arg,nra)
         if(argument.eq.'-ohess') env%crest_ohess=.true.
         exit
 
+      case ('-hess','-numhess') !> Numerical hessian
+        env%preopt = .false.
+        env%crestver = crest_numhessian
+        env%legacy = .false.
+        exit
+
       case ('-trialopt')  !> test optimization with topocheck
         env%preopt = .false.
         env%crestver = crest_trialopt
@@ -2425,9 +2431,17 @@ subroutine inputcoords(env,arg)
 !>-- after this point there should always be an coord file present
   if (.not.allocated(env%inputcoords)) env%inputcoords = 'coord'
   call mol%open('coord')
-!>-- shift to CMA and align according to rot.const.
-  if (env%crestver /= crest_solv .and. env%crestver /= crest_sp &
-  & .and. env%crestver /= crest_optimize) call axis(mol%nat,mol%at,mol%xyz)
+!>-- shift to CMA and/or align according to rot.const. We have to be careful about this.
+  if (any((/ crest_sp, crest_optimize, crest_numhessian, crest_trialopt /) == env%crestver))then
+    !> some runtypes should only do a CMA translation, but no rotation
+    call CMAtrf(mol%nat,mol%nat,mol%at,mol%xyz)
+  else if (env%crestver == crest_solv)then
+    !> runtypes like qcg must not modify input coordinates!
+    continue
+  else
+    !> all other can align with rot. axis
+    call axis(mol%nat,mol%at,mol%xyz)
+  endif
 !>-- overwrite coord
   call mol%write('coord')
 
