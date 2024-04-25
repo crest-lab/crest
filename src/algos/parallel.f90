@@ -495,8 +495,10 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
 
   !>--- run the MDs
   !$omp parallel &
-  !$omp shared(env,calculations,mddats,mol,pr,percent,ich, moltmps, nested,Tn)
-  !$omp single
+  !$omp shared(env,calculations,mddats,mol,pr,percent,ich, nsim, moltmps, nested,Tn) &
+  !!$omp single
+  !$omp private(vz,i,job,thread_id,io,ex)
+  !$omp do
   do i = 1,nsim
 
     call initsignal()
@@ -505,7 +507,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     !>--- OpenMP nested region threads
     if(nested) call ompmklset(Tn)
 
-    !$omp task firstprivate( vz ) private( job,thread_id,io,ex )
+    !!$omp task firstprivate( vz ) private( job,thread_id,io,ex )
     call initsignal()
 
     thread_id = OMP_GET_THREAD_NUM()
@@ -525,10 +527,9 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
 
     !>--- finish printout (thread safe)
     call parallel_md_finish_printout(mddats(vz),vz,io,profiler)
-    !$omp end task
+    !!$omp end task
   end do
-  !$omp taskwait
-  !$omp end single
+  !!$omp taskwait
   !$omp end parallel
 
   !>--- collect trajectories into one
