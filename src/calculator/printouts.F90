@@ -72,7 +72,7 @@ contains  !> MODULE PROCEDURES START HERE
       write (iunit,*) 'Connectivity information (bond order):'
       do k = 1,calc%ncalculations
         if (calc%calcs(k)%rdwbo) then
-          write (iunit,'("> ",a,i0)') 'Calculation level ',k
+          write (iunit,'("> ",a,i3,a:)') 'Calculation level ',k,'; '//calc%calcs(k)%shortflag
           write (iunit,'(a12,a12,a10)') 'Atom A','Atom B','BO(A-B)'
           do i = 1,mol%nat
             do j = 1,i-1
@@ -87,6 +87,23 @@ contains  !> MODULE PROCEDURES START HERE
       write (iunit,'(a)') repeat('-',80)
     end if
 
+!>--- atomic charges
+    if(any(calc%calcs(:)%rdqat))then
+      write (iunit,*)
+      write (iunit,*) 'Atomic charges:'
+      do k = 1,calc%ncalculations
+        if (calc%calcs(k)%rdqat.and.allocated(calc%calcs(k)%qat)) then
+          write (iunit,'("> ",a,i3,a)') 'Calculation level ',k,': '//calc%calcs(k)%shortflag
+          write (iunit,'(3x,a6,1x,a6,a12)') 'atom','type','charge'
+          do j=1,mol%nat
+            write (iunit,'(3x,i6,1x,a6,f12.6)') j,i2e(mol%at(j),'nc'),calc%calcs(k)%qat(j)
+          enddo  
+          write (iunit,*)
+        end if
+      end do
+      write (iunit,'(a)') repeat('-',80)
+    endif
+
 !>--- Dipole moments
     if (any(calc%calcs(:)%rddip)) then
       write (iunit,*)
@@ -94,13 +111,12 @@ contains  !> MODULE PROCEDURES START HERE
       do k = 1,calc%ncalculations
         if (calc%calcs(k)%rddip) then
           dip = norm2(calc%calcs(k)%dipole)*autod
-          write (iunit,'("> ",a,i3,a,a10,a10,a10,a14)') 'Calculation level ',k,':', &
-          &                                             'x','y','z','tot (Debye)'
+          write (iunit,'("> ",a,i3,a:)') 'Calculation level ',k,': '//calc%calcs(k)%shortflag
+          write (iunit,'(2x,19x,3x,a10,a10,a10,a14)') 'x','y','z','tot (Debye)' 
           write (iunit,'(2x,a,3x,4f10.3)') 'total dipole moment',calc%calcs(k)%dipole(:),dip
           write (iunit,*)
         end if
       end do
-      write (iunit,*)
       write (iunit,'(a)') repeat('-',80)
     end if
 
@@ -137,14 +153,14 @@ contains  !> MODULE PROCEDURES START HERE
     if (calc%ncalculations > 1) then
       write (iunit,*)
       write (iunit,'(a)') '> Individual energies and gradient norms:'
-      write (iunit,'(24x,a18,a18)') 'Energy/Eh','||Grad||/Eh/a0'
+      write (iunit,'(24x,a18,a18,3x,a)') 'Energy/Eh','||Grad||/Eh/a0','Method'
       do k = 1,calc%ncalculations
         if (calc%calcs(k)%rdgrad) then
-          write (iunit,'(2x,a,i3,a,2f18.8)') 'Calculation level ',k,':', &
-          & calc%etmp(k),norm2(calc%grdtmp(:,:,k))
+          write (iunit,'(2x,a,i3,a,2f18.8,4x,a)') 'Calculation level ',k,':', &
+          & calc%etmp(k),norm2(calc%grdtmp(:,:,k)),calc%calcs(k)%shortflag
         else
-          write (iunit,'(2x,a,i3,a,f18.8,a18)') 'Calculation level ',k,':', &
-          & calc%etmp(k),'-'
+          write (iunit,'(2x,a,i3,a,f18.8,a18,4x,a)') 'Calculation level ',k,':', &
+          & calc%etmp(k),'-',calc%calcs(k)%shortflag
         end if
       end do
       if (calc%nconstraints > 0) then
@@ -158,7 +174,7 @@ contains  !> MODULE PROCEDURES START HERE
       write (iunit,'(a)',advance='no') '> Writing crest.engrad ...'
       flush (iunit)
       call write_engrad('crest.engrad',energy,grad)
-      write (iunit,*) 'done!'
+      write (iunit,*) 'done.'
     end if
 
 !>--- print output structure (if present)

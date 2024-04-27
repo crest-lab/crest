@@ -416,6 +416,8 @@ contains !> MODULE PROCEDURES START HERE
       job%rdwbo = val
     case ('rddip','rddipole')
       job%rddip = val
+    case ('rdqat','rdchrg')
+      job%rdqat = val
     case ('dipgrad')
       job%rddipgrad = val
     case ('rdgrad')

@@ -91,6 +91,7 @@ module calc_type
     character(len=:),allocatable :: binary      !> binary or generic script
     character(len=:),allocatable :: systemcall  !> systemcall for running generic scripts
     character(len=:),allocatable :: description !> see above jobdescription parameter
+    character(len=:),allocatable :: shortflag   !> shorter job description
 
 !>--- gradient format specifications
     logical :: rdgrad = .true.
@@ -638,6 +639,7 @@ contains  !>--- Module routines start here
 
     !> add a short description
     self%description = trim(jobdescription(self%id+1))
+    call calculation_settings_shortflag(self)
 
     if (.not.allocated(self%calcspace)) then
       !> I've decided to perform all calculations in a separate directory to
@@ -650,6 +652,58 @@ contains  !>--- Module routines start here
       self%prch = self%prch+id
     end if
   end subroutine calculation_settings_autocomplete
+
+!>--- create a short calculation info flag
+    subroutine calculation_settings_shortflag(self)
+    implicit none
+    class(calculation_settings) :: self
+    integer :: i,j
+
+    select case( self%id )
+    case( jobtype%xtbsys )   
+      self%shortflag = 'xtb subprocess'
+    case( jobtype%generic ) 
+      self%shortflag = 'generic subprocess' 
+    case( jobtype%turbomole ) 
+      self%shortflag = 'TURBOMOLE subprocess'
+    case( jobtype%orca ) 
+      self%shortflag = 'ORCA subprocess'
+    case( jobtype%terachem ) 
+      self%shortflag = 'TeraChem subprocess'
+    case( jobtype%tblite )
+      select case (self%tblitelvl)
+      case (xtblvl%gfn2)
+        self%shortflag = 'GFN2-xTB'
+      case (xtblvl%gfn1)
+        self%shortflag = 'GFN1-xTB'
+      case (xtblvl%ipea1)
+        self%shortflag = 'IPEA1-xTB'
+      case (xtblvl%ceh)
+        self%shortflag = 'CEH'
+      case (xtblvl%eeq)
+        self%shortflag = 'EEQ(D4)'
+      end select
+    case( jobtype%gfn0 )
+      self%shortflag =  'GFN0-xTB' 
+    case( jobtype%gfn0occ )
+      self%shortflag =  'GFN0-xTB*'
+    case( jobtype%gfnff )
+      self%shortflag =  'GFN-FF'
+    case( jobtype%xhcff )
+      self%shortflag =  'XHCFF'
+    case( jobtype%lj )
+      self%shortflag =  'LJ'
+    case default
+      self%shortflag = 'undefined'
+    end select
+    if(allocated(self%solvmodel).and.allocated(self%solvent))then
+      self%shortflag = self%shortflag//'/'//trim(self%solvmodel)
+       self%shortflag = self%shortflag//'('//trim(self%solvent)//')'
+    endif
+  end subroutine calculation_settings_shortflag
+
+
+
 
 !>-- generate a unique print id for the calculation
   subroutine calculation_settings_printid(self,thread,id)
