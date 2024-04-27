@@ -75,7 +75,7 @@ module calc_type
     integer :: id = 0         !> calculation type (see "jobtype" parameter above)
     integer :: prch = stdout  !> printout channel
     logical :: pr = .false.   !> allow the calculation to produce printout? Results in a lot I/O
-    logical :: prappend = .false. !> append printout 
+    logical :: prappend = .false. !> append printout
     integer :: refine_lvl = 0 !> to allow defining different refinement levels
 
     integer :: chrg = 0          !> molecular charge
@@ -111,7 +111,7 @@ module calc_type
     !> atomic charges
     logical :: rdqat = .false.
     real(wp),allocatable :: qat(:)
-    
+
     !> dipole and dipole gradient
     logical :: rddip = .false.
     real(wp) :: dipole(3) = 0.0_wp
@@ -153,7 +153,7 @@ module calc_type
     type(xhcff_calculator),allocatable :: xhcff
 
     !> ONIOM fragment IDs
-    integer :: ONIOM_highlowroot = 0 
+    integer :: ONIOM_highlowroot = 0
     integer :: ONIOM_id = 0
 
     !> ORCA job template
@@ -236,7 +236,7 @@ module calc_type
     logical :: pr_energies = .false.
     integer :: eout_unit = stdout
     character(len=:),allocatable :: elog
-    
+
 !>--- ONIOM calculator data
     type(lwoniom_data),allocatable :: ONIOM
     type(coord),allocatable :: ONIOMmols(:)
@@ -260,6 +260,8 @@ module calc_type
     procedure :: active_restore => calc_set_active_restore
     procedure :: freezegrad => calculation_freezegrad
   end type calcdata
+
+  public :: get_dipoles
 
 !========================================================================================!
 !========================================================================================!
@@ -331,11 +333,7 @@ contains  !>--- Module routines start here
     if (allocated(self%efile)) deallocate (self%efile)
     if (allocated(self%solvmodel)) deallocate (self%solvmodel)
     if (allocated(self%solvent)) deallocate (self%solvent)
-    !if (allocated(self%wfn)) deallocate (self%wfn)
-    !if (allocated(self%tbcalc)) deallocate (self%tbcalc)
-    !if (allocated(self%ctx)) deallocate (self%ctx)
-    !if (allocated(self%tbres)) deallocate (self%tbres)
-    if (allocated(self%tblite)) deallocate(self%tblite)
+    if (allocated(self%tblite)) deallocate (self%tblite)
     if (allocated(self%g0calc)) deallocate (self%g0calc)
     if (allocated(self%ff_dat)) deallocate (self%ff_dat)
     if (allocated(self%xhcff)) deallocate (self%xhcff)
@@ -447,7 +445,6 @@ contains  !>--- Module routines start here
 
     return
   end subroutine calculation_add_constraintlist
-
 
 !=========================================================================================!
 
@@ -590,16 +587,15 @@ contains  !>--- Module routines start here
     real(wp),intent(inout) :: grad(:,:)
     integer :: nat,i
     if (self%nfreeze > 0) then
-       nat = size(grad,2)
-       if(nat == self%nfreeze)then
-         error stop '*** ERROR *** Must not freeze all atoms!'
-       endif 
-       do i =1,nat
-         if(self%freezelist(i)) grad(:,i) = 0.0_wp
-       enddo
+      nat = size(grad,2)
+      if (nat == self%nfreeze) then
+        error stop '*** ERROR *** Must not freeze all atoms!'
+      end if
+      do i = 1,nat
+        if (self%freezelist(i)) grad(:,i) = 0.0_wp
+      end do
     end if
   end subroutine calculation_freezegrad
-
 
 !=========================================================================================!
 
@@ -627,9 +623,8 @@ contains  !>--- Module routines start here
     class(calculation_settings) :: self
     self%restart = .false.
     if (allocated(self%refgeo)) deallocate (self%refgeo)
-    if (allocated(self%restartfile)) deallocate(self%restartfile)
+    if (allocated(self%restartfile)) deallocate (self%restartfile)
   end subroutine calculation_settings_norestarts
-
 
 !=========================================================================================!
 
@@ -668,20 +663,18 @@ contains  !>--- Module routines start here
     self%prch = dum
   end subroutine calculation_settings_printid
 
-
   subroutine calculation_dump_dipgrad(self,filename)
     implicit none
     class(calculation_settings) :: self
     character(len=*),intent(in) :: filename
     integer :: i,j,ich
-    if(.not.allocated(self%dipgrad)) return 
-    open(newunit=ich,file=filename)
-    do i=1,size(self%dipgrad,2)
-      write(ich,'(3f20.10)') self%dipgrad(1:3,i)
-    enddo 
-    close(ich)
+    if (.not.allocated(self%dipgrad)) return
+    open (newunit=ich,file=filename)
+    do i = 1,size(self%dipgrad,2)
+      write (ich,'(3f20.10)') self%dipgrad(1:3,i)
+    end do
+    close (ich)
   end subroutine calculation_dump_dipgrad
-
 
 !=========================================================================================!
 
@@ -705,11 +698,11 @@ contains  !>--- Module routines start here
       error stop
     end if
 
-    write(stdout,'(a)',advance='no') 'Assigning and duplicating calculators for ONIOM setup ...'
-    flush(stdout)
+    write (stdout,'(a)',advance='no') 'Assigning and duplicating calculators for ONIOM setup ...'
+    flush (stdout)
 
     allocate (self%ONIOMmap(ncalcs),source=0)
-    allocate (newids(2,self%ONIOM%nfrag), source = 0)
+    allocate (newids(2,self%ONIOM%nfrag),source=0)
     k = 0
     do i = 1,self%ONIOM%nfrag
 
@@ -719,13 +712,13 @@ contains  !>--- Module routines start here
         if (l == 2) then
           !> to exlcude the highest ONIOM layer, we need to cycle
           j2 = self%ONIOM%calcids(1,i)
-          if (j == j2)then
-             newid = newids(1,i)
-             newids(2,i) = newid
-             self%calcs(newid)%ONIOM_highlowroot = 3
-             self%calcs(newid)%ONIOM_id = i
-             cycle
-          endif
+          if (j == j2) then
+            newid = newids(1,i)
+            newids(2,i) = newid
+            self%calcs(newid)%ONIOM_highlowroot = 3
+            self%calcs(newid)%ONIOM_id = i
+            cycle
+          end if
         end if
 
         if (any(self%ONIOMmap(:) .eq. j)) then
@@ -748,13 +741,13 @@ contains  !>--- Module routines start here
 
         self%calcs(newid)%ONIOM_highlowroot = l
         self%calcs(newid)%ONIOM_id = i
-        select case(l)
-        case( 1 ) 
-        write(atmp,'(a,i0,a)') 'ONIOM.',i,'.high'
-        case( 2 )
-        write(atmp,'(a,i0,a)') 'ONIOM.',i,'.low'
-        case( 3 )
-        write(atmp,'(a,i0,a)') 'ONIOM.',i,'.root'
+        select case (l)
+        case (1)
+          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.high'
+        case (2)
+          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.low'
+        case (3)
+          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.root'
         end select
         self%calcs(newid)%calcspace = trim(atmp)
 
@@ -762,26 +755,26 @@ contains  !>--- Module routines start here
         self%calcs(newid)%weight = 0.0_wp
 
         !> Check if the ONIOM fragment has a charge attached!
-        if(allocated(self%ONIOM%fragment(i)%chrg))then
+        if (allocated(self%ONIOM%fragment(i)%chrg)) then
           self%calcs(newid)%chrg = self%ONIOM%fragment(i)%chrg
-        endif 
+        end if
 
       end do
     end do
     self%ONIOM%calcids = newids
-    deallocate(newids)
+    deallocate (newids)
 
-    if(allocated(self%ONIOMrevmap)) deallocate(self%ONIOMrevmap)
-    allocate(self%ONIOMrevmap( self%ncalculations ), source=0)
-    do i =1,self%ncalculations
-       do j =1,self%ONIOM%ncalcs
-         if( self%ONIOMmap(j) == i)then
-            self%ONIOMrevmap(i) = j
-         endif
-       enddo
-    enddo
+    if (allocated(self%ONIOMrevmap)) deallocate (self%ONIOMrevmap)
+    allocate (self%ONIOMrevmap(self%ncalculations),source=0)
+    do i = 1,self%ncalculations
+      do j = 1,self%ONIOM%ncalcs
+        if (self%ONIOMmap(j) == i) then
+          self%ONIOMrevmap(i) = j
+        end if
+      end do
+    end do
 
-    write(stdout,*) 'done.'
+    write (stdout,*) 'done.'
   end subroutine calculation_ONIOMexpand
 
 !=========================================================================================!
@@ -856,21 +849,20 @@ contains  !>--- Module routines start here
     write (atmp,*) 'Read dipoles?'
     if (self%rddip) write (iunit,fmt3) atmp,'yes'
 
-
-    if(self%ONIOM_highlowroot /= 0)then
-      select case(self%ONIOM_highlowroot)
-      case( 1 )
-      write (atmp,*) 'ONIOM frag ("high")'
-      case(2)
-      write (atmp,*) 'ONIOM frag ("low")'
-      case(3)
-      write (atmp,*) 'ONIOM frag ("root")'
+    if (self%ONIOM_highlowroot /= 0) then
+      select case (self%ONIOM_highlowroot)
+      case (1)
+        write (atmp,*) 'ONIOM frag ("high")'
+      case (2)
+        write (atmp,*) 'ONIOM frag ("low")'
+      case (3)
+        write (atmp,*) 'ONIOM frag ("root")'
       end select
       write (iunit,fmt1) trim(atmp),self%ONIOM_id
     else
       write (atmp,*) 'Weight'
       write (iunit,fmt2) atmp,self%weight
-    endif
+    end if
 
   end subroutine calculation_settings_info
 
@@ -893,11 +885,11 @@ contains  !>--- Module routines start here
       write (iunit,'("> ",a)') 'No calculation levels set up!'
     else if (self%ncalculations > 1) then
       do i = 1,self%ncalculations
-        if(self%calcs(i)%ONIOM_id > 0 )then
-        write (iunit,'("> ",a,i0,a)') 'Automatic ONIOM setup calculation level ',i,':'
+        if (self%calcs(i)%ONIOM_id > 0) then
+          write (iunit,'("> ",a,i0,a)') 'Automatic ONIOM setup calculation level ',i,':'
         else
-        write (iunit,'("> ",a,i0,a)') 'User-defined calculation level ',i,':'
-        endif
+          write (iunit,'("> ",a,i0,a)') 'User-defined calculation level ',i,':'
+        end if
         call self%calcs(i)%info(iunit)
       end do
     else
@@ -908,25 +900,25 @@ contains  !>--- Module routines start here
 
     if (self%nconstraints > 0) then
       write (iunit,'("> ",a)') 'User-defined constraints:'
-      if(self%nconstraints <= 20)then
+      if (self%nconstraints <= 20) then
         do i = 1,self%nconstraints
           call self%cons(i)%print(iunit)
         end do
       else
-         constraintype(:) = 0
-         do i = 1,self%nconstraints
+        constraintype(:) = 0
+        do i = 1,self%nconstraints
           j = self%cons(i)%type
-          if(j > 0 .and. j < 9)then
-            constraintype(j) = constraintype(j) + 1
-          endif 
-         end do
-         if(constraintype(1) > 0) write (iunit,'(2x,a,i0)') '# bond constraints    : ',constraintype(1)
-         if(constraintype(2) > 0) write (iunit,'(2x,a,i0)') '# angle constraints   : ',constraintype(2)
-         if(constraintype(3) > 0) write (iunit,'(2x,a,i0)') '# dihedral constraints: ',constraintype(3)
-         if(constraintype(4) > 0) write (iunit,'(2x,a,i0)') '# wall potential      : ',constraintype(4)
-         if(constraintype(5) > 0) write (iunit,'(2x,a,i0)') '# wall(logfermi) potential  : ',constraintype(5)
-         if(constraintype(8) > 0) write (iunit,'(2x,a,i0)') '# bondrange constraints    : ',constraintype(8)
-      endif 
+          if (j > 0.and.j < 9) then
+            constraintype(j) = constraintype(j)+1
+          end if
+        end do
+        if (constraintype(1) > 0) write (iunit,'(2x,a,i0)') '# bond constraints    : ',constraintype(1)
+        if (constraintype(2) > 0) write (iunit,'(2x,a,i0)') '# angle constraints   : ',constraintype(2)
+        if (constraintype(3) > 0) write (iunit,'(2x,a,i0)') '# dihedral constraints: ',constraintype(3)
+        if (constraintype(4) > 0) write (iunit,'(2x,a,i0)') '# wall potential      : ',constraintype(4)
+        if (constraintype(5) > 0) write (iunit,'(2x,a,i0)') '# wall(logfermi) potential  : ',constraintype(5)
+        if (constraintype(8) > 0) write (iunit,'(2x,a,i0)') '# bondrange constraints    : ',constraintype(8)
+      end if
       write (iunit,*)
     end if
 
@@ -943,15 +935,15 @@ contains  !>--- Module routines start here
         write (iunit,'(1x,a)') 'Energies and gradients of all calculation levels will be'// &
         & ' added according to their weights'
       end select
-      if(allocated(self%ONIOM))then
+      if (allocated(self%ONIOM)) then
         write (iunit,'(1x,a)') 'ONIOM energy and gradient will be constructed from calculations:'
-        do i=1,self%ncalculations
-          if(any(self%ONIOMmap(:).eq.i))then
-             write(stdout,'(1x,i0)',advance='no') i
-          endif
-        enddo
+        do i = 1,self%ncalculations
+          if (any(self%ONIOMmap(:) .eq. i)) then
+            write (stdout,'(1x,i0)',advance='no') i
+          end if
+        end do
         write (iunit,*)
-      endif
+      end if
       write (iunit,*)
     end if
 
@@ -998,42 +990,63 @@ contains  !>--- Module routines start here
 !=========================================================================================!
 
   subroutine calc_set_active(self,ids)
-     implicit none
-     class(calcdata) :: self
-     integer,intent(in) :: ids(:) 
-     integer :: i,j,k,l
-     if(allocated(self%weightbackup)) deallocate(self%weightbackup)
+    implicit none
+    class(calcdata) :: self
+    integer,intent(in) :: ids(:)
+    integer :: i,j,k,l
+    if (allocated(self%weightbackup)) deallocate (self%weightbackup)
 !>--- on-the-fly multiscale definition
-      allocate(self%weightbackup(self%ncalculations), source = 1.0_wp)
-      do i=1,self%ncalculations
+    allocate (self%weightbackup(self%ncalculations),source=1.0_wp)
+    do i = 1,self%ncalculations
 !>--- save backup weights
-        self%weightbackup(i) =  self%calcs(i)%weight
+      self%weightbackup(i) = self%calcs(i)%weight
 !>--- set the weight of all unwanted calculations to 0
-        if(.not.any(ids(:).eq.i))then
-           self%calcs(i)%weight = 0.0_wp
-           self%calcs(i)%active = .false.
-        else
+      if (.not.any(ids(:) .eq. i)) then
+        self%calcs(i)%weight = 0.0_wp
+        self%calcs(i)%active = .false.
+      else
 !>--- and all other to 1
-           self%calcs(i)%weight = 1.0_wp
-           self%calcs(i)%active = .true.
-        endif
-      enddo
-  end subroutine calc_set_active
-  
-  subroutine calc_set_active_restore(self)
-     implicit none
-     class(calcdata) :: self
-     integer :: i,j,k,l
-     if(.not.allocated(self%weightbackup)) return
-     do i=1,self%ncalculations
-!>--- set all to active and restore saved weights        
-        self%calcs(i)%weight = self%weightbackup(i)
+        self%calcs(i)%weight = 1.0_wp
         self%calcs(i)%active = .true.
-        self%eweight(i) = self%weightbackup(i)
-     enddo
-     deallocate(self%weightbackup)
-  end subroutine calc_set_active_restore
- 
+      end if
+    end do
+  end subroutine calc_set_active
 
+  subroutine calc_set_active_restore(self)
+    implicit none
+    class(calcdata) :: self
+    integer :: i,j,k,l
+    if (.not.allocated(self%weightbackup)) return
+    do i = 1,self%ncalculations
+!>--- set all to active and restore saved weights
+      self%calcs(i)%weight = self%weightbackup(i)
+      self%calcs(i)%active = .true.
+      self%eweight(i) = self%weightbackup(i)
+    end do
+    deallocate (self%weightbackup)
+  end subroutine calc_set_active_restore
+
+!==========================================================================================!
+
+  subroutine get_dipoles(calc,diptmp)
+!*********************************************
+!* Collect the x y and z dipole moments for
+!* each calculation level in one array diptmp
+!*********************************************
+    implicit none
+    type(calcdata),intent(inout) :: calc
+    real(wp),allocatable,intent(out) :: diptmp(:,:)
+    integer :: i,j,k,l,m
+
+    m = calc%ncalculations
+    allocate (diptmp(3,m),source=0.0_wp)
+    do i = 1,m
+      if (calc%calcs(i)%rddip) then
+        diptmp(1:3,i) = calc%calcs(i)%dipole(1:3)
+      end if
+    end do
+  end subroutine get_dipoles
+
+!=========================================================================================!
 !=========================================================================================!
 end module calc_type

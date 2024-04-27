@@ -269,6 +269,7 @@ contains !> MODULE PROCEDURES START HERE
       case ('ceh')
         job%id = jobtype%tblite
         job%tblitelvl = xtblvl%ceh
+        job%rdgrad = .false.
       case ('gfn0','gfn0-xtb')
         job%id = jobtype%gfn0
       case ('gfn0*','gfn0*-xtb')
@@ -332,8 +333,10 @@ contains !> MODULE PROCEDURES START HERE
         job%tblitelvl = xtblvl%ipea1
       case ('ceh')
         job%tblitelvl = xtblvl%ceh
+        job%rdgrad = .false.
       case ('eeq','d4eeq')
         job%tblitelvl = xtblvl%eeq
+        job%rdgrad=.false.
       case default
         job%tblitelvl = xtblvl%unknown
       end select

@@ -34,6 +34,7 @@ module api_engrad
   use gfn0_api
   use gfnff_api
   use xhcff_api
+  use lj
   implicit none
 !>--- private module variables and parameters
   private
@@ -42,6 +43,7 @@ module api_engrad
   public :: gfn0_engrad,gfn0occ_engrad
   public :: gfnff_engrad
   public :: xhcff_engrad
+  public :: lj_engrad !> RE-EXPORT
 
 !=========================================================================================!
 !=========================================================================================!
