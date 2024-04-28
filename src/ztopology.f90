@@ -122,6 +122,7 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
   use crest_parameters
   use zdata
   use miscdata,only:rcov
+  use crest_cn_module
   implicit none
   type(zmolecule)  :: zmol
   type(zmolecule)  :: zfrag
@@ -152,7 +153,7 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
 
 !>--- set covalent radii and calculate coordination numbers
   allocate (cn(n),bond(n,n))
-  call xcoord2(n,at,xyz,rcov,cn,900.0_wp,bond)
+  call calc_ncoord(n,at,xyz,rcov,cn,900.0_wp,bond)
 !>--- read in WBOs if required
   ex = .false.
   if (present(wbofile)) then
@@ -262,51 +263,6 @@ subroutine simpletopo(n,at,xyz,zmol,verbose,getrings,wbofile)
   deallocate (bond,cn)
   return
 end subroutine simpletopo
-
-!=======================================================================!
-!> compute coordination numbers by adding an inverse damping function
-!=======================================================================!
-subroutine xcoord2(nat,iz,xyz,rcov,cn,cn_thr,bond)
-  use iso_fortran_env,wp => real64
-  implicit none
-  integer,intent(in) :: nat
-  integer,intent(in) :: iz(nat)
-  real(wp),intent(in) :: xyz(3,nat)
-  real(wp),intent(out) :: cn(nat)
-  real(wp),intent(in)  :: cn_thr
-  real(wp),intent(in)  :: rcov(*)
-  real(wp),intent(out) :: bond(nat,nat)
-  integer :: i,k1
-  integer :: iat
-  real(wp) :: dx,dy,dz,r,damp,xn,rr,rco,r2,rcovi,rcovj
-  k1 = 16
-  bond = 0.0d0
-  cn = 0.0d0
-  do i = 1,nat
-    xn = 0.0d0
-    rcovi = rcov(iz(i))
-    do iat = 1,nat
-      if (iat .ne. i) then
-        dx = xyz(1,iat)-xyz(1,i)
-        dy = xyz(2,iat)-xyz(2,i)
-        dz = xyz(3,iat)-xyz(3,i)
-        r2 = dx*dx+dy*dy+dz*dz
-        r = sqrt(r2)
-        if (r2 .gt. cn_thr) cycle
-        rcovj = rcov(iz(iat))
-!> covalent distance in Bohr
-        rco = (rcovi+rcovj)*1.0  ! this scaling reduces the size of the clusters
-        rr = rco/r
-!> counting function exponential has a better long-range behavior than MHGs inverse damping
-        damp = 1.d0/(1.d0+exp(-k1*(rr-1.0d0)))
-        bond(iat,i) = damp
-        xn = xn+damp
-      end if
-    end do
-    cn(i) = xn
-  end do
-  return
-end subroutine xcoord2
 
 !===================================================!
 !> generate the topo array for a given structure
@@ -453,6 +409,7 @@ end subroutine bondtotopo_excl
 subroutine quicktopo(nat,at,xyz,ntopo,topovec)
   use iso_fortran_env,only:wp => real64
   use miscdata,only:rcov
+  use crest_cn_module
   implicit none
   integer :: nat
   integer :: at(nat)
@@ -465,7 +422,7 @@ subroutine quicktopo(nat,at,xyz,ntopo,topovec)
   allocate (neighmat(nat,nat),source=.false.)
   cn = 0.0d0
   bond = 0.0d0
-  call xcoord2(nat,at,xyz,rcov,cn,900.0_wp,bond)
+  call calc_ncoord(nat,at,xyz,rcov,cn,900.0_wp,bond)
   call bondtotopo(nat,at,bond,cn,ntopo,topovec,neighmat)
   deallocate (neighmat,cn,bond)
   return

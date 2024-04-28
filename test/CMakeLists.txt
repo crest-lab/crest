@@ -5,6 +5,7 @@ set(
   "gfnff"
   "gfn0"
   "gfn0occ"
+  "CN"
   "optimization"
 )
 set(

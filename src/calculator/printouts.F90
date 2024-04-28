@@ -47,6 +47,7 @@ contains  !> MODULE PROCEDURES START HERE
 
     integer :: i,j,k,l
     real(wp) :: dip
+    real(wp),allocatable :: cn(:)
     logical :: pr,skiplen
     integer :: iunit
 
@@ -89,14 +90,20 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- atomic charges
     if(any(calc%calcs(:)%rdqat))then
+      if(present(molnew))then
+        call mol%get_cn(cn,'cov')
+      else
+        call mol%get_cn(cn,'cov')
+      endif
       write (iunit,*)
-      write (iunit,*) 'Atomic charges:'
+      write (iunit,*) 'Atomic charges and covalent CN:'
       do k = 1,calc%ncalculations
         if (calc%calcs(k)%rdqat.and.allocated(calc%calcs(k)%qat)) then
           write (iunit,'("> ",a,i3,a)') 'Calculation level ',k,': '//calc%calcs(k)%shortflag
-          write (iunit,'(3x,a6,1x,a6,a12)') 'atom','type','charge'
+          write (iunit,'(3x,a6,1x,a6,a12,a12)') 'atom','type','charge','covCN'
           do j=1,mol%nat
-            write (iunit,'(3x,i6,1x,a6,f12.6)') j,i2e(mol%at(j),'nc'),calc%calcs(k)%qat(j)
+            write (iunit,'(3x,i6,1x,a6,2f12.6)') j,i2e(mol%at(j),'nc'), &
+            & calc%calcs(k)%qat(j), cn(j)
           enddo  
           write (iunit,*)
         end if

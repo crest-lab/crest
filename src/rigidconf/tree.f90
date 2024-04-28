@@ -59,6 +59,7 @@ subroutine rigidconf_tree(env,mol)
   use INTERNALS_mod
   use rigidconf_analyze
   use miscdata,only:rcov
+  use crest_cn_module
   implicit none
   !> INPUT/OUTPUT
   type(systemdata),intent(inout) :: env
@@ -98,7 +99,7 @@ subroutine rigidconf_tree(env,mol)
   !> data for new structure and reference checks
   logical,allocatable :: sane(:)
   type(coord) :: newmol
-  real(wp),allocatable :: cnref(:)
+  real(wp),allocatable :: cntoporef(:)
   real(wp) :: cthr,p
   integer :: nremain
 
@@ -209,8 +210,8 @@ subroutine rigidconf_tree(env,mol)
 
 !========================================================================================!
 !>--- Calculate reference CNs
-  allocate (cnref(mol%nat),source=0.0_wp)
-  call ycoord(mol%nat,rcov,mol%at,mol%xyz,cnref,100.0d0) !> refernce CNs
+  allocate (cntoporef(mol%nat),source=0.0_wp)
+  call cn_ycoord(mol%nat,rcov,mol%at,mol%xyz,cntoporef,100.0d0) !> refernce CNs
 
 !>--- Generate all the conformers and check for CN clashes
   allocate (zmat_new(3,mol%nat),source=0.0_wp)
@@ -229,7 +230,7 @@ subroutine rigidconf_tree(env,mol)
     call reconstruct_zmat_to_mol(mol%nat,mol%at,zmat_new,na,nb,nc,newmol)
 
 !>--- Check new structure for CN clashes w.r.t. reference and cthr
-    call ycoord2(newmol%nat,rcov,newmol%at,newmol%xyz,cnref,100.d0,cthr,sane(i)) !> CN clashes
+    call cn_ycoord2(newmol%nat,rcov,newmol%at,newmol%xyz,cntoporef,100.d0,cthr,sane(i)) !> CN clashes
     sane(i) = .not.sane(i)
 
 !>--- Dump to file
