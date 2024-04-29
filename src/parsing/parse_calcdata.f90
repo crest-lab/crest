@@ -110,7 +110,7 @@ contains !> MODULE PROCEDURES START HERE
         call parse_calcdat(env,blk,calc)
 
       else if (blk%header == 'calculation.level') then
-        call parse_leveldata(blk,newjob)
+        call parse_leveldata(env,blk,newjob)
         call newjob%autocomplete(calc%ncalculations+1)
         call calc%add(newjob)
         included = .true.
@@ -120,9 +120,9 @@ contains !> MODULE PROCEDURES START HERE
         if (allocated(calc%calcs)) deallocate (calc%calcs)
         calc%ncalculations = 0
         calc%id = -1
-        call parse_leveldata(blk,newjob)
+        call parse_leveldata(env,blk,newjob)
         !>-- S0 setup
-        call parse_leveldata(blk,newjob)
+        call parse_leveldata(env,blk,newjob)
         newjob%uhf = 0
         newjob%calcspace = 's0'
         call calc%add(newjob)
@@ -150,12 +150,13 @@ contains !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine parse_leveldata(blk,job)
+  subroutine parse_leveldata(env,blk,job)
 !**********************************************************
 !* The following routines are used to
 !* read information into the "calculation_settings" object
 !**********************************************************
     implicit none
+    type(systemdata),intent(inout) :: env
     type(datablock),intent(in) :: blk
     type(calculation_settings),intent(out) :: job
     integer :: i
@@ -165,12 +166,13 @@ contains !> MODULE PROCEDURES START HERE
       return
     end if
     do i = 1,blk%nkv
-      call parse_setting(job,blk%kv_list(i))
+      call parse_setting(env,job,blk%kv_list(i))
     end do
     return
   end subroutine parse_leveldata
-  subroutine parse_setting_auto(job,kv)
+  subroutine parse_setting_auto(env,job,kv)
     implicit none
+    type(systemdata),intent(inout) :: env
     type(calculation_settings) :: job
     type(keyvalue) :: kv
     !> first, go through settings with fixed type expactations
@@ -182,7 +184,7 @@ contains !> MODULE PROCEDURES START HERE
     case (3) !> bool
       call parse_setting(job,kv%key,kv%value_b)
     case (4) !> string
-      call parse_setting(job,kv%key,kv%value_c)
+      call parse_setting(env,job,kv%key,kv%value_c)
     case (6,7) !> int/float array
       call parse_setting_array(job,kv,kv%key)
     end select
@@ -238,8 +240,9 @@ contains !> MODULE PROCEDURES START HERE
     end select
     return
   end subroutine parse_setting_int
-  subroutine parse_setting_c(job,key,val)
+  subroutine parse_setting_c(env,job,key,val)
     implicit none
+    type(systemdata),intent(inout) :: env
     type(calculation_settings) :: job
     character(len=*) :: key
     character(len=*) :: val
@@ -402,6 +405,9 @@ contains !> MODULE PROCEDURES START HERE
         job%prappend = .true.
       end select
       if (job%pr) job%prch = 999  !> the actual ID will be generated automatically
+
+    case('getsasa')
+      call get_atlist(env%ref%nat,job%getsasa,val,env%ref%at)
 
     end select
     return
@@ -1086,6 +1092,8 @@ contains !> MODULE PROCEDURES START HERE
       end if
     case ('printstep')
       mddat%printstep = val
+    case('blocklength','blockl')
+      mddat%blockl = val
     case ('t','temp','temperature')
       mddat%tsoll = float(val)
       mddat%thermostat = .true.
@@ -1099,7 +1107,14 @@ contains !> MODULE PROCEDURES START HERE
     type(mddata) :: mddat
     character(len=*) :: key
     character(len=*) :: val
+    logical :: ex
     select case (key)
+    case('restart')
+      inquire(file=trim(val),exist=ex)
+      if(ex)then
+        mddat%restart = .true.
+        mddat%restartfile = trim(val)
+      endif   
     case default
       return
     end select

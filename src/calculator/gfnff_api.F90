@@ -38,6 +38,7 @@ module gfnff_api
   public :: gfnff_sp
   public :: gfnff_printout
   public :: gfnff_getwbos
+  public :: gfnff_dump_sasa
 
 #ifndef WITH_GFNFF
   !> these are placeholders if no gfnff module is used!
@@ -148,6 +149,29 @@ contains  !> MODULE PROCEDURES START HERE
 #endif
   end subroutine gfnff_getwbos
 
+!========================================================================================!
+
+  subroutine gfnff_dump_sasa(ff_dat,nat,atlist)
+!***********************************************************
+!* Dumps cumulative SASA for all the atoms .true. in atlist
+!* into an file called fort.5454
+!***********************************************************
+    implicit none
+    type(gfnff_data),intent(in) :: ff_dat
+    logical,intent(in) :: atlist(nat)
+    integer,intent(in) :: nat
+    integer :: i
+    real(wp) :: sumsasa
+    if(allocated(ff_dat%solvation))then
+      if(allocated(ff_dat%solvation%sasa))then
+        sumsasa = 0.0_wp
+        do i=1,nat
+          if(atlist(i)) sumsasa = sumsasa + ff_dat%solvation%sasa(i)
+        enddo
+        write(5454,*) sumsasa
+      endif
+    endif
+  end subroutine gfnff_dump_sasa
 !========================================================================================!
 !========================================================================================!
 end module gfnff_api

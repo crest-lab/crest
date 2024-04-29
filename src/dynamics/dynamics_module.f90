@@ -82,7 +82,7 @@ module dynamics_module
     real(wp) :: thermo_damp = 500.0_wp !> thermostat damping parameter
     logical :: samerand = .false.
 
-    integer :: blockl        !> block length in MD steps
+    integer :: blockl = 0    !> block length in MD steps
     integer :: iblock = 0    !> block counter
     integer :: nblock = 0    !> continuous block counter
     integer :: blocknreg = 0 !> block regression points
@@ -145,14 +145,14 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),allocatable :: xyz_angstrom(:,:)
     real(wp),allocatable :: backupweights(:)
     type(coord) :: molo
-    real(wp) :: f
+    real(wp) :: f,rt,rtshift
     real(wp) :: molmass,tmass
     character(len=:),allocatable :: trajectory
     integer :: trj
     character(len=256) :: commentline
     integer :: i,j,k,l,ich,och,io
     integer :: dcount,printcount
-    logical :: ex,fail
+    logical :: ex,fail,bdump
 
     call initsignal()
 
@@ -192,8 +192,6 @@ contains  !> MODULE PROCEDURES START HERE
     allocate (molo%at(mol%nat),molo%xyz(3,mol%nat))
     allocate (grd(3,mol%nat),vel(3,mol%nat),velo(3,mol%nat),source=0.0_wp)
     allocate (veln(3,mol%nat),acc(3,mol%nat),mass(mol%nat),source=0.0_wp)
-    dat%blockl = min(5000,idint(5000.0_wp/dat%tstep))
-    dat%maxblock = nint(dat%length_steps/float(dat%blockl))
     allocate (dat%blocke(dat%blockl),dat%blockt(dat%blockl))
     allocate (dat%blockrege(dat%maxblock))
     !$omp end critical
@@ -250,12 +248,17 @@ contains  !> MODULE PROCEDURES START HERE
       f = 2.0_wp
     end if
     edum = f*dat%tsoll*0.5_wp*kB*float(nfreedom)
+    rtshift = 0.0_wp
     if(.not.dat%restart .or. .not.allocated(dat%restartfile))then 
      call mdinitu(mol,dat,velo,mass,edum,pr)
     else
-     call rdmdrestart(mol,dat,velo,fail)
+     call rdmdrestart(mol,dat,velo,fail,rtshift)
      if(fail)then
         call mdinitu(mol,dat,velo,mass,edum,pr)
+     else
+       call ekinet(mol%nat,velo,mass,ekin)
+       temp = 2.0_wp*ekin/float(nfreedom)/kB
+       tav = temp
      endif
     endif 
     call ekinet(mol%nat,velo,mass,ekin)
@@ -268,7 +271,6 @@ contains  !> MODULE PROCEDURES START HERE
          endif
        end do
      endif
-
 
 !>--- initialize MTDs (if required)
     !$omp critical
@@ -288,7 +290,7 @@ contains  !> MODULE PROCEDURES START HERE
     open (newunit=trj,file=trajectory)
     !$omp end critical
 
-    !>--- begin printout
+!>--- begin printout
     if (pr) then
       write (*,'(/,"> ",a)') 'Starting simulation'
       if (.not.dat%thermostat) then
@@ -336,7 +338,14 @@ contains  !> MODULE PROCEDURES START HERE
       end if
 
       !>--- block data printouts
-      call u_block(mol,dat,epot,temp,pr)
+      call u_block(mol,dat,epot,temp,pr,bdump)
+      !>--- MD restart files written for each block rather than at each timestep to reduce I/O
+      if(bdump)then
+        rt = float(t)*dat%tstep + rtshift
+        !$omp critical
+        call wrmdrestart(mol,dat,velo,rt) 
+        !$omp end critical
+      endif 
 
       !===========================================!
       !>>-- write to trajectory and printout
@@ -352,14 +361,15 @@ contains  !> MODULE PROCEDURES START HERE
       if ((printcount == dat%printstep).or.(t == 1)) then
         if (t > 1) printcount = 0
         if (pr) then
+          rt = float(t)*dat%tstep + rtshift
           if (.not.dat%thermostat) then
             write (*,'(i7,f10.2,F16.5,F12.4,2F8.1,F16.5,4F10.4)') &
-               &   t,0.001_wp*float(t)*dat%tstep, (Epav+Epot)/float(t), &
+               &   t,0.001_wp*rt, (Epav+Epot)/float(t), &
                &   Ekin,Tav/float(t),temp,Epot+Ekin, &
                &   Edum/float(t)-Epot-Ekin
           else
             write (*,'(i7,f10.2,F16.5,F12.4,2F8.1,F16.5)') &
-               &   t,0.001_wp*float(t)*dat%tstep, (Epav+epot)/float(t), &
+               &   t,0.001_wp*rt, (Epav+epot)/float(t), &
                &   Ekin,Tav/float(t),temp,Epot+Ekin
           end if
         end if
@@ -464,14 +474,15 @@ contains  !> MODULE PROCEDURES START HERE
       write (*,*)
       write (*,*) 'average properties '
       write (*,*) '----------------------'
-      write (*,*) '<Epot>               :',Epav/float(t)
-      write (*,*) '<Ekin>               :',Ekav/float(t)
-      write (*,*) '<Etot>               :', (Ekav+Epav)/float(t)
-      write (*,*) '<T>                  :',Tav/float(t)
+      write (*,*) '<Epot> / Eh          :',Epav/float(t)
+      write (*,*) '<Ekin> / Eh          :',Ekav/float(t)
+      write (*,*) '<Etot> / Eh          :', (Ekav+Epav)/float(t)
+      write (*,*) '<T> / K              :',Tav/float(t)
     end if
 
 !>--- write restart file
-    call wrmdrestart(mol,dat,velo)
+    rt = float(dat%length_steps)*dat%tstep + rtshift
+    call wrmdrestart(mol,dat,velo,rt)
 
 !>--- termination printout
     if (pr) then
@@ -556,21 +567,24 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 ! subroutine u_block
 ! update block data and printout
-  subroutine u_block(mol,dat,epot,temp,pr)
+  subroutine u_block(mol,dat,epot,temp,pr,bdump)
     implicit none
     type(coord) :: mol
     type(mddata) :: dat
     real(wp),intent(in) :: epot
     real(wp),intent(in) :: temp
     logical,intent(in) :: pr
+    logical,intent(out) :: bdump
     integer :: i,j,k,l,ich,och,io
     logical :: ex
     integer :: nreg
     real(wp) :: bave,bavt,slope
 
+    bdump = .false.
     if (dat%iblock == dat%blockl) then
       dat%nblock = dat%nblock+1
       dat%iblock = 0
+      bdump = .true.
       call blocksd(mol%nat,dat%blockl,dat%blocke,dat%blockt,bave,bavt)
       dat%blocknreg = dat%blocknreg+1
       nreg = dat%blocknreg
@@ -646,21 +660,23 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 ! subroutines wrmdrestart & rdmdrestart
 ! write a file containing coordinates and velocities to restart the simulation
-  subroutine wrmdrestart(mol,dat,velo)
+  subroutine wrmdrestart(mol,dat,velo,realtime_fs)
     implicit none
     type(coord) :: mol
     type(mddata) :: dat
     real(wp),intent(in) :: velo(3,mol%nat)
+    real(wp),intent(in) :: realtime_fs
     integer :: i,j,k,l,ich,och,io
     logical :: ex
     character(len=256) :: atmp
-    if (.not.allocated(dat%restartfile)) then
+    if (.not.allocated(dat%restartfile) .or. dat%restart) then
+    !>--- we must not overwrite the user-provided restart file!
       write (atmp,'(a,i0,a)') 'crest_',dat%md_index,'.mdrestart'
     else
       atmp = dat%restartfile
     end if
     open (newunit=ich,file=trim(atmp)) !dat%restartfile)
-    write (ich,*) '-1.0'
+    write (ich,*) realtime_fs
     do i = 1,mol%nat
       write (ich,'(6D22.14)') mol%xyz(1:3,i),velo(1:3,i)
     end do
@@ -668,19 +684,20 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end subroutine wrmdrestart
 
-  subroutine rdmdrestart(mol,dat,velo,fail)
+  subroutine rdmdrestart(mol,dat,velo,fail,rtshift)
     implicit none
     type(coord) :: mol
     type(mddata) :: dat
     real(wp),intent(inout) :: velo(3,mol%nat)
     logical,intent(out) :: fail
+    real(wp),intent(out) :: rtshift
     real(wp) :: dum
     character(len=256) :: atmp
     integer :: i,j,k,l,ich,och,io
     logical :: ex
 
     fail = .false.
-
+    rtshift = 0.0_wp
     if (allocated(dat%restartfile)) then
       inquire (file=dat%restartfile,exist=ex)
     end if
@@ -689,6 +706,7 @@ contains  !> MODULE PROCEDURES START HERE
       do
         read (ich,*,iostat=io) dum
         if (io < 0) exit
+        if(dum > 0.0_wp) rtshift = dum 
         do i = 1,mol%nat
           read (ich,'(a)',iostat=io) atmp
           if (io < 0) exit
@@ -705,6 +723,9 @@ contains  !> MODULE PROCEDURES START HERE
     else
       fail = .true.
     end if
+    if(.not.fail)then
+      write (*,'(1x,a,8x,l)') 'read restart file  :',.not.fail
+    endif
 
     return
   end subroutine rdmdrestart
@@ -729,14 +750,6 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i
 
     newvelos = .true.
-
-    !>--- from restart file
-    if (dat%restart) then
-      call rdmdrestart(mol,dat,velo,newvelos)
-      if (pr.and.(.not.newvelos)) then
-        write (*,'(1x,a,6x,l)') 'read restart file  :',.not.newvelos
-      end if
-    end if
 
     !>--- newly initialized
     if (newvelos) then
@@ -1187,6 +1200,12 @@ contains  !> MODULE PROCEDURES START HERE
         self%shk%shake_mode = 2 !> all bonds
       end if
     end if
+
+    !> block length (for average analysis and restart dump)
+    if(self%blockl <= 0 )then
+      self%blockl = min(5000,idint(5000.0_wp/self%tstep))
+    endif
+    self%maxblock = nint(self%length_steps/float(self%blockl))
 
   end subroutine md_defaults_fallback
 !========================================================================================!

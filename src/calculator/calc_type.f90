@@ -119,6 +119,9 @@ module calc_type
     logical :: rddipgrad = .false.
     real(wp),allocatable :: dipgrad(:,:)
 
+    !> other properties
+    logical,allocatable :: getsasa(:) 
+
 !>--- API constructs
     integer  :: tblitelvl = 2
     real(wp) :: etemp = 300.0_wp

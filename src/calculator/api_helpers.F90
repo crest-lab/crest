@@ -354,6 +354,9 @@ contains    !> MODULE PROCEDURES START HERE
        & allocate (calc%qat(mol%nat), source=0.0_wp)
        calc%qat = calc%ff_dat%nlist%q
    endif
+   if(allocated(calc%getsasa))then
+     call gfnff_dump_sasa(calc%ff_dat,mol%nat,calc%getsasa)
+   endif
 #endif
   end subroutine gfnff_properties
 
