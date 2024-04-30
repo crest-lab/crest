@@ -84,6 +84,7 @@ contains  !> MODULE PROCEDURES START HERE
     class(plist) :: self
     if (allocated(self%mol)) deallocate (self%mol)
     if (allocated(self%new)) deallocate (self%new)
+    self%nmol = 0
     return
   end subroutine deallocate_plist
 
@@ -827,10 +828,10 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: j
     logical :: ex
 
-    write (*,*) "msinput is:,",trim(msinput)
     !---- read input file
     inquire (file=trim(msinput),exist=ex)
     if (.not.ex) then
+      write(*,*) 'Input file <'//trim(msinput)//'> not found.'
       return
     else
       write (*,*) 'Reading <'//trim(msinput)//'> file'
@@ -1115,7 +1116,6 @@ contains  !> MODULE PROCEDURES START HERE
       call mso%pl%append(nat,at,xyz,eread,chrg,0,molmass)
     end do
     close (ich)
-
     if (io < 0) then
       error stop 'error while reading product file.'
     end if

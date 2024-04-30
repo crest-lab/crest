@@ -72,7 +72,9 @@ subroutine msreact_handler(env,tim)
   call struc%deallocate()
 
   !-- additional input file can be read here
-  call msinputreader(mso,env%msinput)
+  if (env%msinput .ne. '') then
+    call msinputreader(mso,env%msinput)
+  end if
 
   nat = mso%pl%mol(1)%nat
   k = nat*(nat+1)/2
@@ -109,9 +111,15 @@ subroutine msreact_handler(env,tim)
   ! sort according to energies and RMSD, remove highe energy structures
   call newcregen(env,13,'unique_products.xyz')
   call mso%pl%dealloc()
+  
   ! read in again plist after cregen and remove starting structure
   call rdplist(mso,estart,'crest_msreact_products.xyz')
   write (*,*) "Remaining structures after cregen:",mso%pl%nmol
+  if (mso%pl%nmol .eq. 0) then
+    write (*,*) "No structure left, stopping msreact!"
+    call tim%stop(1)
+    return
+  end if
   call detect_fragments(mso,env%mslargeprint,nisomers,nfragpairs)
 
   ! write final structures to file and directories
@@ -322,7 +330,7 @@ subroutine isodir(mso,dirname,mol,A,B,D,fc)
   write (dumm,'(f16.2)') mso%T
   write (ich,'(1x,a,a)') 'temp=',adjustl(trim(dumm))
   write (ich,'(a)') '$opt'
-  write (ich,'(1x,a)') 'maxcycle=',mso%maxc ! only allow 15 cycles to avoid recombination of fragments
+  write (ich,'(1x,a,i0)') 'maxcycle=',mso%maxc ! only allow 15 cycles to avoid recombination of fragments
   write (ich,'(a)') '$write'
   write (ich,'(1x,a)') 'wiberg=true'
   close (ich)
