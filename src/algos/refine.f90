@@ -36,7 +36,7 @@ subroutine crest_refine(env,input,output)
   character(len=*),intent(in) :: input
   character(len=*),intent(in),optional :: output
 !===========================================================!
-  integer :: i,j,k,l,io,ich,m
+  integer :: i,j,k,l,io,ich,m,t1,t2
   logical :: pr,wr,ex
 !===========================================================!
   character(len=:),allocatable :: outname
@@ -98,8 +98,9 @@ subroutine crest_refine(env,input,output)
         call crest_oloop(env,nat,nall,at,xyz,eread,.false.)
 
       case(refine%confsolv)
+        call new_ompautoset(env,'subprocess',1,t1,t2)
         write (stdout,'("> ConfSolv: ΔΔGsoln estimation from 3D directed message passing neural networks (D-MPNN)")')
-        call confsolv_request( input, nall, env%threads, etmp, io)
+        call confsolv_request( input, nall, t2, etmp, io)
         if(io == 0)then
         eread(:) = etmp(:)*kcaltoau  !> since CREGEN deals with Eh energies
         endif   

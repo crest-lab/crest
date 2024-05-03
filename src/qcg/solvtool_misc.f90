@@ -115,7 +115,7 @@ subroutine xtb_lmo(env, fname)!,chrg)
    character(len=*), intent(in)     :: fname
    character(len=80)               :: pipe
    character(len=512)              :: jobcall
-   integer :: T,Tn
+   integer :: T,Tn,io
 
    pipe = ' > xtb.out 2>/dev/null'
 
@@ -125,7 +125,12 @@ subroutine xtb_lmo(env, fname)!,chrg)
 !---- jobcall, special gbsa treatment not needed, as the entire flag is included in env%solv
    write (jobcall, '(a,1x,a,1x,a,'' --sp --lmo '',a)') &
    &     trim(env%ProgName), trim(fname), trim(env%lmover), trim(pipe)
-   call command(trim(jobcall))
+   call command(trim(jobcall), exitstat=io)
+   
+   if(io /= 0)then
+     write(*,*) 'error in xtb_lmo'
+     stop
+   endif
 
 !--- cleanup
    call remove('wbo')
