@@ -263,7 +263,7 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
    character(len=*), intent(in)     :: fname
    logical, optional, intent(in)   :: without_pot
    character(len=80)               :: pipe
-   character(len=512)              :: jobcall
+   character(len=:),allocatable    :: jobcall
    integer :: T,Tn
 
    if (env%niceprint) then
@@ -282,13 +282,12 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
    call new_ompautoset(env,'subprocess',1,T,Tn)
 
 !--- Jobcall optimization
-   if (.not. without_pot) then
-      write (jobcall, '(a,1x,a,1x,a,'' --opt '',f4.2,'' --input xcontrol > xtb_opt.out'',a)') &
-      &     trim(env%ProgName), trim(fname), trim(env%gfnver), env%optlev, trim(pipe)
-   else
-      write (jobcall, '(a,1x,a,1x,a,'' --opt '',f4.2,1x,a,'' > xtb_opt.out'',a)') &
-      &     trim(env%ProgName), trim(fname), trim(env%gfnver), env%optlev, trim(env%solv), trim(pipe)
-   end if
+   jobcall = trim(env%ProgName)//' '//trim(fname)//' --opt '//optlevflag(env%optlev) 
+   jobcall = trim(jobcall)//' '//trim(env%gfnver)
+   if(without_pot)then
+     jobcall = trim(jobcall)//' '//trim(env%solv)
+   endif
+   jobcall = trim(jobcall)//' > xtb_opt.out 2>/dev/null' 
    call command(trim(jobcall))
 
 ! cleanup
@@ -298,8 +297,9 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
 
 !--- Jobcall SP for gbsa model
    if (.not. without_pot) then
-      write (jobcall, '(a,1x,a,1x,a,'' --sp '',a,'' > xtb_sp.out'',a)') &
-      &    trim(env%ProgName), 'xtbopt.coord', trim(env%gfnver), trim(env%solv), trim(pipe)
+      jobcall =  trim(env%ProgName)//' xtbopt.coord --sp '//trim(env%gfnver)
+      jobcall = trim(jobcall)//' '//trim(env%solv)
+      jobcall = trim(jobcall)//' > xtb_sp.out 2>/dev/null' 
    end if
    call command(trim(jobcall))
 

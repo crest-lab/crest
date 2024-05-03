@@ -534,7 +534,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
             env%potscal = 0.8_wp
          end if
          write (*, *)
-         write (*, '(2x,''Water as solvent recognized, &
+         write (*, '(2x,''Water as solvent recognized,&
                  & adjusting scaling factor for outer wall pot to '',F4.2)')&
                 & env%potscal
          write (*, *)
@@ -574,7 +574,6 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 ! Start Loop
 !--------------------------------------------------------
    do iter = 1, max_cycle
-
       e_there = .false.
       success = .false.
       high_e = .false.
@@ -670,6 +669,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
       success = .false.
 
 !--- Cluster restart, if interaction energy not negativ (wall pot. too small)
+      gfnver_tmp = env%gfnver !> backup original level of theory
       do while (.not. success)
 !--- Cluster optimization
          if (env%cts%used) then
@@ -682,7 +682,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
          end if
 
 !--- Interaction energy
-         gfnver_tmp = env%gfnver
+         !gfnver_tmp = env%gfnver
          env%gfnver = env%lmover
          gbsa_tmp = env%gbsa
          solv_tmp = env%solv
