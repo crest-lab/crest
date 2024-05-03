@@ -38,6 +38,7 @@ srcs += files(
   'choose_settings.f90',
   'classes.f90',
   'cleanup.f90',
+  'cn.f90',
   'compress.f90',
   'confparse.f90',
   'cregen.f90',

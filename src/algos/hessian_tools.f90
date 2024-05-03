@@ -353,7 +353,7 @@ contains  !> MODULE PROCEDURES START HERE
     if (lb .eq. nat) go to 90
     go to 70
 90  if (kb .eq. k) then
-      return
+      goto 200
     end if
 
     ka = kc+1
@@ -364,7 +364,7 @@ contains  !> MODULE PROCEDURES START HERE
 105 format(3x,3(18x,a5))
 110 format(a15,f11.4,12x,f11.4,12x,f11.4)
 130 format(2i4,3(2x,3f7.2))
-
+200 continue
     write (gu,'(''end of file'')')
     close (gu)
 

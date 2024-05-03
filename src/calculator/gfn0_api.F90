@@ -49,7 +49,7 @@ module gfn0_api
   public :: gfn0_getwbos
   public :: gfn0_gen_occ
   public :: gfn0_print
-  public :: gfn0_getdipole
+  public :: gfn0_getdipole,gfn0_getqat
 
 !========================================================================================!
 !========================================================================================!
@@ -267,6 +267,23 @@ contains  !>--- Module routines start here
     dipole = matmul(mol%xyz,g0calc%wfn%q)
 #endif
   end subroutine gfn0_getdipole
+
+!========================================================================================!
+
+  subroutine gfn0_getqat(g0calc,mol,qat)
+!*****************************************
+!* obtain atomic charges from gfn0 wfn
+!* Note, these come directly from an EEQ!
+!*****************************************
+    implicit none
+    type(gfn0_data),intent(in) :: g0calc
+    type(coord),intent(in) :: mol
+    real(wp),intent(out) :: qat(mol%nat)
+    qat(:) = 0.0_wp
+#ifdef WITH_GFN0
+    qat(:) = g0calc%wfn%q(:)
+#endif
+  end subroutine gfn0_getqat
 
 !========================================================================================!
 !========================================================================================!

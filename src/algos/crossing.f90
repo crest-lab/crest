@@ -29,6 +29,7 @@ subroutine crest_crossing(env,maxgen,fname,maxpairs)
   use crest_calculator
   use strucrd
   use optimize_module
+
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -135,6 +136,7 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
   use ls_rmsd
   use strucrd
   use miscdata, only: rcov
+  use crest_cn_module
   implicit none
   !> INPUT
   integer,intent(in)  :: nat,nall           !> number of atoms, number of structures
@@ -187,7 +189,7 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
 
   !>--- lowest conformer to provide reference values
   xyzref(1:3,1:nat) = xyz(1:3,1:nat,minpos)  !> reference Cartesians
-  call ycoord(nat,rcov,at,xyzref,cnref,100.0d0) !> refernce CNs
+  call cn_ycoord(nat,rcov,at,xyzref,cnref,100.0d0) !> refernce CNs
   call XYZINT(xyzref,nat,na,nb,nc,1.0d0,zdum)   !> z-mat connectivity
   zref(:,:) = real(zdum,sp)                    !> reference z-mat
 
@@ -251,7 +253,7 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
         ierr = ierr+1
         cycle
       end if
-      call ycoord2(nat,rcov,at,cdum,cnref,100.d0,cthr,fail) !> CN clashes
+      call cn_ycoord2(nat,rcov,at,cdum,cnref,100.d0,cthr,fail) !> CN clashes
       if (fail) then
         !$omp atomic
         ierr = ierr+1

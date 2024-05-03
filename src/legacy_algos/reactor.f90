@@ -577,6 +577,7 @@ subroutine reactorneighbours(nat,at,xyz,bond,ndim,ngh)
     use crest_parameters, only: wp, sp
     use miscdata, only: rcov
     use utilities
+    use crest_cn_module
     implicit none
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
@@ -592,7 +593,7 @@ subroutine reactorneighbours(nat,at,xyz,bond,ndim,ngh)
 
     ngh=0 !reset
     allocate(cn(nat))
-    call xcoord2(nat,at,xyz,rcov,cn,800.0_wp,bond) 
+    call calc_ncoord(nat,at,xyz,rcov,cn,800.0_wp,bond) 
 
     do i=1,nat
       rcn=floor(cn(i))

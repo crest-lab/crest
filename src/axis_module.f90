@@ -336,7 +336,7 @@ contains  !> MODULE PROCEDURES START HERE
     allocate (attmp(nat0))
     allocate (coordtmp(3,nat0))
     attmp(1:nat0) = at(1:nat0)
-    coordtmp(3,1:nat0) = coord(3,1:nat0)
+    coordtmp(1:3,1:nat0) = coord(1:3,1:nat0)
     call axis_0(nat0,attmp,coordtmp,rot,avmom,evec)
     deallocate (coordtmp,attmp)
 

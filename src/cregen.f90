@@ -754,6 +754,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
   use strucrd
   use miscdata,only:rcov
   use utilities
+  use crest_cn_module
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
   integer,intent(in) :: ch ! printout channel
@@ -791,7 +792,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
   allocate (bond(nat,nat),cn(nat),source=0.0_wp)
   cn = 0.0d0
   bond = 0.0d0
-  call xcoord2(nat,atdum,cref,rcov,cn,400.0_wp,bond)
+  call calc_ncoord(nat,atdum,cref,rcov,cn,400.0_wp,bond)
 
   if (allocated(env%excludeTOPO)) then
     call bondtotopo_excl(nat,at,bond,cn,ntopo,toporef,neighmat,env%excludeTOPO)
@@ -829,7 +830,7 @@ subroutine cregen_topocheck(ch,env,checkez,nat,nall,at,xyz,comments,newnall)
     discard = .false.
     cn = 0.0d0
     bond = 0.0d0
-    call xcoord2(nat,at,c1,rcov,cn,400.0_wp,bond)
+    call calc_ncoord(nat,at,c1,rcov,cn,400.0_wp,bond)
     if (allocated(env%excludeTOPO)) then
       call bondtotopo_excl(nat,at,bond,cn,ntopo,topo,neighmat,env%excludeTOPO)
     else
@@ -1840,6 +1841,7 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
   use crest_data
   use strucrd
   use miscdata,only:rcov
+  use crest_cn_module
   use utilities
   implicit none
   integer,intent(in) :: ch
@@ -2161,7 +2163,7 @@ subroutine cregen_EQUAL(ch,nat,nall,at,xyz,group,athr,rotfil)
         irr = glist(ir,ig)
         call distance(n,xyz(:,:,irr),sd)   !> distance matrix
         cdum(1:3,1:n) = xyz(1:3,1:n,irr)
-        call ncoord(n,rcov,at,cdum,cn,500.0d0)
+        call calculate_CN(n,at,cdum,cn)
         do i = 1,n-1
           do j = i+1,n
             jfake(lin(j,i)) = cn(i)*cn(j)*sqrt(dble(at(i)*at(j))) &

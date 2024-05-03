@@ -1782,6 +1782,8 @@ subroutine parseflags(env,arg,nra)
         env%docking_qcg_flag = ''
       case ('-fin_opt_gfn2')
         env%final_gfn2_opt = .true.
+      case ('-no_fin_opt_gfn2')
+        env%final_gfn2_opt = .false.
       case ('-directed') !> specify the directed list
         env%qcg_flag = .true.
         ctmp = trim(arg(i + 1))

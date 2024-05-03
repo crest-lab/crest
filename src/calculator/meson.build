@@ -17,6 +17,7 @@
 srcs += files(
   'calculator.F90',
   'calc_type.f90',
+  'printouts.F90',
   'constraints.f90',
   'gfn0_api.F90',
   'gfnff_api.F90',
