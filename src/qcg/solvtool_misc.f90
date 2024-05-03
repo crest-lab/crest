@@ -279,8 +279,7 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
    end if
 
 !--- Setting threads
-   call new_ompautoset(env,'auto',1,T,Tn)
-
+   call new_ompautoset(env,'subprocess',1,T,Tn)
 
 !--- Jobcall optimization
    if (.not. without_pot) then
@@ -872,10 +871,10 @@ subroutine rdxtbiffE(fname, m, n, e)
 
    implicit none
    integer :: m, n
-   character*(*) :: fname
+   character(len=*),intent(in) :: fname
    real*8 :: e(*)
 
-   character*128 :: line
+   character(len=128) :: line
    real*8 :: xx(10)
    integer :: ich, i, j, nn
 
