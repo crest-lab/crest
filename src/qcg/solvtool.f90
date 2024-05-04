@@ -2127,7 +2127,7 @@ subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
    write (*, *) '  Solute Gas properties'
    call pr_freq_energy()
    open (newunit=ich56, file='solute.dat')
-   call pr_freq_file(56)
+   call pr_freq_file(ich56)
    write (*, '(2x,5f10.2)') ht(3), svib(3), srot(3), stra(3), gt(3)
    write (ich56, '(2x,5f10.2)') ht(3), svib(3), srot(3), stra(3), gt(3)
    close (ich56)
