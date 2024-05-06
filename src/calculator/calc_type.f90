@@ -76,6 +76,7 @@ module calc_type
     integer :: prch = stdout  !> printout channel
     logical :: pr = .false.   !> allow the calculation to produce printout? Results in a lot I/O
     logical :: prappend = .false. !> append printout
+    logical :: prstdout = .false. !> special case, fwd some printout to stdout
     integer :: refine_lvl = 0 !> to allow defining different refinement levels
 
     integer :: chrg = 0          !> molecular charge
@@ -139,6 +140,7 @@ module calc_type
 
 !>--- tblite data
     type(tblite_data),allocatable :: tblite
+    character(len=:),allocatable :: tbliteparam
 
 !>--- GFN0-xTB data
     type(gfn0_data),allocatable          :: g0calc
@@ -685,6 +687,8 @@ contains  !>--- Module routines start here
         self%shortflag = 'CEH'
       case (xtblvl%eeq)
         self%shortflag = 'EEQ(D4)'
+      case (xtblvl%param)
+        self%shortflag = 'parameter file: '//trim(self%tbliteparam)
       end select
     case( jobtype%gfn0 )
       self%shortflag =  'GFN0-xTB' 
