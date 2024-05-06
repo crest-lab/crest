@@ -77,13 +77,14 @@ subroutine crest_singlepoint(env,tim)
 
   allocate (grad(3,mol%nat),source=0.0_wp)
   calc = env%calc
+  calc%calcs(:)%prstdout = .true.
 
 !>--- print some info about the calculation
   call calc%info(stdout)
 
 !>--- and then start it
   write (stdout,'(a)') repeat('-',80)
-  write (stdout,'(a)',advance='no') '> Performing singlepoint calculations ... '
+  write (stdout,'(a)',advance='yes') '> Performing singlepoint calculations ... '
   flush (stdout)
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
@@ -91,7 +92,7 @@ subroutine crest_singlepoint(env,tim)
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
   call tim%stop(14)
-  write (stdout,*) 'done.'
+  write (stdout,'(a)') '> done.'
   write (atmp,'(a)') '> Total wall time for calculations'
   call tim%write_timing(stdout,14,trim(atmp),.true.)
   write (stdout,'(a)') repeat('-',80)

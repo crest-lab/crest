@@ -343,6 +343,9 @@ contains !> MODULE PROCEDURES START HERE
       case default
         job%tblitelvl = xtblvl%unknown
       end select
+    case('tblite_param')
+      job%tbliteparam = val
+      job%tblitelvl = xtblvl%param
 
     case ('orca_cmd')
       job%id = jobtype%orca

@@ -149,6 +149,9 @@ contains    !> MODULE PROCEDURES START HERE
     loadnew = .false.
     if (.not.allocated(calc%tblite)) then
       allocate (calc%tblite)
+      if(allocated(calc%tbliteparam))then
+        calc%tblite%paramfile = calc%tbliteparam
+      endif
       loadnew = .true.
     end if
     if (calc%apiclean) loadnew = .true.
