@@ -55,6 +55,7 @@ subroutine env2calc(env,calc,molin)
   if( env%crestver == crest_sp )then
     cal%rdwbo = .true.
     cal%rddip = .true.
+    cal%rdqat = .true.
   endif
 
   !> implicit solvation

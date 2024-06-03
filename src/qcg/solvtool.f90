@@ -534,7 +534,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
             env%potscal = 0.8_wp
          end if
          write (*, *)
-         write (*, '(2x,''Water as solvent recognized, &
+         write (*, '(2x,''Water as solvent recognized,&
                  & adjusting scaling factor for outer wall pot to '',F4.2)')&
                 & env%potscal
          write (*, *)
@@ -574,7 +574,6 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
 ! Start Loop
 !--------------------------------------------------------
    do iter = 1, max_cycle
-
       e_there = .false.
       success = .false.
       high_e = .false.
@@ -670,6 +669,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
       success = .false.
 
 !--- Cluster restart, if interaction energy not negativ (wall pot. too small)
+      gfnver_tmp = env%gfnver !> backup original level of theory
       do while (.not. success)
 !--- Cluster optimization
          if (env%cts%used) then
@@ -682,7 +682,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
          end if
 
 !--- Interaction energy
-         gfnver_tmp = env%gfnver
+         !gfnver_tmp = env%gfnver
          env%gfnver = env%lmover
          gbsa_tmp = env%gbsa
          solv_tmp = env%solv
@@ -2127,7 +2127,7 @@ subroutine qcg_freq(env, tim, solu, solv, solu_ens, solv_ens)
    write (*, *) '  Solute Gas properties'
    call pr_freq_energy()
    open (newunit=ich56, file='solute.dat')
-   call pr_freq_file(56)
+   call pr_freq_file(ich56)
    write (*, '(2x,5f10.2)') ht(3), svib(3), srot(3), stra(3), gt(3)
    write (ich56, '(2x,5f10.2)') ht(3), svib(3), srot(3), stra(3), gt(3)
    close (ich56)

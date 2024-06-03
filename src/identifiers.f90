@@ -495,6 +495,7 @@ end subroutine methyl_autocomplete
 
 subroutine get_methyl(n,xyz,at,eqv)
   use crest_parameters,only:wp
+  use crest_cn_module
   implicit none
   integer,intent(in)  :: n                    ! number of atoms
   real(wp),intent(in) :: xyz(3,n)             ! coordinates
@@ -517,7 +518,7 @@ subroutine get_methyl(n,xyz,at,eqv)
 
   cn = 0.0d0
   bond = 0.0d0
-  call xcoord(n,at,xyz,cn,bond)
+  call calc_ncoord(n,at,xyz,cn,bond)
 
   eqv = 0
 

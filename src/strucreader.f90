@@ -41,6 +41,7 @@ module strucrd
   use geo
 !> element symbols
   use miscdata,only:PSE
+  use crest_cn_module, only: calculate_cn
   implicit none
 
 !=========================================================================================!
@@ -203,6 +204,7 @@ module strucrd
     procedure :: angle => coord_getangle        !> calculate angle between three atoms
     procedure :: dihedral => coord_getdihedral  !> calculate dihedral angle between four atoms
     procedure :: cutout => coord_getcutout      !> create a substructure 
+    procedure :: get_CN => coord_get_CN         !> calculate coordination number
   end type coord
 !=========================================================================================!
   !ensemble class. contains all structures of an ensemble
@@ -1428,8 +1430,21 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end function coord_getcutout
 
+!==================================================================!
 
-
+  subroutine coord_get_CN(self,cn,cn_type,cn_thr,dcndr)
+    implicit none
+    class(coord) :: self
+    real(wp),intent(out),allocatable :: cn(:)
+    real(wp),intent(in),optional :: cn_thr
+    character(len=*),intent(in),optional :: cn_type
+    real(wp),intent(out),optional :: dcndr(3,self%nat,self%nat)
+    if(self%nat <= 0) return
+    if(.not.allocated(self%xyz) .or. .not.allocated(self%at)) return
+    allocate(cn(self%nat), source=0.0_wp)
+    call calculate_CN(self%nat, self%at, self%xyz, cn, &
+    & cntype=cn_type, cnthr=cn_thr, dcndr=dcndr)
+  end subroutine coord_get_CN
 
 !=========================================================================================!
 !=========================================================================================!

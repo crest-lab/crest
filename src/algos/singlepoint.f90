@@ -77,96 +77,42 @@ subroutine crest_singlepoint(env,tim)
 
   allocate (grad(3,mol%nat),source=0.0_wp)
   calc = env%calc
+  calc%calcs(:)%prstdout = .true.
 
 !>--- print some info about the calculation
   call calc%info(stdout)
 
 !>--- and then start it
   write (stdout,'(a)') repeat('-',80)
-  write (stdout,'(a)',advance='no') '> Performing singlepoint calculations ... '
+  write (stdout,'(a)',advance='yes') '> Performing singlepoint calculations ... '
   flush (stdout)
+!>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
+!>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
   call engrad(mol,calc,energy,grad,io)
+!>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
+!>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
   call tim%stop(14)
-  write (stdout,*) 'done.'
+  write (stdout,'(a)') '> done.'
   write (atmp,'(a)') '> Total wall time for calculations'
   call tim%write_timing(stdout,14,trim(atmp),.true.)
   write (stdout,'(a)') repeat('-',80)
   if (io /= 0) then
     write (stdout,*)
     write (stdout,*) 'WARNING: Calculation exited with error!'
-    return
-  end if
-
+  else
 !>--- print out the results
-  if (any(calc%calcs(:)%rdwbo)) then
+    write (stdout,*) 'SUCCESS!'
     write (stdout,*)
-    write (stdout,*) 'Connectivity information (bond order):'
-    do k = 1,calc%ncalculations
-      if (calc%calcs(k)%rdwbo) then
-        write (stdout,'("> ",a,i0)') 'Calculation level ',k
-        write (stdout,'(a12,a12,a10)') 'Atom A','Atom B','BO(A-B)'
-        do i = 1,mol%nat
-          do j = 1,i-1
-            if (calc%calcs(k)%wbo(i,j) > 0.01_wp) then
-              write (stdout,*) i,j,calc%calcs(k)%wbo(i,j)
-            end if
-          end do
-        end do
-      end if
-    end do
-    write (stdout,*)
-    write (stdout,'(a)') repeat('-',80)
-  else
-    write (stdout,*)
-  end if
-
-  if (any(calc%calcs(:)%rddip)) then
-    write (stdout,*)
-    write (stdout,*) 'Molecular dipole moments (a.u.):'
-    do k = 1,calc%ncalculations
-      if (calc%calcs(k)%rddip) then
-        dip = norm2(calc%calcs(k)%dipole)
-        write (stdout,'("> ",a,i0)') 'Calculation level ',k
-        write (stdout,'(a10,a10,a10,a12)') 'x','y','z','tot (Debye)'
-        write (stdout,'(4f10.3)') calc%calcs(k)%dipole(:),dip*autod
-      end if
-    end do
-    write (stdout,*)
-    write (stdout,'(a)') repeat('-',80)
-  else
-    write (stdout,*)
-  end if
-
-  if (all(calc%calcs(:)%rdgrad.eqv..false.)) then
-    write (stdout,'(a)') '> No gradients calculated'
-  else
-    write (stdout,'(a)') '> Final molecular gradient ( Eh/a0 ):'
-    write (stdout,'(13x,a,13x,a,13x,a)') partial//'x',partial//'y',partial//'z'
-    do i = 1,mol%nat
-      write (stdout,'(3f18.8)') grad(1:3,i)
-    end do
-    write (stdout,'(a,f18.8,a)') '> Gradient norm:',norm2(grad),' Eh/a0'
-  end if
-
-  if (calc%ncalculations > 1) then
-    write (stdout,*)
-    write (stdout,'(a)') '> Individual energies and gradient norms:'
-    do k = 1,calc%ncalculations
-      write (stdout,'(1x,a,i3,2f18.8)') 'calculation ',k,calc%etmp(k),norm2(calc%grdtmp(:,:,k))
-    end do
-    if (calc%nconstraints > 0) then
-      write (stdout,'(1x,a)') '(+ constraints contribution)'
-    end if
+    write (stdout,'(1x,a)') 'SINGLEPOINT SUMMARY'
+    write (stdout,'(1x,a)') '==================='
+    call calculation_summary(calc,mol,energy,grad)
   end if
 
   write (stdout,*)
-  write (stdout,'(a)') repeat('=',40)
-  write (stdout,'(1x,a,f20.10,a)') 'TOTAL ENERGY ',energy,' Eh'
-  write (stdout,'(1x,a,f20.10,a)') 'GRADIENT NORM',norm2(grad),' Eh/a0'
-  write (stdout,'(a)') repeat('=',40)
-
-  write (stdout,'(1x,a)') 'Writing crest.engrad ...'
-  call write_engrad('crest.engrad',energy,grad)
+  write (stdout,'(a)') repeat('=',42)
+  write (stdout,'(1x,a,f20.10,a)') 'TOTAL ENERGY   ',energy,' Eh'
+  write (stdout,'(1x,a,f20.10,a)') 'GRADIENT NORM  ',norm2(grad),' Eh/a0'
+  write (stdout,'(a)') repeat('=',42)
 
   if (env%testnumgrad) then
     call numgrad(mol,calc,grad)
@@ -208,7 +154,7 @@ subroutine crest_xtbsp(env,xtblevel,molin)
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:)
 
-  !>--- transfer settings from env to tmpcalc
+!>--- transfer settings from env to tmpcalc
   call env2calc(env,tmpcalc,molin)
 
   tmpcalc%calcs(1)%rdwbo = .true. !> obtain WBOs
@@ -230,16 +176,18 @@ subroutine crest_xtbsp(env,xtblevel,molin)
     call mol%open('coord')
   end if
   allocate (grad(3,mol%nat),source=0.0_wp)
-
+!>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
+!>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
   call engrad(mol,tmpcalc,energy,grad,io)
+!>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
+!>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
   if (io .ne. 0) then
     error stop 'crest_xtbsp failed'
   end if
 
-  !>--- write wbo file
+!>--- write wbo file
   if (tmpcalc%calcs(1)%rdwbo) then
     call write_wbo(tmpcalc%calcs(1)%wbo,0.002_wp)
-
   end if
 
   deallocate (grad)

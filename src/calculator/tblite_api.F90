@@ -32,6 +32,8 @@ module tblite_api
   use tblite_wavefunction_type,only:wavefunction_type,new_wavefunction
   use tblite_wavefunction,only:sad_guess,eeq_guess
   use tblite_xtb,xtb_calculator => xtb_calculator
+  use tblite_xtb_calculator, only: new_xtb_calculator
+  use tblite_param, only : param_record
   use tblite_results,only:tblite_resultstype => results_type
   use tblite_wavefunction_mulliken,only:get_molecular_dipole_moment
   use tblite_ceh_singlepoint,only:ceh_guess
@@ -65,6 +67,7 @@ module tblite_api
   type :: tblite_data
     integer  :: lvl = 0
     real(wp) :: accuracy = 1.0_wp
+    character(len=:),allocatable :: paramfile
     type(wavefunction_type)     :: wfn
     type(xtb_calculator)        :: calc
     type(tblite_ctx)            :: ctx
@@ -81,16 +84,12 @@ module tblite_api
     !> the guesses can be used for charges, but NOT for e+grd!
     integer :: eeq = 4
     integer :: ceh = 5
+    integer :: param = 6
   end type enum_tblite_method
   type(enum_tblite_method),parameter,public :: xtblvl = enum_tblite_method()
 
   !> Conversion factor from Kelvin to Hartree
   real(wp),parameter :: ktoau = 3.166808578545117e-06_wp
-
-  integer :: verbosity = 0
-  !> IMPORTANT: tblite is not entirely thread-safe
-  !> if verbosity is >0. We'll have to turn it off.
-  !> At least for statically compiled binaries
 
   public :: wavefunction_type,xtb_calculator
   public :: tblite_ctx,tblite_resultstype
@@ -121,10 +120,12 @@ contains  !> MODULE PROCEDURES START HERE
 #ifdef WITH_TBLITE
     type(structure_type) :: mctcmol
     type(error_type),allocatable :: error
+    type(param_record) :: param
 
     real(wp) :: etemp_au,energy
     real(wp),allocatable :: grad(:,:)
     logical :: pr
+    integer :: io
 
     pr = (tblite%ctx%verbosity > 0)
 
@@ -149,6 +150,19 @@ contains  !> MODULE PROCEDURES START HERE
     case (xtblvl%eeq)
       if (pr) call tblite%ctx%message("tblite> setting up D4 EEQ charges calculation")
       call new_ceh_calculator(tblite%calc,mctcmol) !> doesn't matter but needs initialization
+    case (xtblvl%param)
+      if (pr) call tblite%ctx%message("tblite> setting up xtb calculator from parameter file")
+      if(allocated(tblite%paramfile))then
+        call tblite_read_param_record(tblite%paramfile,param,io)
+        call new_xtb_calculator(tblite%calc, mctcmol, param, error)
+        if(allocated(error))then
+          write(stdout,*) 'Could not read tblite parameter file '//tblite%paramfile
+          error stop
+        endif
+      else
+        if (pr) call tblite%ctx%message("tblite> parameter file does not exist, defaulting to GFN2-xTB")
+        call new_gfn2_calculator(tblite%calc,mctcmol)
+      endif
     case default
       call tblite%ctx%message("Error: Unknown method in tblite!")
       error stop
@@ -202,7 +216,7 @@ contains  !> MODULE PROCEDURES START HERE
     pr = (tblite%ctx%verbosity > 0)
 
 !>--- some tblite calculators have nothing to do with implicit solvation
-    if (tblite%lvl > 3) then
+    if (tblite%lvl > 3 .and. tblite%lvl.ne.xtblvl%param) then
       if (pr) call tblite%ctx%message("tblite> skipping implicit solvation setup for this potential")
       return
     end if
@@ -282,11 +296,17 @@ contains  !> MODULE PROCEDURES START HERE
     type(error_type),allocatable :: error
     real(wp) :: sigma(3,3)
     logical :: pr
+    integer :: verbosity
 
     iostatus = 0
     energy = 0.0_wp
     gradient(:,:) = 0.0_wp
     pr = (tblite%ctx%verbosity > 0)
+    if(tblite%ctx%verbosity>1)then
+      verbosity = tblite%ctx%verbosity
+    else
+      verbosity = 0
+    endif
 
 !>--- make an mctcmol object from mol
     call tblite_mol2mol(mol,chrg,uhf,mctcmol)
@@ -453,6 +473,42 @@ contains  !> MODULE PROCEDURES START HERE
     dipole = 0.0_wp
 #endif
   end subroutine tblite_getdipole
+
+!========================================================================================!
+
+#ifdef WITH_TBLITE
+subroutine tblite_read_param_record(paramfile,param,io)
+   use tomlf
+   implicit none
+   character(len=*),intent(in) :: paramfile
+   type(param_record),intent(out) :: param
+   integer,intent(out) :: io
+   type(error_type),allocatable :: error
+   type(toml_table),allocatable :: table
+   type(toml_error),allocatable :: terror
+   type(toml_context) :: tcontext
+   logical,parameter :: color = .true.
+
+   io=1
+
+   call toml_load(table,paramfile,error=terror,context=tcontext, &
+   & config=toml_parser_config(color=color))
+   if(allocated(terror))then
+     io=1
+     return
+   endif
+
+   call param%load_from_toml(table,error)
+
+   if(allocated(error))then
+     io=1
+   else
+     io=0
+   endif
+   if(allocated(table))deallocate(table)
+
+end subroutine tblite_read_param_record
+#endif
 
 !========================================================================================!
 !========================================================================================!

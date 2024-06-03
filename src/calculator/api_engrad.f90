@@ -34,6 +34,7 @@ module api_engrad
   use gfn0_api
   use gfnff_api
   use xhcff_api
+  use lj
   implicit none
 !>--- private module variables and parameters
   private
@@ -42,6 +43,7 @@ module api_engrad
   public :: gfn0_engrad,gfn0occ_engrad
   public :: gfnff_engrad
   public :: xhcff_engrad
+  public :: lj_engrad !> RE-EXPORT
 
 !=========================================================================================!
 !=========================================================================================!
@@ -75,9 +77,14 @@ contains    !> MODULE PROCEDURES START HERE
 !>--- tblite printout handling
     call api_handle_output(calc,'tblite.out',mol,pr)
     if (pr) then
-      !> tblite uses its context (ctx)( type, rather than calc%prch
+      !> tblite uses its context (ctx) type, rather than calc%prch
       calc%tblite%ctx%unit = calc%prch
       calc%tblite%ctx%verbosity = 1
+      if(calc%prstdout)then
+        !> special case, fwd to stdout (be carefule with this!)
+        calc%tblite%ctx%unit = stdout
+        calc%tblite%ctx%verbosity = 2
+      endif
     else
       calc%tblite%ctx%verbosity = 0
     end if
@@ -98,7 +105,7 @@ contains    !> MODULE PROCEDURES START HERE
     call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%tblite, &
     &                       energy,grad,iostatus)
     if (iostatus /= 0) return
-    call api_print_e_grd(pr,calc%tblite%ctx%unit,mol,energy,grad)
+    call api_print_e_grd(pr,calc%prch,mol,energy,grad)
 
 !>--- postprocessing, getting other data
     !$omp critical

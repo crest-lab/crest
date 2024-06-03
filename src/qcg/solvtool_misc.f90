@@ -115,7 +115,7 @@ subroutine xtb_lmo(env, fname)!,chrg)
    character(len=*), intent(in)     :: fname
    character(len=80)               :: pipe
    character(len=512)              :: jobcall
-   integer :: T,Tn
+   integer :: T,Tn,io
 
    pipe = ' > xtb.out 2>/dev/null'
 
@@ -125,7 +125,12 @@ subroutine xtb_lmo(env, fname)!,chrg)
 !---- jobcall, special gbsa treatment not needed, as the entire flag is included in env%solv
    write (jobcall, '(a,1x,a,1x,a,'' --sp --lmo '',a)') &
    &     trim(env%ProgName), trim(fname), trim(env%lmover), trim(pipe)
-   call command(trim(jobcall))
+   call command(trim(jobcall), exitstat=io)
+   
+   if(io /= 0)then
+     write(*,*) 'error in xtb_lmo'
+     stop
+   endif
 
 !--- cleanup
    call remove('wbo')
@@ -258,7 +263,7 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
    character(len=*), intent(in)     :: fname
    logical, optional, intent(in)   :: without_pot
    character(len=80)               :: pipe
-   character(len=512)              :: jobcall
+   character(len=:),allocatable    :: jobcall
    integer :: T,Tn
 
    if (env%niceprint) then
@@ -274,17 +279,15 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
    end if
 
 !--- Setting threads
-   call new_ompautoset(env,'auto',1,T,Tn)
-
+   call new_ompautoset(env,'subprocess',1,T,Tn)
 
 !--- Jobcall optimization
-   if (.not. without_pot) then
-      write (jobcall, '(a,1x,a,1x,a,'' --opt '',f4.2,'' --input xcontrol > xtb_opt.out'',a)') &
-      &     trim(env%ProgName), trim(fname), trim(env%gfnver), env%optlev, trim(pipe)
-   else
-      write (jobcall, '(a,1x,a,1x,a,'' --opt '',f4.2,1x,a,'' > xtb_opt.out'',a)') &
-      &     trim(env%ProgName), trim(fname), trim(env%gfnver), env%optlev, trim(env%solv), trim(pipe)
-   end if
+   jobcall = trim(env%ProgName)//' '//trim(fname)//' --opt '//optlevflag(env%optlev) 
+   jobcall = trim(jobcall)//' '//trim(env%gfnver)
+   if(without_pot)then
+     jobcall = trim(jobcall)//' '//trim(env%solv)
+   endif
+   jobcall = trim(jobcall)//' > xtb_opt.out 2>/dev/null' 
    call command(trim(jobcall))
 
 ! cleanup
@@ -294,8 +297,9 @@ subroutine opt_cluster(env, solu, clus, fname, without_pot)
 
 !--- Jobcall SP for gbsa model
    if (.not. without_pot) then
-      write (jobcall, '(a,1x,a,1x,a,'' --sp '',a,'' > xtb_sp.out'',a)') &
-      &    trim(env%ProgName), 'xtbopt.coord', trim(env%gfnver), trim(env%solv), trim(pipe)
+      jobcall =  trim(env%ProgName)//' xtbopt.coord --sp '//trim(env%gfnver)
+      jobcall = trim(jobcall)//' '//trim(env%solv)
+      jobcall = trim(jobcall)//' > xtb_sp.out 2>/dev/null' 
    end if
    call command(trim(jobcall))
 
@@ -867,10 +871,10 @@ subroutine rdxtbiffE(fname, m, n, e)
 
    implicit none
    integer :: m, n
-   character*(*) :: fname
+   character(len=*),intent(in) :: fname
    real*8 :: e(*)
 
-   character*128 :: line
+   character(len=128) :: line
    real*8 :: xx(10)
    integer :: ich, i, j, nn
 

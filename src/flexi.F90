@@ -26,6 +26,7 @@ subroutine flexi(mol,rednat,includeAtom,flex)
   use strucrd
   use zdata,only:readwbo
   use miscdata, only: rcov
+  use crest_cn_module
   implicit none
   !> INPUT
   type(coord),intent(in) :: mol                  !> input molecule
@@ -61,7 +62,7 @@ subroutine flexi(mol,rednat,includeAtom,flex)
     at = mol%at
     xyz = mol%xyz
   end if
-  call ncoord(rn,rcov,at,xyz,cn,400.0d0)
+  call calculate_CN(rn,at,xyz,cn)
 
 !>--- map the new (reduced) coordinate order to the original
   j = 0

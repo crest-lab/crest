@@ -41,6 +41,7 @@ list(APPEND srcs
   "${dir}/choose_settings.f90"
   "${dir}/classes.f90"
   "${dir}/cleanup.f90"
+  "${dir}/cn.f90"
   "${dir}/compress.f90"
   "${dir}/confparse.f90"
   "${dir}/cregen.f90"

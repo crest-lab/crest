@@ -149,6 +149,9 @@ contains    !> MODULE PROCEDURES START HERE
     loadnew = .false.
     if (.not.allocated(calc%tblite)) then
       allocate (calc%tblite)
+      if(allocated(calc%tbliteparam))then
+        calc%tblite%paramfile = calc%tbliteparam
+      endif
       loadnew = .true.
     end if
     if (calc%apiclean) loadnew = .true.
@@ -241,6 +244,11 @@ contains    !> MODULE PROCEDURES START HERE
     if (calc%rddip) then
       call gfn0_getdipole(g0calc,mol,calc%dipole)
     end if
+    if (calc%rdqat)then
+       if(.not.allocated(calc%qat)) &
+       & allocate (calc%qat(mol%nat), source=0.0_wp)
+       call gfn0_getqat(g0calc,mol,calc%qat) 
+    endif
 #endif
   end subroutine gfn0_properties
 
@@ -344,6 +352,14 @@ contains    !> MODULE PROCEDURES START HERE
     if (calc%rddip) then
       calc%dipole = matmul(calc%ff_dat%nlist%q,transpose(mol%xyz))
     end if
+   if (calc%rdqat)then
+       if(.not.allocated(calc%qat)) &
+       & allocate (calc%qat(mol%nat), source=0.0_wp)
+       calc%qat = calc%ff_dat%nlist%q
+   endif
+   if(allocated(calc%getsasa))then
+     call gfnff_dump_sasa(calc%ff_dat,mol%nat,calc%getsasa)
+   endif
 #endif
   end subroutine gfnff_properties
 

@@ -163,6 +163,7 @@ subroutine zsort
 end subroutine zsort
 
 subroutine recursive_zmat(xyz,at,nat,na,nb,nc,geo)
+  use crest_cn_module
   implicit none
 !     recursive Z matrix generation
 !     i/o block
@@ -187,7 +188,7 @@ subroutine recursive_zmat(xyz,at,nat,na,nb,nc,geo)
   nb = 0
   nc = 0
 !     code
-  call xcoord(nat,at,xyz,cn,bond)
+  call calc_ncoord(nat,at,xyz,cn,bond)
   do i = 1,nat
 !       j=maxloc(cn,1)
     if (.not. taken(i)) then

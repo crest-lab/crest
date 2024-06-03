@@ -22,9 +22,9 @@ module crest_calculator
   use iso_fortran_env,only:wp => real64,int64
   use strucrd
   use calc_type
+  use crest_calculator_printout
 !>--- potentials and API's
   use subprocess_engrad !> driver exports for subprocesses
-  use lj
   use api_engrad  !> contains many potentials
 !>--- other
   use constraints
@@ -41,10 +41,13 @@ module crest_calculator
   public :: calcdata              !> calculator main object
   public :: calculation_settings  !> different calculation objects (levels) within calcdata
   public :: jobtype               !> calculation type ID's
+  public :: get_dipoles
 !>--- RE-EXPORT of constraints
   public :: constraint
   public :: scantype
   public :: calc_constraint
+!>--- RE-EXPORT of printout routines
+  public :: calculation_summary
 !=========================================================================================!
 
 !>--- global engrad call counter
@@ -765,26 +768,6 @@ contains  !> MODULE PROCEDURES START HERE
 #endif
   end subroutine calc_ONIOM_projection
 
-!==========================================================================================!
-
-   subroutine get_dipoles(calc,diptmp)
-!*********************************************
-!* Collect the x y and z dipole moments for
-!* each calculation level in one array diptmp
-!*********************************************
-       implicit none
-       type(calcdata),intent(inout) :: calc
-       real(wp),allocatable,intent(out) :: diptmp(:,:)
-       integer :: i,j,k,l,m
-
-       m = calc%ncalculations
-       allocate(diptmp(3,m), source=0.0_wp) 
-       do i=1,m
-         if(calc%calcs(i)%rddip)then
-            diptmp(1:3,i) = calc%calcs(i)%dipole(1:3)
-         endif
-       enddo
-   end subroutine get_dipoles
 !==========================================================================================!
 !==========================================================================================!
 end module crest_calculator

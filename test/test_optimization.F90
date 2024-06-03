@@ -106,6 +106,7 @@ contains  !> Unit tests for using geometry optimization routines in CREST
     call sett%create('gfnff')
     call calc%add(sett)
     call get_testmol('methane',mol)
+    molnew = mol
     allocate (grad(3,mol%nat))
 
     !> calculation

@@ -33,6 +33,7 @@ subroutine cregen2(env)
       use miscdata, only: rcov
       use utilities
       use omp_lib
+      use crest_cn_module
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
 
@@ -222,9 +223,9 @@ subroutine cregen2(env)
            k=k+1
           endif
         enddo 
-        call ncoord(rednat,rcov,atr,c1r,cn0,500.0d0)
+        call calc_ncoord(rednat,rcov,atr,c1r,cn0,500.0d0)
       else
-        call ncoord(n,rcov,at,c1,cn0,500.0d0)
+        call calc_ncoord(n,rcov,at,c1,cn0,500.0d0)
       endif
 
 !c read file
@@ -250,7 +251,7 @@ subroutine cregen2(env)
          l1=distcheck(n,c1)  ! distance check
          cnorm=sum(abs(c1))
          if(abs(erj).gt.1.d-6.and.cnorm.gt.1.d-6.and.l1) &
-      &  call ncoord(n,rcov,at,c1,cn,500.0d0)    ! further check for reactions based on CN
+      &  call calc_ncoord(n,rcov,at,c1,cn,500.0d0)    ! further check for reactions based on CN
          k2=0        
          do i=1,n
             if(.not.(cn0(i).gt.0))cycle
@@ -288,7 +289,7 @@ subroutine cregen2(env)
          l1=distcheck(rednat,c1r)  ! distance check
          cnorm=sum(abs(c1r))
          if(abs(erj).gt.1.d-6.and.cnorm.gt.1.d-6.and.l1) &
-      &  call ncoord(rednat,rcov,atr,c1r,cn,500.0d0)    ! further check for reactions based on CN
+      &  call calc_ncoord(rednat,rcov,atr,c1r,cn,500.0d0)    ! further check for reactions based on CN
          k2=0
          do i=1,rednat
             !if(abs((cn(i)-cn0(i)))/cn0(i).gt.0.3) k2=1
@@ -1193,7 +1194,7 @@ subroutine cregen2(env)
          irr=glist(ir,ig)
          call distance(n,xyz(:,:,irr),sd)   ! distance matrix
          c1(1:3,1:n)=xyz(1:3,1:n,irr)
-         call ncoord(n,rcov,at,c1,cn,500.0d0)
+         call calc_ncoord(n,rcov,at,c1,cn,500.0d0)
          do i=1,n-1
             do j=i+1,n
                jfake(lin(j,i))=cn(i)*cn(j)*sqrt(dble(at(i)*at(j))) &
