@@ -719,6 +719,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*) :: str
     integer,intent(out) :: io
     character(len=:),allocatable :: tmpstr
+    character(len=:),allocatable :: tmpstr_rc
     character(len=:),allocatable :: ktmp
     character(len=:),allocatable :: vtmp
     integer :: i,j,k,na,plast
@@ -726,6 +727,7 @@ contains  !> MODULE PROCEDURES START HERE
     call kv%deallocate()
     io = 0
     tmpstr = adjustl(lowercase(str))
+    tmpstr_rc=adjustl(trim(str))
 
     !> key-value conditions
     l(1) = index(tmpstr,'=')
@@ -747,7 +749,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
     ktmp = trim(adjustl(tmpstr(:k-1)))
-    vtmp = trim(adjustl(tmpstr(k+1:)))
+    vtmp = trim(adjustl(tmpstr_rc(k+1:)))
     kv%key = ktmp !> the key as string
     kv%rawvalue = vtmp !> value as unformatted string
 

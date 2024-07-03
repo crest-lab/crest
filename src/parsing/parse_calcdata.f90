@@ -273,6 +273,8 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%tblite
         job%tblitelvl = xtblvl%ceh
         job%rdgrad = .false.
+        job%rdqat = .true.
+        job%rddip = .true.
       case ('gfn0','gfn0-xtb')
         job%id = jobtype%gfn0
       case ('gfn0*','gfn0*-xtb')
@@ -396,6 +398,15 @@ contains !> MODULE PROCEDURES START HERE
         write(stderr,'(a,a,a)') 'specified parametrisation file ',val,' does not exist'
         error stop
       endif
+    case('refchrg','refcharges')
+      inquire(file=val,exist=ex)
+      if(ex)then
+        job%refcharges = val
+      else
+        write(stderr,'(a,a,a)') 'specified reference charge file ',val,' does not exist'
+        error stop
+      endif
+
 
     case ('print')
       select case (val)
@@ -427,6 +438,9 @@ contains !> MODULE PROCEDURES START HERE
       job%rddip = val
     case ('rdqat','rdchrg')
       job%rdqat = val
+    case ('dumpq','dumpchrg')
+      job%rdqat = val
+      job%dumpq = val
     case ('dipgrad')
       job%rddipgrad = val
     case ('rdgrad')
