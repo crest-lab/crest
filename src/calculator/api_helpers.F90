@@ -325,6 +325,9 @@ contains    !> MODULE PROCEDURES START HERE
       if (allocated(calc%parametrisation)) then
         calc%ff_dat%refgeo = calc%parametrisation
       end if
+      if (allocated(calc%refcharges)) then
+        calc%ff_dat%refcharges = calc%refcharges
+      end if
 
     end if
     if (allocated(calc%solvent)) then

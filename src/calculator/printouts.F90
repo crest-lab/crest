@@ -106,6 +106,9 @@ contains  !> MODULE PROCEDURES START HERE
             & calc%calcs(k)%qat(j), cn(j)
           enddo  
           write (iunit,*)
+          if(calc%calcs(k)%dumpq)then
+            call dumpq(k,mol%nat,calc%calcs(k)%qat)
+          endif
         end if
       end do
       write (iunit,'(a)') repeat('-',80)
@@ -213,6 +216,26 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
   end subroutine calculation_summary
+
+!========================================================================================!
+
+  subroutine dumpq(id,nat,q)
+!********************************
+!* write atomic charges to file
+!********************************
+    implicit none
+    integer,intent(in) :: id,nat
+    real(wp),intent(in) :: q(nat)
+    integer :: i,ich
+    character(len=50) :: atmp
+
+    write(atmp,'("charges.",i0)') id
+    open(newunit=ich,file=trim(atmp))
+    do i=1,nat
+       write(ich,'(F20.10)') q(i)
+    enddo
+    close(ich)
+  end subroutine dumpq 
 
 !========================================================================================!
 !========================================================================================!

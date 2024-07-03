@@ -112,6 +112,7 @@ module calc_type
 
     !> atomic charges
     logical :: rdqat = .false.
+    logical :: dumpq = .false.
     real(wp),allocatable :: qat(:)
 
     !> dipole and dipole gradient
@@ -137,6 +138,7 @@ module calc_type
     logical  :: restart = .false.  !> restart option (some potentials can do this)
     character(len=:),allocatable :: restartfile
     character(len=:),allocatable :: refgeo
+    character(len=:),allocatable :: refcharges
 
 !>--- tblite data
     type(tblite_data),allocatable :: tblite
