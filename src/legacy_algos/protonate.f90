@@ -210,7 +210,7 @@ end subroutine protonate
 !--------------------------------------------------------------------------------------------
 ! A quick single point xtb calculation and calculate LMOs
 !--------------------------------------------------------------------------------------------
-subroutine xtblmo(env,print)
+subroutine xtblmo(env,pr)
   use crest_parameters
   use iomod
   use crest_data
@@ -220,7 +220,7 @@ subroutine xtblmo(env,print)
   character(len=:),allocatable :: jobcall
   integer :: io,T,Tn
   character(len=*),parameter :: pipe = ' > xtb.out 2>/dev/null'
-  logical, optional :: print ! leave the xtb.out file (e.g. for msreact mode)
+  logical, optional :: pr ! leave the xtb.out file (e.g. for msreact mode)
 
 !---- setting threads
   call new_ompautoset(env,'auto',1,T,Tn)
@@ -241,7 +241,9 @@ subroutine xtblmo(env,print)
 
 !---- cleanup
   call remove(fname)
-  if (.not. print) call remove('xtb.out')
+  if(present(pr))then 
+    if (.not. pr) call rmrf('xtb.out')
+  endif
   call remove('energy')
   call remove('charges')
   call remove('xtbrestart')
