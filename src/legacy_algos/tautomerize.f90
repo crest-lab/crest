@@ -227,7 +227,7 @@ subroutine protsmall(env,prot,tim)
   call getcwd(thispath)
 !--- do the xTB calculation for the LMOs
   call tim%start(1,'LMO calc.')
-  call xtblmo(env)
+  call xtblmo(env,.true.)
   call tim%stop(1)
   inquire (file='coordprot.0',exist=ex)
   if (.not.ex) then
