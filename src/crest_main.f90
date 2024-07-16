@@ -140,10 +140,10 @@ program CREST
   case (p_compare)
     call compare_ensembles(env)     
     call propquit(tim)
- !>--- protonation tool
-  case (p_protonate)
-    call protonate(env,tim)
-    call propquit(tim)
+! !>--- protonation tool
+!  case (p_protonate)
+!    call protonate(env,tim)
+!    call propquit(tim)
 !>--- deprotonation
   case (p_deprotonate)
     call deprotonate(env,tim)
@@ -188,19 +188,19 @@ program CREST
 !>--- calculate potential correction for acid/base reaction
   case (p_acidbase)
     call tim%start(4,'acid/base')
-    if (env%ptb%pka_mode == 0) then
-      call acidbase(env,env%ptb%pka_acidensemble,env%ptb%pka_baseensemble,env%chrg,.true., &
+    if (env%protb%pka_mode == 0) then
+      call acidbase(env,env%protb%pka_acidensemble,env%protb%pka_baseensemble,env%chrg,.true., &
           & .false.,dumfloat,.false.,d3,d4,d5,d6,d7,d8)
     else
-      call rewrite_AB_ensemble(env,env%ptb%pka_acidensemble,env%ptb%pka_baseensemble)
+      call rewrite_AB_ensemble(env,env%protb%pka_acidensemble,env%protb%pka_baseensemble)
     end if
     call tim%stop(4)
     call propquit(tim)
 !>--- calculate potential correction for acid/base reaction
   case (p_ligand)
     call tim%start(4,'')
-    call ligandtool(env%ptb%infile,env%ptb%newligand, &
-    &    env%ptb%centeratom,env%ptb%ligand)
+    call ligandtool(env%protb%infile,env%protb%newligand, &
+    &    env%protb%centeratom,env%protb%ligand)
     call tim%stop(4)
     call propquit(tim)
 !>--- wrapper for the thermo routine
@@ -289,6 +289,9 @@ program CREST
 
   case (crest_ensemblesp) !> singlepoints along ensemble
     call crest_ensemble_singlepoints(env,tim)    
+
+  case(crest_protonate)
+    call protonate(env,tim)
 
   case (crest_test)
     call crest_playground(env,tim)

@@ -78,7 +78,7 @@ subroutine pkaquick(env,tim)
 
   !---- FER parameter selection
   parinfo = ''
-  if (env%ptb%rdCFER) then
+  if (env%protb%rdCFER) then
     pkaparam = 'external'
   else
     !pkaparam ='none'
@@ -109,13 +109,13 @@ subroutine pkaquick(env,tim)
     c(3) = -0.11103   !           and checked outlier HClO4
     c(4) = 0.0001835
   case ('external')
-    call pka_rdparam(env%ptb%cferfile,nc,c,parinfo)
+    call pka_rdparam(env%protb%cferfile,nc,c,parinfo)
   case default  !do nothing with the values
     c = 0.0d0
     c(2) = 1.0d0
   end select
 
-  select case (env%ptb%pka_mode)
+  select case (env%protb%pka_mode)
   case (0)  !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++!
     env%crestver = 2
     env%gbsa = .true.
@@ -125,29 +125,29 @@ subroutine pkaquick(env,tim)
     if ((env%gfnver .ne. '--gfn2')) then
       error stop 'Error: pKa tool only available for GFN2/ALPB(H2O) calculations'
     end if
-    if (env%ptb%h_acidic == 0) then
+    if (env%protb%h_acidic == 0) then
       error stop 'Error: no hydrogen atom selected for acid dissociation'
     end if
 
 !---- very important preperation: resort input so that heavy atoms come first, and then all hydrogens
-    allocate (env%ptb%atmap(env%nat))
-    call htothebottom('coord',env%chrg,env%nat,env%ptb%atmap)
+    allocate (env%protb%atmap(env%nat))
+    call htothebottom('coord',env%chrg,env%nat,env%protb%atmap)
     !--- check for the selected acidic H atom
     h = 0
     do i = 1,env%nat
-      if (env%ptb%atmap(i) == env%ptb%h_acidic) h = i
+      if (env%protb%atmap(i) == env%protb%h_acidic) h = i
     end do
-    if ((h .ne. env%ptb%h_acidic).and.(env%ptb%h_acidic > 0)) then
+    if ((h .ne. env%protb%h_acidic).and.(env%protb%h_acidic > 0)) then
       write (stdout,'(1x,a,i0,a,i0)') 'The position of the selected acidic hydrogen was updated ', &
-      &    env%ptb%h_acidic,' ---> ',h
-      env%ptb%h_acidic = h
+      &    env%protb%h_acidic,' ---> ',h
+      env%protb%h_acidic = h
     end if
 
 !---- first do conformational search in water
     call largehead2('Calculation of the acid')
     !--- because the acid must be the input file, it is saved as "coord"
     call ACID%open('coord')
-    h = env%ptb%h_acidic
+    h = env%protb%h_acidic
     if ((h > 0)) then
       if (ACID%at(h) .ne. 1) error stop 'selected atom in pKa tool is not a hydrogen atom'
     end if
@@ -173,26 +173,26 @@ subroutine pkaquick(env,tim)
 !---- then do the (relaxed) deprotonation
     call largehead2('Calculation of the base')
     env%ensemblename = 'none selected'  !RESET, IMPORTANT!
-    env%ptb%threshsort = .true.
+    env%protb%threshsort = .true.
     !=================================================================================!
     !--- write the base input file
-    if (env%ptb%h_acidic > 0) then            !-- for a manually selected H atom
+    if (env%protb%h_acidic > 0) then            !-- for a manually selected H atom
       BASE%nat = refnat-1
       allocate (BASE%at(BASE%nat),source=0)
       allocate (BASE%xyz(3,BASE%nat),source=0.0_wp)
       j = 0
       do i = 1,ACID%nat
-        if (i == env%ptb%h_acidic) cycle
+        if (i == env%protb%h_acidic) cycle
         j = j+1
         BASE%at(j) = ACID%at(i)
         BASE%xyz(1:3,j) = ACID%xyz(1:3,i)
       end do
-    else if (env%ptb%h_acidic == -1) then      !-- "automatic" mode
+    else if (env%protb%h_acidic == -1) then      !-- "automatic" mode
       call deprotonate(env,tim)
       call rmrfw('deprotonate_')
       call BASE%open('deprotonated.xyz')
-    else if (env%ptb%h_acidic == -2) then      !-- read-in base file mode
-      call BASE%open(env%ptb%pka_baseinp)
+    else if (env%protb%h_acidic == -2) then      !-- read-in base file mode
+      call BASE%open(env%protb%pka_baseinp)
     end if
     call BASE%write('base.xyz')
     env%chrg = refchrg-1
@@ -238,11 +238,11 @@ subroutine pkaquick(env,tim)
     write (stdout,*) 'format and contain the final free energies in solution (in Eh) as'
     write (stdout,*) 'comment line for each structure.'
     write (stdout,*)
-    call ACIDENSEMBLE%open(env%ptb%pka_acidensemble)
-    write (stdout,'(1x,a,a,a,i0,a)') 'Ensemble read for acid: ',env%ptb%pka_acidensemble, &
+    call ACIDENSEMBLE%open(env%protb%pka_acidensemble)
+    write (stdout,'(1x,a,a,a,i0,a)') 'Ensemble read for acid: ',env%protb%pka_acidensemble, &
         & ' with ',ACIDENSEMBLE%nall,' structures'
-    call BASEENSEMBLE%open(env%ptb%pka_baseensemble)
-    write (stdout,'(1x,a,a,a,i0,a)') 'Ensemble read for base: ',env%ptb%pka_baseensemble, &
+    call BASEENSEMBLE%open(env%protb%pka_baseensemble)
+    write (stdout,'(1x,a,a,a,i0,a)') 'Ensemble read for base: ',env%protb%pka_baseensemble, &
         & ' with ',BASEENSEMBLE%nall,' structures'
     write (stdout,'(1x,a)') 'Calculating population average from read-in (free) energies ...'
     nalla = ACIDENSEMBLE%nall
@@ -297,7 +297,7 @@ subroutine pkaquick(env,tim)
   dum = GB-GA
   write (stdout,'(1x,a,f16.8,a,f8.2,a)') 'ΔG       =',dum,' Eh,',dum*kcal,' kcal/mol'
   dG = dum+dE
-  if (env%ptb%pka_mode .ne. 1) then
+  if (env%protb%pka_mode .ne. 1) then
     write (stdout,'(1x,a,f16.8,a,f8.2,a)') 'ΔG+Ecorr =',dG,' Eh,',dG*kcal,' kcal/mol'
   end if
   write (stdout,*)
@@ -418,8 +418,8 @@ subroutine pka_argparse2(env,str1,str2,h)
   inquire (file=trim(str2),exist=ex2)
   if (ex.and.ex2) then
     h = 1
-    env%ptb%pka_acidensemble = trim(str1)
-    env%ptb%pka_baseensemble = trim(str2)
+    env%protb%pka_acidensemble = trim(str1)
+    env%protb%pka_baseensemble = trim(str2)
   end if
   return
 end subroutine pka_argparse2

@@ -349,4 +349,17 @@ subroutine trialOPT(env)
 end subroutine trialOPT
 
 !================================================================================!
+subroutine protonate(env,tim)
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  type(timer)   :: tim
+  if (env%legacy) then
+    call protonate_legacy(env,tim)
+  else
+    call crest_new_protonate(env,tim)
+  end if
+end subroutine protonate
+
 

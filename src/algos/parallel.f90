@@ -178,6 +178,8 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
 !* subroutine crest_oloop
 !* This subroutine performs concurrent geometry optimizations
 !* for the given ensemble. Inputs xyz and eread are overwritten
+!*
+!* IMPORTANT: xyz should be in Bohr(!) for this routine
 !***************************************************************
   use crest_parameters,only:wp,stdout,sep 
   use crest_calculator

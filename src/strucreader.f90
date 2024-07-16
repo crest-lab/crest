@@ -205,6 +205,7 @@ module strucrd
     procedure :: dihedral => coord_getdihedral  !> calculate dihedral angle between four atoms
     procedure :: cutout => coord_getcutout      !> create a substructure 
     procedure :: get_CN => coord_get_CN         !> calculate coordination number
+    procedure :: get_z => coord_get_z           !> calculate nuclear charge
   end type coord
 !=========================================================================================!
   !ensemble class. contains all structures of an ensemble
@@ -1446,6 +1447,22 @@ contains  !> MODULE PROCEDURES START HERE
     & cntype=cn_type, cnthr=cn_thr, dcndr=dcndr)
   end subroutine coord_get_CN
 
+!==================================================================!
+
+  subroutine coord_get_z(self,z)
+    implicit none
+    class(coord) :: self
+    real(wp),intent(out),allocatable :: z(:)
+    integer :: i,j,k
+    if(self%nat <= 0) return
+    if(.not.allocated(self%xyz) .or. .not.allocated(self%at)) return
+    allocate(z(self%nat), source=0.0_wp)
+    do i=1,self%nat
+      z(i) = real(self%at(i),wp) - real(ncore(self%at(i)))
+      if (self%at(i) > 57 .and. self%at(i) < 72) z(i) = 3.0_wp
+    enddo
+  end subroutine coord_get_z
+
 !=========================================================================================!
 !=========================================================================================!
 !  3. ROUTINES FOR WRITING STRUCTURES AND CONVERTING THEM
@@ -2010,6 +2027,32 @@ contains  !> MODULE PROCEDURES START HERE
     end if
     call move_alloc(sout,convertlable)
   end function convertlable
+
+!=============================================================!
+pure elemental integer function ncore(at)
+  integer,intent(in) :: at
+  if(at.le.2)then
+     ncore=0
+  elseif(at.le.10)then
+     ncore=2
+  elseif(at.le.18)then
+     ncore=10
+  elseif(at.le.29)then   !zn
+     ncore=18
+  elseif(at.le.36)then
+     ncore=28
+  elseif(at.le.47)then
+     ncore=36
+  elseif(at.le.54)then
+     ncore=46
+  elseif(at.le.71)then
+     ncore=54
+  elseif(at.le.79)then
+     ncore=68
+  elseif(at.le.86)then
+     ncore=78
+  endif
+end function ncore
 
 !============================================================!
 ! e2i is used to map the element (as a string) to integer

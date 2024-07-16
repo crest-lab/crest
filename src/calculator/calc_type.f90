@@ -123,6 +123,9 @@ module calc_type
 
     !> other properties
     logical,allocatable :: getsasa(:) 
+    logical :: getlmocent = .false.
+    integer :: nprot = 0
+    real(wp),allocatable :: protxyz(:,:) 
 
 !>--- API constructs
     integer  :: tblitelvl = 2
@@ -267,6 +270,8 @@ module calc_type
     procedure :: active => calc_set_active
     procedure :: active_restore => calc_set_active_restore
     procedure :: freezegrad => calculation_freezegrad
+    procedure :: increase_charge => calculation_increase_charge
+    procedure :: decrease_charge => calculation_decrease_charge
   end type calcdata
 
   public :: get_dipoles
@@ -604,6 +609,54 @@ contains  !>--- Module routines start here
       end do
     end if
   end subroutine calculation_freezegrad
+
+!=========================================================================================!
+
+  subroutine calculation_increase_charge(self,dchrg)
+!******************************************************************
+!* increase the charge of all calculation_settings objects by one
+!* or the specified dchrg
+!****************************************************************** 
+    implicit none
+    class(calcdata) :: self
+    integer,intent(in),optional :: dchrg
+    integer :: i,j
+    if(self%ncalculations > 0)then
+     if(present(dchrg))then
+       j = dchrg
+     else
+       j = 1
+     endif
+     do i=1,self%ncalculations
+        self%calcs(i)%chrg = self%calcs(i)%chrg + j
+     enddo
+    endif
+    return
+  end subroutine calculation_increase_charge
+
+!=========================================================================================!
+
+  subroutine calculation_decrease_charge(self,dchrg)
+!******************************************************************
+!* decrease the charge of all calculation_settings objects by one
+!* or the specified dchrg
+!****************************************************************** 
+    implicit none
+    class(calcdata) :: self
+    integer,intent(in),optional :: dchrg
+    integer :: i,j
+      if(self%ncalculations > 0)then
+     if(present(dchrg))then
+       j = dchrg
+     else
+       j = 1
+     endif
+     do i=1,self%ncalculations
+        self%calcs(i)%chrg = self%calcs(i)%chrg - j
+     enddo
+    endif
+    return
+  end subroutine calculation_decrease_charge
 
 !=========================================================================================!
 

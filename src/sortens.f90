@@ -52,7 +52,7 @@ subroutine sort_ens(sort,infile,verbose)
 
   ochan = 6 !stdout
 
-  !sort=env%ptb
+  !sort=env%protb
 
   associate (popthr => sort%popthr, &
   & allowFrag => sort%allowFrag,ewin => sort%ewin,     &

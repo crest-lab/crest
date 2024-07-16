@@ -16,4 +16,7 @@
 
 srcs += files(
   'wiberg_mayer.f90',
+  'intpack.f90',
+  'lopt.f90',
+  'local.f90',
 )
