@@ -22,7 +22,6 @@ subroutine crest_search_entropy(env,tim)
 !* This is the re-implementation of CREST's sMTD-iMTD workflow
 !* from https://doi.org/10.1039/d1sc00621e
 !* with calculation of conformational entropy
-!* This is a TODO
 !*******************************************************************
   use crest_parameters,only:wp,stdout
   use crest_data
@@ -80,6 +79,12 @@ subroutine crest_search_entropy(env,tim)
   write (stdout,*) 'Input structure:'
   call mol%append(stdout)
   write (stdout,*)
+
+!>--- saftey termination
+  if(mol%nat .le. 2)then
+     call catchdiatomic(env)
+    return
+  endif
 
 !>--- sets the MD length according to a flexibility measure
   call md_length_setup(env)

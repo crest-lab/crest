@@ -30,6 +30,7 @@ module gfn0_api
   use gfn0_module,only:gfn0_gbsa_init,generate_config
 #endif
   use wiberg_mayer,only:get_wbo,get_wbo_rhf,density_matrix
+  use mo_localize,only:local
   implicit none
   private
 
@@ -50,6 +51,7 @@ module gfn0_api
   public :: gfn0_gen_occ
   public :: gfn0_print
   public :: gfn0_getdipole,gfn0_getqat
+  public :: gfn0_getlmocent
 
 !========================================================================================!
 !========================================================================================!
@@ -284,6 +286,31 @@ contains  !>--- Module routines start here
     qat(:) = g0calc%wfn%q(:)
 #endif
   end subroutine gfn0_getqat
+
+!========================================================================================!
+
+  subroutine gfn0_getlmocent(g0calc,mol,nprot,protxyz)
+!********************************************
+!* Localize the MOs to obtain their centers
+!********************************************
+    implicit none
+    type(gfn0_data),intent(inout) :: g0calc
+    type(coord),intent(in) :: mol
+    real(wp),allocatable :: z(:)
+    integer,intent(out) :: nprot
+    real(wp),intent(out),allocatable :: protxyz(:,:)
+    nprot=0
+#ifdef WITH_GFN0
+    !allocate(z(mol%nat), source=0.0_wp)
+    call mol%get_z(z)
+    call local(mol%nat,mol%at,g0calc%basis%nbf,g0calc%basis%nao,g0calc%wfn%ihomo,mol%xyz,z, &
+    &          g0calc%wfn%focc,g0calc%wfn%s,g0calc%wfn%p,g0calc%wfn%C,g0calc%wfn%emo, &
+    &          g0calc%basis%aoat2,g0calc%basis%aoat,g0calc%basis%nprim, &
+    &          g0calc%basis%alp,g0calc%basis%lao,g0calc%basis%cont, &
+    &          nprot,protxyz)
+#endif
+  end subroutine gfn0_getlmocent
+
 
 !========================================================================================!
 !========================================================================================!

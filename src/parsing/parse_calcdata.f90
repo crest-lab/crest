@@ -447,6 +447,8 @@ contains !> MODULE PROCEDURES START HERE
       job%rdgrad = val
     case ('refresh')
       job%apiclean = val
+    case ('lmo','lmocent')
+      job%getlmocent = val
     case ('print')
       job%pr = val
       if (val) job%prch = 999  !> the actual ID will be generated automatically

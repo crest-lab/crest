@@ -273,6 +273,7 @@ subroutine trialOPT_calculator(env)
   use crest_calculator
   use optimize_module
   use strucrd
+  use iomod
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -301,11 +302,19 @@ subroutine trialOPT_calculator(env)
 !>--- perform geometry optimization
   pr = .false. !> stdout printout
   wr = .true.  !> write crestopt.log
+  if(wr)then
+    call remove('crestopt.log')
+  endif 
   call optimize_geometry(mol,molopt,tmpcalc,energy,grd,pr,wr,io)
 
 !>--- check success 
   success = (io == 0)
   call trialOPT_warning(env,molopt,success)
+!>--- if the checks were successfull, env%ref is overwritten
+  env%ref%nat = molopt%nat
+  env%ref%at = molopt%at
+  env%ref%xyz = molopt%xyz
+  env%ref%etot = energy  
 
   deallocate(grd) 
 end subroutine trialOPT_calculator
@@ -336,7 +345,7 @@ subroutine trialOPT_warning(env,mol,success)
   if (.not.success) then
     write (stdout,*)
     write (stdout,*) ' Initial geometry optimization failed!'
-    write (stdout,*) ' Please check your input.'
+    write (stdout,*) ' Please check your input and, if present, crestopt.log.'
     error stop
   end if
   write (stdout,*) 'Geometry successfully optimized.'
@@ -395,11 +404,7 @@ subroutine trialOPT_warning(env,mol,success)
     end if
   end if
 
-!>--- If all checks succeded, update reference with optimized geometry
-  env%ref%nat = mol%nat
-  env%ref%at = mol%at
-  env%ref%xyz = mol%xyz
-
+  return
 end subroutine trialOPT_warning
 
 !========================================================================================!

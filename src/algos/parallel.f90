@@ -21,6 +21,57 @@
 
 !========================================================================================!
 !========================================================================================!
+!> Interfaces to handle optional arguments
+!========================================================================================!
+!========================================================================================!
+module parallel_interface
+!*******************************************************
+!* module to load an interface to the parallel routines
+!* mandatory to handle any optional input arguments
+!*******************************************************
+  implicit none
+  interface
+    subroutine crest_sploop(env,nat,nall,at,xyz,eread)
+      use crest_parameters,only:wp,stdout,sep
+      use crest_calculator
+      use omp_lib
+      use crest_data
+      use strucrd
+      use optimize_module
+      use iomod,only:makedir,directory_exist,remove
+      implicit none
+      type(systemdata),intent(inout) :: env
+      real(wp),intent(inout) :: xyz(3,nat,nall)
+      integer,intent(in)  :: at(nat)
+      real(wp),intent(inout) :: eread(nall)
+      integer,intent(in) :: nat,nall
+    end subroutine crest_sploop
+  end interface
+
+  interface
+    subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
+      use crest_parameters,only:wp,stdout,sep
+      use crest_calculator
+      use omp_lib
+      use crest_data
+      use strucrd
+      use optimize_module
+      use iomod,only:makedir,directory_exist,remove
+      use crest_restartlog,only:trackrestart,restart_write_dummy
+      implicit none
+      type(systemdata),target,intent(inout) :: env
+      real(wp),intent(inout) :: xyz(3,nat,nall)
+      integer,intent(in)  :: at(nat)
+      real(wp),intent(inout) :: eread(nall)
+      integer,intent(in) :: nat,nall
+      logical,intent(in) :: dump
+      type(calcdata),intent(in),target,optional :: customcalc
+    end subroutine crest_oloop
+  end interface
+end module parallel_interface
+
+!========================================================================================!
+!========================================================================================!
 !> Routines for concurrent singlepoint evaluations
 !========================================================================================!
 !========================================================================================!
@@ -93,7 +144,7 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
   call crest_oloop_pr_progress(env,nall,0)
 
 !>--- shared variables
-  allocate (grads(3,nat,T), source=0.0_wp)
+  allocate (grads(3,nat,T),source=0.0_wp)
   c = 0  !> counter of successfull optimizations
   k = 0  !> counter of total optimization (fail+success)
   z = 0  !> counter to perform optimization in right order (1...nall)
@@ -151,15 +202,15 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
 
 !>--- prepare some summary printout
   percent = float(c)/float(nall)*100.0_wp
-  write(atmp,'(f5.1,a)') percent,'% success)'
+  write (atmp,'(f5.1,a)') percent,'% success)'
   write (stdout,'(">",1x,i0,a,i0,a,a)') c,' of ',nall,' structures successfully evaluated (', &
   &     trim(adjustl(atmp))
   write (atmp,'(">",1x,a,i0,a)') 'Total runtime for ',nall,' singlepoint calculations:'
   call profiler%write_timing(stdout,1,trim(atmp),.true.)
   runtime = profiler%get(1)
-  write(atmp,'(f16.3,a)') runtime/real(nall,wp),' sec'
-  write(stdout,'(a,a,a)') '> Corresponding to approximately ',trim(adjustl(atmp)), &
-  &                       ' per processed structure' 
+  write (atmp,'(f16.3,a)') runtime/real(nall,wp),' sec'
+  write (stdout,'(a,a,a)') '> Corresponding to approximately ',trim(adjustl(atmp)), &
+  &                       ' per processed structure'
 
   deallocate (grads)
   call profiler%clear()
@@ -173,27 +224,33 @@ end subroutine crest_sploop
 !> Routines for concurrent geometry optimization
 !========================================================================================!
 !========================================================================================!
-subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
+subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
 !***************************************************************
 !* subroutine crest_oloop
 !* This subroutine performs concurrent geometry optimizations
 !* for the given ensemble. Inputs xyz and eread are overwritten
+!* env        - contains parallelization and other program settings
+!* dump       - decides on whether to dump an ensemble file
+!* customcalc - customized (optional) calculation level data
+!*
+!* IMPORTANT: xyz should be in Bohr(!) for this routine
 !***************************************************************
-  use crest_parameters,only:wp,stdout,sep 
+  use crest_parameters,only:wp,stdout,sep
   use crest_calculator
   use omp_lib
   use crest_data
   use strucrd
   use optimize_module
   use iomod,only:makedir,directory_exist,remove
-  use crest_restartlog, only: trackrestart,restart_write_dummy
+  use crest_restartlog,only:trackrestart,restart_write_dummy
   implicit none
-  type(systemdata),intent(inout) :: env
+  type(systemdata),target,intent(inout) :: env
   real(wp),intent(inout) :: xyz(3,nat,nall)
   integer,intent(in)  :: at(nat)
   real(wp),intent(inout) :: eread(nall)
   integer,intent(in) :: nat,nall
   logical,intent(in) :: dump
+  type(calcdata),intent(in),target,optional :: customcalc
 
   type(coord),allocatable :: mols(:)
   type(coord),allocatable :: molsnew(:)
@@ -206,35 +263,42 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
   integer :: thread_id,vz,job
   character(len=80) :: atmp
   real(wp) :: percent,runtime
-
+  type(calcdata),pointer :: mycalc
   type(timer) :: profiler
 
 !>--- decide wether to skip this call
-   if(trackrestart(env))then 
-     call restart_write_dummy(ensemblefile)
-     return 
-   endif
+  if (trackrestart(env)) then
+    call restart_write_dummy(ensemblefile)
+    return
+  end if
+
+!>--- check which calc to use
+  if(present(customcalc))then
+    mycalc => customcalc
+  else
+    mycalc => env%calc
+  endif
 
 !>--- check if we have any calculation settings allocated
-  if (env%calc%ncalculations < 1) then
+  if (mycalc%ncalculations < 1) then
     write (stdout,*) 'no calculations allocated'
     return
   end if
 
 !>--- prepare objects for parallelization
   T = env%threads
-  allocate (calculations(T),source=env%calc)
+  allocate (calculations(T),source=mycalc)
   allocate (mols(T),molsnew(T))
   do i = 1,T
-    do j = 1,env%calc%ncalculations
-      calculations(i)%calcs(j) = env%calc%calcs(j)
+    do j = 1,mycalc%ncalculations
+      calculations(i)%calcs(j) = mycalc%calcs(j)
       !>--- directories
-      ex = directory_exist(env%calc%calcs(j)%calcspace)
+      ex = directory_exist(mycalc%calcs(j)%calcspace)
       if (.not.ex) then
-        io = makedir(trim(env%calc%calcs(j)%calcspace))
+        io = makedir(trim(mycalc%calcs(j)%calcspace))
       end if
       write (atmp,'(a,"_",i0)') sep,i
-      calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+      calculations(i)%calcs(j)%calcspace = mycalc%calcs(j)%calcspace//trim(atmp)
       call calculations(i)%calcs(j)%printid(i,j)
     end do
     calculations(i)%pr_energies = .false.
@@ -291,7 +355,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
 
     !>-- geometry optimization
     call optimize_geometry(mols(job),molsnew(job),calculations(job),energy,grads(:,:,job),pr,wr,io)
-   
+
     !$omp critical
     if (io == 0) then
       !>--- successful optimization (io==0)
@@ -326,15 +390,15 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump)
 
 !>--- prepare some summary printout
   percent = float(c)/float(nall)*100.0_wp
-  write(atmp,'(f5.1,a)') percent,'% success)'
+  write (atmp,'(f5.1,a)') percent,'% success)'
   write (stdout,'(">",1x,i0,a,i0,a,a)') c,' of ',nall,' structures successfully optimized (', &
   &     trim(adjustl(atmp))
   write (atmp,'(">",1x,a,i0,a)') 'Total runtime for ',nall,' optimizations:'
   call profiler%write_timing(stdout,1,trim(atmp),.true.)
   runtime = profiler%get(1)
-  write(atmp,'(f16.3,a)') runtime/real(nall,wp),' sec'
-  write(stdout,'(a,a,a)') '> Corresponding to approximately ',trim(adjustl(atmp)), &
-  &                       ' per processed structure' 
+  write (atmp,'(f16.3,a)') runtime/real(nall,wp),' sec'
+  write (stdout,'(a,a,a)') '> Corresponding to approximately ',trim(adjustl(atmp)), &
+  &                       ' per processed structure'
 
 !>--- close files (if they are open)
   if (dump) then
@@ -357,9 +421,9 @@ subroutine crest_oloop_pr_progress(env,total,current)
 !* A subroutine to print and track progress of
 !* concurrent geometry optimizations
 !*********************************************
-  use crest_parameters, only:wp,stdout
+  use crest_parameters,only:wp,stdout
   use crest_data
-  use iomod, only: to_str
+  use iomod,only:to_str
   implicit none
   type(systemdata),intent(inout) :: env
   integer,intent(in) :: total,current
@@ -376,24 +440,23 @@ subroutine crest_oloop_pr_progress(env,total,current)
       call printprogbar(percent)
     end if
     increment = 10.0_wp
-    if(total > 1000) increment = 7.5_wp
-    if(total > 5000) increment = 5.0_wp
-    if(total >10000) increment = 2.5_wp
-    if(total >20000) increment = 1.0_wp
+    if (total > 1000) increment = 7.5_wp
+    if (total > 5000) increment = 5.0_wp
+    if (total > 10000) increment = 2.5_wp
+    if (total > 20000) increment = 1.0_wp
 
-
-  else if (current <= total .and. current > 0) then !> the regular printout case
+  else if (current <= total.and.current > 0) then !> the regular printout case
     if (env%niceprint) then
       call printprogbar(percent)
 
     else if (.not.env%legacy) then
-      if(percent >= progressbarrier)then
-       write(atmp,'(f5.1)') percent
-       write (stdout,'(1x,a)',advance='no') '|>'//trim(adjustl(atmp))//'%'
-       progressbarrier = progressbarrier + increment
-       progressbarrier = min(progressbarrier, 100.0_wp)
-       flush(stdout)
-      endif
+      if (percent >= progressbarrier) then
+        write (atmp,'(f5.1)') percent
+        write (stdout,'(1x,a)',advance='no') '|>'//trim(adjustl(atmp))//'%'
+        progressbarrier = progressbarrier+increment
+        progressbarrier = min(progressbarrier,100.0_wp)
+        flush (stdout)
+      end if
     else
       write (stdout,'(1x,i0)',advance='no') current
       flush (stdout)
@@ -427,7 +490,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   use dynamics_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
-  use crest_restartlog, only: trackrestart,restart_write_dummy
+  use crest_restartlog,only:trackrestart,restart_write_dummy
   implicit none
   type(systemdata),intent(inout) :: env
   type(mddata) :: mddats(nsim)
@@ -448,10 +511,10 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   type(timer) :: profiler
 !===========================================================!
 !>--- decide wether to skip this call
-   if(trackrestart(env))then
-     call restart_write_dummy('crest_dynamics.trj')
-     return
-   endif
+  if (trackrestart(env)) then
+    call restart_write_dummy('crest_dynamics.trj')
+    return
+  end if
 
 !>--- check if we have any MD & calculation settings allocated
   if (.not.env%mddat%requested) then
@@ -463,7 +526,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
   end if
 
 !>--- prepare calculation containers for parallelization (one per thread)
-  call new_ompautoset(env,'auto_nested',nsim,T,Tn) 
+  call new_ompautoset(env,'auto_nested',nsim,T,Tn)
   nested = env%omp_allow_nested
 
   allocate (calculations(T),source=env%calc)
@@ -505,7 +568,7 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     vz = i
 
     !>--- OpenMP nested region threads
-    if(nested) call ompmklset(Tn)
+    if (nested) call ompmklset(Tn)
 
     !!$omp task firstprivate( vz ) private( job,thread_id,io,ex )
     call initsignal()
@@ -627,11 +690,11 @@ subroutine crest_search_multimd_init(env,mol,mddat,nsim)
       call move_alloc(calc%calcs(1)%wbo,shk%wbo)
     end if
 
-    if(calc%nfreeze > 0)then
+    if (calc%nfreeze > 0) then
       shk%freezeptr => calc%freezelist
     else
-      nullify(shk%freezeptr)
-    endif
+      nullify (shk%freezeptr)
+    end if
 
     shk%shake_mode = env%shake
     mddat%shk = shk
@@ -706,13 +769,13 @@ subroutine crest_search_multimd_init2(env,mddats,nsim)
       allocate (mddats(i)%mtd(1),source=mtds(i))
       allocate (mddats(i)%cvtype(1),source=cv_rmsd)
       !> if necessary exclude atoms from RMSD bias
-      if(sum(env%includeRMSD) /= env%ref%nat)then
-         if(.not.allocated(mddats(i)%mtd(1)%atinclude)) &
-         & allocate (mddats(i)%mtd(1)%atinclude( env%ref%nat ), source=.true.  )
-         do j=1,env%ref%nat
-           if(env%includeRMSD(j) .ne.1) mddats(i)%mtd(1)%atinclude(j) = .false. 
-         enddo
-      endif
+      if (sum(env%includeRMSD) /= env%ref%nat) then
+        if (.not.allocated(mddats(i)%mtd(1)%atinclude)) &
+        & allocate (mddats(i)%mtd(1)%atinclude(env%ref%nat),source=.true.)
+        do j = 1,env%ref%nat
+          if (env%includeRMSD(j) .ne. 1) mddats(i)%mtd(1)%atinclude(j) = .false.
+        end do
+      end if
     end if
   end do
   if (allocated(mtds)) deallocate (mtds)
@@ -734,7 +797,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   use shake_module
   use iomod,only:makedir,directory_exist,remove
   use omp_lib
-  use crest_restartlog, only: trackrestart,restart_write_dummy
+  use crest_restartlog,only:trackrestart,restart_write_dummy
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -754,10 +817,10 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   type(timer) :: profiler
 !===========================================================!
 !>--- decide wether to skip this call
-   if(trackrestart(env))then
-     call restart_write_dummy('crest_dynamics.trj')
-     return
-   endif
+  if (trackrestart(env)) then
+    call restart_write_dummy('crest_dynamics.trj')
+    return
+  end if
 
 !>--- check if we have any MD & calculation settings allocated
   if (.not.env%mddat%requested) then
@@ -803,7 +866,7 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
     vz = i
 
     !>--- OpenMP nested region threads
-    if(nested) call ompmklset(Tn)
+    if (nested) call ompmklset(Tn)
 
     !$omp task firstprivate( vz ) private( job,thread_id,io,ex )
     call initsignal()
@@ -912,9 +975,9 @@ subroutine parallel_md_block_printout(MD,vz)
       write (stdout,'(2x,"|   SHAKE algorithm      :",a5," (H only) |")') to_str(MD%shake)
     end if
   end if
-  if(allocated(MD%active_potentials))then
-      write (stdout,'(2x,"|   active potentials    :",i4," potential    |")') size(MD%active_potentials,1)
-  endif
+  if (allocated(MD%active_potentials)) then
+    write (stdout,'(2x,"|   active potentials    :",i4," potential    |")') size(MD%active_potentials,1)
+  end if
   if (MD%simtype == type_mtd) then
     if (MD%cvtype(1) == cv_rmsd) then
       write (stdout,'(2x,"|   dump interval(Vbias) :",f8.2," ps       |")') &

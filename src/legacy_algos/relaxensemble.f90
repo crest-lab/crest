@@ -52,7 +52,7 @@ subroutine relaxensemble(fname,env,tim)
       character(len=128) :: atmp
 
 !--- deactivate possible constraints of the strict modi
-      if(env%ptb%strictPDT .or. env%ptb%fixPDT)then
+      if(env%protb%strictPDT .or. env%protb%fixPDT)then
          env%cts%used=.false.
       endif
 

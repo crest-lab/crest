@@ -67,10 +67,10 @@ subroutine tautomerize(env,tim)
      error stop 'tautomerize unavailable with GFN-FF -> need LMOs'
   endif
 
-  if (.not.allocated(env%ptb%atmap)) allocate (env%ptb%atmap(env%nat))
-  if (.not.env%ptb%strictPDT.and..not.env%ptb%fixPDT) then
+  if (.not.allocated(env%protb%atmap)) allocate (env%protb%atmap(env%nat))
+  if (.not.env%protb%strictPDT.and..not.env%protb%fixPDT) then
 !--- sort the input file (H atoms to the bottom)
-    call htothebottom('coord',env%chrg,env%nat,env%ptb%atmap)
+    call htothebottom('coord',env%chrg,env%nat,env%protb%atmap)
   else
 !--- or sort AND apply heavy atom bond constraints
     call PDT_constraints(env)
@@ -80,7 +80,7 @@ subroutine tautomerize(env,tim)
   call getcwd(thispath)
   dirn = 'PROT'
   tautname = 'tautomerize_0.xyz'
-  taut = env%ptb
+  taut = env%protb
   natp = env%nat     !backup Nat
   refchrg = env%chrg
 
@@ -608,9 +608,9 @@ subroutine tautomerize_blacklist(env,fname,nat,atlist)
     return
   end if
 
-  if (.not.allocated(env%ptb%blacklist)) then
-    allocate (env%ptb%blacklist(nat))
-    env%ptb%blacklist = .false. !none of the atoms is initially blacklisted
+  if (.not.allocated(env%protb%blacklist)) then
+    allocate (env%protb%blacklist(nat))
+    env%protb%blacklist = .false. !none of the atoms is initially blacklisted
   end if
 
   allocate (xyz(3,nat),dist(nat,nat))
@@ -633,9 +633,9 @@ subroutine tautomerize_blacklist(env,fname,nat,atlist)
     if (unconstrained(i) == 1) then
       if (at(i) == 1) then
         k = minloc(dist(i,:),1)
-        env%ptb%blacklist(k) = .true.
+        env%protb%blacklist(k) = .true.
       else
-        env%ptb%blacklist(i) = .true.
+        env%protb%blacklist(i) = .true.
       end if
     end if
   end do
@@ -708,7 +708,7 @@ subroutine tautomerize_ext(ensemb,env,tim)
   call getcwd(thispath)
   dirn = 'PROT'
   tautname = 'tautomerize_0.xyz'
-  taut = env%ptb
+  taut = env%protb
   natp = env%nat     !backup Nat
   refchrg = env%chrg
 
@@ -899,10 +899,10 @@ subroutine PDT_constraints(env)
   integer :: i,h,nh
 
   !-- sort all H atoms to the end of the file
-  call htothebottom('coord',env%chrg,env%nat,env%ptb%atmap)
+  call htothebottom('coord',env%chrg,env%nat,env%protb%atmap)
 
   !-- decide between atom fixing and bond constraints
-  if (env%ptb%strictPDT.or.env%ptb%fixPDT) then
+  if (env%protb%strictPDT.or.env%protb%fixPDT) then
 
     !-- if -for some reason- there is a constraint already specified, remove it
     if (env%cts%used) then
@@ -911,7 +911,7 @@ subroutine PDT_constraints(env)
 
     env%cts%used = .true.
     !-- if heavy-atom bond constraints shall be specified
-    if (.not.env%ptb%fixPDT) then
+    if (.not.env%protb%fixPDT) then
 
       write (*,*) 'Strict mode active. Heavy atom bond constraints will be applied.'
       write (*,'(1x,a,f8.4,a)') 'Selected force constant:',env%forceconst,' Eh'
@@ -940,7 +940,7 @@ subroutine PDT_constraints(env)
       h = zmol%hydrogen() !-- count hydrogen
       nh = zmol%nat-h
       call fix_first_X_atoms(nh,env%forceconst,'fixpositions')
-      if (env%ptb%strictPDT) then
+      if (env%protb%strictPDT) then
         call getbmat(zmol,3,env%forceconst)
         call appendto('bondlengths','fixpositions')
       end if

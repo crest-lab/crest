@@ -26,6 +26,7 @@ srcs += files(
   'search_1.f90',
   'search_mecp.f90',
   'setuptest.f90',
+  'protonate.f90',
   'hessian_tools.f90',
   'ConfSolv.F90',
   'search_conformers.f90',

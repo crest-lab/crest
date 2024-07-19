@@ -31,6 +31,7 @@ subroutine crest_refine(env,input,output)
   use crest_calculator
   use strucrd
   use cregen_interface
+  use parallel_interface
   implicit none
   type(systemdata),intent(inout) :: env
   character(len=*),intent(in) :: input
