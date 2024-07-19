@@ -68,10 +68,12 @@ module calc_type
 !&>
 
 !=========================================================================================!
-!>--- data object that contains the data for a *SINGLE* calculation
+
   public :: calculation_settings
   type :: calculation_settings
-
+!**********************************************************************
+!* data object that contains the data for a *SINGLE* calculation level
+!**********************************************************************
     integer :: id = 0         !> calculation type (see "jobtype" parameter above)
     integer :: prch = stdout  !> printout channel
     logical :: pr = .false.   !> allow the calculation to produce printout? Results in a lot I/O
@@ -148,7 +150,7 @@ module calc_type
     character(len=:),allocatable :: tbliteparam
 
 !>--- GFN0-xTB data
-    type(gfn0_data),allocatable          :: g0calc
+    type(gfn0_data),allocatable :: g0calc
     integer :: nconfig = 0
     integer,allocatable :: config(:)
     real(wp),allocatable :: occ(:)
@@ -181,13 +183,16 @@ module calc_type
     procedure :: norestarts => calculation_settings_norestarts
     procedure :: dumpdipgrad => calculation_dump_dipgrad
   end type calculation_settings
-!=========================================================================================!
 
 !=========================================================================================!
-!> data object that collects settings for *ALL* calculations and constraints.
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!=========================================================================================!
+
   public :: calcdata
   type :: calcdata
-
+!*****************************************************************************
+!* data object that collects settings for *ALL* calculations and constraints.
+!*****************************************************************************
     integer :: id = 0  !> this parameter will decide how to return or add up energies and gradients
     integer :: refine_stage = 0 !> to allow iterating different refinement stages
 
@@ -223,6 +228,7 @@ module calc_type
     real(wp) :: etot
 
 !>--- optimization settings
+    logical  :: optnewinit = .false.  !> ensure fresh calc/param setup at beginning of opt
     integer  :: optlev = 0
     integer  :: micro_opt = 20
     integer  :: maxcycle = 0
@@ -272,6 +278,7 @@ module calc_type
     procedure :: freezegrad => calculation_freezegrad
     procedure :: increase_charge => calculation_increase_charge
     procedure :: decrease_charge => calculation_decrease_charge
+    procedure :: dealloc_params => calculation_deallocate_params
   end type calcdata
 
   public :: get_dipoles
@@ -328,59 +335,25 @@ contains  !>--- Module routines start here
     return
   end subroutine calculation_reset
 
-  subroutine calculation_settings_deallocate(self)
-    implicit none
-    class(calculation_settings) :: self
+!=========================================================================================!
 
-    if (allocated(self%calcspace)) deallocate (self%calcspace)
-    if (allocated(self%calcfile)) deallocate (self%calcfile)
-    if (allocated(self%gradfile)) deallocate (self%gradfile)
-    if (allocated(self%path)) deallocate (self%path)
-    if (allocated(self%other)) deallocate (self%other)
-    if (allocated(self%binary)) deallocate (self%binary)
-    if (allocated(self%systemcall)) deallocate (self%systemcall)
-    if (allocated(self%description)) deallocate (self%description)
-    if (allocated(self%wbo)) deallocate (self%wbo)
-    if (allocated(self%dipgrad)) deallocate (self%dipgrad)
-    if (allocated(self%gradkey)) deallocate (self%gradkey)
-    if (allocated(self%efile)) deallocate (self%efile)
-    if (allocated(self%solvmodel)) deallocate (self%solvmodel)
-    if (allocated(self%solvent)) deallocate (self%solvent)
-    if (allocated(self%tblite)) deallocate (self%tblite)
-    if (allocated(self%g0calc)) deallocate (self%g0calc)
-    if (allocated(self%ff_dat)) deallocate (self%ff_dat)
-    if (allocated(self%xhcff)) deallocate (self%xhcff)
-
-    self%id = 0
-    self%prch = stdout
-    self%chrg = 0
-    self%uhf = 0
-    self%epot = 0.0_wp
-    self%efix = 0.0_wp
-    self%etot = 0.0_wp
-
-    self%rdwbo = .false.
-    self%rddip = .false.
-    self%dipole = 0.0_wp
-    self%rddipgrad = .false.
-    self%gradtype = 0
-    self%gradfmt = 0
-
-    self%tblitelvl = 2
-    self%etemp = 300.0_wp
-    self%accuracy = 1.0_wp
-    self%apiclean = .false.
-    self%maxscc = 500
-    self%saveint = .false.
-
-    self%ngrid = 230
-    self%extpressure = 0.0_wp
-    self%proberad = 1.5_wp
-
-    self%ONIOM_highlowroot = 0
-    self%ONIOM_id = 0
-    return
-  end subroutine calculation_settings_deallocate
+  subroutine calculation_deallocate_params(self)
+!**********************************************
+!* Deallocate parametrization/model setup
+!* This only applies (or is useful) for a few
+!* selected model like GFN-FF, gfn0 and tblite
+!**********************************************
+    class(calcdata) :: self
+    integer :: i,j,k
+    if (self%ncalculations > 0) then
+      do i = 1,self%ncalculations
+        if(allocated(self%calcs(i)%tblite)) deallocate(self%calcs(i)%tblite)
+        if(allocated(self%calcs(i)%g0calc)) deallocate(self%calcs(i)%g0calc)
+        if(allocated(self%calcs(i)%ff_dat)) deallocate(self%calcs(i)%ff_dat)
+        if(allocated(self%calcs(i)%xhcff)) deallocate(self%calcs(i)%xhcff)
+      end do
+    end if
+  end subroutine calculation_deallocate_params
 
 !=========================================================================================!
 
@@ -660,6 +633,313 @@ contains  !>--- Module routines start here
 
 !=========================================================================================!
 
+  subroutine calc_set_active(self,ids)
+    implicit none
+    class(calcdata) :: self
+    integer,intent(in) :: ids(:)
+    integer :: i,j,k,l
+    if (allocated(self%weightbackup)) deallocate (self%weightbackup)
+!>--- on-the-fly multiscale definition
+    allocate (self%weightbackup(self%ncalculations),source=1.0_wp)
+    do i = 1,self%ncalculations
+!>--- save backup weights
+      self%weightbackup(i) = self%calcs(i)%weight
+!>--- set the weight of all unwanted calculations to 0
+      if (.not.any(ids(:) .eq. i)) then
+        self%calcs(i)%weight = 0.0_wp
+        self%calcs(i)%active = .false.
+      else
+!>--- and all other to 1
+        self%calcs(i)%weight = 1.0_wp
+        self%calcs(i)%active = .true.
+      end if
+    end do
+  end subroutine calc_set_active
+
+  subroutine calc_set_active_restore(self)
+    implicit none
+    class(calcdata) :: self
+    integer :: i,j,k,l
+    if (.not.allocated(self%weightbackup)) return
+    do i = 1,self%ncalculations
+!>--- set all to active and restore saved weights
+      self%calcs(i)%weight = self%weightbackup(i)
+      self%calcs(i)%active = .true.
+      self%eweight(i) = self%weightbackup(i)
+    end do
+    deallocate (self%weightbackup)
+  end subroutine calc_set_active_restore
+
+!==========================================================================================!
+
+  subroutine get_dipoles(calc,diptmp)
+!*********************************************
+!* Collect the x y and z dipole moments for
+!* each calculation level in one array diptmp
+!*********************************************
+    implicit none
+    type(calcdata),intent(inout) :: calc
+    real(wp),allocatable,intent(out) :: diptmp(:,:)
+    integer :: i,j,k,l,m
+
+    m = calc%ncalculations
+    allocate (diptmp(3,m),source=0.0_wp)
+    do i = 1,m
+      if (calc%calcs(i)%rddip) then
+        diptmp(1:3,i) = calc%calcs(i)%dipole(1:3)
+      end if
+    end do
+  end subroutine get_dipoles
+
+!=========================================================================================!
+
+  subroutine calculation_ONIOMexpand(self)
+!*******************************************************
+!* for an ONIOM calculations some of the calculators
+!* have to be duplikated, which is done by this routine
+!*******************************************************
+    class(calcdata) :: self
+    integer :: ncalcs
+    integer :: maxid
+    integer :: i,j,k,l,newid,j2
+    type(calculation_settings) :: calculator
+    integer,allocatable :: newids(:,:)
+    character(len=40) :: atmp
+    if (.not.allocated(self%ONIOM)) return
+    ncalcs = self%ONIOM%ncalcs
+    maxid = maxval(self%ONIOM%calcids(1,:),1)
+    if (maxid > self%ncalculations) then
+      write (stdout,'(a)') '**ERROR** in ONIOM setup: not enough calculators defined!'
+      error stop
+    end if
+
+    write (stdout,'(a)',advance='no') 'Assigning and duplicating calculators for ONIOM setup ...'
+    flush (stdout)
+
+    allocate (self%ONIOMmap(ncalcs),source=0)
+    allocate (newids(2,self%ONIOM%nfrag),source=0)
+    k = 0
+    do i = 1,self%ONIOM%nfrag
+
+      do l = 1,2
+        !> j is now the ID of the reference calculation_settings object
+        j = self%ONIOM%calcids(l,i)
+        if (l == 2) then
+          !> to exlcude the highest ONIOM layer, we need to cycle
+          j2 = self%ONIOM%calcids(1,i)
+          if (j == j2) then
+            newid = newids(1,i)
+            newids(2,i) = newid
+            self%calcs(newid)%ONIOM_highlowroot = 3
+            self%calcs(newid)%ONIOM_id = i
+            cycle
+          end if
+        end if
+
+        if (any(self%ONIOMmap(:) .eq. j)) then
+          !> If one of this type is already in the mapping, duplicate the calculator and add it
+          call calculator%deallocate()
+          calculator = self%calcs(j)
+          !> However, we MUST not use restart I/O options for duplicates!
+          call calculator%norestarts()
+          call self%add(calculator)
+          newid = self%ncalculations
+          k = k+1
+          self%ONIOMmap(k) = newid
+        else
+          !> otherwise (i.e. it's not yet present), we can simply add it
+          k = k+1
+          newid = j
+          self%ONIOMmap(k) = newid
+        end if
+        newids(l,i) = newid
+
+        self%calcs(newid)%ONIOM_highlowroot = l
+        self%calcs(newid)%ONIOM_id = i
+        select case (l)
+        case (1)
+          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.high'
+        case (2)
+          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.low'
+        case (3)
+          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.root'
+        end select
+        self%calcs(newid)%calcspace = trim(atmp)
+
+        !> ALWAYS set the weight of ONIOM calcs to 0!
+        self%calcs(newid)%weight = 0.0_wp
+
+        !> Check if the ONIOM fragment has a charge attached!
+        if (allocated(self%ONIOM%fragment(i)%chrg)) then
+          self%calcs(newid)%chrg = self%ONIOM%fragment(i)%chrg
+        end if
+
+      end do
+    end do
+    self%ONIOM%calcids = newids
+    deallocate (newids)
+
+    if (allocated(self%ONIOMrevmap)) deallocate (self%ONIOMrevmap)
+    allocate (self%ONIOMrevmap(self%ncalculations),source=0)
+    do i = 1,self%ncalculations
+      do j = 1,self%ONIOM%ncalcs
+        if (self%ONIOMmap(j) == i) then
+          self%ONIOMrevmap(i) = j
+        end if
+      end do
+    end do
+
+    write (stdout,*) 'done.'
+  end subroutine calculation_ONIOMexpand
+
+!========================================================================================!
+
+  subroutine calculation_info(self,iunit)
+    implicit none
+    class(calcdata) :: self
+    integer,intent(in) :: iunit
+    integer :: i,j
+    character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
+    character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
+    character(len=20) :: atmp
+    integer :: constraintype(8)
+
+    write (iunit,'(1x,a)') '----------------'
+    write (iunit,'(1x,a)') 'Calculation info'
+    write (iunit,'(1x,a)') '----------------'
+    if (self%ncalculations <= 0) then
+      write (iunit,'("> ",a)') 'No calculation levels set up!'
+    else if (self%ncalculations > 1) then
+      do i = 1,self%ncalculations
+        if (self%calcs(i)%ONIOM_id > 0) then
+          write (iunit,'("> ",a,i0,a)') 'Automatic ONIOM setup calculation level ',i,':'
+        else
+          write (iunit,'("> ",a,i0,a)') 'User-defined calculation level ',i,':'
+        end if
+        call self%calcs(i)%info(iunit)
+      end do
+    else
+      write (iunit,'("> ",a)') 'User-defined calculation level:'
+      call self%calcs(1)%info(iunit)
+    end if
+    write (iunit,*)
+
+    if (self%nconstraints > 0) then
+      write (iunit,'("> ",a)') 'User-defined constraints:'
+      if (self%nconstraints <= 20) then
+        do i = 1,self%nconstraints
+          call self%cons(i)%print(iunit)
+        end do
+      else
+        constraintype(:) = 0
+        do i = 1,self%nconstraints
+          j = self%cons(i)%type
+          if (j > 0.and.j < 9) then
+            constraintype(j) = constraintype(j)+1
+          end if
+        end do
+        if (constraintype(1) > 0) write (iunit,'(2x,a,i0)') '# bond constraints    : ',constraintype(1)
+        if (constraintype(2) > 0) write (iunit,'(2x,a,i0)') '# angle constraints   : ',constraintype(2)
+        if (constraintype(3) > 0) write (iunit,'(2x,a,i0)') '# dihedral constraints: ',constraintype(3)
+        if (constraintype(4) > 0) write (iunit,'(2x,a,i0)') '# wall potential      : ',constraintype(4)
+        if (constraintype(5) > 0) write (iunit,'(2x,a,i0)') '# wall(logfermi) potential  : ',constraintype(5)
+        if (constraintype(8) > 0) write (iunit,'(2x,a,i0)') '# bondrange constraints    : ',constraintype(8)
+      end if
+      write (iunit,*)
+    end if
+
+    if (self%ncalculations > 1) then
+      write (iunit,'("> ",a)') 'Energy and gradient processing:'
+      select case (self%id)
+      case (1:)
+        write (iunit,'(1x,a,i0)') 'Energies and gradients of calculation level ',self%id, &
+        &  ' will be used'
+      case (-1)
+        write (iunit,'(1x,a)') 'Special MECP energy and gradients will be constructed'
+        write (iunit,'(1x,a)') 'See https://doi.org/10.1021/acs.jpclett.3c00494'
+      case default
+        write (iunit,'(1x,a)') 'Energies and gradients of all calculation levels will be'// &
+        & ' added according to their weights'
+      end select
+      if (allocated(self%ONIOM)) then
+        write (iunit,'(1x,a)') 'ONIOM energy and gradient will be constructed from calculations:'
+        do i = 1,self%ncalculations
+          if (any(self%ONIOMmap(:) .eq. i)) then
+            write (stdout,'(1x,i0)',advance='no') i
+          end if
+        end do
+        write (iunit,*)
+      end if
+      write (iunit,*)
+    end if
+
+    return
+  end subroutine calculation_info
+
+
+
+!=========================================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!> CALCULATION_SETTINGS associated routines
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!=========================================================================================!
+
+  subroutine calculation_settings_deallocate(self)
+    implicit none
+    class(calculation_settings) :: self
+
+    if (allocated(self%calcspace)) deallocate (self%calcspace)
+    if (allocated(self%calcfile)) deallocate (self%calcfile)
+    if (allocated(self%gradfile)) deallocate (self%gradfile)
+    if (allocated(self%path)) deallocate (self%path)
+    if (allocated(self%other)) deallocate (self%other)
+    if (allocated(self%binary)) deallocate (self%binary)
+    if (allocated(self%systemcall)) deallocate (self%systemcall)
+    if (allocated(self%description)) deallocate (self%description)
+    if (allocated(self%wbo)) deallocate (self%wbo)
+    if (allocated(self%dipgrad)) deallocate (self%dipgrad)
+    if (allocated(self%gradkey)) deallocate (self%gradkey)
+    if (allocated(self%efile)) deallocate (self%efile)
+    if (allocated(self%solvmodel)) deallocate (self%solvmodel)
+    if (allocated(self%solvent)) deallocate (self%solvent)
+    if (allocated(self%tblite)) deallocate (self%tblite)
+    if (allocated(self%g0calc)) deallocate (self%g0calc)
+    if (allocated(self%ff_dat)) deallocate (self%ff_dat)
+    if (allocated(self%xhcff)) deallocate (self%xhcff)
+
+    self%id = 0
+    self%prch = stdout
+    self%chrg = 0
+    self%uhf = 0
+    self%epot = 0.0_wp
+    self%efix = 0.0_wp
+    self%etot = 0.0_wp
+
+    self%rdwbo = .false.
+    self%rddip = .false.
+    self%dipole = 0.0_wp
+    self%rddipgrad = .false.
+    self%gradtype = 0
+    self%gradfmt = 0
+
+    self%tblitelvl = 2
+    self%etemp = 300.0_wp
+    self%accuracy = 1.0_wp
+    self%apiclean = .false.
+    self%maxscc = 500
+    self%saveint = .false.
+
+    self%ngrid = 230
+    self%extpressure = 0.0_wp
+    self%proberad = 1.5_wp
+
+    self%ONIOM_highlowroot = 0
+    self%ONIOM_id = 0
+    return
+  end subroutine calculation_settings_deallocate
+
+!=========================================================================================!
+
   subroutine calculation_settings_addconfig(self,config)
     implicit none
     class(calculation_settings) :: self
@@ -764,9 +1044,6 @@ contains  !>--- Module routines start here
     endif
   end subroutine calculation_settings_shortflag
 
-
-
-
 !>-- generate a unique print id for the calculation
   subroutine calculation_settings_printid(self,thread,id)
     implicit none
@@ -794,106 +1071,6 @@ contains  !>--- Module routines start here
 
 !=========================================================================================!
 
-  subroutine calculation_ONIOMexpand(self)
-!*******************************************************
-!* for an ONIOM calculations some of the calculators
-!* have to be duplikated, which is done by this routine
-!*******************************************************
-    class(calcdata) :: self
-    integer :: ncalcs
-    integer :: maxid
-    integer :: i,j,k,l,newid,j2
-    type(calculation_settings) :: calculator
-    integer,allocatable :: newids(:,:)
-    character(len=40) :: atmp
-    if (.not.allocated(self%ONIOM)) return
-    ncalcs = self%ONIOM%ncalcs
-    maxid = maxval(self%ONIOM%calcids(1,:),1)
-    if (maxid > self%ncalculations) then
-      write (stdout,'(a)') '**ERROR** in ONIOM setup: not enough calculators defined!'
-      error stop
-    end if
-
-    write (stdout,'(a)',advance='no') 'Assigning and duplicating calculators for ONIOM setup ...'
-    flush (stdout)
-
-    allocate (self%ONIOMmap(ncalcs),source=0)
-    allocate (newids(2,self%ONIOM%nfrag),source=0)
-    k = 0
-    do i = 1,self%ONIOM%nfrag
-
-      do l = 1,2
-        !> j is now the ID of the reference calculation_settings object
-        j = self%ONIOM%calcids(l,i)
-        if (l == 2) then
-          !> to exlcude the highest ONIOM layer, we need to cycle
-          j2 = self%ONIOM%calcids(1,i)
-          if (j == j2) then
-            newid = newids(1,i)
-            newids(2,i) = newid
-            self%calcs(newid)%ONIOM_highlowroot = 3
-            self%calcs(newid)%ONIOM_id = i
-            cycle
-          end if
-        end if
-
-        if (any(self%ONIOMmap(:) .eq. j)) then
-          !> If one of this type is already in the mapping, duplicate the calculator and add it
-          call calculator%deallocate()
-          calculator = self%calcs(j)
-          !> However, we MUST not use restart I/O options for duplicates!
-          call calculator%norestarts()
-          call self%add(calculator)
-          newid = self%ncalculations
-          k = k+1
-          self%ONIOMmap(k) = newid
-        else
-          !> otherwise (i.e. it's not yet present), we can simply add it
-          k = k+1
-          newid = j
-          self%ONIOMmap(k) = newid
-        end if
-        newids(l,i) = newid
-
-        self%calcs(newid)%ONIOM_highlowroot = l
-        self%calcs(newid)%ONIOM_id = i
-        select case (l)
-        case (1)
-          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.high'
-        case (2)
-          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.low'
-        case (3)
-          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.root'
-        end select
-        self%calcs(newid)%calcspace = trim(atmp)
-
-        !> ALWAYS set the weight of ONIOM calcs to 0!
-        self%calcs(newid)%weight = 0.0_wp
-
-        !> Check if the ONIOM fragment has a charge attached!
-        if (allocated(self%ONIOM%fragment(i)%chrg)) then
-          self%calcs(newid)%chrg = self%ONIOM%fragment(i)%chrg
-        end if
-
-      end do
-    end do
-    self%ONIOM%calcids = newids
-    deallocate (newids)
-
-    if (allocated(self%ONIOMrevmap)) deallocate (self%ONIOMrevmap)
-    allocate (self%ONIOMrevmap(self%ncalculations),source=0)
-    do i = 1,self%ncalculations
-      do j = 1,self%ONIOM%ncalcs
-        if (self%ONIOMmap(j) == i) then
-          self%ONIOMrevmap(i) = j
-        end if
-      end do
-    end do
-
-    write (stdout,*) 'done.'
-  end subroutine calculation_ONIOMexpand
-
-!=========================================================================================!
   subroutine calculation_settings_info(self,iunit)
     implicit none
     class(calculation_settings) :: self
@@ -982,90 +1159,6 @@ contains  !>--- Module routines start here
 
   end subroutine calculation_settings_info
 
-!========================================================================================!
-
-  subroutine calculation_info(self,iunit)
-    implicit none
-    class(calcdata) :: self
-    integer,intent(in) :: iunit
-    integer :: i,j
-    character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
-    character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
-    character(len=20) :: atmp
-    integer :: constraintype(8)
-
-    write (iunit,'(1x,a)') '----------------'
-    write (iunit,'(1x,a)') 'Calculation info'
-    write (iunit,'(1x,a)') '----------------'
-    if (self%ncalculations <= 0) then
-      write (iunit,'("> ",a)') 'No calculation levels set up!'
-    else if (self%ncalculations > 1) then
-      do i = 1,self%ncalculations
-        if (self%calcs(i)%ONIOM_id > 0) then
-          write (iunit,'("> ",a,i0,a)') 'Automatic ONIOM setup calculation level ',i,':'
-        else
-          write (iunit,'("> ",a,i0,a)') 'User-defined calculation level ',i,':'
-        end if
-        call self%calcs(i)%info(iunit)
-      end do
-    else
-      write (iunit,'("> ",a)') 'User-defined calculation level:'
-      call self%calcs(1)%info(iunit)
-    end if
-    write (iunit,*)
-
-    if (self%nconstraints > 0) then
-      write (iunit,'("> ",a)') 'User-defined constraints:'
-      if (self%nconstraints <= 20) then
-        do i = 1,self%nconstraints
-          call self%cons(i)%print(iunit)
-        end do
-      else
-        constraintype(:) = 0
-        do i = 1,self%nconstraints
-          j = self%cons(i)%type
-          if (j > 0.and.j < 9) then
-            constraintype(j) = constraintype(j)+1
-          end if
-        end do
-        if (constraintype(1) > 0) write (iunit,'(2x,a,i0)') '# bond constraints    : ',constraintype(1)
-        if (constraintype(2) > 0) write (iunit,'(2x,a,i0)') '# angle constraints   : ',constraintype(2)
-        if (constraintype(3) > 0) write (iunit,'(2x,a,i0)') '# dihedral constraints: ',constraintype(3)
-        if (constraintype(4) > 0) write (iunit,'(2x,a,i0)') '# wall potential      : ',constraintype(4)
-        if (constraintype(5) > 0) write (iunit,'(2x,a,i0)') '# wall(logfermi) potential  : ',constraintype(5)
-        if (constraintype(8) > 0) write (iunit,'(2x,a,i0)') '# bondrange constraints    : ',constraintype(8)
-      end if
-      write (iunit,*)
-    end if
-
-    if (self%ncalculations > 1) then
-      write (iunit,'("> ",a)') 'Energy and gradient processing:'
-      select case (self%id)
-      case (1:)
-        write (iunit,'(1x,a,i0)') 'Energies and gradients of calculation level ',self%id, &
-        &  ' will be used'
-      case (-1)
-        write (iunit,'(1x,a)') 'Special MECP energy and gradients will be constructed'
-        write (iunit,'(1x,a)') 'See https://doi.org/10.1021/acs.jpclett.3c00494'
-      case default
-        write (iunit,'(1x,a)') 'Energies and gradients of all calculation levels will be'// &
-        & ' added according to their weights'
-      end select
-      if (allocated(self%ONIOM)) then
-        write (iunit,'(1x,a)') 'ONIOM energy and gradient will be constructed from calculations:'
-        do i = 1,self%ncalculations
-          if (any(self%ONIOMmap(:) .eq. i)) then
-            write (stdout,'(1x,i0)',advance='no') i
-          end if
-        end do
-        write (iunit,*)
-      end if
-      write (iunit,*)
-    end if
-
-    return
-  end subroutine calculation_info
-
 !=========================================================================================!
 
   subroutine create_calclevel_shortcut(self,levelstring)
@@ -1104,65 +1197,6 @@ contains  !>--- Module routines start here
   end subroutine create_calclevel_shortcut
 
 !=========================================================================================!
-
-  subroutine calc_set_active(self,ids)
-    implicit none
-    class(calcdata) :: self
-    integer,intent(in) :: ids(:)
-    integer :: i,j,k,l
-    if (allocated(self%weightbackup)) deallocate (self%weightbackup)
-!>--- on-the-fly multiscale definition
-    allocate (self%weightbackup(self%ncalculations),source=1.0_wp)
-    do i = 1,self%ncalculations
-!>--- save backup weights
-      self%weightbackup(i) = self%calcs(i)%weight
-!>--- set the weight of all unwanted calculations to 0
-      if (.not.any(ids(:) .eq. i)) then
-        self%calcs(i)%weight = 0.0_wp
-        self%calcs(i)%active = .false.
-      else
-!>--- and all other to 1
-        self%calcs(i)%weight = 1.0_wp
-        self%calcs(i)%active = .true.
-      end if
-    end do
-  end subroutine calc_set_active
-
-  subroutine calc_set_active_restore(self)
-    implicit none
-    class(calcdata) :: self
-    integer :: i,j,k,l
-    if (.not.allocated(self%weightbackup)) return
-    do i = 1,self%ncalculations
-!>--- set all to active and restore saved weights
-      self%calcs(i)%weight = self%weightbackup(i)
-      self%calcs(i)%active = .true.
-      self%eweight(i) = self%weightbackup(i)
-    end do
-    deallocate (self%weightbackup)
-  end subroutine calc_set_active_restore
-
-!==========================================================================================!
-
-  subroutine get_dipoles(calc,diptmp)
-!*********************************************
-!* Collect the x y and z dipole moments for
-!* each calculation level in one array diptmp
-!*********************************************
-    implicit none
-    type(calcdata),intent(inout) :: calc
-    real(wp),allocatable,intent(out) :: diptmp(:,:)
-    integer :: i,j,k,l,m
-
-    m = calc%ncalculations
-    allocate (diptmp(3,m),source=0.0_wp)
-    do i = 1,m
-      if (calc%calcs(i)%rddip) then
-        diptmp(1:3,i) = calc%calcs(i)%dipole(1:3)
-      end if
-    end do
-  end subroutine get_dipoles
-
-!=========================================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !=========================================================================================!
 end module calc_type

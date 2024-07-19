@@ -51,10 +51,11 @@ subroutine crest_new_protonate(env,tim)
   real(wp) :: energy,dip
   real(wp),allocatable :: grad(:,:)
   type(calcdata),allocatable :: tmpcalc
+  type(calculation_settings) :: tmpset
   real(wp),allocatable :: protxyz(:,:)
-  integer :: natp
+  integer :: natp,pstep
   integer,allocatable :: atp(:)
-  real(wp),allocatable :: xyzp(:,:,:) 
+  real(wp),allocatable :: xyzp(:,:,:)
   real(wp),allocatable :: ep(:)
   character(len=*),parameter :: partial = '∂E/∂'
 !========================================================================================!
@@ -91,11 +92,13 @@ subroutine crest_new_protonate(env,tim)
   flush (stdout)
 
   allocate (grad(3,mol%nat),source=0.0_wp)
+!>--- GFN0 job adapted from global settings
   allocate (tmpcalc)
   call env2calc(env,tmpcalc,mol)
   tmpcalc%calcs(1)%id = jobtype%gfn0
   tmpcalc%calcs(1)%rdwbo = .true.
   tmpcalc%calcs(1)%getlmocent = .true.
+  tmpcalc%calcs(1)%chrg = env%chrg
   tmpcalc%ncalculations = 1
   write (stdout,'(a)') 'done.'
 !>--- and then start it
@@ -121,17 +124,17 @@ subroutine crest_new_protonate(env,tim)
   if (np > 0) then
     write (stdout,'(a,i0,a)') '> ',np,' π- or LP-centers identified as protonation candidates:'
     call move_alloc(tmpcalc%calcs(1)%protxyz,protxyz)
-    write(stdout,'(1x,a5,1x,a,5x,a)') 'LMO','type','center(xyz/Ang)'
-    do i=1,np
-      select case(nint(protxyz(4,i)))
-      case(2)
-        write(stdout,'(1x,i5,1x,a,3F12.5)') i,'LP   ',protxyz(1:3,i)*autoaa
-      case(3)
-        write(stdout,'(1x,i5,1x,a,3F12.5)') i,'π    ',protxyz(1:3,i)*autoaa
-      case(4)
-        write(stdout,'(1x,i5,1x,a,3F12.5)') i,'del.π',protxyz(1:3,i)*autoaa
+    write (stdout,'(1x,a5,1x,a,5x,a)') 'LMO','type','center(xyz/Ang)'
+    do i = 1,np
+      select case (nint(protxyz(4,i)))
+      case (2)
+        write (stdout,'(1x,i5,1x,a,3F12.5)') i,'LP   ',protxyz(1:3,i)*autoaa
+      case (3)
+        write (stdout,'(1x,i5,1x,a,3F12.5)') i,'π    ',protxyz(1:3,i)*autoaa
+      case (4)
+        write (stdout,'(1x,i5,1x,a,3F12.5)') i,'del.π',protxyz(1:3,i)*autoaa
       end select
-    enddo
+    end do
   else
     write (stdout,*)
     write (stdout,*) 'WARNING: No suitable protonation sites found!'
@@ -144,38 +147,82 @@ subroutine crest_new_protonate(env,tim)
 
 !========================================================================================!
 !>--- If we reached this point, we have candidate positions for our protonation!
-  write(stdout,'(a)',advance='yes') '> Generating candidate structures ... '
-  flush(stdout)
+  pstep = 0
+  write (stdout,'(a)',advance='yes') '> Generating candidate structures ... '
+  flush (stdout)
   natp = mol%nat+1
-  allocate(atp(natp), source=0)
-  allocate(xyzp(3,natp,np),ep(np),source=0.0_wp)
+  allocate (atp(natp),source=0)
+  allocate (xyzp(3,natp,np),ep(np),source=0.0_wp)
+
   call protonation_candidates(env,mol,natp,np,protxyz,atp,xyzp)
-  write(stdout,'(a)') '> Write protonate_0.xyz with candidates ... '
+!>--- NOTE: after this the global charge (env%chrg) and all charges saved in the calc levels have been increased
+
+  write (atmp,'(a,i0,a)') 'protonate_',pstep,'.xyz'
+  write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with candidates ... '
+
   call wrensemble('protonate_0.xyz',natp,np,atp,xyzp*autoaa,ep)
-  write(stdout,'(a)') '> done.'    
-  write(stdout,*)    
+
+  write (stdout,'(a)') '> done.'
+  write (stdout,*)
 
 !>--- Enforce further constraints, conditions, etc.
 !     (TODO)
 
-!>--- Optimize candidates
+!>--- Optimize candidates, optional FF pre-step
+  if (env%protb%ffopt) then
+    call smallhead('Protomer Ensemble FF Pre-Optimization')
+    allocate (tmpcalc)
+    tmpcalc%optnewinit = .true.
+    call tmpset%create('gfnff')
+    tmpset%chrg = env%chrg
+    call tmpcalc%add(tmpset)
+    tmpcalc%maxcycle = 10000
+
+    call tim%start(15,'Ensemble optimization (FF)')
+    call print_opt_data(tmpcalc,stdout)
+    write (stdout,'(a,i0,a)') '> ',np,' structures to optimize ...'
+    call crest_oloop(env,natp,np,atp,xyzp,ep,.true.,tmpcalc)
+    call tim%stop(15)
+
+    deallocate (tmpcalc)
+
+    pstep = pstep+1
+    write (atmp,'(a,i0,a)') 'protonate_',pstep,'.xyz'
+    write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
+    call rename(ensemblefile,trim(atmp))
+
+    !>--- sorting
+    write (stdout,'(a)') '> Sorting structures by energy to remove failed opts. ...'
+    call newcregen(env,6,trim(atmp))
+    call rename(trim(atmp)//'.sorted',trim(atmp))
+    write (stdout,*)
+
+    !>--- re-read sorted ensemble
+    deallocate(xyzp,atp) !> clear this space to re-use it
+    call rdensemble(trim(atmp),natp,np,atp,xyzp)
+  end if
+
+!>--- H-position-only optimization
+!    (TODO)
+
+!>--- Optimize with global settings
   call smallhead('Protomer Ensemble Optimization')
-  call tim%start(15,'Ensemble optimization')
-  call print_opt_data(env%calc,stdout) 
+  call tim%start(16,'Ensemble optimization')
+  call print_opt_data(env%calc,stdout)
+  write (stdout,'(a,i0,a)') '> ',np,' structures to optimize ...'
   call crest_oloop(env,natp,np,atp,xyzp,ep,.true.)
-  call tim%stop(15)
-  write(stdout,'(a)') '> Write protonate_1.xyz with optimized structures ... '
-  call rename(ensemblefile,'protonate_1.xyz')
+  call tim%stop(16)
 
-
-
-
+  pstep = pstep+1
+  write (atmp,'(a,i0,a)') 'protonate_',pstep,'.xyz'
+  write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
+  call rename(ensemblefile,trim(atmp))
 
 !>--- sorting
-  write(stdout,'(a)') '> Sorting structures by energy ...'
-  call newcregen(env,6,'protonate_1.xyz')
-  write(stdout,'(a)') '> sorted file was renamed to protonated.xyz'
-  call rename('protonate_1.xyz.sorted','protonated.xyz')
+  write (stdout,'(a)') '> Sorting structures by energy ...'
+  call newcregen(env,6,trim(atmp))
+  write (stdout,'(a)') '> sorted file was renamed to protonated.xyz'
+  call rename(trim(atmp)//'.sorted','protonated.xyz')
 
 !========================================================================================!
   return
@@ -204,14 +251,27 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz)
   real(wp),intent(out) :: xyz(3,natp,np)
   !> LOCAL
   integer :: i,j,k,l
+  integer :: ati,ichrg
 
   if (natp .ne. mol%nat+1) then
     write (stdout,'(a)') 'WARNING: Inconsistent number of atoms in protonation routine'
     error stop
   end if
 
-  write(stdout,'(a)') '> Increasing the molecular charge by 1'
-  call env%calc%increase_charge()
+  if (env%protb%swelem) then
+!>--- User-defined monoatomic ion
+    ichrg = env%protb%swchrg
+    write (stdout,'(a,i0)') '> Increasing the molecular charge by ',ichrg
+    call env%calc%increase_charge(ichrg)
+    env%chrg = env%chrg+ichrg
+    ati = env%protb%swat
+  else
+!>--- DEFAULT: H⁺
+    write (stdout,'(a)') '> Increasing the molecular charge by 1'
+    call env%calc%increase_charge()
+    env%chrg = env%chrg+1
+    ati = 1
+  end if
 
 !>--- Populate
   do i = 1,np
@@ -220,7 +280,7 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz)
       at(j) = mol%at(j)
     end do
     xyz(1:3,natp,i) = protxyz(1:3,i)
-    at(natp) = 1
+    at(natp) = ati
   end do
 end subroutine protonation_candidates
 

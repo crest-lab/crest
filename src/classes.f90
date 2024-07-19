@@ -123,13 +123,14 @@ module crest_data
 
 !========================================================================================!
 !========================================================================================!
-
   private
-
 !========================================================================================!
 !========================================================================================!
 
   type :: constra
+!****************************************************
+!* separate settings for LEGACY constraint handling
+!****************************************************
     integer :: ndim
     logical :: used = .false.
     logical :: NCI = .false.
@@ -163,18 +164,23 @@ module crest_data
 !========================================================================================!
 
   type :: protobj
-    integer :: nfrag
-    integer :: newchrg
-    integer :: iter
-    real(wp) :: popthr
-    real(wp) :: ewin
-    integer :: swchrg        !switch element charge
-    integer :: swat          !switch element element
-    logical :: swelem        !switch element to add to lmo lp pair?
-    logical :: allowFrag
-    logical :: threshsort    !use ewin threshold
-    logical :: protdeprot    !currently unused!
-    logical :: deprotprot    !(tautomerize) do first deprotonation and then protonation
+!************************************************************
+!* separate settings for protonation and related procedures
+!************************************************************
+    integer :: nfrag  = 0 
+    integer :: newchrg = 0
+    integer :: iter = 1
+    real(wp) :: popthr = 0.001_wp
+    real(wp) :: ewin = 30.0_wp   
+    integer :: swchrg = 1        !> switch element charge
+    integer :: swat = 1          !> switch element element
+    logical :: swelem = .false.  !> switch element to add to lmo lp pair?
+    logical :: allowFrag = .false.   !> allow fragmentation
+    logical :: threshsort = .false.  !> use ewin threshold
+    logical :: protdeprot = .false.  !> currently unused!
+    logical :: deprotprot = .false.  !> (tautomerize) do first deprotonation and then protonation
+
+    logical :: ffopt = .true. !> pre-optimize with a force-field to avoid high-energy artifacts
 
     logical :: strictPDT = .false.  ! strict mode (i.e. bond constraints) for (de)protonation,tautomerization
     logical :: fixPDT = .false.  ! extension to the strict mode, fix heavy atom positions
@@ -205,8 +211,10 @@ module crest_data
 
 !========================================================================================!
 
-!>--- ENTROPY mode setting object
   type :: entropyMTD
+!*********************************
+!* Separate ENTROPY mode settings
+!*********************************
     integer :: nMDs           ! number of static MTDs
     integer :: nBias          ! number of Bias structures
     real(wp) :: nbiasgrow = 1.2d0
@@ -244,8 +252,11 @@ module crest_data
   end type entropyMTD
 
 !========================================================================================!
-!>--- thermodynamics evaluation data
+
   type :: thermodata
+!*****************************************
+!* separate thermodynamics evaluation data
+!******************************************
     real(wp) :: ithr = -50.0_wp  !> imaginary mode inversion (in xtb -20.0)
     real(wp) :: fscal = 1.0_wp   !> frequency scaling
     real(wp) :: sthr = 25.0_wp   !> rot/vib interpol threshold (in xtb 50.0)
@@ -265,8 +276,11 @@ module crest_data
   end type thermodata
 
 !========================================================================================!
-!>--- storage of the reference (input structure)
+
   type :: refdata
+!******************************************
+!* separate storage of REFERENCE STRUCTURE
+!******************************************
     integer :: nat
     integer,allocatable :: at(:)
     real(wp),allocatable :: xyz(:,:)
