@@ -52,11 +52,11 @@ subroutine env2calc(env,calc,molin)
   cal%rdwbo = .false.
   cal%rddip = .true.
   !> except for SP runtype (from command line!)
-  if( env%crestver == crest_sp )then
+  if (env%crestver == crest_sp) then
     cal%rdwbo = .true.
     cal%rddip = .true.
     cal%rdqat = .true.
-  endif
+  end if
 
   !> implicit solvation
   if (env%gbsa) then
@@ -89,11 +89,11 @@ subroutine env2calc(env,calc,molin)
     end if
 
     call cal2%autocomplete(2)
-        
+
     cal2%refine_lvl = refine%singlepoint
     call calc%add(cal2)
-    if(allocated(env%refine_queue)) deallocate(env%refine_queue)
-    call env%addrefine( refine%singlepoint )  
+    if (allocated(env%refine_queue)) deallocate (env%refine_queue)
+    call env%addrefine(refine%singlepoint)
   end if
 
   return
@@ -127,11 +127,11 @@ subroutine env2calc_setup(env)
 
   end interface
 
-  call env%ref%to(mol) 
+  call env%ref%to(mol)
 
   call env2calc(env,env%calc,mol)
 
- ! env%calc = calc
+  ! env%calc = calc
 end subroutine env2calc_setup
 
 !================================================================================!
@@ -330,7 +330,7 @@ subroutine trialOPT(env)
 !* saved to env%ref and checks for changes in the topology
 !**********************************************************
   use crest_data
-  use crest_parameters, only: stdout
+  use crest_parameters,only:stdout
   implicit none
   !> INPUT
   type(systemdata) :: env
@@ -341,15 +341,21 @@ subroutine trialOPT(env)
     call trialOPT_calculator(env)
   end if
 
-  if(env%crestver == crest_trialopt)then
+  if (env%crestver == crest_trialopt) then
 !>-- if we reach this point in the standalone trialopt the geometry is ok!
-   write(stdout,*)
-   stop 'Geometry ok!'
-  endif
+    write (stdout,*)
+    stop 'Geometry ok!'
+  end if
 end subroutine trialOPT
 
 !================================================================================!
+
 subroutine protonate(env,tim)
+!*****************************************************
+!* subroutine protonate
+!* driver for the automated protonation site search
+!* originally published in JCC
+!*****************************************************
   use iso_fortran_env,only:wp => real64
   use crest_data
   implicit none
@@ -362,4 +368,34 @@ subroutine protonate(env,tim)
   end if
 end subroutine protonate
 
+!========================================================================================!
 
+subroutine catchdiatomic(env)
+!****************************************
+!* subroutine catchdiatomic
+!* if we only have one or two atoms just 
+!* write the "optimized" structure
+!****************************************
+  use crest_data
+  use crest_parameters
+  use strucrd
+  use iomod,only:copy
+  use cregen_interface
+  implicit none
+  type(systemdata) :: env
+  integer :: ich
+  type(coord) :: mol
+  if (env%legacy) then
+    call catchdiatomic_legacy(env)
+  else
+    call env%ref%to(mol)
+    open (file=conformerfile,newunit=ich)
+    mol%xyz = mol%xyz*bohr !to ang
+    call wrxyz(ich,mol%nat,mol%at,mol%xyz,env%ref%etot)
+    close (ich)
+    call copy('xtbopt.xyz',conformerfile)
+    call copy(conformerfile,'crest_rotamers.xyz')
+    call copy(conformerfile,'crest_best.xyz')
+  end if
+  call newcregen(env,6,'crest_rotamers.xyz')
+end subroutine catchdiatomic

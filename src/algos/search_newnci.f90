@@ -71,6 +71,12 @@ subroutine crest_search_newnci(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 
+!>--- saftey termination
+  if(mol%nat .le. 2)then
+     call catchdiatomic(env)
+    return
+  endif
+
 !>--- sets the MD length according to a flexibility measure
   call md_length_setup(env)
 !>--- create the MD calculator saved to env

@@ -36,6 +36,7 @@ subroutine crest_new_protonate(env,tim)
   use strucrd
   use optimize_module
   use parallel_interface
+  use cregen_interface
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -158,6 +159,15 @@ subroutine crest_new_protonate(env,tim)
   write(stdout,'(a)') '> Write protonate_1.xyz with optimized structures ... '
   call rename(ensemblefile,'protonate_1.xyz')
 
+
+
+
+
+!>--- sorting
+  write(stdout,'(a)') '> Sorting structures by energy ...'
+  call newcregen(env,6,'protonate_1.xyz')
+  write(stdout,'(a)') '> sorted file was renamed to protonated.xyz'
+  call rename('protonate_1.xyz.sorted','protonated.xyz')
 
 !========================================================================================!
   return

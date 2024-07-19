@@ -272,7 +272,8 @@ module crest_data
     real(wp),allocatable :: xyz(:,:)
     integer :: ichrg = 0
     integer :: uhf = 0
-    integer :: ntopo
+    integer :: ntopo = 0
+    real(wp) :: etot = 0.0_wp
     integer,allocatable :: topo(:)
     real(wp),allocatable :: charges(:)
     real(wp),allocatable :: wbo(:,:)
