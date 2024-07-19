@@ -140,6 +140,7 @@ subroutine crest_ensemble_optimization(env,tim)
   use crest_calculator
   use strucrd
   use optimize_module
+  use parallel_interface
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim

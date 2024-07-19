@@ -294,6 +294,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel_in)
   use optimize_module
   use utilities
   use crest_restartlog
+  use parallel_interface
   implicit none
   type(systemdata) :: env 
   character(len=*),intent(in) :: ensnam

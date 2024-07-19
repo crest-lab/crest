@@ -99,7 +99,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=80) :: atmp
     character(len=5) :: lmostring(4)
     data lmostring/'sigma','LP   ','pi   ','delpi'/
-    !data lmostring/'σ    ','LP   ','π    ','δπ   '/
+    !data lmostring/'σ    ','LP   ','π    ','del.π'/
     logical l1,l2,l3,flip
     integer LWORK,IWORK,LIWORK,INFO
     integer :: iscreen,icoord,ilmoi,icent ! file handles
@@ -276,7 +276,7 @@ contains  !> MODULE PROCEDURES START HERE
 
     allocate (rklmo(5,2*n))
     !if (pr_local) write (*,*) 'lmo centers(Z=2) and atoms on file <lmocent.coord>'
-    if (pr_local) write (*,*) 'LMO Fii/eV  ncent    charge center   contributions...'
+    if (pr_local) write (*,*) ' LMO type  Fii/eV   ncent   charge center         contributions...'
 !    if (pr_local) open (newunit=iscreen,file='xtbscreen.xyz')
     allocate (tmpq(nat,n))
     tmpq(1:nat,1:n) = qmo(1:nat,1:n)
@@ -322,7 +322,7 @@ contains  !> MODULE PROCEDURES START HERE
         &                imem(1),imem(2),xcen(i),.true.,pithr,jdum)
       end if
       if (pr_local) then
-        write (*,'(i5,1x,a5,1x,2f7.2,3f10.5,12(i5,2x,a2,'':'',f6.2))')  &
+        write (*,'(i5,1x,a,1x,2f7.2,3f10.5,12(i5,2x,a2,'':'',f6.2))')  &
         &   i,lmostring(jdum),autoev*f(i),xcen(i),ecent(i,1:3), &
         &   (imem(j),i2e(at(imem(j))),qmo(j,i),j=1,idum)
       end if
@@ -427,7 +427,7 @@ contains  !> MODULE PROCEDURES START HERE
         end do
       end do
 
-      if (pr_local) write (*,*) 'thr ',pithr,'# pi deloc LMO',npi
+      if (pr_local) write (*,'(1x,a,f6.2,a,i0)') 'ncent threshold ',pithr,' --> # pi deloc LMO ',npi
 
       allocate (wbo(nat,nat))
       wbo = 0.0d0
@@ -512,12 +512,13 @@ contains  !> MODULE PROCEDURES START HERE
       if(rklmo(5,i) > 1) nprot=nprot+1
     enddo
     if(nprot > 0)then
-      allocate(protxyz(3,nprot), source=0.0_wp)
+      allocate(protxyz(4,nprot), source=0.0_wp)
       m=0
       do i=1,k
-        if(rklmo(5,i) > 1)then
+        if(nint(rklmo(5,i)) > 1)then
           m=m+1
           protxyz(1:3,m) = rklmo(1:3,i)  
+          protxyz(4,m) = rklmo(5,i)
         endif
       enddo  
     endif

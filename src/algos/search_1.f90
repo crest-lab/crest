@@ -27,6 +27,7 @@ subroutine crest_search_1(env,tim)
   use strucrd
   use dynamics_module
   use shake_module
+  use parallel_interface
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
