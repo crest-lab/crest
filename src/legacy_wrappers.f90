@@ -361,11 +361,11 @@ subroutine protonate(env,tim)
   implicit none
   type(systemdata) :: env
   type(timer)   :: tim
-  !if (env%legacy) then
+  if (env%legacy) then
     call protonate_legacy(env,tim)
-  !else
-  !  call crest_new_protonate(env,tim)
-  !end if
+  else
+    call crest_new_protonate(env,tim)
+  end if
 end subroutine protonate
 
 !========================================================================================!

@@ -119,11 +119,19 @@ subroutine crest_new_protonate(env,tim)
 !>--- check LMO center
   np = tmpcalc%calcs(1)%nprot
   if (np > 0) then
-    write (stdout,'(a,i0,a)') '> ',np,' π- or LP-centers identified as protonation candidates'
+    write (stdout,'(a,i0,a)') '> ',np,' π- or LP-centers identified as protonation candidates:'
     call move_alloc(tmpcalc%calcs(1)%protxyz,protxyz)
-    !do i=1,np
-    !  write(stdout,*) protxyz(1:3,i)
-    !enddo
+    write(stdout,'(1x,a5,1x,a,5x,a)') 'LMO','type','center(xyz/Ang)'
+    do i=1,np
+      select case(nint(protxyz(4,i)))
+      case(2)
+        write(stdout,'(1x,i5,1x,a,3F12.5)') i,'LP   ',protxyz(1:3,i)*autoaa
+      case(3)
+        write(stdout,'(1x,i5,1x,a,3F12.5)') i,'π    ',protxyz(1:3,i)*autoaa
+      case(4)
+        write(stdout,'(1x,i5,1x,a,3F12.5)') i,'del.π',protxyz(1:3,i)*autoaa
+      end select
+    enddo
   else
     write (stdout,*)
     write (stdout,*) 'WARNING: No suitable protonation sites found!'
@@ -190,7 +198,7 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz)
   type(coord),intent(in) :: mol
   integer,intent(in) :: natp
   integer,intent(in) :: np
-  real(wp),intent(in) :: protxyz(3,np)
+  real(wp),intent(in) :: protxyz(4,np)
   !> OUTPUT
   integer,intent(out)  :: at(natp)
   real(wp),intent(out) :: xyz(3,natp,np)
