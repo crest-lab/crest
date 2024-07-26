@@ -25,7 +25,7 @@ subroutine splitfile(fname,up,low)
 !********************************************************
   use crest_parameters
   use iomod
-  use strucrd,only:rdensembleparam,rdensemble,wrxyz
+  use strucrd,only: rdensemble,coord
   implicit none
   character(len=*) :: fname
   integer :: up,low
@@ -38,6 +38,7 @@ subroutine splitfile(fname,up,low)
   integer,allocatable :: at(:)
   integer :: i,r
   logical :: ex
+  type(coord),allocatable :: structures(:)
 
   inquire (file=fname,exist=ex)
   if (.not.ex) then
@@ -47,9 +48,10 @@ subroutine splitfile(fname,up,low)
 
   call getcwd(thispath) !current dir= thispath
 
-  call rdensembleparam(fname,nat,nall)
-  allocate (xyz(3,nat,nall),at(nat))
-  call rdensemble(fname,nat,nall,at,xyz)
+  !call rdensembleparam(fname,nat,nall)
+  !allocate (xyz(3,nat,nall),at(nat))
+  !call rdensemble(fname,nat,nall,at,xyz)
+  call rdensemble(fname,nall,structures)
 
   r = makedir("SPLIT")  !create new directory
   call chdir("SPLIT")
@@ -73,7 +75,8 @@ subroutine splitfile(fname,up,low)
     write (tmppath2,'(a,i0)') "STRUC",i
     r = makedir(trim(tmppath2))
     call chdir(tmppath2)
-    call wrxyz("struc.xyz",nat,at,xyz(:,:,i))
+    !call wrxyz("struc.xyz",nat,at,xyz(:,:,i))
+    call structures(i)%write("struc.xyz")
     call chdir(tmppath1)
   end do
 

@@ -263,7 +263,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*),intent(in) :: fname
     integer,intent(out) :: nat
     integer,intent(out) :: nall
-    logical,optional :: conform
+    logical,intent(out),optional :: conform
     logical :: conformdum
     integer :: dum,iosum
     integer :: natref
@@ -535,7 +535,7 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine rdensemble_mixed2
 
 !========================================================================================!
-  subroutine rdensemble_coord_type(fname,nall,ensemble)
+  subroutine rdensemble_coord_type(fname,nall,structures)
 !*********************************************************
 !* subroutine rdensemble_coord_type
 !* A variant of the rdensemble routine that automatically
@@ -544,34 +544,59 @@ contains  !> MODULE PROCEDURES START HERE
     implicit none
     character(len=*),intent(in) :: fname !> name of the ensemble file
     integer,intent(out) :: nall  !> number of structures in ensemble
-    type(coord),intent(out),allocatable :: ensemble(:)
+    type(coord),intent(out),allocatable :: structures(:)
 
     real(wp),allocatable :: xyz(:,:,:)
     integer :: nat
+    integer,allocatable :: nats(:)
     integer,allocatable :: at(:)
+    integer,allocatable :: ats(:,:)
     real(wp),allocatable :: eread(:)
-    integer :: i,j,k,ich,io
-    logical :: ex
+    integer :: i,j,k,ich,io,nat_i
+    logical :: ex,multiple_sizes
 
-    call rdensembleparam(fname,nat,nall)
-    allocate (xyz(3,nat,nall),at(nat),eread(nall))
-    call rdensemble(fname,nat,nall,at,xyz,eread)
-    !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
-    !>--- Important: coord types must be in Bohrs
-    xyz = xyz/bohr
-    !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
+    call rdensembleparam(fname,nat,nall,multiple_sizes)
+!    if(.not.multiple_sizes)then
+!    !>--- all the same molecule
+!       allocate (xyz(3,nat,nall),at(nat),eread(nall))
+!       call rdensemble(fname,nat,nall,at,xyz,eread)
+!       !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
+!       !>--- Important: coord types must be in Bohrs
+!       xyz = xyz/bohr
+!       !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
+!
+!       allocate (structures(nall))
+!       do i = 1,nall
+!         structures(i)%nat = nat
+!         allocate (structures(i)%at(nat))
+!         structures(i)%at(:) = at(:)
+!         allocate (structures(i)%xyz(3,nat))
+!         structures(i)%xyz(:,:) = xyz(:,:,i)
+!         structures(i)%energy = eread(i)
+!       end do
+!
+!       deallocate (eread,at,xyz)
+!    else
+    !>--- multiple sizes
+       allocate(structures(nall))
+       allocate(xyz(3,nat,nall),ats(nat,nall),nats(nall),eread(nall))
+       call rdensemble_mixed2(fname,nat,nall,nats,ats,xyz)
+       !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
+       !>--- Important: coord types must be in Bohrs
+       xyz = xyz/bohr
+       !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
+       do i = 1,nall
+         nat_i = nats(i)
+         structures(i)%nat = nats(i)
+         allocate (structures(i)%at(nat_i))
+         structures(i)%at(:) = ats(1:nat_i,i)
+         allocate (structures(i)%xyz(3,nat_i))
+         structures(i)%xyz(:,:) = xyz(1:3,1:nat_i,i)
+         structures(i)%energy = eread(i)
+       end do
 
-    allocate (ensemble(nall))
-    do i = 1,nall
-      ensemble(i)%nat = nat
-      allocate (ensemble(i)%at(nat))
-      ensemble(i)%at(:) = at(:)
-      allocate (ensemble(i)%xyz(3,nat))
-      ensemble(i)%xyz(:,:) = xyz(:,:,i)
-      ensemble(i)%energy = eread(i)
-    end do
-
-    deallocate (eread,at,xyz)
+       deallocate(eread,nats,ats,xyz)
+ !   endif
   end subroutine rdensemble_coord_type
 
 !=================================================================!
