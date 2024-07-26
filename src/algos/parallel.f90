@@ -225,16 +225,18 @@ end subroutine crest_sploop
 !========================================================================================!
 !========================================================================================!
 subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
-!***************************************************************
+!*******************************************************************************
 !* subroutine crest_oloop
 !* This subroutine performs concurrent geometry optimizations
 !* for the given ensemble. Inputs xyz and eread are overwritten
 !* env        - contains parallelization and other program settings
 !* dump       - decides on whether to dump an ensemble file
+!*              WARNING: the ensemble file will NOT be in the same order
+!*              as the input xyz array. However, the overwritten xyz will be! 
 !* customcalc - customized (optional) calculation level data
 !*
 !* IMPORTANT: xyz should be in Bohr(!) for this routine
-!***************************************************************
+!******************************************************************************
   use crest_parameters,only:wp,stdout,sep
   use crest_calculator
   use omp_lib
@@ -367,6 +369,11 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
         call molsnew(job)%append(ich)
         call calc_eprint(calculations(job),energy,calculations(job)%etmp,gnorm,ich2)
       end if
+      eread(zcopy) = energy
+      xyz(:,:,zcopy) = molsnew(job)%xyz(:,:)
+    else if(io==calculations(job)%maxcycle .and. calculations(job)%anopt) then
+      !>--- allow partial optimization?
+      c = c+1
       eread(zcopy) = energy
       xyz(:,:,zcopy) = molsnew(job)%xyz(:,:)
     else

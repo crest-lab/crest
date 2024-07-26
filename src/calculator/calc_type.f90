@@ -229,6 +229,7 @@ module calc_type
 
 !>--- optimization settings
     logical  :: optnewinit = .false.  !> ensure fresh calc/param setup at beginning of opt
+    logical  :: anopt = .false.  !> allow collecting structures that ran into maxcycle?
     integer  :: optlev = 0
     integer  :: micro_opt = 20
     integer  :: maxcycle = 0

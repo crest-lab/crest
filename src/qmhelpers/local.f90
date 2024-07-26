@@ -499,7 +499,6 @@ contains  !> MODULE PROCEDURES START HERE
           rklmo(4:5,n+k) = rklmo(4:5,imo)
           rklmo(5,smo) = 0 ! remove sigma
 
-          !> add to screen file, protomer search
           if (pr_local) then
 !            write (iscreen,*) nat+1
 !            write (iscreen,*)
@@ -527,25 +526,18 @@ contains  !> MODULE PROCEDURES START HERE
  !ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
     !> collect possible protonation sites for output
-!    nprot = 0
-!    k = new+n
-!    write(*,*) k,new,n
-!    do i=1,k
-!      if(rklmo(5,i) > 1) nprot=nprot+1
-!    enddo
     nprot = ntmpsave
+    do i =1,ntmpsave
+      tmpsave(4,i) = tmpsave(4,i) - 1.0_wp !> adjust numbering (we discard sigma anyways)
+      if(tmpsave(4,i) < 1.0_wp) nprot=nprot-1
+    enddo
     if(nprot > 0)then
       allocate(protxyz(4,nprot), source=0.0_wp)
-!      m=0
-!      do i=1,k
-!        if(nint(rklmo(5,i)) > 1)then
-!          m=m+1
-!          protxyz(1:3,m) = rklmo(1:3,i)  
-!          protxyz(4,m) = rklmo(5,i)
-!        endif
-!      enddo  
-      do i=1,nprot
-         protxyz(:,i) = tmpsave(:,i)
+      ii=0
+      do i=1,ntmpsave
+         if(tmpsave(4,i) < 1.0_wp) cycle
+         ii=ii+1
+         protxyz(:,ii) = tmpsave(:,i)
       enddo
     endif
     deallocate(tmpsave)
@@ -582,14 +574,6 @@ contains  !> MODULE PROCEDURES START HERE
 !      call close_file(ilmoi)
 !      if (pr_local) call close_file(icent)
 !    end if
-
-    if (pr_local) then
-!      write (*,*) 'files:'
-!      write (*,*) 'coordprot.0/xtbscreen.xyz/xtblmoinfo/lmocent.coord'
-!      write (*,*) 'with protonation site input, xtbdock and'
-!      write (*,*) 'LMO center info written'
-!      write (*,*)
-    end if
 
     deallocate (xcen,cca,d,f,qmo,ecent,rklmo)
 

@@ -180,7 +180,11 @@ module crest_data
     logical :: protdeprot = .false.  !> currently unused!
     logical :: deprotprot = .false.  !> (tautomerize) do first deprotonation and then protonation
 
-    logical :: ffopt = .true. !> pre-optimize with a force-field to avoid high-energy artifacts
+    logical :: ffopt = .true.   !> pre-optimize with a force-field to avoid high-energy artifacts
+    logical :: hnewopt = .true. !> optimization step only using the newly added atom
+    logical :: finalopt = .false. !> final optimization (only if ffopt is true)
+
+    logical :: active_lmo(3) = (/.true.,.true.,.true./) !> consider pi, LP and delpi LMOs for protonation?
 
     logical :: strictPDT = .false.  ! strict mode (i.e. bond constraints) for (de)protonation,tautomerization
     logical :: fixPDT = .false.  ! extension to the strict mode, fix heavy atom positions

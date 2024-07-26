@@ -178,6 +178,11 @@ contains   !> MODULE PROCEDURES START HERE
         env%preopt = .false.
         env%crestver = crest_rigcon
         env%runver = crest_rigcon
+      
+      case ('protonate')
+        env%properties = p_protonate
+        env%crestver = crest_protonate
+
       case default
         env%crestver = crest_imtd
       end select
@@ -246,6 +251,8 @@ contains   !> MODULE PROCEDURES START HERE
       call parse_confsolv(env,blk)
     case ('thermo')
       call parse_thermo(env,blk)
+    case ('protonation')
+      call parse_protonation(env,blk)
     end select
   end subroutine parse_main_blk
 
@@ -365,6 +372,44 @@ contains   !> MODULE PROCEDURES START HERE
       end select
     end do
   end subroutine parse_thermo
+
+!========================================================================================!
+  subroutine parse_protonation(env,blk)
+!******************************************
+!* parse settings for protonation settings
+!******************************************
+    implicit none
+    type(systemdata) :: env
+    type(datablock) :: blk
+    type(keyvalue) :: kv
+    integer :: i
+    external :: swparse
+!>--- parse the arguments
+    do i = 1,blk%nkv
+      kv = blk%kv_list(i)
+      select case (kv%key)
+      case ('ewin')
+        env%protb%ewin = kv%value_f
+      case('swel','ion')
+        call swparse(kv%value_c,env%protb)
+      case('ffopt')
+        env%protb%ffopt = kv%value_b
+      case('freezeopt')
+        env%protb%hnewopt = kv%value_b
+      case('finalopt')
+        env%protb%finalopt = kv%value_b
+
+      case('activelmo')
+        env%protb%active_lmo(1:) = kv%value_ba(1:)
+      case('pi')
+        env%protb%active_lmo(1) = kv%value_b
+      case('lp')
+        env%protb%active_lmo(2) = kv%value_b   
+      case('delpi','delocpi')
+        env%protb%active_lmo(3) = kv%value_b
+      end select
+    end do
+  end subroutine parse_protonation
 
 !========================================================================================!
 !========================================================================================!
