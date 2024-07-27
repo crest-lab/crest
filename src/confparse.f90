@@ -268,7 +268,6 @@ subroutine parseflags(env,arg,nra)
   env%fixfile = 'none selected'
 
 !>--- options for possible property calculations, mainly protonation/deprotonation/taut. tool
-  env%protb%popthr = 0.01_wp  !> = 1% population
   env%protb%ewin = 30.0_wp  !> 30 kcal for protonation
   env%protb%swat = 0
   env%protb%swchrg = 0

@@ -37,6 +37,7 @@ subroutine crest_new_protonate(env,tim)
   use optimize_module
   use parallel_interface
   use cregen_interface
+  use iomod
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -183,6 +184,11 @@ subroutine crest_new_protonate(env,tim)
   if (env%protb%ffopt) then
     call smallhead('Protomer Ensemble FF Pre-Optimization')
     !>--- set up a temporary calculation object
+    write (stdout,'(a)') '> LMO centers can be very close to atoms, leading to initial'
+    write (stdout,'(a)') '  extremely high-energy candidates which may undergo unwanted'
+    write (stdout,'(a)') '  chemical changes in optimizations. Classical force-fields'
+    write (stdout,'(a)') '  with defined bond-topology can help circumvent this issue.'
+    write (stdout,'(a)') '> Setting up force-field structure pre-optimization ...'
     allocate (tmpcalc_ff)
     tmpcalc_ff%optnewinit = .true.
     env%calc%optnewinit = .true.
@@ -191,6 +197,7 @@ subroutine crest_new_protonate(env,tim)
     tmpset%chrg = env%chrg
     call tmpcalc_ff%add(tmpset)
     tmpcalc_ff%maxcycle = 10000
+    call tmpcalc_ff%info(stdout)    
 
     !>--- Run optimizations
     call tim%start(15,'Ensemble optimization (FF)')
@@ -211,8 +218,8 @@ subroutine crest_new_protonate(env,tim)
     env%ewin = 5000.0_wp
     call newcregen(env,7,trim(atmp))
     call rename(trim(atmp)//'.sorted',trim(atmp))
-    write (stdout,'(a)') '> WARNING: These are force-field energies which are'
-    write (stdout,'(a)') '           not accurate for bond formation and breaking!'
+    write (stdout,'(a)') '> WARNING: These are force-field energies which are '
+    write (stdout,'(a)') '           NOT(!) accurate for bond formation and breaking!'
     write (stdout,*)
 
     !>--- re-read sorted ensemble
@@ -240,6 +247,7 @@ subroutine crest_new_protonate(env,tim)
     tmpcalc%nfreeze = count(atlist)
     write (stdout,'(a,i0,a)') '> ',tmpcalc%nfreeze,' frozen atoms. All H non-frozen.'
     call move_alloc(atlist,tmpcalc%freezelist)
+    call tmpcalc%info(stdout)
 
     !>--- run opt
     call tim%start(16,'Ensemble optimization (frozen)')
@@ -273,6 +281,7 @@ subroutine crest_new_protonate(env,tim)
     call smallhead('Final Protomer Ensemble Optimization')
     allocate(tmpcalc)
     call env2calc(env,tmpcalc,mol)
+    call tmpcalc%info(stdout)
     !tmpcalc%maxcycle=5
     !tmpcalc%anopt=.true.
     call tim%start(20,'Ensemble optimization')
@@ -341,6 +350,7 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
   endif
   write (stdout,'(a,i0)') '> Increasing the molecular charge by ',ichrg
   call env%calc%increase_charge(ichrg)
+  env%chrg = env%chrg + ichrg
 
 !>--- Check if we have some other conditions
    if(any(.not.env%protb%active_lmo(:)))then

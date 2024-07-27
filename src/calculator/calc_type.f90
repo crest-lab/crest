@@ -989,7 +989,7 @@ contains  !>--- Module routines start here
       self%calcspace = 'calculation.level.'//trim(nmbr)
     end if
 
-    if (self%pr) then
+    if (self%pr .and. self%prch.ne.stdout) then
       self%prch = self%prch+id
     end if
   end subroutine calculation_settings_autocomplete
@@ -1122,7 +1122,7 @@ contains  !>--- Module routines start here
       write (iunit,fmt3) atmp,trim(self%solvmodel)
     end if
     if (allocated(self%solvent)) then
-      write (atmp,*) 'Solvent'
+    write (atmp,*) 'Solvent'
       write (iunit,fmt3) atmp,trim(self%solvent)
     end if
 
@@ -1154,8 +1154,10 @@ contains  !>--- Module routines start here
       end select
       write (iunit,fmt1) trim(atmp),self%ONIOM_id
     else
-      write (atmp,*) 'Weight'
-      write (iunit,fmt2) atmp,self%weight
+      if(self%weight .ne. 1.0_wp)then
+        write (atmp,*) 'Weight'
+        write (iunit,fmt2) atmp,self%weight
+      endif
     end if
 
   end subroutine calculation_settings_info
@@ -1195,6 +1197,7 @@ contains  !>--- Module routines start here
       self%id = jobtype%generic
 
     end select
+    call self%autocomplete(self%id)
   end subroutine create_calclevel_shortcut
 
 !=========================================================================================!

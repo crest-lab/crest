@@ -170,25 +170,23 @@ module crest_data
     integer :: nfrag  = 0 
     integer :: newchrg = 0
     integer :: iter = 1
-    real(wp) :: popthr = 0.001_wp
-    real(wp) :: ewin = 30.0_wp   
-    integer :: swchrg = 1        !> switch element charge
-    integer :: swat = 1          !> switch element element
-    logical :: swelem = .false.  !> switch element to add to lmo lp pair?
+    real(wp) :: ewin = 30.0_wp       !> separate EWIN threshold
+    integer :: swchrg = 1            !> switch element charge
+    integer :: swat = 1              !> switch element element
+    logical :: swelem = .false.      !> switch element to add to lmo lp pair?
     logical :: allowFrag = .false.   !> allow fragmentation
     logical :: threshsort = .false.  !> use ewin threshold
     logical :: protdeprot = .false.  !> currently unused!
     logical :: deprotprot = .false.  !> (tautomerize) do first deprotonation and then protonation
 
-    logical :: ffopt = .true.   !> pre-optimize with a force-field to avoid high-energy artifacts
-    logical :: hnewopt = .true. !> optimization step only using the newly added atom
-    logical :: finalopt = .false. !> final optimization (only if ffopt is true)
+    logical :: ffopt = .true.    !> pre-optimize with a force-field to avoid high-energy artifacts
+    logical :: hnewopt = .true.  !> optimization step only using the newly added atom
+    logical :: finalopt = .true. !> final optimization (only if ffopt is true)
 
     logical :: active_lmo(3) = (/.true.,.true.,.true./) !> consider pi, LP and delpi LMOs for protonation?
 
-    logical :: strictPDT = .false.  ! strict mode (i.e. bond constraints) for (de)protonation,tautomerization
-    logical :: fixPDT = .false.  ! extension to the strict mode, fix heavy atom positions
-    logical :: ABcorrection = .false.
+    logical :: strictPDT = .false.  !> LEGACY: strict mode (i.e. bond constraints) for (de)protonation,tautomerization
+    logical :: fixPDT = .false.     !> LEGACY: extension to the strict mode, fix heavy atom positions
 
     integer,allocatable :: atmap(:)
 
@@ -200,6 +198,7 @@ module crest_data
     character(len=:),allocatable :: newligand
 
     !--- pka
+    logical :: ABcorrection = .false.
     integer :: h_acidic = 0  !which h atom to remove in pka script
     integer :: pka_mode = 0  !what to do in the pka calc.
     character(len=:),allocatable :: pka_baseinp  !if a base file is read in instead

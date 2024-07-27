@@ -50,7 +50,7 @@ subroutine env2calc(env,calc,molin)
   cal%chrg = env%chrg
 !>-- obtain WBOs OFF by default
   cal%rdwbo = .false.
-  cal%rddip = .true.
+  cal%rddip = .false.
   !> except for SP runtype (from command line!)
   if (env%crestver == crest_sp) then
     cal%rdwbo = .true.
