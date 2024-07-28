@@ -53,19 +53,11 @@ module parse_calcdata
 !>-- routines for parsing a mddata object
   interface parse_md
     module procedure :: parse_md_auto
-    module procedure :: parse_md_float
-    module procedure :: parse_md_int
-    module procedure :: parse_md_c
-    module procedure :: parse_md_bool
   end interface parse_md
 
 !>-- routines for parsing a mtdpot object
   interface parse_mtd
     module procedure :: parse_metadyn_auto
-    module procedure :: parse_mtd_float
-    module procedure :: parse_mtd_int
-    module procedure :: parse_mtd_c
-    module procedure :: parse_mtd_bool
   end interface parse_mtd
 
   public :: parse_calculation_data
@@ -853,7 +845,7 @@ contains !> MODULE PROCEDURES START HERE
     integer :: atm1,atm2,atm3,atm4
     integer :: nsteps
     success = .false.
-    rd=.true.
+    rd = .true.
     call scn%deallocate()
     select case (kv%key)
     case ('bond','distance')
@@ -917,7 +909,7 @@ contains !> MODULE PROCEDURES START HERE
       end if
 
     case default
-      rd=.false.
+      rd = .false.
       return
     end select
 
@@ -926,7 +918,7 @@ contains !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine parse_dynamics_data(env,mddat,dict,included)
+  subroutine parse_dynamics_data(env,mddat,dict,included,istat)
 !*********************************************
 !* The following routines are used to
 !* read information into the "mddata" object
@@ -940,6 +932,7 @@ contains !> MODULE PROCEDURES START HERE
     type(constraint) :: newcstr
     integer :: i,j,k,l
     logical,intent(out) :: included
+    integer,intent(inout) :: istat
 
     included = .false.
 
@@ -948,9 +941,9 @@ contains !> MODULE PROCEDURES START HERE
       blk = dict%blk_list(i)
       if (blk%header == 'dynamics') then
         included = .true.
-        call parse_mddat(env,blk,mddat)
+        call parse_mddat(env,blk,mddat,istat)
       else if (blk%header == 'dynamics.meta') then
-        call parse_metadyn(blk,mddat)
+        call parse_metadyn(blk,mddat,istat)
         included = .true.
       end if
     end do
@@ -959,148 +952,105 @@ contains !> MODULE PROCEDURES START HERE
     end if
     return
   end subroutine parse_dynamics_data
-  subroutine parse_mddat(env,blk,mddat)
+  subroutine parse_mddat(env,blk,mddat,istat)
     implicit none
     type(systemdata),intent(inout) :: env
     type(datablock),intent(in) :: blk
     type(mddata),intent(inout) :: mddat
+    integer,intent(inout) :: istat
     logical,allocatable :: atlist(:)
     integer :: i,j,nat
+    logical :: rd
     if (blk%header .ne. 'dynamics') return
     nat = env%ref%nat
     allocate (atlist(nat),source=.false.)
 
     do i = 1,blk%nkv
-      call parse_md(mddat,blk%kv_list(i))
-
-      select case (blk%kv_list(i)%key)
-      case ('includermsd','atlist+')
-        call get_atlist(nat,atlist,blk%kv_list(i)%rawvalue,env%ref%at)
-        if (.not.allocated(env%includeRMSD)) allocate (env%includeRMSD(nat),source=1)
-        do j = 1,nat
-          if (atlist(j)) env%includeRMSD(j) = 1
-        end do
-
-      case ('excludermsd','atlist-')
-        call get_atlist(nat,atlist,blk%kv_list(i)%rawvalue,env%ref%at)
-        if (.not.allocated(env%includeRMSD)) allocate (env%includeRMSD(nat),source=1)
-        do j = 1,nat
-          if (atlist(j)) env%includeRMSD(j) = 0
-        end do
-
-      end select
-
+      call parse_md(env,mddat,blk%kv_list(i),rd)
+      if (.not.rd) then
+        istat = istat+1
+        write (stdout,fmturk) '['//blk%header//']-block',blk%kv_list(i)%key
+      end if
     end do
     deallocate (atlist)
     return
   end subroutine parse_mddat
-  subroutine parse_md_auto(mddat,kv)
+  subroutine parse_md_auto(env,mddat,kv,rd)
     implicit none
+    type(systemdata),intent(inout) :: env
     type(mddata) :: mddat
     type(keyvalue) :: kv
-    select case (kv%id)
-    case (1) !> float
-      call parse_md(mddat,kv%key,kv%value_f)
-    case (2) !> int
-      call parse_md(mddat,kv%key,kv%value_i)
-    case (3) !> bool
-      call parse_md(mddat,kv%key,kv%value_b)
-    case (4) !> string
-      call parse_md(mddat,kv%key,kv%value_c)
-    case default
-      select case (kv%key)
-      case ('active','active_levels')
-        mddat%active_potentials = kv%value_ia
-      end select
-    end select
-  end subroutine parse_md_auto
-  subroutine parse_md_float(mddat,key,val)
-    implicit none
-    type(mddata) :: mddat
-    character(len=*) :: key
-    real(wp) :: val
-    select case (key)
-    case ('length','length_ps')
-      mddat%length_ps = val
-    case ('dump')
-      mddat%dumpstep = val
-    case ('hmass')
-      mddat%md_hmass = val
-    case ('tstep')
-      mddat%tstep = val
-    case ('t','temp','temperature')
-      mddat%tsoll = val
-      mddat%thermostat = .true.
-    case default
-      return
-    end select
-    return
-  end subroutine parse_md_float
-  subroutine parse_md_int(mddat,key,val)
-    implicit none
-    type(mddata) :: mddat
-    character(len=*) :: key
-    integer :: val
-    real(wp) :: fval
-    select case (key)
-    case ('length','length_ps','dump','hmass','tstep')
-      fval = float(val)
-      call parse_md(mddat,key,fval)
-    case ('shake')
-      if (val <= 0) then
-        mddat%shake = .false.
-      else
-        mddat%shake = .true.
-        mddat%shk%shake_mode = min(val,2)
-      end if
-    case ('printstep')
-      mddat%printstep = val
-    case ('blocklength','blockl')
-      mddat%blockl = val
-    case ('t','temp','temperature')
-      mddat%tsoll = float(val)
-      mddat%thermostat = .true.
-    case default
-      return
-    end select
-    return
-  end subroutine parse_md_int
-  subroutine parse_md_c(mddat,key,val)
-    implicit none
-    type(mddata) :: mddat
-    character(len=*) :: key
-    character(len=*) :: val
+    logical,intent(out) :: rd
+    logical,allocatable :: atlist(:)
+    integer :: nat,j
     logical :: ex
-    select case (key)
+    rd = .true.
+
+    select case (kv%key)
+    case ('active','active_levels')
+      mddat%active_potentials = kv%value_ia
+
+    case ('includermsd','atlist+')
+      call get_atlist(nat,atlist,kv%rawvalue,env%ref%at)
+      if (.not.allocated(env%includeRMSD)) allocate (env%includeRMSD(nat),source=1)
+      do j = 1,nat
+        if (atlist(j)) env%includeRMSD(j) = 1
+      end do
+
+    case ('excludermsd','atlist-')
+      call get_atlist(nat,atlist,kv%rawvalue,env%ref%at)
+      if (.not.allocated(env%includeRMSD)) allocate (env%includeRMSD(nat),source=1)
+      do j = 1,nat
+        if (atlist(j)) env%includeRMSD(j) = 0
+      end do
+
+    case ('length','length_ps')
+      mddat%length_ps = kv%value_f
+    case ('dump')
+      mddat%dumpstep = kv%value_f
+    case ('hmass')
+      mddat%md_hmass = kv%value_f
+    case ('tstep')
+      mddat%tstep = kv%value_f
+    case ('t','temp','temperature')
+      mddat%tsoll = kv%value_f
+      mddat%thermostat = .true.
+
+    case ('shake')
+      select case (kv%id)
+      case (valuetypes%int)
+        if (kv%value_i <= 0) then
+          mddat%shake = .false.
+        else
+          mddat%shake = .true.
+          mddat%shk%shake_mode = min(kv%value_i,2)
+        end if
+      case (valuetypes%bool)
+        mddat%shake = kv%value_b
+        if (kv%value_b) mddat%shk%shake_mode = 1
+      end select
+    case ('printstep')
+      mddat%printstep = kv%value_i
+    case ('blocklength','blockl')
+      mddat%blockl = kv%value_i
+
     case ('restart')
-      inquire (file=trim(val),exist=ex)
+      inquire (file=trim(kv%value_c),exist=ex)
       if (ex) then
         mddat%restart = .true.
-        mddat%restartfile = trim(val)
+        mddat%restartfile = trim(kv%value_c)
       end if
+
     case default
+      rd = .false.
       return
     end select
-    return
-  end subroutine parse_md_c
-  subroutine parse_md_bool(mddat,key,val)
-    implicit none
-    type(mddata) :: mddat
-    character(len=*) :: key
-    logical :: val
-    select case (key)
-    case ('shake')
-      mddat%shake = val
-      if (val) mddat%shk%shake_mode = 1
-    case default
-      return
-    end select
-    return
-  end subroutine parse_md_bool
+
+  end subroutine parse_md_auto
 
 !========================================================================================!
 
-  subroutine parse_metadyn(blk,mddat)
+  subroutine parse_metadyn(blk,mddat,istat)
 !**************************************************
 !* The following routines are used to
 !* read information into the "metadynamics" object
@@ -1109,109 +1059,69 @@ contains !> MODULE PROCEDURES START HERE
     implicit none
     type(datablock),intent(in) :: blk
     type(mddata),intent(inout) :: mddat
+    integer,intent(inout) :: istat
     logical :: success
     type(mtdpot) :: mtd
     integer :: i,k
+    logical :: rd
     call mtd%deallocate()
+    success = .false.
     if (blk%header .ne. 'dynamics.meta') return
     do i = 1,blk%nkv
-      call parse_metadyn_auto(mtd,blk%kv_list(i),success)
+      call parse_metadyn_auto(mtd,blk%kv_list(i),success,rd)
+      if (.not.rd) then
+        istat = istat+1
+        write (stdout,fmturk) '[['//blk%header//']]-block',blk%kv_list(i)%key
+      end if
     end do
-    call mddat%add(mtd)
+    if (success) call mddat%add(mtd)
     return
   end subroutine parse_metadyn
-  subroutine parse_metadyn_auto(mtd,kv,success)
+  subroutine parse_metadyn_auto(mtd,kv,success,rd)
     implicit none
     type(keyvalue) :: kv
     type(mtdpot) :: mtd
-    logical,intent(out) :: success
-    success = .false.
-    select case (kv%id)
-    case (1) !> float
-      call parse_mtd(mtd,kv%key,kv%value_f)
-      success = .true.
-    case (2) !> int
-      call parse_mtd(mtd,kv%key,kv%value_i)
-      success = .true.
-    case (3) !> bool
-      call parse_mtd(mtd,kv%key,kv%value_b)
-      success = .true.
-    case (4) !> string
-      call parse_mtd(mtd,kv%key,kv%value_c)
-      success = .true.
-    end select
-  end subroutine parse_metadyn_auto
-  subroutine parse_mtd_float(mtd,key,val)
-    implicit none
-    type(mtdpot) :: mtd
-    character(len=*) :: key
-    real(wp) :: val
-    select case (key)
+    logical,intent(inout) :: success
+    logical,intent(out) :: rd
+    rd = .true.
+
+    select case (kv%key)
+!>--- floats
     case ('alpha')
-      mtd%alpha = val
+      mtd%alpha = kv%value_f
     case ('kpush')
-      mtd%kpush = val
+      mtd%kpush = kv%value_f
     case ('dump','dump_fs')
-      mtd%cvdump_fs = val
+      mtd%cvdump_fs = kv%value_f
     case ('dump_ps')
-      mtd%cvdump_fs = val*1000.0_wp
+      mtd%cvdump_fs = kv%value_f*1000.0_wp
     case ('ramp')
-      mtd%ramp = val
-    case default
-      return
-    end select
-    return
-  end subroutine parse_mtd_float
-  subroutine parse_mtd_int(mtd,key,val)
-    implicit none
-    type(mtdpot) :: mtd
-    character(len=*) :: key
-    integer :: val
-    real(wp) :: fval
-    select case (key)
+      mtd%ramp = kv%value_f
+
+!>--- strings
     case ('type')
-      mtd%mtdtype = val
-    case ('dump','dump_fs','dump_ps')
-      fval = float(val)
-      call parse_mtd(mtd,key,fval)
-    case default
-      return
-    end select
-    return
-  end subroutine parse_mtd_int
-  subroutine parse_mtd_c(mtd,key,val)
-    implicit none
-    type(mtdpot) :: mtd
-    character(len=*) :: key
-    character(len=*) :: val
-    select case (key)
-    case ('type')
-      select case (val)
-      case ('rmsd')
-        mtd%mtdtype = cv_rmsd
-      case default
-        mtd%mtdtype = 0
+      success = .true.
+      select case (kv%id)
+      case (valuetypes%int)
+        mtd%mtdtype = kv%value_i
+      case (valuetypes%string)
+        select case (kv%value_c)
+        case ('rmsd')
+          mtd%mtdtype = cv_rmsd
+        case default
+          mtd%mtdtype = 0
+        end select
       end select
     case ('biasfile')
       mtd%mtdtype = cv_rmsd_static
-      mtd%biasfile = val
+      mtd%biasfile = kv%value_c
 
     case default
+      rd = .false.
       return
     end select
-    return
-  end subroutine parse_mtd_c
-  subroutine parse_mtd_bool(mtd,key,val)
-    implicit none
-    type(mtdpot) :: mtd
-    character(len=*) :: key
-    logical :: val
-    select case (key)
-    case default
-      return
-    end select
-    return
-  end subroutine parse_mtd_bool
+
+  end subroutine parse_metadyn_auto
 
 !========================================================================================!
 !========================================================================================!

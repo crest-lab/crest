@@ -106,7 +106,7 @@ subroutine parseinputfile(env,fname)
 
 !>--- check for molecular dynamics setup
 !     i.e., all [dynamics] and [[dynamics.*]] blocks
-  call parse_dynamics_data(env,mddat,dict,l1)
+  call parse_dynamics_data(env,mddat,dict,l1,readstatus)
   if (l1) then
     env%mddat = mddat
   end if
