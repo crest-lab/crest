@@ -43,10 +43,6 @@ module parse_calcdata
 !>-- routines for parsing a calculation_settings object
   interface parse_setting
     module procedure :: parse_setting_auto
-    module procedure :: parse_setting_float
-    module procedure :: parse_setting_int
-    module procedure :: parse_setting_c
-    module procedure :: parse_setting_bool
   end interface parse_setting
 
 !>-- routines for parsing a calcdata object
@@ -100,7 +96,7 @@ contains !> MODULE PROCEDURES START HERE
     included = .false.
     call calc%reset()
     call env%ref%to(moltmp)
-    call axis(moltmp%nat,moltmp%at,moltmp%xyz) 
+    call axis(moltmp%nat,moltmp%at,moltmp%xyz)
 
     do i = 1,dict%nblk
       call blk%deallocate()
@@ -110,7 +106,7 @@ contains !> MODULE PROCEDURES START HERE
         call parse_calcdat(env,blk,calc,istat)
 
       else if (blk%header == 'calculation.level') then
-        call parse_leveldata(env,blk,newjob)
+        call parse_leveldata(env,blk,newjob,istat)
         call newjob%autocomplete(calc%ncalculations+1)
         call calc%add(newjob)
         included = .true.
@@ -120,9 +116,9 @@ contains !> MODULE PROCEDURES START HERE
         if (allocated(calc%calcs)) deallocate (calc%calcs)
         calc%ncalculations = 0
         calc%id = -1
-        call parse_leveldata(env,blk,newjob)
+        call parse_leveldata(env,blk,newjob,istat)
         !>-- S0 setup
-        call parse_leveldata(env,blk,newjob)
+        call parse_leveldata(env,blk,newjob,istat)
         newjob%uhf = 0
         newjob%calcspace = 's0'
         call calc%add(newjob)
@@ -132,7 +128,7 @@ contains !> MODULE PROCEDURES START HERE
         call calc%add(newjob)
         included = .true.
 
-      else if (index(blk%header,'calculation.constraint').ne.0) then
+      else if (index(blk%header,'calculation.constraint') .ne. 0) then
         call parse_constraintdat(env,moltmp,blk,calc)
         included = .true.
 
@@ -150,7 +146,7 @@ contains !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine parse_leveldata(env,blk,job)
+  subroutine parse_leveldata(env,blk,job,istat)
 !**********************************************************
 !* The following routines are used to
 !* read information into the "calculation_settings" object
@@ -159,6 +155,8 @@ contains !> MODULE PROCEDURES START HERE
     type(systemdata),intent(inout) :: env
     type(datablock),intent(in) :: blk
     type(calculation_settings),intent(out) :: job
+    integer,intent(inout) :: istat
+    logical :: rd
     integer :: i
     call job%deallocate()
     if ((blk%header .ne. 'calculation.level').and. &
@@ -166,91 +164,55 @@ contains !> MODULE PROCEDURES START HERE
       return
     end if
     do i = 1,blk%nkv
-      call parse_setting(env,job,blk%kv_list(i))
+      call parse_setting_auto(env,job,blk%kv_list(i),rd)
+      if (.not.rd) then
+        istat = istat+1
+        write (stdout,fmturk) '[['//blk%header//']]-block',blk%kv_list(i)%key
+      end if
     end do
     return
   end subroutine parse_leveldata
-  subroutine parse_setting_auto(env,job,kv)
+  subroutine parse_setting_auto(env,job,kv,rd)
     implicit none
     type(systemdata),intent(inout) :: env
     type(calculation_settings) :: job
     type(keyvalue) :: kv
-    !> first, go through settings with fixed type expactations
-    select case (kv%id)
-    case (1) !> float
-      call parse_setting(job,kv%key,kv%value_f)
-    case (2) !> int
-      call parse_setting(job,kv%key,kv%value_i)
-    case (3) !> bool
-      call parse_setting(job,kv%key,kv%value_b)
-    case (4) !> string
-      call parse_setting(env,job,kv%key,kv%value_c)
-    case (6,7) !> int/float array
-      call parse_setting_array(job,kv,kv%key)
-    end select
-    !> then, all others by key, automatic
-    select case (kv%key)
-    case default
-      continue
-    end select
-  end subroutine parse_setting_auto
-  subroutine parse_setting_float(job,key,val)
-    implicit none
-    type(calculation_settings) :: job
-    character(len=*) :: key
-    real(wp) :: val
-    select case (key)
-    case ('uhf')
-      job%uhf = nint(val)
-    case ('chrg','charge')
-      job%chrg = nint(val)
-    case ('etemp')
-      job%etemp = val
-    case ('accuracy')
-      job%accuracy = val
-    case ('weight')
-      job%weight = val
-    case ('pressure')
-      job%extpressure = val
-    case ('proberad')
-      job%proberad = val
-    end select
-    return
-  end subroutine parse_setting_float
-  subroutine parse_setting_int(job,key,val)
-    implicit none
-    type(calculation_settings) :: job
-    character(len=*) :: key
-    integer :: val
-    select case (key)
-    case ('uhf','multiplicity')
-      job%uhf = val
-    case ('chrg','charge')
-      job%chrg = val
-    case ('id')
-      job%id = val
-    case ('maxscc')
-      job%maxscc = val
-    case ('tblite_level','tblite_hamiltonian')
-      job%tblitelvl = val
-    case ('lebedev')
-      job%ngrid = val
-    case ('vdwset')
-      job%vdwset = val
-    end select
-    return
-  end subroutine parse_setting_int
-  subroutine parse_setting_c(env,job,key,val)
-    implicit none
-    type(systemdata),intent(inout) :: env
-    type(calculation_settings) :: job
-    character(len=*) :: key
-    character(len=*) :: val
+    logical,intent(out) :: rd
     logical :: ex
-    select case (key)
+    rd = .true.
+    select case (kv%key)
 
+!>--- floats
+    case ('etemp')
+      job%etemp = kv%value_f
+    case ('accuracy')
+      job%accuracy = kv%value_f
+    case ('weight')
+      job%weight = kv%value_f
+    case ('pressure')
+      job%extpressure = kv%value_f
+    case ('proberad')
+      job%proberad = kv%value_f
+
+!>--- integers
+    case ('uhf','multiplicity')
+      job%uhf = kv%value_i
+    case ('chrg','charge')
+      job%chrg = kv%value_i
+    case ('id')
+      job%id = kv%value_i
+    case ('maxscc')
+      job%maxscc = kv%value_i
+    case ('lebedev')
+      job%ngrid = kv%value_i
+    case ('vdwset')
+      job%vdwset = kv%value_i
+    case ('config')
+      call job%addconfig(kv%value_ia)
+
+!>--- strings
     case ('method')
-      select case (val)
+      select case (kv%value_c)
       case ('gfn-xtb','gfn','xtb')
         job%id = jobtype%xtbsys
       case ('generic')
@@ -289,26 +251,29 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%lj
       case default
         job%id = jobtype%unknown
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        error stop
       end select
 
     case ('bin','binary','script')
-      job%binary = val
+      job%binary = kv%value_c
 
     case ('flags')
-      job%other = val
+      job%other = kv%value_c
 
-      !> don't.
-      !case ('sys','syscall','systemcall')
-      !  job%systemcall = val
+    !> don't.
+    !case ('sys','syscall','systemcall')
+    !  job%systemcall = val
 
     case ('calcspace','dir')
-      job%calcspace = val
+      job%calcspace = kv%value_c
 
     case ('gradfile')
-      job%gradfile = val
+      job%gradfile = kv%value_c
 
     case ('gradtype')
-      select case (val)
+      select case (kv%value_c)
       case ('engrad','xtb','orca')
         job%gradtype = gradtype%engrad
       case ('turbomole','tm')
@@ -317,19 +282,22 @@ contains !> MODULE PROCEDURES START HERE
         job%gradtype = gradtype%unknown
       case default
         job%gradtype = gradtype%unknown
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        error stop
       end select
 
     case ('gradkey')
-      job%gradkey = val
+      job%gradkey = kv%value_c
 
     case ('gradmt')
-      job%gradfmt = conv2gradfmt(val)
+      job%gradfmt = conv2gradfmt(kv%value_c)
 
     case ('efile')
-      job%efile = val
+      job%efile = kv%value_c
 
     case ('tblite_level','tblite_hamiltonian')
-      select case (val)
+      select case (kv%value_c)
       case ('gfn2','gfn2-xtb')
         job%tblitelvl = xtblvl%gfn2
       case ('gfn1','gfn1-xtb')
@@ -341,28 +309,31 @@ contains !> MODULE PROCEDURES START HERE
         job%rdgrad = .false.
       case ('eeq','d4eeq')
         job%tblitelvl = xtblvl%eeq
-        job%rdgrad=.false.
+        job%rdgrad = .false.
       case default
         job%tblitelvl = xtblvl%unknown
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        error stop
       end select
-    case('tblite_param')
-      job%tbliteparam = val
+    case ('tblite_param')
+      job%tbliteparam = kv%value_c
       job%tblitelvl = xtblvl%param
 
     case ('orca_cmd')
       job%id = jobtype%orca
-      job%ORCA%cmd = val
-      job%binary = val
+      job%ORCA%cmd = kv%value_c
+      job%binary = kv%value_c
     case ('orca_template')
       job%id = jobtype%orca
-      call job%ORCA%read(val)
+      call job%ORCA%read(kv%value_c)
 
     case ('gbsa','alpb','cpcm')
-      job%solvmodel = key
-      job%solvent = val
+      job%solvmodel = kv%key
+      job%solvent = kv%value_c
 
     case ('refine','refinement')
-      select case (val)
+      select case (kv%value_c)
       case ('sp','singlepoint')
         job%refine_lvl = refine%singlepoint
       case ('add','correction')
@@ -371,101 +342,90 @@ contains !> MODULE PROCEDURES START HERE
         job%refine_lvl = refine%geoopt
       case default
         job%refine_lvl = refine%non
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        error stop
       end select
 
-    case('restartfile','topo','reftopo')
-      inquire(file=val,exist=ex)
-      if(ex)then
+    case ('restartfile','topo','reftopo')
+      inquire (file=kv%value_c,exist=ex)
+      if (ex) then
         job%restart = .true.
-        job%restartfile = val
+        job%restartfile = kv%value_c
       else
-        write(stderr,'(a,a,a)') 'specified restart file ',val,' does not exist'
+        write (stderr,'(a,a,a)') 'specified restart file ',kv%value_c,' does not exist'
         error stop
-      endif
-    case('refgeo','refxyz')
-      inquire(file=val,exist=ex)
-      if(ex)then
-        job%refgeo = val
+      end if
+    case ('refgeo','refxyz')
+      inquire (file=kv%value_c,exist=ex)
+      if (ex) then
+        job%refgeo = kv%value_c
       else
-        write(stderr,'(a,a,a)') 'specified reference geometry file ',val,' does not exist'
+        write (stderr,'(a,a,a)') 'specified reference geometry file ',kv%value_c,' does not exist'
         error stop
-      endif
-    case('parametrisation')
-      inquire(file=val,exist=ex)
-      if(ex)then
-        job%parametrisation  = val
+      end if
+    case ('parametrisation')
+      inquire (file=kv%value_c,exist=ex)
+      if (ex) then
+        job%parametrisation = kv%value_c
       else
-        write(stderr,'(a,a,a)') 'specified parametrisation file ',val,' does not exist'
+        write (stderr,'(a,a,a)') 'specified parametrisation file ',kv%value_c,' does not exist'
         error stop
-      endif
-    case('refchrg','refcharges')
-      inquire(file=val,exist=ex)
-      if(ex)then
-        job%refcharges = val
+      end if
+    case ('refchrg','refcharges')
+      inquire (file=kv%value_c,exist=ex)
+      if (ex) then
+        job%refcharges = kv%value_c
       else
-        write(stderr,'(a,a,a)') 'specified reference charge file ',val,' does not exist'
+        write (stderr,'(a,a,a)') 'specified reference charge file ',kv%value_c,' does not exist'
         error stop
-      endif
-
+      end if
 
     case ('print')
-      select case (val)
-      case ('true','yes')
-        job%pr = .true.
-      case ('false','no')
-        job%pr = .false.
-      case ('append','cont','continuous')
-        job%pr = .true.
-        job%prappend = .true.
+      select case (kv%id)
+      case (2)
+        select case (kv%value_c)
+        case ('true','yes')
+          job%pr = .true.
+        case ('false','no')
+          job%pr = .false.
+        case ('append','cont','continuous')
+          job%pr = .true.
+          job%prappend = .true.
+        end select
+      case (3)
+        job%pr = kv%value_b
       end select
       if (job%pr) job%prch = 999  !> the actual ID will be generated automatically
 
-    case('getsasa')
-      call get_atlist(env%ref%nat,job%getsasa,val,env%ref%at)
+    case ('getsasa')
+      call get_atlist(env%ref%nat,job%getsasa,kv%value_c,env%ref%at)
 
-    end select
-    return
-  end subroutine parse_setting_c
-  subroutine parse_setting_bool(job,key,val)
-    implicit none
-    type(calculation_settings) :: job
-    character(len=*) :: key
-    logical :: val
-    select case (key)
+!>--- booleans
     case ('rdwbo')
-      job%rdwbo = val
+      job%rdwbo = kv%value_b
     case ('rddip','rddipole')
-      job%rddip = val
+      job%rddip = kv%value_b
     case ('rdqat','rdchrg')
-      job%rdqat = val
+      job%rdqat = kv%value_b
     case ('dumpq','dumpchrg')
-      job%rdqat = val
-      job%dumpq = val
+      job%rdqat = kv%value_b
+      job%dumpq = kv%value_b
     case ('dipgrad')
-      job%rddipgrad = val
+      job%rddipgrad = kv%value_b
     case ('rdgrad')
-      job%rdgrad = val
+      job%rdgrad = kv%value_b
     case ('refresh')
-      job%apiclean = val
+      job%apiclean = kv%value_b
     case ('lmo','lmocent')
-      job%getlmocent = val
-    case ('print')
-      job%pr = val
-      if (val) job%prch = 999  !> the actual ID will be generated automatically
+      job%getlmocent = kv%value_b
+
+    case default
+    !>--- keyword not correctly read/found 
+      rd = .false.
+      continue
     end select
-    return
-  end subroutine parse_setting_bool
-  subroutine parse_setting_array(job,kv,key)
-    implicit none
-    type(calculation_settings) :: job
-    type(keyvalue) :: kv
-    character(len=*) :: key
-    select case (key)
-    case ('config')
-      call job%addconfig(kv%value_ia)
-    end select
-    return
-  end subroutine parse_setting_array
+  end subroutine parse_setting_auto
 
 !========================================================================================!
 
@@ -483,11 +443,11 @@ contains !> MODULE PROCEDURES START HERE
     logical :: rd
     if (blk%header .ne. 'calculation') return
     do i = 1,blk%nkv
-      call parse_calc(env,calc,blk%kv_list(i),rd)
-      if(.not.rd)then
-        istat = istat + 1
+      call parse_calc_auto(env,calc,blk%kv_list(i),rd)
+      if (.not.rd) then
+        istat = istat+1
         write (stdout,fmturk) '[calculation]-block',blk%kv_list(i)%key
-      endif
+      end if
     end do
     return
   end subroutine parse_calcdat
@@ -498,7 +458,7 @@ contains !> MODULE PROCEDURES START HERE
     type(keyvalue) :: kv
     logical,intent(out) :: rd
     logical,allocatable :: atlist(:)
-    rd=.true.
+    rd = .true.
     select case (kv%key)
     case ('optlev','ancopt_level')
       env%optlev = optlevnum(kv%rawvalue)
@@ -524,19 +484,19 @@ contains !> MODULE PROCEDURES START HERE
       calc%maxcycle = kv%value_i  !> optimization max cycles
 
 !>--- strings
-    case ('id','type') 
-     !> (OLD setting) calculation type
-     select case(kv%id)
-     case(2)
-       calc%id = kv%value_i
-     case(4)
-      select case (kv%value_c)
-      case ('mecp')
-        calc%id = -1
-      case default
-        calc%id = 0
+    case ('id','type')
+      !> (OLD setting) calculation type
+      select case (kv%id)
+      case (2)
+        calc%id = kv%value_i
+      case (4)
+        select case (kv%value_c)
+        case ('mecp')
+          calc%id = -1
+        case default
+          calc%id = 0
+        end select
       end select
-     end select
 
     case ('elog')
       calc%elog = kv%value_c
@@ -555,7 +515,9 @@ contains !> MODULE PROCEDURES START HERE
       case ('schlegel')
         calc%iupdat = 4
       case default
-        calc%iupdat = 0
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        error stop
       end select
 
     case ('opt','opt_engine','opt_algo')
@@ -568,6 +530,10 @@ contains !> MODULE PROCEDURES START HERE
         calc%opt_engine = 2
       case ('gd','gradient descent')
         calc%opt_engine = -1
+      case default
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        error stop
       end select
 
     case ('freeze')
@@ -583,7 +549,7 @@ contains !> MODULE PROCEDURES START HERE
       calc%exact_rf = kv%value_b
 
     case default
-       rd=.false.
+      rd = .false.
     end select
   end subroutine parse_calc_auto
 
@@ -603,9 +569,9 @@ contains !> MODULE PROCEDURES START HERE
     logical :: success
     type(constraint) :: constr
     integer :: i
-    !type(coord) :: mol 
+    !type(coord) :: mol
     logical,allocatable :: atlist(:)
-    if (blk%header .ne. 'calculation.constraints' .and.  &
+    if (blk%header .ne. 'calculation.constraints'.and.  &
     & blk%header .ne. 'calculation.constraint') return
     success = .false.
     call constr%deallocate()
@@ -617,6 +583,7 @@ contains !> MODULE PROCEDURES START HERE
         call get_atlist(env%ref%nat,atlist,blk%kv_list(i)%rawvalue,env%ref%at)
         calc%nfreeze = count(atlist)
         call move_alloc(atlist,calc%freezelist)
+
       end select
     end do
     if (success) then
@@ -688,7 +655,7 @@ contains !> MODULE PROCEDURES START HERE
             constr%atms(k) = j
           end if
         end do
-        deallocate (atlist) 
+        deallocate (atlist)
       end if
       constr%n = n
 
@@ -712,11 +679,11 @@ contains !> MODULE PROCEDURES START HERE
       end select
 
     case ('wscal') !> scaling factor if the wall potential is automatically set up
-      if(kv%id == valuetypes%int)then
-        constr%wscal = max(0.0_wp, real(kv%value_i))
-      elseif(kv%id == valuetypes%float)then
-        constr%wscal = max(0.0_wp, kv%value_f)
-      endif
+      if (kv%id == valuetypes%int) then
+        constr%wscal = max(0.0_wp,real(kv%value_i))
+      elseif (kv%id == valuetypes%float) then
+        constr%wscal = max(0.0_wp,kv%value_f)
+      end if
 
 !>--- the following are for specifiying keywords in a single line
 !>--- I don't know it was wise to code them like this because it's hacky,
@@ -1071,7 +1038,7 @@ contains !> MODULE PROCEDURES START HERE
       end if
     case ('printstep')
       mddat%printstep = val
-    case('blocklength','blockl')
+    case ('blocklength','blockl')
       mddat%blockl = val
     case ('t','temp','temperature')
       mddat%tsoll = float(val)
@@ -1088,12 +1055,12 @@ contains !> MODULE PROCEDURES START HERE
     character(len=*) :: val
     logical :: ex
     select case (key)
-    case('restart')
-      inquire(file=trim(val),exist=ex)
-      if(ex)then
+    case ('restart')
+      inquire (file=trim(val),exist=ex)
+      if (ex) then
         mddat%restart = .true.
         mddat%restartfile = trim(val)
-      endif   
+      end if
     case default
       return
     end select

@@ -320,7 +320,7 @@ contains   !> MODULE PROCEDURES START HERE
       case default
         !>--- unrecognized keyword
         istat = istat+1
-        write (stdout,fmturk) 'cregen-block',kv%key
+        write (stdout,fmturk) '[cregen]-block',kv%key
       end select
     end do
   end subroutine parse_cregen
@@ -371,7 +371,7 @@ contains   !> MODULE PROCEDURES START HERE
       case default
         !>--- unrecognized keyword
         istat = istat+1
-        write (stdout,fmturk) 'confsolv-block',kv%key
+        write (stdout,fmturk) '[confsolv]-block',kv%key
       end select
     end do
   end subroutine parse_confsolv
@@ -418,7 +418,7 @@ contains   !> MODULE PROCEDURES START HERE
       case default
         !>--- unrecognized keyword
         istat = istat+1
-        write (stdout,fmturk) 'thermo-block',kv%key
+        write (stdout,fmturk) '[thermo]-block',kv%key
       end select
     end do
   end subroutine parse_thermo
@@ -461,7 +461,7 @@ contains   !> MODULE PROCEDURES START HERE
       case default
         !>--- unrecognized keyword
         istat = istat+1
-        write (stdout,fmturk) 'protonation-block',kv%key
+        write (stdout,fmturk) '[protonation]-block',kv%key
       end select
     end do
   end subroutine parse_protonation
