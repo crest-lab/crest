@@ -52,10 +52,6 @@ module parse_calcdata
 !>-- routines for parsing a calcdata object
   interface parse_calc
     module procedure :: parse_calc_auto
-    module procedure :: parse_calc_float
-    module procedure :: parse_calc_int
-    module procedure :: parse_calc_c
-    module procedure :: parse_calc_bool
   end interface parse_calc
 
 !>-- routines for parsing a mddata object
@@ -79,13 +75,16 @@ module parse_calcdata
   public :: parse_calculation_data
   public :: parse_dynamics_data
 
+  character(len=*),parameter,private :: fmturk = '("unrecognized KEYWORD in ",a," : ",a)'
+  character(len=*),parameter,private :: fmtura = '("unrecognized ARGUMENT : ",a)'
+
 !========================================================================================!
 !========================================================================================!
 contains !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
-  subroutine parse_calculation_data(env,calc,dict,included)
+  subroutine parse_calculation_data(env,calc,dict,included,istat)
     implicit none
     type(systemdata) :: env
     type(calcdata) :: calc
@@ -94,7 +93,8 @@ contains !> MODULE PROCEDURES START HERE
     type(calculation_settings) :: newjob,newjob2
     type(constraint) :: newcstr
     integer :: i,j,k,l
-    logical,intent(out) :: included
+    logical,intent(out)   :: included
+    integer,intent(inout) :: istat
     type(coord) :: moltmp
 
     included = .false.
@@ -107,7 +107,7 @@ contains !> MODULE PROCEDURES START HERE
       blk = dict%blk_list(i)
       if (blk%header == 'calculation') then
         included = .true.
-        call parse_calcdat(env,blk,calc)
+        call parse_calcdat(env,blk,calc,istat)
 
       else if (blk%header == 'calculation.level') then
         call parse_leveldata(env,blk,newjob)
@@ -469,7 +469,7 @@ contains !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine parse_calcdat(env,blk,calc)
+  subroutine parse_calcdat(env,blk,calc,istat)
 !***********************************************
 !* The following routines are used to
 !* read information into the "calcdata" object
@@ -478,100 +478,72 @@ contains !> MODULE PROCEDURES START HERE
     type(systemdata),intent(inout) :: env
     type(datablock),intent(in) :: blk
     type(calcdata),intent(inout) :: calc
+    integer,intent(inout) :: istat
     integer :: i
+    logical :: rd
     if (blk%header .ne. 'calculation') return
     do i = 1,blk%nkv
-      call parse_calc(env,calc,blk%kv_list(i))
+      call parse_calc(env,calc,blk%kv_list(i),rd)
+      if(.not.rd)then
+        istat = istat + 1
+        write (stdout,fmturk) '[calculation]-block',blk%kv_list(i)%key
+      endif
     end do
     return
   end subroutine parse_calcdat
-  subroutine parse_calc_auto(env,calc,kv)
+  subroutine parse_calc_auto(env,calc,kv,rd)
     implicit none
     type(systemdata),intent(inout) :: env
     type(calcdata) :: calc
     type(keyvalue) :: kv
-    select case (kv%id)
-    case (1) !> float
-      call parse_calc(env,calc,kv%key,kv%value_f)
-    case (2) !> int
-      call parse_calc(env,calc,kv%key,kv%value_i)
-    case (3) !> bool
-      call parse_calc(env,calc,kv%key,kv%value_b)
-    case (4) !> string
-      call parse_calc(env,calc,kv%key,kv%value_c)
-    end select
-    !> other, with multiple or raw type
+    logical,intent(out) :: rd
+    logical,allocatable :: atlist(:)
+    rd=.true.
     select case (kv%key)
     case ('optlev','ancopt_level')
       env%optlev = optlevnum(kv%rawvalue)
-    end select
-  end subroutine parse_calc_auto
-  subroutine parse_calc_float(env,calc,key,val)
-    implicit none
-    type(systemdata),intent(inout) :: env
-    type(calcdata) :: calc
-    character(len=*) :: key
-    real(wp) :: val
-    select case (key)
+
+!>--- floats
     case ('converge_e','ethr_opt')
-      calc%ethr_opt = val  !> optimization ΔE convergenve threshold (Ha)
+      calc%ethr_opt = kv%value_f  !> optimization ΔE convergenve threshold (Ha)
 
     case ('converge_g','gthr_opt','rmsforce')
-      calc%gthr_opt = val !> optimization RMS convergence threshold (Ha/a0)
+      calc%gthr_opt = kv%value_f !> optimization RMS convergence threshold (Ha/a0)
 
     case ('maxerise')
-      calc%maxerise = val !> optimization max E rise (Ha)
+      calc%maxerise = kv%value_f !> optimization max E rise (Ha)
 
     case ('displ_opt','maxdispl')
-      calc%maxdispl_opt = val !> optimization step size/scaling
+      calc%maxdispl_opt = kv%value_f !> optimization step size/scaling
 
     case ('hguess')
-      calc%hguess = val  !> guess for the initial hessian
+      calc%hguess = kv%value_f  !> guess for the initial hessian
 
-    case default
-      return
-    end select
-    return
-  end subroutine parse_calc_float
-  subroutine parse_calc_int(env,calc,key,val)
-    implicit none
-    type(systemdata),intent(inout) :: env
-    type(calcdata) :: calc
-    character(len=*) :: key
-    integer :: val
-    select case (key)
-    case ('id','type')
-      calc%id = val
-
+!>--- integers
     case ('maxcycle')
-      calc%maxcycle = val  !> optimization max cycles
+      calc%maxcycle = kv%value_i  !> optimization max cycles
 
-    case default
-      return
-    end select
-    return
-  end subroutine parse_calc_int
-  subroutine parse_calc_c(env,calc,key,val)
-    implicit none
-    type(systemdata),intent(inout) :: env
-    type(calcdata) :: calc
-    character(len=*) :: key
-    character(len=*) :: val
-    logical,allocatable :: atlist(:)
-    select case (key)
-    case ('type')
-      select case (val)
+!>--- strings
+    case ('id','type') 
+     !> (OLD setting) calculation type
+     select case(kv%id)
+     case(2)
+       calc%id = kv%value_i
+     case(4)
+      select case (kv%value_c)
       case ('mecp')
         calc%id = -1
       case default
         calc%id = 0
       end select
+     end select
+
     case ('elog')
-      calc%elog = val
+      calc%elog = kv%value_c
       calc%pr_energies = .true.
 
     case ('hess_update','hupdate')
-      select case (val) !> Hessian updates in geom. Opt.
+      select case (kv%value_c) !> Hessian updates in geom. Opt.
       case ('bfgs')
         calc%iupdat = 0
       case ('powell')
@@ -587,7 +559,7 @@ contains !> MODULE PROCEDURES START HERE
       end select
 
     case ('opt','opt_engine','opt_algo')
-      select case (val)
+      select case (kv%value_c)
       case ('ancopt','rfo-anc')
         calc%opt_engine = 0
       case ('lbfgs','l-bfgs')
@@ -599,33 +571,21 @@ contains !> MODULE PROCEDURES START HERE
       end select
 
     case ('freeze')
-      call get_atlist(env%ref%nat,atlist,val,env%ref%at)
+      call get_atlist(env%ref%nat,atlist,kv%value_c,env%ref%at)
       calc%nfreeze = count(atlist)
       call move_alloc(atlist,calc%freezelist)
 
-    case default
-      return
-    end select
-    return
-  end subroutine parse_calc_c
-  subroutine parse_calc_bool(env,calc,key,val)
-    implicit none
-    type(systemdata),intent(inout) :: env
-    type(calcdata) :: calc
-    character(len=*) :: key
-    logical :: val
-    select case (key)
+!>--- booleans
     case ('eprint')
-      calc%pr_energies = val
+      calc%pr_energies = kv%value_b
 
     case ('exact_rf')
-      calc%exact_rf = val
+      calc%exact_rf = kv%value_b
 
     case default
-      return
+       rd=.false.
     end select
-    return
-  end subroutine parse_calc_bool
+  end subroutine parse_calc_auto
 
 !========================================================================================!
 

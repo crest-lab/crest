@@ -374,17 +374,20 @@ contains !> MODULE PROCEDURES START HERE
       return
     end if
 
-    !> real
     if (is_float(atmp)) then
+    !>--- real
       read (atmp,*,iostat=io) num
       kv%id = valuetypes%float
       kv%value_f = num
-
-      !> integer
+      kv%value_i = nint(num) !> backed up  
+ 
     else if (is_int(atmp)) then
+    !>--- integer
       read (atmp,*,iostat=io) num
       kv%id = valuetypes%int
       kv%value_i = nint(num)
+      kv%value_f = real(num,wp) !> backed up
+ 
     end if
 
     return

@@ -62,6 +62,7 @@ subroutine parseinputfile(env,fname)
   type(mddata) :: mddat
   logical :: ex,l1,l2
   integer :: i,j,k,l
+  integer :: readstatus
 
 !>--- check for the input files' existence
   inquire (file=fname,exist=ex)
@@ -76,10 +77,13 @@ subroutine parseinputfile(env,fname)
   call parse_input(fname,dict)
   call dict%print()
 
+!>--- sanity check for input files
+  readstatus = 0  !> has to remain 0, or something went wrong 
+
 !>--- parse all root-level key-value pairs
   do i = 1,dict%nkv
     kv = dict%kv_list(i)
-    call parse_main_auto(env,kv)
+    call parse_main_auto(env,kv,readstatus)
   end do
 !>------------------------------------------------------
 !> After this point I assume an input structure was
@@ -89,12 +93,12 @@ subroutine parseinputfile(env,fname)
 !>--- parse all objects that write to env or global data
   do i = 1,dict%nblk
     blk = dict%blk_list(i)
-    call parse_main_blk(env,blk)
+    call parse_main_blk(env,blk,readstatus)
   end do
 
 !>--- check objects for a calculation setup
 !     i.e., all [calculation] and [[calculation.*]] blocks
-  call parse_calculation_data(env,newcalc,dict,l1)
+  call parse_calculation_data(env,newcalc,dict,l1,readstatus)
   if (l1) then
     env%calc = newcalc
     call env_calcdat_specialcases(env)
@@ -106,6 +110,12 @@ subroutine parseinputfile(env,fname)
   if (l1) then
     env%mddat = mddat
   end if
+
+!>--- terminate if there were any unrecognized keywords
+  if(readstatus /= 0)then
+    write(stdout, '(i0,a)') readstatus,' error(s) while reading input file'
+    error stop
+  endif  
 
 !>--- check for lwONIOM setup (will be read at end of confparse)
   do i = 1,dict%nblk
