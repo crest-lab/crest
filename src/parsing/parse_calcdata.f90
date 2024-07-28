@@ -133,7 +133,7 @@ contains !> MODULE PROCEDURES START HERE
         included = .true.
 
       else if (blk%header == 'calculation.scans') then
-        call parse_scandat(blk,calc)
+        call parse_scandat(blk,calc,istat)
         included = .true.
 
       end if
@@ -817,7 +817,7 @@ contains !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine parse_scandat(blk,calc)
+  subroutine parse_scandat(blk,calc,istat)
 !*******************************************
 !* The following routines are used to
 !* read information into the "scan" object
@@ -826,27 +826,34 @@ contains !> MODULE PROCEDURES START HERE
     implicit none
     type(datablock),intent(in) :: blk
     type(calcdata),intent(inout) :: calc
+    integer,intent(inout) :: istat
     logical :: success
     type(scantype) :: scn
     integer :: i
+    logical :: rd
     if (blk%header .ne. 'calculation.scans') return
     do i = 1,blk%nkv
-      call parse_scan_auto(scn,blk%kv_list(i),success)
+      call parse_scan_auto(scn,blk%kv_list(i),success,rd)
+      if (.not.rd) then
+        istat = istat+1
+        write (stdout,fmturk) '[['//blk%header//']]-block',blk%kv_list(i)%key
+      end if
       if (success) then
         call calc%add(scn)
       end if
     end do
     return
   end subroutine parse_scandat
-  subroutine parse_scan_auto(scn,kv,success)
+  subroutine parse_scan_auto(scn,kv,success,rd)
     implicit none
     type(keyvalue) :: kv
     type(scantype) :: scn
-    logical,intent(out) :: success
+    logical,intent(out) :: success,rd
     real(wp) :: dum1,dum2,dum3
     integer :: atm1,atm2,atm3,atm4
     integer :: nsteps
     success = .false.
+    rd=.true.
     call scn%deallocate()
     select case (kv%key)
     case ('bond','distance')
@@ -910,6 +917,7 @@ contains !> MODULE PROCEDURES START HERE
       end if
 
     case default
+      rd=.false.
       return
     end select
 
