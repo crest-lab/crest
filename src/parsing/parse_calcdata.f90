@@ -129,7 +129,7 @@ contains !> MODULE PROCEDURES START HERE
         included = .true.
 
       else if (index(blk%header,'calculation.constraint') .ne. 0) then
-        call parse_constraintdat(env,moltmp,blk,calc)
+        call parse_constraintdat(env,moltmp,blk,calc,istat)
         included = .true.
 
       else if (blk%header == 'calculation.scans') then
@@ -262,9 +262,9 @@ contains !> MODULE PROCEDURES START HERE
     case ('flags')
       job%other = kv%value_c
 
-    !> don't.
-    !case ('sys','syscall','systemcall')
-    !  job%systemcall = val
+      !> don't.
+      !case ('sys','syscall','systemcall')
+      !  job%systemcall = val
 
     case ('calcspace','dir')
       job%calcspace = kv%value_c
@@ -421,7 +421,7 @@ contains !> MODULE PROCEDURES START HERE
       job%getlmocent = kv%value_b
 
     case default
-    !>--- keyword not correctly read/found 
+      !>--- keyword not correctly read/found
       rd = .false.
       continue
     end select
@@ -555,7 +555,7 @@ contains !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine parse_constraintdat(env,mol,blk,calc)
+  subroutine parse_constraintdat(env,mol,blk,calc,istat)
 !*************************************************
 !* The following routines are used to
 !* read information into the "constraint" object
@@ -566,25 +566,21 @@ contains !> MODULE PROCEDURES START HERE
     type(coord),intent(inout) :: mol
     type(datablock),intent(in) :: blk
     type(calcdata),intent(inout) :: calc
+    integer,intent(inout) :: istat
     logical :: success
     type(constraint) :: constr
     integer :: i
-    !type(coord) :: mol
-    logical,allocatable :: atlist(:)
+    logical :: rd
     if (blk%header .ne. 'calculation.constraints'.and.  &
     & blk%header .ne. 'calculation.constraint') return
     success = .false.
     call constr%deallocate()
     do i = 1,blk%nkv
-      call parse_constraint_auto(env,constr,blk%kv_list(i),success)
-
-      select case (blk%kv_list(i)%key)
-      case ('freeze')
-        call get_atlist(env%ref%nat,atlist,blk%kv_list(i)%rawvalue,env%ref%at)
-        calc%nfreeze = count(atlist)
-        call move_alloc(atlist,calc%freezelist)
-
-      end select
+      call parse_constraint_auto(env,calc,constr,blk%kv_list(i),success,rd)
+      if (.not.rd) then
+        istat = istat+1
+        write (stdout,fmturk) '[['//blk%header//']]-block',blk%kv_list(i)%key
+      end if
     end do
     if (success) then
       call constr%complete(mol)
@@ -592,18 +588,26 @@ contains !> MODULE PROCEDURES START HERE
     end if
     return
   end subroutine parse_constraintdat
-  subroutine parse_constraint_auto(env,constr,kv,success)
+  subroutine parse_constraint_auto(env,calc,constr,kv,success,rd)
     implicit none
     type(systemdata) :: env
     type(keyvalue) :: kv
     type(constraint) :: constr
     logical,intent(inout) :: success
+    type(calcdata),intent(inout) :: calc
     real(wp) :: dum1,dum2,dum3,dum4
     real(wp) :: rabc(3)
     integer :: atm1,atm2,atm3,atm4,n,k,j
     logical,allocatable :: atlist(:)
-    !success = .false.
+    logical,intent(out) :: rd
+    rd = .true.
     select case (kv%key)
+
+    case ('freeze')
+      call get_atlist(env%ref%nat,atlist,kv%rawvalue,env%ref%at)
+      calc%nfreeze = count(atlist)
+      call move_alloc(atlist,calc%freezelist)
+
     case ('type') !> the type of constraint
       select case (kv%value_c)
       case ('bond','bonds'); constr%type = 1
@@ -615,6 +619,10 @@ contains !> MODULE PROCEDURES START HERE
       case ('bondrange'); constr%type = 8
       case ('gapdiff'); constr%type = -1
       case ('gapdiff2','mecp'); constr%type = -2
+      case default
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        error stop
       end select
       if (constr%type /= 0) success = .true.
 
@@ -800,6 +808,7 @@ contains !> MODULE PROCEDURES START HERE
 !>--------------
 !>--------------
     case default
+      rd = .false.
       return
     end select
 
