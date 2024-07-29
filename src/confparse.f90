@@ -268,17 +268,17 @@ subroutine parseflags(env,arg,nra)
   env%fixfile = 'none selected'
 
 !>--- options for possible property calculations, mainly protonation/deprotonation/taut. tool
-  env%protb%popthr = 0.01_wp  !> = 1% population
   env%protb%ewin = 30.0_wp  !> 30 kcal for protonation
   env%protb%swat = 0
   env%protb%swchrg = 0
-  env%protb%iter = 1           !> number of iteration cycles for tautomerization
-  env%protb%swelem = .false. !> replace H⁺ in protonation routine by something else?
-  env%protb%allowFrag = .false. !> allow dissociated Structures?
+  env%protb%iter = 1             !> number of iteration cycles for tautomerization
+  env%protb%swelem = .false.     !> replace H⁺ in protonation routine by something else?
+  env%protb%allowFrag = .false.  !> allow dissociated Structures?
   env%protb%threshsort = .false. !> use ewin threshold window
   env%protb%protdeprot = .false. !> (tautomerize) do first protonation and then deprotonation
   env%protb%deprotprot = .false. !> (tautomerize) do first deprotonation and then protonation
   env%protb%strictPDT = .false.  !> strict mode (i.e. bond constraints) for (de)protonation,tautomerization
+  env%protb%ffopt = .true. !> FF pre-optimization (CREST>3.0.2)
   env%pclean = .false.       !> cleanup option for property mode
 
 !>--- options for principal component analysis (PCA) and clustering

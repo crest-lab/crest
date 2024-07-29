@@ -23,12 +23,12 @@
 !> This is a rewrite of the original routines since the old ones
 !> got a bit messy over time.
 !> the quickset variable can be used for some special runtypes:
-!>   quickset:  2 - do symmetry analysis
-!>              3 - switch off equivalency analysis
-!>              6 - energy sorting only
-!>              9 - no sorting, only check groups
-!>             12 - no topology check, turn ewin to infty
-!>             13 - no topology check, ewin and rmsd checking (msreact settings)
+!>   quickset:  2   - do symmetry analysis
+!>              3   - switch off equivalency analysis
+!>              6,7 - energy sorting only with (7) or without (6) ewin energy cut-off
+!>              9   - no sorting, only check groups
+!>             12   - no topology check, turn ewin to infty
+!>             13   - no topology check, ewin and rmsd checking (msreact settings)
 !=========================================================================================!
 !=========================================================================================!
 
@@ -335,7 +335,7 @@ subroutine cregen_files(env,fname,oname,cname,simpleset,userinput,iounit)
   call remove(outfile)
   if (simpleset > 0) then
     select case (simpleset)
-    case (6,9,12)
+    case (6,7,9,12)
       iounit = stdout
     case default
       open (newunit=iounit,file=outfile)
@@ -413,7 +413,7 @@ subroutine cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
   pr3 = .false. !> plain energy list
   pr4 = .false. !> group list printout
 
-  if (simpleset == 6) then
+  if (any(simpleset == (/6,7/))) then
     pr1 = .false.
     pr2 = .false.
     if (env%crestver .ne. crest_solv) pr3 = .true.
@@ -489,7 +489,7 @@ subroutine cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
     anal = .false.
   end if
 
-  if (simpleset == 6) then  !energy sorting only
+  if (any(simpleset == (/6,7/))) then  !energy sorting only
     checkbroken = .false.
     sortE = .true.
     sortRMSD = .false.
@@ -575,7 +575,7 @@ subroutine cregen_filldata2(simpleset,ewin)
   implicit none
   integer,intent(in) :: simpleset
   real(wp),intent(out) :: ewin
-  if (simpleset == 6.or.simpleset == 12) then
+  if (any(simpleset == (/6,12/))) then
     ewin = huge(ewin)
   end if
   return
@@ -1082,6 +1082,11 @@ subroutine cregen_esort(ch,nat,nall,xyz,comments,nallout,ewin)
   call stringqsort(nall,comments,1,nall,order)
 
   !>-- determine cut-off of energies
+  if (ewin < 9999.9_wp) then
+    write (ch,'('' sorting energy window (EWIN)   :'',1x,f9.4,a)') ewin,' / kcal*mol⁻¹'
+  else
+    write (ch,'('' sorting energy window (EWIN)   :'',3x,a,a)') '+∞',' / kcal*mol⁻¹'
+  end if
   emax = maxval(energies(:),1)
   de = (emax-energies(1))*autokcal
   if (de .gt. ewin) then
@@ -1094,12 +1099,12 @@ subroutine cregen_esort(ch,nat,nall,xyz,comments,nallout,ewin)
         exit
       end if
     end do
-    write (ch,'('' number of removed by energy    :'',i6)') (nall-nallout)
-    write (ch,'('' number of remaining points     :'',i6)') nallout
+    write (ch,'('' number of removed by energy    :'',3x,i0)') (nall-nallout)
+    write (ch,'('' number of remaining points     :'',3x,i0)') nallout
   else
     nallout = nall
   end if
-  write (ch,*) 'reference state Etot :',energies(1)
+  write (ch,*) 'reference state Etot           :',energies(1)
 
   deallocate (order,orderref)
   deallocate (energies)
@@ -2670,12 +2675,6 @@ subroutine cregen_pr1(ch,env,nat,nall,rthr,bthr,pthr,ewin)
   write (ch,'('' RMSD threshold                 :'',f9.4)') rthr
   write (ch,'('' Bconst threshold               :'',f9.4)') bthr
   write (ch,'('' population threshold           :'',f9.4)') pthr
-  if (ewin < 9999.9_wp) then
-    write (ch,'('' conformer energy window  /kcal :'',f9.4)') ewin
-  else
-    write (ch,'('' conformer energy window  /kcal :'',6x,a)') '+∞'
-  end if
-
   return
 end subroutine cregen_pr1
 
@@ -2924,15 +2923,16 @@ subroutine cregen_pr3(ch,infile,nall,comments)
   end do
 
   write (ch,*)
-  write (ch,'(a)') '==================================================='
-  write (ch,'(a)') '============= ordered structure list =============='
-  write (ch,'(a)') '==================================================='
-  write (ch,'(a,a,a)') ' written to file <',trim(infile),'>'
+  write (ch,'(a)') '====================================================='
+  write (ch,'(a)') '============== ordered structure list ==============='
+  write (ch,'(a)') '====================================================='
+  write (ch,'(a,a,a)') ' written to file <',trim(infile),'>' 
   write (ch,*)
-  write (ch,'(''   structure    ΔE(kcal/mol)    Etot(Eh)'')')
+  write (ch,'(a10,4x,a15,a25)') 'structure','ΔE(kcal/mol)','Etot(Eh)'
+  !write (ch,'(''   structure    ΔE(kcal/mol)    Etot(Eh)'')')
   do i = 1,nall
     dE = (er(i)-er(1))*autokcal
-    write (ch,'(i10,3x,F12.2,2x,F14.6)') i,dE,er(i)
+    write (ch,'(i10,3x,F15.4,F25.10)') i,dE,er(i)
   end do
   write (ch,*)
 

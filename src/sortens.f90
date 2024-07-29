@@ -54,7 +54,7 @@ subroutine sort_ens(sort,infile,verbose)
 
   !sort=env%protb
 
-  associate (popthr => sort%popthr, &
+  associate (&
   & allowFrag => sort%allowFrag,ewin => sort%ewin,     &
   & protdeprot => sort%protdeprot,deprotprot => sort%deprotprot, &
   & nfrag => sort%nfrag,threshsort => sort%threshsort)

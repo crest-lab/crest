@@ -40,6 +40,7 @@ module parse_keyvalue
     character(len=:),allocatable :: value_ca(:) !> id=8, an array of strings/multiline string
   contains
     procedure :: print => print_kv
+    procedure :: print2 => print_kv2
     procedure :: deallocate => deallocate_kv
     procedure :: set_valuestring => kv_set_valuestring
     procedure :: add_raw_array_string => kv_add_raw_array_string
@@ -374,17 +375,20 @@ contains !> MODULE PROCEDURES START HERE
       return
     end if
 
-    !> real
     if (is_float(atmp)) then
+      !>--- real
       read (atmp,*,iostat=io) num
       kv%id = valuetypes%float
       kv%value_f = num
+      kv%value_i = nint(num) !> backed up
 
-      !> integer
     else if (is_int(atmp)) then
+      !>--- integer
       read (atmp,*,iostat=io) num
       kv%id = valuetypes%int
       kv%value_i = nint(num)
+      kv%value_f = real(num,wp) !> backed up
+
     end if
 
     return
@@ -443,13 +447,14 @@ contains !> MODULE PROCEDURES START HERE
     class(keyvalue) :: self
     character(len=20) :: atmp
     character(len=:),allocatable :: btmp
+    integer :: i
     if (allocated(self%rawvalue)) deallocate (self%rawvalue)
     select case (self%id)
     case (valuetypes%float) !> float
-      write (atmp,'(e20.10)') self%value_f
+      write (atmp,'(f20.10)') self%value_f
       atmp = adjustl(atmp)
     case (valuetypes%int) !> integer
-      write (atmp,'(i20)') self%value_i
+      write (atmp,'(i0)') self%value_i
       atmp = adjustl(atmp)
     case (valuetypes%bool) !> boolean
       if (self%value_b) then
@@ -461,26 +466,53 @@ contains !> MODULE PROCEDURES START HERE
       btmp = self%value_c
 
     case (valuetypes%float_array) !> float array
-      write (atmp,'(e20.5)') self%value_fa(1)
-      btmp = '['//trim(adjustl(atmp))//', ... ]'
+      btmp = '['
+      do i = 1,self%na-1
+        write (atmp,*) self%value_fa(i)
+        btmp = trim(btmp)//trim(atmp)//','
+      end do
+      write (atmp,*) self%value_fa(self%na)
+      btmp = trim(btmp)//trim(atmp)//']'
 
     case (valuetypes%int_array) !> int array
-      write (atmp,'(i20)') self%value_ia(1)
-      btmp = '['//trim(adjustl(atmp))//', ... ]'
+      btmp = '['
+      do i = 1,self%na-1
+        write (atmp,'(i0)') self%value_ia(i)
+        btmp = trim(btmp)//trim(atmp)//','
+      end do
+      write (atmp,'(i0)') self%value_ia(self%na)
+      btmp = trim(btmp)//trim(atmp)//']'
 
     case (valuetypes%bool_array) !> bool array
-      if (self%value_ba(1)) then
+      btmp = '['
+      do i = 1,self%na-1
+        if (self%value_ba(i)) then
+          atmp = 'true'
+        else
+          atmp = 'false'
+        end if
+        btmp = trim(btmp)//trim(atmp)//','
+      end do
+      if (self%value_ba(self%na)) then
         atmp = 'true'
       else
         atmp = 'false'
       end if
-      btmp = '['//trim(adjustl(atmp))//', ... ]'
+      btmp = trim(btmp)//trim(atmp)//']'
 
     case (valuetypes%string_array) !> multiline comment
-      btmp = '["'//trim(self%value_ca(1))//'", ..., etc.'
+      btmp = '['
+      do i = 1,self%na-1
+        btmp = trim(btmp)//'"'//trim(self%value_rawa(i))//'",'
+      end do
+      btmp = trim(btmp)//'"'//trim(self%value_rawa(self%Na))//'"]'
 
     case (valuetypes%raw_array) !> unspecified array
-      btmp = '['//trim(self%value_rawa(1))//', ..., etc.'
+      btmp = '['
+      do i = 1,self%na-1
+        btmp = trim(btmp)//trim(self%value_rawa(i))//','
+      end do
+      btmp = trim(btmp)//trim(self%value_rawa(self%Na))//']'
 
     case default
       atmp = ''
@@ -611,5 +643,18 @@ contains !> MODULE PROCEDURES START HERE
       outs = ins(1:l)
     end if
   end subroutine truncate15
+
+  function print_kv2(self) result(outstr)
+    implicit none
+    character(len=:),allocatable :: outstr
+    class(keyvalue) :: self
+    select case (self%id)
+    case (valuetypes%string)
+      outstr = self%key//' = "'//self%rawvalue//'"'
+    case default
+      outstr = self%key//' = '//self%rawvalue
+    end select
+  end function print_kv2
+
 !========================================================================================!
 end module parse_keyvalue

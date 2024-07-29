@@ -65,6 +65,13 @@ contains  !> MODULE PROCEDURES START HERE
     molnew%nat = mol%nat
     !$omp end critical
 
+    !> Check for optimization-individual calculation setup
+    if(calc%optnewinit)then
+      !$omp critical
+      call calc%dealloc_params()
+      !$omp end critical
+    endif
+
     !> initial singlepoint
     call engrad(molnew,calc,etot,grd,iostatus)
 
@@ -85,7 +92,7 @@ contains  !> MODULE PROCEDURES START HERE
       write(stdout,'(a)') 'Unknown optimization engine!'
       stop
     end select
-
+    molnew%energy = etot   
     return
   end subroutine optimize_geometry
 
@@ -132,6 +139,10 @@ contains  !> MODULE PROCEDURES START HERE
     write (ich,'(1x,a,e10.3,a,e10.3,a)') 'E/G convergence criteria: ',&
     & ethr,' Eh,',gthr,' Eh/a0'
 
+    write (ich,'(1x,a,i0)') 'maximum optimization steps: ',calc%maxcycle
+     
   end subroutine print_opt_data
+
+!========================================================================================!
 !========================================================================================!
 end module optimize_module

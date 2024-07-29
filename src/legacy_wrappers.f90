@@ -50,7 +50,7 @@ subroutine env2calc(env,calc,molin)
   cal%chrg = env%chrg
 !>-- obtain WBOs OFF by default
   cal%rdwbo = .false.
-  cal%rddip = .true.
+  cal%rddip = .false.
   !> except for SP runtype (from command line!)
   if (env%crestver == crest_sp) then
     cal%rdwbo = .true.
@@ -361,11 +361,11 @@ subroutine protonate(env,tim)
   implicit none
   type(systemdata) :: env
   type(timer)   :: tim
-  !if (env%legacy) then
+!  if (env%legacy) then
     call protonate_legacy(env,tim)
-  !else
-  !  call crest_new_protonate(env,tim)
-  !end if
+!  else
+!    call crest_new_protonate(env,tim)
+!  end if
 end subroutine protonate
 
 !========================================================================================!

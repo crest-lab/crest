@@ -103,6 +103,9 @@ contains  !> MODULE PROCEDURES START HERE
     logical l1,l2,l3,flip
     integer LWORK,IWORK,LIWORK,INFO
     integer :: iscreen,icoord,ilmoi,icent ! file handles
+    integer :: ntmpsave
+    real(wp),allocatable :: tmpsave(:,:)
+    
 
     !> BLAS
     external dgemm
@@ -275,6 +278,8 @@ contains  !> MODULE PROCEDURES START HERE
     call mocent(nat,nao2,n,cmo,s,qmo,xcen,aoat2)
 
     allocate (rklmo(5,2*n))
+    allocate (tmpsave(4,2*n), source=0.0_wp)
+    ntmpsave=0
     !if (pr_local) write (*,*) 'lmo centers(Z=2) and atoms on file <lmocent.coord>'
     if (pr_local) write (*,*) ' LMO type  Fii/eV   ncent   charge center         contributions...'
 !    if (pr_local) open (newunit=iscreen,file='xtbscreen.xyz')
@@ -330,7 +335,7 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- write + LP/pi as H for protonation search
       if (pr_local) then
         if (jdum .gt. 1) then
-          if (i .eq. maxlp.or.(i .eq. maxpi.and.maxlp .eq. 0)) then
+!          if (i .eq. maxlp.or.(i .eq. maxpi.and.maxlp .eq. 0)) then
 !            open (newunit=icoord,file='coordprot.0')
 !            write (icoord,'(''$coord'')')
 !            do ii = 1,nat
@@ -346,9 +351,16 @@ contains  !> MODULE PROCEDURES START HERE
 !              write (iscreen,'(a2,3F24.10)') i2e(at(ii)),xyz(1:3,ii)*autoaa
 !            end do
 !            write (iscreen,'(a2,3F24.10)') i2e(1),ecent(i,1:3)*autoaa
-          end if
+!          end if
         end if
       end if
+
+!>--- tmpsave
+      if(jdum.gt.1)then
+        ntmpsave = ntmpsave + 1
+        tmpsave(1:3, ntmpsave) = ecent(i,1:3)
+        tmpsave(4,ntmpsave) = float(jdum)
+      endif
 
     end do
 
@@ -471,6 +483,11 @@ contains  !> MODULE PROCEDURES START HERE
 !            end do
 !            write (iscreen,'(a2,3F24.10)') i2e(1),dtot(1:3)*autoaa
           end if
+          !>--- tmpsave
+          ntmpsave = ntmpsave + 1
+          tmpsave(1:3, ntmpsave) = dtot(1:3)
+          tmpsave(4,ntmpsave) = rklmo(5,pmo)
+
 
           imo = lneigh(1,pmo)
           vec1(1:3) = xyz(1:3,nm)
@@ -482,7 +499,6 @@ contains  !> MODULE PROCEDURES START HERE
           rklmo(4:5,n+k) = rklmo(4:5,imo)
           rklmo(5,smo) = 0 ! remove sigma
 
-          !> add to screen file, protomer search
           if (pr_local) then
 !            write (iscreen,*) nat+1
 !            write (iscreen,*)
@@ -491,6 +507,10 @@ contains  !> MODULE PROCEDURES START HERE
 !            end do
 !            write (iscreen,'(a2,3F24.10)') i2e(1),dtot(1:3)*autoaa
           end if
+          !>--- tmpsave
+          ntmpsave = ntmpsave + 1
+          tmpsave(1:3, ntmpsave) = dtot(1:3)
+          tmpsave(4,ntmpsave) = rklmo(5,imo)
 
           m = m+1
         end do
@@ -506,22 +526,21 @@ contains  !> MODULE PROCEDURES START HERE
  !ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
     !> collect possible protonation sites for output
-    nprot = 0
-    k = new+n
-    do i=1,k
-      if(rklmo(5,i) > 1) nprot=nprot+1
+    nprot = ntmpsave
+    do i =1,ntmpsave
+      tmpsave(4,i) = tmpsave(4,i) - 1.0_wp !> adjust numbering (we discard sigma anyways)
+      if(tmpsave(4,i) < 1.0_wp) nprot=nprot-1
     enddo
     if(nprot > 0)then
       allocate(protxyz(4,nprot), source=0.0_wp)
-      m=0
-      do i=1,k
-        if(nint(rklmo(5,i)) > 1)then
-          m=m+1
-          protxyz(1:3,m) = rklmo(1:3,i)  
-          protxyz(4,m) = rklmo(5,i)
-        endif
-      enddo  
+      ii=0
+      do i=1,ntmpsave
+         if(tmpsave(4,i) < 1.0_wp) cycle
+         ii=ii+1
+         protxyz(:,ii) = tmpsave(:,i)
+      enddo
     endif
+    deallocate(tmpsave)
 
  !ccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
@@ -555,14 +574,6 @@ contains  !> MODULE PROCEDURES START HERE
 !      call close_file(ilmoi)
 !      if (pr_local) call close_file(icent)
 !    end if
-
-    if (pr_local) then
-!      write (*,*) 'files:'
-!      write (*,*) 'coordprot.0/xtbscreen.xyz/xtblmoinfo/lmocent.coord'
-!      write (*,*) 'with protonation site input, xtbdock and'
-!      write (*,*) 'LMO center info written'
-!      write (*,*)
-    end if
 
     deallocate (xcen,cca,d,f,qmo,ecent,rklmo)
 

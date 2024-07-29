@@ -68,10 +68,12 @@ module calc_type
 !&>
 
 !=========================================================================================!
-!>--- data object that contains the data for a *SINGLE* calculation
+
   public :: calculation_settings
   type :: calculation_settings
-
+!**********************************************************************
+!* data object that contains the data for a *SINGLE* calculation level
+!**********************************************************************
     integer :: id = 0         !> calculation type (see "jobtype" parameter above)
     integer :: prch = stdout  !> printout channel
     logical :: pr = .false.   !> allow the calculation to produce printout? Results in a lot I/O
@@ -148,7 +150,7 @@ module calc_type
     character(len=:),allocatable :: tbliteparam
 
 !>--- GFN0-xTB data
-    type(gfn0_data),allocatable          :: g0calc
+    type(gfn0_data),allocatable :: g0calc
     integer :: nconfig = 0
     integer,allocatable :: config(:)
     real(wp),allocatable :: occ(:)
@@ -181,13 +183,16 @@ module calc_type
     procedure :: norestarts => calculation_settings_norestarts
     procedure :: dumpdipgrad => calculation_dump_dipgrad
   end type calculation_settings
-!=========================================================================================!
 
 !=========================================================================================!
-!> data object that collects settings for *ALL* calculations and constraints.
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!=========================================================================================!
+
   public :: calcdata
   type :: calcdata
-
+!*****************************************************************************
+!* data object that collects settings for *ALL* calculations and constraints.
+!*****************************************************************************
     integer :: id = 0  !> this parameter will decide how to return or add up energies and gradients
     integer :: refine_stage = 0 !> to allow iterating different refinement stages
 
@@ -223,6 +228,8 @@ module calc_type
     real(wp) :: etot
 
 !>--- optimization settings
+    logical  :: optnewinit = .false.  !> ensure fresh calc/param setup at beginning of opt
+    logical  :: anopt = .false.  !> allow collecting structures that ran into maxcycle?
     integer  :: optlev = 0
     integer  :: micro_opt = 20
     integer  :: maxcycle = 0
@@ -272,6 +279,7 @@ module calc_type
     procedure :: freezegrad => calculation_freezegrad
     procedure :: increase_charge => calculation_increase_charge
     procedure :: decrease_charge => calculation_decrease_charge
+    procedure :: dealloc_params => calculation_deallocate_params
   end type calcdata
 
   public :: get_dipoles
@@ -328,59 +336,25 @@ contains  !>--- Module routines start here
     return
   end subroutine calculation_reset
 
-  subroutine calculation_settings_deallocate(self)
-    implicit none
-    class(calculation_settings) :: self
+!=========================================================================================!
 
-    if (allocated(self%calcspace)) deallocate (self%calcspace)
-    if (allocated(self%calcfile)) deallocate (self%calcfile)
-    if (allocated(self%gradfile)) deallocate (self%gradfile)
-    if (allocated(self%path)) deallocate (self%path)
-    if (allocated(self%other)) deallocate (self%other)
-    if (allocated(self%binary)) deallocate (self%binary)
-    if (allocated(self%systemcall)) deallocate (self%systemcall)
-    if (allocated(self%description)) deallocate (self%description)
-    if (allocated(self%wbo)) deallocate (self%wbo)
-    if (allocated(self%dipgrad)) deallocate (self%dipgrad)
-    if (allocated(self%gradkey)) deallocate (self%gradkey)
-    if (allocated(self%efile)) deallocate (self%efile)
-    if (allocated(self%solvmodel)) deallocate (self%solvmodel)
-    if (allocated(self%solvent)) deallocate (self%solvent)
-    if (allocated(self%tblite)) deallocate (self%tblite)
-    if (allocated(self%g0calc)) deallocate (self%g0calc)
-    if (allocated(self%ff_dat)) deallocate (self%ff_dat)
-    if (allocated(self%xhcff)) deallocate (self%xhcff)
-
-    self%id = 0
-    self%prch = stdout
-    self%chrg = 0
-    self%uhf = 0
-    self%epot = 0.0_wp
-    self%efix = 0.0_wp
-    self%etot = 0.0_wp
-
-    self%rdwbo = .false.
-    self%rddip = .false.
-    self%dipole = 0.0_wp
-    self%rddipgrad = .false.
-    self%gradtype = 0
-    self%gradfmt = 0
-
-    self%tblitelvl = 2
-    self%etemp = 300.0_wp
-    self%accuracy = 1.0_wp
-    self%apiclean = .false.
-    self%maxscc = 500
-    self%saveint = .false.
-
-    self%ngrid = 230
-    self%extpressure = 0.0_wp
-    self%proberad = 1.5_wp
-
-    self%ONIOM_highlowroot = 0
-    self%ONIOM_id = 0
-    return
-  end subroutine calculation_settings_deallocate
+  subroutine calculation_deallocate_params(self)
+!**********************************************
+!* Deallocate parametrization/model setup
+!* This only applies (or is useful) for a few
+!* selected model like GFN-FF, gfn0 and tblite
+!**********************************************
+    class(calcdata) :: self
+    integer :: i,j,k
+    if (self%ncalculations > 0) then
+      do i = 1,self%ncalculations
+        if(allocated(self%calcs(i)%tblite)) deallocate(self%calcs(i)%tblite)
+        if(allocated(self%calcs(i)%g0calc)) deallocate(self%calcs(i)%g0calc)
+        if(allocated(self%calcs(i)%ff_dat)) deallocate(self%calcs(i)%ff_dat)
+        if(allocated(self%calcs(i)%xhcff)) deallocate(self%calcs(i)%xhcff)
+      end do
+    end if
+  end subroutine calculation_deallocate_params
 
 !=========================================================================================!
 
@@ -660,137 +634,63 @@ contains  !>--- Module routines start here
 
 !=========================================================================================!
 
-  subroutine calculation_settings_addconfig(self,config)
+  subroutine calc_set_active(self,ids)
     implicit none
-    class(calculation_settings) :: self
-    integer,intent(in)  :: config(:)
-    integer :: i,j
-    integer :: l,lold,lnew,n,nnew
-    integer,allocatable :: configtmp(:,:)
-
-    l = size(config,1)
-    if (allocated(self%config)) deallocate (self%config)
-    allocate (self%config(l))
-    self%config = config
-  end subroutine calculation_settings_addconfig
-
-!=========================================================================================!
-
-  subroutine calculation_settings_norestarts(self)
-!*************************************************
-!* remove restart options from this calculation
-!*************************************************
-    implicit none
-    class(calculation_settings) :: self
-    self%restart = .false.
-    if (allocated(self%refgeo)) deallocate (self%refgeo)
-    if (allocated(self%restartfile)) deallocate (self%restartfile)
-  end subroutine calculation_settings_norestarts
-
-!=========================================================================================!
-
-!>-- check for missing settings in a calculation_settings object
-  subroutine calculation_settings_autocomplete(self,id)
-    implicit none
-    class(calculation_settings) :: self
-    integer,intent(in)  :: id
-    integer :: i,j
-    character(len=50) :: nmbr
-
-    !> add a short description
-    self%description = trim(jobdescription(self%id+1))
-    call calculation_settings_shortflag(self)
-
-    if (.not.allocated(self%calcspace)) then
-      !> I've decided to perform all calculations in a separate directory to
-      !> avoid accumulation of files in the main workspace
-      write (nmbr,'(i0)') id
-      self%calcspace = 'calculation.level.'//trim(nmbr)
-    end if
-
-    if (self%pr) then
-      self%prch = self%prch+id
-    end if
-  end subroutine calculation_settings_autocomplete
-
-!>--- create a short calculation info flag
-    subroutine calculation_settings_shortflag(self)
-    implicit none
-    class(calculation_settings) :: self
-    integer :: i,j
-
-    select case( self%id )
-    case( jobtype%xtbsys )   
-      self%shortflag = 'xtb subprocess'
-    case( jobtype%generic ) 
-      self%shortflag = 'generic subprocess' 
-    case( jobtype%turbomole ) 
-      self%shortflag = 'TURBOMOLE subprocess'
-    case( jobtype%orca ) 
-      self%shortflag = 'ORCA subprocess'
-    case( jobtype%terachem ) 
-      self%shortflag = 'TeraChem subprocess'
-    case( jobtype%tblite )
-      select case (self%tblitelvl)
-      case (xtblvl%gfn2)
-        self%shortflag = 'GFN2-xTB'
-      case (xtblvl%gfn1)
-        self%shortflag = 'GFN1-xTB'
-      case (xtblvl%ipea1)
-        self%shortflag = 'IPEA1-xTB'
-      case (xtblvl%ceh)
-        self%shortflag = 'CEH'
-      case (xtblvl%eeq)
-        self%shortflag = 'EEQ(D4)'
-      case (xtblvl%param)
-        self%shortflag = 'parameter file: '//trim(self%tbliteparam)
-      end select
-    case( jobtype%gfn0 )
-      self%shortflag =  'GFN0-xTB' 
-    case( jobtype%gfn0occ )
-      self%shortflag =  'GFN0-xTB*'
-    case( jobtype%gfnff )
-      self%shortflag =  'GFN-FF'
-    case( jobtype%xhcff )
-      self%shortflag =  'XHCFF'
-    case( jobtype%lj )
-      self%shortflag =  'LJ'
-    case default
-      self%shortflag = 'undefined'
-    end select
-    if(allocated(self%solvmodel).and.allocated(self%solvent))then
-      self%shortflag = self%shortflag//'/'//trim(self%solvmodel)
-       self%shortflag = self%shortflag//'('//trim(self%solvent)//')'
-    endif
-  end subroutine calculation_settings_shortflag
-
-
-
-
-!>-- generate a unique print id for the calculation
-  subroutine calculation_settings_printid(self,thread,id)
-    implicit none
-    class(calculation_settings) :: self
-    integer,intent(in)  :: thread,id
-    integer :: i,j,dum
-    character(len=50) :: nmbr
-    dum = 100*(thread+1)
-    dum = dum+id
-    self%prch = dum
-  end subroutine calculation_settings_printid
-
-  subroutine calculation_dump_dipgrad(self,filename)
-    implicit none
-    class(calculation_settings) :: self
-    character(len=*),intent(in) :: filename
-    integer :: i,j,ich
-    if (.not.allocated(self%dipgrad)) return
-    open (newunit=ich,file=filename)
-    do i = 1,size(self%dipgrad,2)
-      write (ich,'(3f20.10)') self%dipgrad(1:3,i)
+    class(calcdata) :: self
+    integer,intent(in) :: ids(:)
+    integer :: i,j,k,l
+    if (allocated(self%weightbackup)) deallocate (self%weightbackup)
+!>--- on-the-fly multiscale definition
+    allocate (self%weightbackup(self%ncalculations),source=1.0_wp)
+    do i = 1,self%ncalculations
+!>--- save backup weights
+      self%weightbackup(i) = self%calcs(i)%weight
+!>--- set the weight of all unwanted calculations to 0
+      if (.not.any(ids(:) .eq. i)) then
+        self%calcs(i)%weight = 0.0_wp
+        self%calcs(i)%active = .false.
+      else
+!>--- and all other to 1
+        self%calcs(i)%weight = 1.0_wp
+        self%calcs(i)%active = .true.
+      end if
     end do
-    close (ich)
-  end subroutine calculation_dump_dipgrad
+  end subroutine calc_set_active
+
+  subroutine calc_set_active_restore(self)
+    implicit none
+    class(calcdata) :: self
+    integer :: i,j,k,l
+    if (.not.allocated(self%weightbackup)) return
+    do i = 1,self%ncalculations
+!>--- set all to active and restore saved weights
+      self%calcs(i)%weight = self%weightbackup(i)
+      self%calcs(i)%active = .true.
+      self%eweight(i) = self%weightbackup(i)
+    end do
+    deallocate (self%weightbackup)
+  end subroutine calc_set_active_restore
+
+!==========================================================================================!
+
+  subroutine get_dipoles(calc,diptmp)
+!*********************************************
+!* Collect the x y and z dipole moments for
+!* each calculation level in one array diptmp
+!*********************************************
+    implicit none
+    type(calcdata),intent(inout) :: calc
+    real(wp),allocatable,intent(out) :: diptmp(:,:)
+    integer :: i,j,k,l,m
+
+    m = calc%ncalculations
+    allocate (diptmp(3,m),source=0.0_wp)
+    do i = 1,m
+      if (calc%calcs(i)%rddip) then
+        diptmp(1:3,i) = calc%calcs(i)%dipole(1:3)
+      end if
+    end do
+  end subroutine get_dipoles
 
 !=========================================================================================!
 
@@ -893,95 +793,6 @@ contains  !>--- Module routines start here
     write (stdout,*) 'done.'
   end subroutine calculation_ONIOMexpand
 
-!=========================================================================================!
-  subroutine calculation_settings_info(self,iunit)
-    implicit none
-    class(calculation_settings) :: self
-    integer,intent(in) :: iunit
-    integer :: i,j
-    character(len=*),parameter :: fmt1 = '(" :",2x,a20," : ",i0)'
-    character(len=*),parameter :: fmt2 = '(" :",2x,a20," : ",f0.5)'
-    character(len=*),parameter :: fmt3 = '(" :",2x,a20," : ",a)'
-    character(len=*),parameter :: fmt4 = '(" :",1x,a)'
-    character(len=20) :: atmp
-
-    if (allocated(self%description)) then
-      write (iunit,'(" :",1x,a)') trim(self%description)
-    else
-      write (atmp,*) 'Job type'
-      write (iunit,fmt1) atmp,self%id
-    end if
-    !> more info
-    if (self%id == jobtype%tblite) then
-      select case (self%tblitelvl)
-      case (xtblvl%gfn2)
-        write (iunit,fmt4) 'GFN2-xTB level'
-      case (xtblvl%gfn1)
-        write (iunit,fmt4) 'GFN1-xTB level'
-      case (xtblvl%ceh)
-        write (iunit,fmt4) 'Charge Extended Hückel (CEH) model'
-      end select
-    end if
-    if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &
-    &  jobtype%generic,jobtype%terachem/) == self%id)) then
-      write (iunit,'(" :",3x,a,a)') 'selected binary : ',trim(self%binary)
-    end if
-    if (self%refine_lvl > 0) then
-      write (atmp,*) 'refinement stage'
-      write (iunit,fmt1) atmp,self%refine_lvl
-    end if
-
-    !> system data
-    write (atmp,*) 'Molecular charge'
-    write (iunit,fmt1) atmp,self%chrg
-    if (self%uhf /= 0) then
-      write (atmp,*) 'UHF parameter'
-      write (iunit,fmt1) atmp,self%uhf
-    end if
-
-    if (allocated(self%solvmodel)) then
-      write (atmp,*) 'Solvation model'
-      write (iunit,fmt3) atmp,trim(self%solvmodel)
-    end if
-    if (allocated(self%solvent)) then
-      write (atmp,*) 'Solvent'
-      write (iunit,fmt3) atmp,trim(self%solvent)
-    end if
-
-    !> xTB specific parameters
-    if (any((/jobtype%tblite,jobtype%xtbsys,jobtype%gfn0,jobtype%gfn0occ/) == self%id)) then
-      write (atmp,*) 'Fermi temperature'
-      write (iunit,fmt2) atmp,self%etemp
-      write (atmp,*) 'Accuracy'
-      write (iunit,fmt2) atmp,self%accuracy
-      write (atmp,*) 'max SCC cycles'
-      write (iunit,fmt1) atmp,self%maxscc
-    end if
-
-    write (atmp,*) 'Reset data?'
-    if (self%apiclean) write (iunit,fmt3) atmp,'yes'
-    write (atmp,*) 'Read WBOs?'
-    if (self%rdwbo) write (iunit,fmt3) atmp,'yes'
-    write (atmp,*) 'Read dipoles?'
-    if (self%rddip) write (iunit,fmt3) atmp,'yes'
-
-    if (self%ONIOM_highlowroot /= 0) then
-      select case (self%ONIOM_highlowroot)
-      case (1)
-        write (atmp,*) 'ONIOM frag ("high")'
-      case (2)
-        write (atmp,*) 'ONIOM frag ("low")'
-      case (3)
-        write (atmp,*) 'ONIOM frag ("root")'
-      end select
-      write (iunit,fmt1) trim(atmp),self%ONIOM_id
-    else
-      write (atmp,*) 'Weight'
-      write (iunit,fmt2) atmp,self%weight
-    end if
-
-  end subroutine calculation_settings_info
-
 !========================================================================================!
 
   subroutine calculation_info(self,iunit)
@@ -1066,6 +877,291 @@ contains  !>--- Module routines start here
     return
   end subroutine calculation_info
 
+
+
+!=========================================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!> CALCULATION_SETTINGS associated routines
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!=========================================================================================!
+
+  subroutine calculation_settings_deallocate(self)
+    implicit none
+    class(calculation_settings) :: self
+
+    if (allocated(self%calcspace)) deallocate (self%calcspace)
+    if (allocated(self%calcfile)) deallocate (self%calcfile)
+    if (allocated(self%gradfile)) deallocate (self%gradfile)
+    if (allocated(self%path)) deallocate (self%path)
+    if (allocated(self%other)) deallocate (self%other)
+    if (allocated(self%binary)) deallocate (self%binary)
+    if (allocated(self%systemcall)) deallocate (self%systemcall)
+    if (allocated(self%description)) deallocate (self%description)
+    if (allocated(self%wbo)) deallocate (self%wbo)
+    if (allocated(self%dipgrad)) deallocate (self%dipgrad)
+    if (allocated(self%gradkey)) deallocate (self%gradkey)
+    if (allocated(self%efile)) deallocate (self%efile)
+    if (allocated(self%solvmodel)) deallocate (self%solvmodel)
+    if (allocated(self%solvent)) deallocate (self%solvent)
+    if (allocated(self%tblite)) deallocate (self%tblite)
+    if (allocated(self%g0calc)) deallocate (self%g0calc)
+    if (allocated(self%ff_dat)) deallocate (self%ff_dat)
+    if (allocated(self%xhcff)) deallocate (self%xhcff)
+
+    self%id = 0
+    self%prch = stdout
+    self%chrg = 0
+    self%uhf = 0
+    self%epot = 0.0_wp
+    self%efix = 0.0_wp
+    self%etot = 0.0_wp
+
+    self%rdwbo = .false.
+    self%rddip = .false.
+    self%dipole = 0.0_wp
+    self%rddipgrad = .false.
+    self%gradtype = 0
+    self%gradfmt = 0
+
+    self%tblitelvl = 2
+    self%etemp = 300.0_wp
+    self%accuracy = 1.0_wp
+    self%apiclean = .false.
+    self%maxscc = 500
+    self%saveint = .false.
+
+    self%ngrid = 230
+    self%extpressure = 0.0_wp
+    self%proberad = 1.5_wp
+
+    self%ONIOM_highlowroot = 0
+    self%ONIOM_id = 0
+    return
+  end subroutine calculation_settings_deallocate
+
+!=========================================================================================!
+
+  subroutine calculation_settings_addconfig(self,config)
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in)  :: config(:)
+    integer :: i,j
+    integer :: l,lold,lnew,n,nnew
+    integer,allocatable :: configtmp(:,:)
+
+    l = size(config,1)
+    if (allocated(self%config)) deallocate (self%config)
+    allocate (self%config(l))
+    self%config = config
+  end subroutine calculation_settings_addconfig
+
+!=========================================================================================!
+
+  subroutine calculation_settings_norestarts(self)
+!*************************************************
+!* remove restart options from this calculation
+!*************************************************
+    implicit none
+    class(calculation_settings) :: self
+    self%restart = .false.
+    if (allocated(self%refgeo)) deallocate (self%refgeo)
+    if (allocated(self%restartfile)) deallocate (self%restartfile)
+  end subroutine calculation_settings_norestarts
+
+!=========================================================================================!
+
+!>-- check for missing settings in a calculation_settings object
+  subroutine calculation_settings_autocomplete(self,id)
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in)  :: id
+    integer :: i,j
+    character(len=50) :: nmbr
+
+    !> add a short description
+    self%description = trim(jobdescription(self%id+1))
+    call calculation_settings_shortflag(self)
+
+    if (.not.allocated(self%calcspace)) then
+      !> I've decided to perform all calculations in a separate directory to
+      !> avoid accumulation of files in the main workspace
+      write (nmbr,'(i0)') id
+      self%calcspace = 'calculation.level.'//trim(nmbr)
+    end if
+
+    if (self%pr .and. self%prch.ne.stdout) then
+      self%prch = self%prch+id
+    end if
+  end subroutine calculation_settings_autocomplete
+
+!>--- create a short calculation info flag
+    subroutine calculation_settings_shortflag(self)
+    implicit none
+    class(calculation_settings) :: self
+    integer :: i,j
+
+    select case( self%id )
+    case( jobtype%xtbsys )   
+      self%shortflag = 'xtb subprocess'
+    case( jobtype%generic ) 
+      self%shortflag = 'generic subprocess' 
+    case( jobtype%turbomole ) 
+      self%shortflag = 'TURBOMOLE subprocess'
+    case( jobtype%orca ) 
+      self%shortflag = 'ORCA subprocess'
+    case( jobtype%terachem ) 
+      self%shortflag = 'TeraChem subprocess'
+    case( jobtype%tblite )
+      select case (self%tblitelvl)
+      case (xtblvl%gfn2)
+        self%shortflag = 'GFN2-xTB'
+      case (xtblvl%gfn1)
+        self%shortflag = 'GFN1-xTB'
+      case (xtblvl%ipea1)
+        self%shortflag = 'IPEA1-xTB'
+      case (xtblvl%ceh)
+        self%shortflag = 'CEH'
+      case (xtblvl%eeq)
+        self%shortflag = 'EEQ(D4)'
+      case (xtblvl%param)
+        self%shortflag = 'parameter file: '//trim(self%tbliteparam)
+      end select
+    case( jobtype%gfn0 )
+      self%shortflag =  'GFN0-xTB' 
+    case( jobtype%gfn0occ )
+      self%shortflag =  'GFN0-xTB*'
+    case( jobtype%gfnff )
+      self%shortflag =  'GFN-FF'
+    case( jobtype%xhcff )
+      self%shortflag =  'XHCFF'
+    case( jobtype%lj )
+      self%shortflag =  'LJ'
+    case default
+      self%shortflag = 'undefined'
+    end select
+    if(allocated(self%solvmodel).and.allocated(self%solvent))then
+      self%shortflag = self%shortflag//'/'//trim(self%solvmodel)
+       self%shortflag = self%shortflag//'('//trim(self%solvent)//')'
+    endif
+  end subroutine calculation_settings_shortflag
+
+!>-- generate a unique print id for the calculation
+  subroutine calculation_settings_printid(self,thread,id)
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in)  :: thread,id
+    integer :: i,j,dum
+    character(len=50) :: nmbr
+    dum = 100*(thread+1)
+    dum = dum+id
+    self%prch = dum
+  end subroutine calculation_settings_printid
+
+  subroutine calculation_dump_dipgrad(self,filename)
+    implicit none
+    class(calculation_settings) :: self
+    character(len=*),intent(in) :: filename
+    integer :: i,j,ich
+    if (.not.allocated(self%dipgrad)) return
+    open (newunit=ich,file=filename)
+    do i = 1,size(self%dipgrad,2)
+      write (ich,'(3f20.10)') self%dipgrad(1:3,i)
+    end do
+    close (ich)
+  end subroutine calculation_dump_dipgrad
+
+!=========================================================================================!
+
+  subroutine calculation_settings_info(self,iunit)
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in) :: iunit
+    integer :: i,j
+    character(len=*),parameter :: fmt1 = '(" :",2x,a20," : ",i0)'
+    character(len=*),parameter :: fmt2 = '(" :",2x,a20," : ",f0.5)'
+    character(len=*),parameter :: fmt3 = '(" :",2x,a20," : ",a)'
+    character(len=*),parameter :: fmt4 = '(" :",1x,a)'
+    character(len=20) :: atmp
+
+    if (allocated(self%description)) then
+      write (iunit,'(" :",1x,a)') trim(self%description)
+    else
+      write (atmp,*) 'Job type'
+      write (iunit,fmt1) atmp,self%id
+    end if
+    !> more info
+    if (self%id == jobtype%tblite) then
+      select case (self%tblitelvl)
+      case (xtblvl%gfn2)
+        write (iunit,fmt4) 'GFN2-xTB level'
+      case (xtblvl%gfn1)
+        write (iunit,fmt4) 'GFN1-xTB level'
+      case (xtblvl%ceh)
+        write (iunit,fmt4) 'Charge Extended Hückel (CEH) model'
+      end select
+    end if
+    if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &
+    &  jobtype%generic,jobtype%terachem/) == self%id)) then
+      write (iunit,'(" :",3x,a,a)') 'selected binary : ',trim(self%binary)
+    end if
+    if (self%refine_lvl > 0) then
+      write (atmp,*) 'refinement stage'
+      write (iunit,fmt1) atmp,self%refine_lvl
+    end if
+
+    !> system data
+    write (atmp,*) 'Molecular charge'
+    write (iunit,fmt1) atmp,self%chrg
+    if (self%uhf /= 0) then
+      write (atmp,*) 'UHF parameter'
+      write (iunit,fmt1) atmp,self%uhf
+    end if
+
+    if (allocated(self%solvmodel)) then
+      write (atmp,*) 'Solvation model'
+      write (iunit,fmt3) atmp,trim(self%solvmodel)
+    end if
+    if (allocated(self%solvent)) then
+    write (atmp,*) 'Solvent'
+      write (iunit,fmt3) atmp,trim(self%solvent)
+    end if
+
+    !> xTB specific parameters
+    if (any((/jobtype%tblite,jobtype%xtbsys,jobtype%gfn0,jobtype%gfn0occ/) == self%id)) then
+      write (atmp,*) 'Fermi temperature'
+      write (iunit,fmt2) atmp,self%etemp
+      write (atmp,*) 'Accuracy'
+      write (iunit,fmt2) atmp,self%accuracy
+      write (atmp,*) 'max SCC cycles'
+      write (iunit,fmt1) atmp,self%maxscc
+    end if
+
+    write (atmp,*) 'Reset data?'
+    if (self%apiclean) write (iunit,fmt3) atmp,'yes'
+    write (atmp,*) 'Read WBOs?'
+    if (self%rdwbo) write (iunit,fmt3) atmp,'yes'
+    write (atmp,*) 'Read dipoles?'
+    if (self%rddip) write (iunit,fmt3) atmp,'yes'
+
+    if (self%ONIOM_highlowroot /= 0) then
+      select case (self%ONIOM_highlowroot)
+      case (1)
+        write (atmp,*) 'ONIOM frag ("high")'
+      case (2)
+        write (atmp,*) 'ONIOM frag ("low")'
+      case (3)
+        write (atmp,*) 'ONIOM frag ("root")'
+      end select
+      write (iunit,fmt1) trim(atmp),self%ONIOM_id
+    else
+      if(self%weight .ne. 1.0_wp)then
+        write (atmp,*) 'Weight'
+        write (iunit,fmt2) atmp,self%weight
+      endif
+    end if
+
+  end subroutine calculation_settings_info
+
 !=========================================================================================!
 
   subroutine create_calclevel_shortcut(self,levelstring)
@@ -1101,68 +1197,10 @@ contains  !>--- Module routines start here
       self%id = jobtype%generic
 
     end select
+    call self%autocomplete(self%id)
   end subroutine create_calclevel_shortcut
 
 !=========================================================================================!
-
-  subroutine calc_set_active(self,ids)
-    implicit none
-    class(calcdata) :: self
-    integer,intent(in) :: ids(:)
-    integer :: i,j,k,l
-    if (allocated(self%weightbackup)) deallocate (self%weightbackup)
-!>--- on-the-fly multiscale definition
-    allocate (self%weightbackup(self%ncalculations),source=1.0_wp)
-    do i = 1,self%ncalculations
-!>--- save backup weights
-      self%weightbackup(i) = self%calcs(i)%weight
-!>--- set the weight of all unwanted calculations to 0
-      if (.not.any(ids(:) .eq. i)) then
-        self%calcs(i)%weight = 0.0_wp
-        self%calcs(i)%active = .false.
-      else
-!>--- and all other to 1
-        self%calcs(i)%weight = 1.0_wp
-        self%calcs(i)%active = .true.
-      end if
-    end do
-  end subroutine calc_set_active
-
-  subroutine calc_set_active_restore(self)
-    implicit none
-    class(calcdata) :: self
-    integer :: i,j,k,l
-    if (.not.allocated(self%weightbackup)) return
-    do i = 1,self%ncalculations
-!>--- set all to active and restore saved weights
-      self%calcs(i)%weight = self%weightbackup(i)
-      self%calcs(i)%active = .true.
-      self%eweight(i) = self%weightbackup(i)
-    end do
-    deallocate (self%weightbackup)
-  end subroutine calc_set_active_restore
-
-!==========================================================================================!
-
-  subroutine get_dipoles(calc,diptmp)
-!*********************************************
-!* Collect the x y and z dipole moments for
-!* each calculation level in one array diptmp
-!*********************************************
-    implicit none
-    type(calcdata),intent(inout) :: calc
-    real(wp),allocatable,intent(out) :: diptmp(:,:)
-    integer :: i,j,k,l,m
-
-    m = calc%ncalculations
-    allocate (diptmp(3,m),source=0.0_wp)
-    do i = 1,m
-      if (calc%calcs(i)%rddip) then
-        diptmp(1:3,i) = calc%calcs(i)%dipole(1:3)
-      end if
-    end do
-  end subroutine get_dipoles
-
-!=========================================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !=========================================================================================!
 end module calc_type

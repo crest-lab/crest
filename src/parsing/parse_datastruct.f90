@@ -44,6 +44,7 @@ module parse_datastruct
     procedure :: addblk => root_addblk
     procedure :: lowercase_keys => root_lowercase_keys
     procedure :: print => root_print
+    procedure :: print2 => root_print2
   end type root_object
 
 !========================================================================================!
@@ -123,6 +124,25 @@ contains  !> MODULE PROCEDURES START HERE
       call self%blk_list(i)%print()
     end do
   end subroutine root_print
+
+
+  subroutine root_print2(self)
+    class(root_object) :: self
+    integer :: i
+    if (allocated(self%filename)) then
+      write(stdout,'(a)') repeat('*',80)
+      write (stdout,'("*",1x,a,a,a)') 'INPUT FILE ',self%filename,' content (without comments):'
+    end if
+    write(stdout,'(a)') repeat('*',80)
+    do i = 1,self%nkv
+      write (stdout,'("*",1x,a)') trim(self%kv_list(i)%print2())
+    end do
+    do i = 1,self%nblk
+      call self%blk_list(i)%print2()
+    end do
+    write(stdout,'(a)') repeat('*',80)
+  end subroutine root_print2
+
 
 !========================================================================================!
 end module parse_datastruct
