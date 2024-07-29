@@ -127,6 +127,9 @@ module strucrd
     module procedure wrensemble_conf
     module procedure wrensemble_conf_energy
     module procedure wrensemble_conf_energy_comment
+
+    module procedure wrensemble_coord_name
+    module procedure wrensemble_coord_channel
   end interface wrensemble
 
   public :: pdbdata
@@ -496,7 +499,7 @@ contains  !> MODULE PROCEDURES START HERE
 ! can have a diferent number and order of atoms.
 ! version 2 does not read energies
 !=================================================================!
-  subroutine rdensemble_mixed2(fname,natmax,nall,nats,ats,xyz)
+  subroutine rdensemble_mixed2(fname,natmax,nall,nats,ats,xyz,comments)
     implicit none
     character(len=*),intent(in) :: fname
     integer,intent(in) :: natmax
@@ -504,6 +507,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer  :: nats(nall)
     integer  :: ats(natmax,nall)
     real(wp) :: xyz(3,natmax,nall)
+    character(len=*) :: comments(nall)
     integer :: i,j,k,ich,io
     logical :: ex
     integer :: dum
@@ -517,6 +521,7 @@ contains  !> MODULE PROCEDURES START HERE
       nats(i) = dum
       read (ich,'(a)',iostat=io) line
       if (io < 0) exit
+      comments(i) = trim(line)
       do j = 1,dum
         read (ich,'(a)',iostat=io) line
         if (io < 0) exit
@@ -552,35 +557,16 @@ contains  !> MODULE PROCEDURES START HERE
     integer,allocatable :: at(:)
     integer,allocatable :: ats(:,:)
     real(wp),allocatable :: eread(:)
+    character(len=512),allocatable :: comments(:)
     integer :: i,j,k,ich,io,nat_i
     logical :: ex,multiple_sizes
 
     call rdensembleparam(fname,nat,nall,multiple_sizes)
-!    if(.not.multiple_sizes)then
-!    !>--- all the same molecule
-!       allocate (xyz(3,nat,nall),at(nat),eread(nall))
-!       call rdensemble(fname,nat,nall,at,xyz,eread)
-!       !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
-!       !>--- Important: coord types must be in Bohrs
-!       xyz = xyz/bohr
-!       !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
-!
-!       allocate (structures(nall))
-!       do i = 1,nall
-!         structures(i)%nat = nat
-!         allocate (structures(i)%at(nat))
-!         structures(i)%at(:) = at(:)
-!         allocate (structures(i)%xyz(3,nat))
-!         structures(i)%xyz(:,:) = xyz(:,:,i)
-!         structures(i)%energy = eread(i)
-!       end do
-!
-!       deallocate (eread,at,xyz)
-!    else
     !>--- multiple sizes
        allocate(structures(nall))
        allocate(xyz(3,nat,nall),ats(nat,nall),nats(nall),eread(nall))
-       call rdensemble_mixed2(fname,nat,nall,nats,ats,xyz)
+       allocate(comments(nall))
+       call rdensemble_mixed2(fname,nat,nall,nats,ats,xyz,comments)
        !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
        !>--- Important: coord types must be in Bohrs
        xyz = xyz/bohr
@@ -592,11 +578,12 @@ contains  !> MODULE PROCEDURES START HERE
          structures(i)%at(:) = ats(1:nat_i,i)
          allocate (structures(i)%xyz(3,nat_i))
          structures(i)%xyz(:,:) = xyz(1:3,1:nat_i,i)
+         eread(i) = grepenergy(comments(i))
          structures(i)%energy = eread(i)
+         structures(i)%comment = trim(comments(i))
        end do
 
-       deallocate(eread,nats,ats,xyz)
- !   endif
+       deallocate(comments,eread,nats,ats,xyz)
   end subroutine rdensemble_coord_type
 
 !=================================================================!
@@ -684,6 +671,35 @@ contains  !> MODULE PROCEDURES START HERE
     call wrensemble_conf_energy(fname,self%nat,self%nall,self%at,self%xyz,self%er)
     return
   end subroutine write_ensemble
+
+
+  subroutine wrensemble_coord_name(fname,nall,structures)
+    implicit none
+    character(len=*),intent(in) :: fname
+    integer,intent(in) :: nall
+    type(coord) :: structures(nall)
+    integer :: ich,i
+    open (newunit=ich,file=fname,status='replace')
+    do i = 1,nall
+      call structures(i)%append(ich)
+    end do
+    close (ich)
+    return
+  end subroutine wrensemble_coord_name
+
+
+  subroutine wrensemble_coord_channel(ich,nall,structures)
+    implicit none
+    integer,intent(in) :: ich
+    integer,intent(in) :: nall
+    type(coord) :: structures(nall)
+    integer :: i
+    do i = 1,nall
+      call structures(i)%append(ich)
+    end do
+    return
+  end subroutine wrensemble_coord_channel
+
 
 !==================================================================!
 ! subroutine deallocate_ensembletype
@@ -2193,21 +2209,33 @@ end function ncore
     character(len=*),intent(in) :: line
     real(wp) :: energy
     character(len=:),allocatable :: atmp
-    integer :: i,io
+    integer :: i,io,k
     atmp = trim(line)
     energy = 0.0_wp
-    !> assumes that the first float in the line is the energy
-    do i = 1,len_trim(atmp)
-      if (len_trim(atmp) .lt. 1) exit
+    if(index(atmp,'energy=').ne.0)then
+      k=index(atmp,'energy=')
+      atmp=atmp(k+6:)
       read (atmp,*,iostat=io) energy
-      if (io > 0) then
-        atmp = atmp(2:)
-        atmp = adjustl(atmp)
-        cycle
-      else
-        exit
-      end if
-    end do
+      if(io.ne.0) energy=0.0_wp
+    else if(index(atmp,'energy:').ne.0)then
+      k=index(atmp,'energy:')
+      atmp=atmp(k+6:)
+      read (atmp,*,iostat=io) energy
+      if(io.ne.0) energy=0.0_wp
+    else 
+    !> assumes that the first float in the line is the energy
+      do i = 1,len_trim(atmp)
+        if (len_trim(atmp) .lt. 1) exit
+        read (atmp,*,iostat=io) energy
+        if (io > 0) then
+          atmp = atmp(2:)
+          atmp = adjustl(atmp)
+          cycle
+        else
+          exit
+        end if
+      end do
+    endif
     grepenergy = energy
     return
   end function grepenergy

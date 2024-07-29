@@ -78,6 +78,8 @@ subroutine newcregen(env,quickset,infile)
   character(len=128),allocatable :: comments(:)
   character(len=128),allocatable :: comref(:)
   real(wp),allocatable :: er(:)       !> energies
+  type(coord),allocatable :: structures(:)  !> a list of structures using the coord type
+  type(coord),allocatable :: references(:)  !> the reference structure list
 !>--- dummy ensemble arguments
   integer :: nallref
   integer :: nallnew
@@ -159,6 +161,9 @@ subroutine newcregen(env,quickset,infile)
 !>--- allocate space and read in the ensemble
   allocate (at(nat),comments(nallref),xyz(3,nat,nallref))
   call rdensemble(fname,nat,nallref,at,xyz,comments)
+  !call rdensemble(fname,nallref,structures)
+  !allocate(references, source=structures)
+ 
 !>--- track ensemble for restart
   call trackensemble(fname,nat,nallref,at,xyz,comments)
 
@@ -413,7 +418,7 @@ subroutine cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
   pr3 = .false. !> plain energy list
   pr4 = .false. !> group list printout
 
-  if (any(simpleset == (/6,7/))) then
+  if (any(simpleset == (/6,7/)).or.env%esort) then
     pr1 = .false.
     pr2 = .false.
     if (env%crestver .ne. crest_solv) pr3 = .true.
@@ -489,7 +494,7 @@ subroutine cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
     anal = .false.
   end if
 
-  if (any(simpleset == (/6,7/))) then  !energy sorting only
+  if (any(simpleset == (/6,7/)).or.env%esort) then  !energy sorting only
     checkbroken = .false.
     sortE = .true.
     sortRMSD = .false.
