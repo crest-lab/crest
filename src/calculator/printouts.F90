@@ -74,11 +74,11 @@ contains  !> MODULE PROCEDURES START HERE
       do k = 1,calc%ncalculations
         if (calc%calcs(k)%rdwbo) then
           write (iunit,'("> ",a,i3,a:)') 'Calculation level ',k,'; '//calc%calcs(k)%shortflag
-          write (iunit,'(a12,a12,a10)') 'Atom A','Atom B','BO(A-B)'
+          write (iunit,'(a12,a12,a20)') 'Atom A','Atom B','BO(A-B)'
           do i = 1,mol%nat
             do j = 1,i-1
               if (calc%calcs(k)%wbo(i,j) > 0.01_wp) then
-                write (iunit,*) i,j,calc%calcs(k)%wbo(i,j)
+                write (iunit,'(i12,i12,f20.8)') i,j,calc%calcs(k)%wbo(i,j)
               end if
             end do
           end do

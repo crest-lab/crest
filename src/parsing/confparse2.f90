@@ -75,7 +75,7 @@ subroutine parseinputfile(env,fname)
 
 !>--- read the file into the object 'dict'
   call parse_input(fname,dict)
-  call dict%print()
+  call dict%print2()
 
 !>--- sanity check for input files
   readstatus = 0  !> has to remain 0, or something went wrong 
