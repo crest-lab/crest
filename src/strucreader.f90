@@ -2214,12 +2214,12 @@ end function ncore
     energy = 0.0_wp
     if(index(atmp,'energy=').ne.0)then
       k=index(atmp,'energy=')
-      atmp=atmp(k+6:)
+      atmp=atmp(k+7:)
       read (atmp,*,iostat=io) energy
       if(io.ne.0) energy=0.0_wp
     else if(index(atmp,'energy:').ne.0)then
       k=index(atmp,'energy:')
-      atmp=atmp(k+6:)
+      atmp=atmp(k+7:)
       read (atmp,*,iostat=io) energy
       if(io.ne.0) energy=0.0_wp
     else 
