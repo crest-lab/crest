@@ -34,6 +34,7 @@ srcs += files(
   'axis_module.f90',
   'biasmerge.f90',
   'bondconstraint.f90',
+  'canonical.f90',
   'ccegen.f90',
   'choose_settings.f90',
   'classes.f90',

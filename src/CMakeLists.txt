@@ -37,6 +37,7 @@ list(APPEND srcs
   "${dir}/axis_module.f90"
   "${dir}/biasmerge.f90"
   "${dir}/bondconstraint.f90"
+  "${dir}/canonical.f90"
   "${dir}/ccegen.f90"
   "${dir}/choose_settings.f90"
   "${dir}/classes.f90"
