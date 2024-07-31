@@ -410,16 +410,16 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- if the easy checks passed, compare the actual invariants!
     hatms=self%hatms
     allocate(sorted_invariants(hatms,2), source=0)
+    jj=0
+    kk=0
     do i=1,maxrank_a  !> maxrank_a == maxrank_b, see above
-      jj=0
       do j=1,hatms
        if(self%rank(j)==i)then
           jj=jj+1
            sorted_invariants(jj,1) = self%invariants0(j)
        endif 
       enddo
-      kk=0
-      do j=1,hatms
+      do k=1,hatms
        if(other%rank(k)==i)then
           kk=kk+1
           sorted_invariants(kk,2) = other%invariants0(k)

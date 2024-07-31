@@ -75,7 +75,7 @@ subroutine crest_new_protonate(env,tim)
   write (stdout,*) 'Cite as:'
   write (stdout,*) '  P.Pracht, C.A.Bauer, S.Grimme'
   write (stdout,*) '  JCC, 2017, 38, 2618–2631.'
-  write (stdout,*) 
+  write (stdout,*)
 
 !========================================================================================!
   call new_ompautoset(env,'max',0,T,Tn)
@@ -139,7 +139,7 @@ subroutine crest_new_protonate(env,tim)
       case (3)
         write (stdout,'(1x,i5,1x,a,3F12.5)') i,'del.π',protxyz(1:3,i)*autoaa
       case default
-        write (stdout,'(1x,i5,1x,a,3F12.5)') i,'???  ',protxyz(1:3,i)*autoaa  
+        write (stdout,'(1x,i5,1x,a,3F12.5)') i,'???  ',protxyz(1:3,i)*autoaa
       end select
     end do
   else
@@ -192,12 +192,12 @@ subroutine crest_new_protonate(env,tim)
     allocate (tmpcalc_ff)
     tmpcalc_ff%optnewinit = .true.
     env%calc%optnewinit = .true.
-    tmpcalc_ff%optnewinit=.true.
+    tmpcalc_ff%optnewinit = .true.
     call tmpset%create('gfnff')
     tmpset%chrg = env%chrg
     call tmpcalc_ff%add(tmpset)
     tmpcalc_ff%maxcycle = 10000
-    call tmpcalc_ff%info(stdout)    
+    call tmpcalc_ff%info(stdout)
 
     !>--- Run optimizations
     call tim%start(15,'Ensemble optimization (FF)')
@@ -279,7 +279,7 @@ subroutine crest_new_protonate(env,tim)
 !>--- Optimize with global settings
   if (env%protb%finalopt.and.env%protb%ffopt) then
     call smallhead('Final Protomer Ensemble Optimization')
-    allocate(tmpcalc)
+    allocate (tmpcalc)
     call env2calc(env,tmpcalc,mol)
     call tmpcalc%info(stdout)
     !tmpcalc%maxcycle=5
@@ -295,14 +295,22 @@ subroutine crest_new_protonate(env,tim)
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
     call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
 
+    deallocate (xyzp,atp)
+
 !>--- sorting
     write (stdout,'(a)') '> Sorting structures by energy ...'
-    env%ewin = env%protb%ewin
+    env%ewin = env%protb%ewin*5.0_wp
     call newcregen(env,7,trim(atmp))
-    call rename(trim(atmp)//'.sorted','protonated.xyz')
-  else
-    call rename(trim(atmp),'protonated.xyz')
+    call rename(trim(atmp)//'.sorted',trim(atmp))
   end if
+
+!========================================================================================!
+!> Remove doubly generated tautomers
+  call protonation_prep_canonical(env,trim(atmp))
+
+!========================================================================================!
+!>--- move final ensemble to protonated.xyz
+  call rename(trim(atmp),'protonated.xyz')
   write (stdout,'(a)') '> sorted file was renamed to protonated.xyz'
 !========================================================================================!
   return
@@ -347,19 +355,19 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
 !>--- DEFAULT: H⁺
     ichrg = 1
     ati = 1
-  endif
+  end if
   write (stdout,'(a,i0)') '> Increasing the molecular charge by ',ichrg
   call env%calc%increase_charge(ichrg)
-  env%chrg = env%chrg + ichrg
+  env%chrg = env%chrg+ichrg
 
 !>--- Check if we have some other conditions
-   if(any(.not.env%protb%active_lmo(:)))then
-     write(stdout,'(a)',advance='no') '> User-defined: IGNORING '
-     if(.not.env%protb%active_lmo(1)) write(stdout,'(a)',advance='no') 'π '
-     if(.not.env%protb%active_lmo(2)) write(stdout,'(a)',advance='no') 'LP '  
-     if(.not.env%protb%active_lmo(3)) write(stdout,'(a)',advance='no') 'deloc.π '
-     write(stdout,'(a)') 'LMOs ...'
-   endif   
+  if (any(.not.env%protb%active_lmo(:))) then
+    write (stdout,'(a)',advance='no') '> User-defined: IGNORING '
+    if (.not.env%protb%active_lmo(1)) write (stdout,'(a)',advance='no') 'π '
+    if (.not.env%protb%active_lmo(2)) write (stdout,'(a)',advance='no') 'LP '
+    if (.not.env%protb%active_lmo(3)) write (stdout,'(a)',advance='no') 'deloc.π '
+    write (stdout,'(a)') 'LMOs ...'
+  end if
 
 !>--- Populate
   npnew = 0
@@ -367,9 +375,9 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
   do i = 1,np
 !>--- Enforce further constraints, conditions, etc.
     ctype = nint(protxyz(4,i))
-    if(.not.env%protb%active_lmo(ctype)) cycle !> skip unselected LMO types
+    if (.not.env%protb%active_lmo(ctype)) cycle !> skip unselected LMO types
 
-    ii= ii + 1 !> counter of actually created structures
+    ii = ii+1 !> counter of actually created structures
     do j = 1,mol%nat
       xyz(1:3,j,ii) = mol%xyz(1:3,j)
       at(j) = mol%at(j)
@@ -380,6 +388,112 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
   npnew = ii
 
 end subroutine protonation_candidates
+
+!========================================================================================!
+
+subroutine protonation_prep_canonical(env,fname)
+  use crest_parameters
+  use crest_data
+  use strucrd
+  use crest_calculator
+  use tblite_api,only:xtblvl
+  use canonical_mod
+  use iomod, only: remove 
+  implicit none
+  type(systemdata) :: env
+  character(len=*),intent(in) :: fname
+
+  type(calcdata),allocatable :: tmpcalc
+  type(calculation_settings) :: ceh
+  type(coord),allocatable :: structures(:)
+  real(wp),allocatable :: grad(:,:)
+  real(wp) :: energy
+  integer :: nat,nall,i,j,k,io,ich
+
+  type(canonical_sorter),allocatable :: canon(:)
+  integer,allocatable :: group(:)
+  character(len=*),parameter :: outfile = 'unique.xyz'
+
+  call smallhead('Remove duplicates via canonical atom identity')
+
+!>--- read ensemble
+  call rdensemble(fname,nall,structures)
+  nat = structures(1)%nat
+
+  allocate (grad(3,nat),source=0.0_wp)
+!>--- GFN0 job adapted from global settings
+  allocate (tmpcalc)
+  call env2calc(env,tmpcalc,structures(1))
+  tmpcalc%calcs(1)%id = jobtype%gfn0
+  tmpcalc%calcs(1)%rdwbo = .true.      !> WBOs from GFN0
+  tmpcalc%calcs(1)%rdqat = .false.
+  tmpcalc%calcs(1)%chrg = env%chrg
+  tmpcalc%ncalculations = 1
+  tmpcalc%nconstraints = 0
+  ceh%id = jobtype%tblite
+  ceh%tblitelvl = xtblvl%ceh  !> atomic charges from CEH (better than EEQ)
+  ceh%chrg = env%chrg
+  ceh%rdqat = .true.
+  call tmpcalc%add(ceh)
+
+!>--- run singlepoints to document WBOs and charges (doesn't need to be parallel)
+  allocate (canon(nall))
+
+  write (stdout,'(a,i0,a)') '> Performing ',nall,' GFN0 and CEH calculations to get WBOs and atomic charges ...'
+  call crest_oloop_pr_progress(env,nall,0)
+  do i = 1,nall
+    call engrad(structures(i),tmpcalc,energy,grad,io)
+
+    call move_alloc(tmpcalc%calcs(2)%qat, structures(i)%qat)
+    call canon(i)%init(structures(i),tmpcalc%calcs(1)%wbo)
+    call canon(i)%stereo(structures(i))
+    !write(*,*)
+    !call canon(i)%rankprint(structures(i))
+    call canon(i)%shrink()
+
+    call crest_oloop_pr_progress(env,nall,i)
+  end do
+  call crest_oloop_pr_progress(env,nall,-1)
+
+!>--- grouping loop
+  allocate (group(nall),source=0)
+  do i = 1,nall
+    k = maxval(group(:),1)
+    if (group(i) == 0) then
+      k = k+1
+      group(i) = k
+    end if
+    do j = i+1,nall
+      if (group(j) == 0) then
+        if (canon(i)%compare(canon(j))) then
+          group(j) = k
+        end if
+      end if
+    end do
+  end do
+  
+  write (stdout,'(a,i0,a)') '> ',maxval(group,1),' groups identified based on canonical SMILES algo (CANGEN)'
+
+!>--- dump to new file
+  open(newunit=ich,file=outfile)
+  GROUPLOOP : do i=1,maxval(group,1)
+    STRUCTLOOP :do j=1,nall
+       if(group(j) == i)then !> since the structures are energy sorted, writing the first is taking the lowest in the group
+          call structures(j)%append(ich)
+          cycle GROUPLOOP
+       endif
+    enddo STRUCTLOOP
+  enddo GROUPLOOP
+  close(ich)
+!>--- "sort" again for printout
+  call newcregen(env,7,outfile)
+  call remove(outfile)
+  call rename(outfile//'.sorted',fname)
+
+  deallocate (group)
+  deallocate (canon)
+  deallocate (tmpcalc)
+end subroutine protonation_prep_canonical
 
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
