@@ -52,6 +52,34 @@ end subroutine rmrfw
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 !C Specific cleanup routines for different parts of the CREST code
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+
+subroutine custom_cleanup(env)
+   use crest_data
+   use iomod
+   implicit none
+   type(systemdata) :: env
+   integer :: i
+   if(.not.env%keepModef)then
+    call rmrfw('METADYN')
+    call rmrfw('NORMMD')
+    call rmrf('MRMSD')
+    call rmrf('TRIALMD')
+    call rmrf('TRIALOPT')
+    call rmrf('MDFILES')
+    call rmrf('OPTIM')
+    call rmrf('PROP')
+    call rmrfw('.cre_')
+    call rmrf('cregen_*.tmp')
+    call rmrf('MDFILES')
+    if(.not.any(env%calc%calcs(:)%pr))then
+      call rmrfw('calculation.level.')
+    endif
+   endif
+   call rmrf('.CHRG .UHF')
+   call rmrf('.history.xyz')
+end subroutine custom_cleanup
+
+
 !-------------------------------------------------------------------------
 ! General cleanup function. Wipes most files that may be written by crest
 !-------------------------------------------------------------------------
