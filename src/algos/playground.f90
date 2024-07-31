@@ -82,7 +82,8 @@ subroutine crest_playground(env,tim)
   write(stdout,*)
   write(stdout,*) 'CANGEN algorithm' 
   call can%init(mol,calc%calcs(1)%wbo)
-  
+  call can%rankprint(mol) 
+  call can%stereo(mol)
 
 !========================================================================================!
   call tim%stop(14)
