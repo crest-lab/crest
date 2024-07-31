@@ -40,12 +40,14 @@ module canonical_mod
 
   contains
     procedure :: deallocate => deallocate_canonical_sorter
+    procedure :: shrink => shrink_canonical_sorter
     procedure :: init => init_canonical_sorter
     procedure :: update_ranks
     procedure :: update_invariants
     procedure :: iterate
     procedure :: rankprint
     procedure :: stereo => analyze_stereo
+    procedure :: compare => compare_canonical_sorter
   end type canonical_sorter
 
   logical,parameter :: debug = .false.
@@ -57,6 +59,9 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 
   subroutine deallocate_canonical_sorter(self)
+!********************************************
+!* reset canonical_sorter entirely
+!********************************************
     implicit none
     class(canonical_sorter),intent(inout) :: self
     self%nat = 0
@@ -70,11 +75,37 @@ contains  !> MODULE PROCEDURES START HERE
     if (allocated(self%hadjac)) deallocate (self%hadjac)
     if (allocated(self%newrank)) deallocate (self%newrank)
     if (allocated(self%newinv)) deallocate (self%newinv)
+    if (allocated(self%neigh)) deallocate(self%neigh)
   end subroutine deallocate_canonical_sorter
 
 !========================================================================================!
 
+  subroutine shrink_canonical_sorter(self)
+!***************************************************************
+!* Reduce memory consumption of canconical_sorter
+!* by deallocating everything except the (original) invariants
+!* mappings and the determined ranks
+!***************************************************************
+    implicit none
+    class(canonical_sorter),intent(inout) :: self
+    !if (allocated(self%nmap)) deallocate (self%nmap)
+    !if (allocated(self%hmap)) deallocate (self%hmap)
+    if (allocated(self%invariants)) deallocate (self%invariants)
+    !if (allocated(self%invariants0)) deallocate (self%invariants0)
+    !if (allocated(self%rank)) deallocate (self%rank)
+    if (allocated(self%prime)) deallocate (self%prime)
+    if (allocated(self%hadjac)) deallocate (self%hadjac)
+    if (allocated(self%newrank)) deallocate (self%newrank)
+    if (allocated(self%newinv)) deallocate (self%newinv)
+    if (allocated(self%neigh)) deallocate(self%neigh)
+  end subroutine shrink_canonical_sorter
+
+!========================================================================================!
+
   subroutine init_canonical_sorter(self,mol,wbo)
+!*****************************************************************
+!* Initializes the canonical_sorter and runs the CANGEN algorithm
+!*****************************************************************
     implicit none
     class(canonical_sorter),intent(inout) :: self
     type(coord),intent(in) :: mol
@@ -354,6 +385,63 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine analyze_stereo
 
 !========================================================================================!
+
+  function compare_canonical_sorter(self, other) result(yesno)
+!*****************************************************
+!* compare two canonical_sorter objects to determine
+!* if both correspond to the same molecule
+!*****************************************************
+    implicit none
+    class(canonical_sorter) :: self
+    type(canonical_sorter) :: other
+    logical :: yesno
+    integer,allocatable :: sorted_invariants(:,:)
+    integer :: maxrank_a,maxrank_b,hatms
+    integer :: i,j,jj,k,kk
+
+    yesno=.false.
+!>--- the obvious cases first
+    if(self%nat .ne. other%nat) return
+    if(self%hatms .ne. other%hatms) return  
+    maxrank_a = maxval(self%rank(:),1)
+    maxrank_b = maxval(other%rank(:),1)     
+    if(maxrank_a .ne. maxrank_b) return
+
+!>--- if the easy checks passed, compare the actual invariants!
+    hatms=self%hatms
+    allocate(sorted_invariants(hatms,2), source=0)
+    do i=1,maxrank_a  !> maxrank_a == maxrank_b, see above
+      jj=0
+      do j=1,hatms
+       if(self%rank(j)==i)then
+          jj=jj+1
+           sorted_invariants(jj,1) = self%invariants0(j)
+       endif 
+      enddo
+      kk=0
+      do j=1,hatms
+       if(other%rank(k)==i)then
+          kk=kk+1
+          sorted_invariants(kk,2) = other%invariants0(k)
+       endif
+      enddo
+    enddo
+
+    if(debug)then
+       do i=1,hatms
+          write(stdout,'(i10,i10,i10)') i,sorted_invariants(i,:)
+       enddo
+    endif    
+
+!>--- assign identity
+    yesno = all(sorted_invariants(:,1).eq.sorted_invariants(:,2))
+
+    deallocate(sorted_invariants)
+    return
+  end function compare_canonical_sorter
+
+
+!========================================================================================!
 !========================================================================================!
 
   function nth_prime(x) result(prime)
@@ -463,39 +551,39 @@ contains  !> MODULE PROCEDURES START HERE
 
   function determineRS(coords) result(RS)
     implicit none
-    integer :: RS !> 1 of "R", -1 for "S"
+    integer :: RS !> 1 for "R", -1 for "S"
     real(wp),intent(inout) :: coords(3,4)
     real(wp) :: theta
     real(wp) :: vec(3),uec(3)
     integer :: k,l,m,n
 
     k = 4
-    !rotate the highest prio atom onto z axis (0,0,1)
-    !first into into xz plane, therefore get the -x unit vector first
-    !and the projection of the neighbour in the xy-plane
+    !> rotate the highest prio atom onto z axis (0,0,1)
+    !> first into into xz plane, therefore get the -x unit vector first
+    !> and the projection of the neighbour in the xy-plane
     vec = (/-1.0d0,0.0d0,0.0d0/)
     uec(1) = coords(1,1)
     uec(2) = coords(2,1)
     uec(3) = 0.0_wp
     theta = tangle(vec,uec)
-    !then rotate around z-axis
+    !> then rotate around z-axis
     vec = (/0.0d0,0.0d0,1.0d0/)
     if (uec(2) .lt. 0.0_wp) theta = -theta
     do l = 1,k
       call rodrot(coords(:,l),vec,theta)
     end do
 
-    !afterwards angle to the z-axis
+    !> afterwards angle to the z-axis
     vec = (/0.0d0,0.0d0,1.0d0/)
     uec = coords(:,1)
     theta = tangle(vec,uec)
-    !then take this angle and rotate around y
+    !> then take this angle and rotate around y
     vec = (/0.0d0,1.0d0,0.0d0/)
     do l = 1,k
       call rodrot(coords(:,l),vec,theta)
     end do
 
-    !as a last step tak the lowest-prio  neighbour and rotate it into the xy-plane
+    !> as a last step tak the lowest-prio neighbour and rotate it into the xy-plane
     vec = (/-1.0d0,0.0d0,0.0d0/)
     uec(1) = coords(1,k)
     uec(2) = coords(2,k)
