@@ -2212,14 +2212,14 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i,io,k
     atmp = trim(line)
     energy = 0.0_wp
-    if (index(atmp,'energy=') .ne. 0) then
-      k = index(atmp,'energy=')
-      atmp = atmp(k+7:)
+    if(index(atmp,'energy=').ne.0)then
+      k=index(atmp,'energy=')
+      atmp=atmp(k+7:)
       read (atmp,*,iostat=io) energy
-      if (io .ne. 0) energy = 0.0_wp
-    else if (index(atmp,'energy:') .ne. 0) then
-      k = index(atmp,'energy:')
-      atmp = atmp(k+7:)
+      if(io.ne.0) energy=0.0_wp
+    else if(index(atmp,'energy:').ne.0)then
+      k=index(atmp,'energy:')
+      atmp=atmp(k+7:)
       read (atmp,*,iostat=io) energy
       if (io .ne. 0) energy = 0.0_wp
     else

@@ -250,19 +250,18 @@ subroutine parseflags(env,arg,nra)
   inquire (file='.CHRG',exist=ex)
   if (any(index(arg,'-chrg') .ne. 0)) ex = .false.
   if (ex) then
-    call rdshort('.CHRG',env%chrg)
-    if (env%chrg .ne. 0) then
-      write (*,'(2x,a,i0)') 'molecular charge read from .CHRG:  ',env%chrg
-    end if
+    write(stdout,*) '**ERROR** CREST will not read .CHRG files following version 3.0.2'
+    write(stdout,*) 'Please use --chrg or the input file specifications.'
+    error stop
   end if
   inquire (file='.UHF',exist=ex)
   if (any(index(arg,'-uhf') .ne. 0)) ex = .false.
   if (ex) then
-    call rdshort('.UHF',env%uhf)
-    if (env%uhf .ne. 0) then
-      write (*,'(2x,a,i0)') 'nα-nβ electrons read from .UHF:  ',env%uhf
-    end if
+    write(stdout,*) '**ERROR** CREST will not read .UHF files following version 3.0.2'
+    write(stdout,*) 'Please use --uhf or the input file specifications.'
+    error stop
   end if
+
 
 !>--- options for constrained conformer sampling
   env%fixfile = 'none selected'
