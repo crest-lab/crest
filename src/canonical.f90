@@ -20,10 +20,11 @@ module canonical_mod
   public :: canonical_sorter
   type :: canonical_sorter
     !> system mapping
-    integer :: nat = 0
-    integer :: hatms = 0
-    integer,allocatable :: nmap(:)
-    integer,allocatable :: hmap(:)
+    integer :: nat = 0    !> total number of atoms
+    integer :: hatms = 0  !> number of heavy atoms (>H)
+    integer :: nfrag = 0  !> number of molecules/subgraphs in structure
+    integer,allocatable :: nmap(:)  !> map atom to heavy-atom list (H->0)
+    integer,allocatable :: hmap(:)  !> map heavy-atom to full atom order
     integer :: maxnei = 0
     integer,allocatable :: neigh(:,:)  !> neighbour list (neigh(j,i) = j-th neighbour of atom i)
     integer,allocatable :: hadjac(:,:) !> heavy-atom adjacency matrix
@@ -66,6 +67,7 @@ contains  !> MODULE PROCEDURES START HERE
     class(canonical_sorter),intent(inout) :: self
     self%nat = 0
     self%hatms = 0
+    self%nfrag = 0
     if (allocated(self%nmap)) deallocate (self%nmap)
     if (allocated(self%hmap)) deallocate (self%hmap)
     if (allocated(self%invariants)) deallocate (self%invariants)
@@ -88,11 +90,7 @@ contains  !> MODULE PROCEDURES START HERE
 !***************************************************************
     implicit none
     class(canonical_sorter),intent(inout) :: self
-    !if (allocated(self%nmap)) deallocate (self%nmap)
-    !if (allocated(self%hmap)) deallocate (self%hmap)
     if (allocated(self%invariants)) deallocate (self%invariants)
-    !if (allocated(self%invariants0)) deallocate (self%invariants0)
-    !if (allocated(self%rank)) deallocate (self%rank)
     if (allocated(self%prime)) deallocate (self%prime)
     if (allocated(self%hadjac)) deallocate (self%hadjac)
     if (allocated(self%newrank)) deallocate (self%newrank)
@@ -115,7 +113,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: counth,countb,countbo
     real(wp) :: countbo2
     integer :: i,j,k,l,ii,ati,atj,maxnei
-    integer,allocatable :: ichrgs(:)
+    integer,allocatable :: ichrgs(:),frag(:)
     logical :: use_icharges
 
 !>--- all atoms of the full mol. graph are nodes
@@ -138,6 +136,12 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- get connectivity. Easiest is just via WBO (allocates Amat)
     call wbo2adjacency(nodes,wbo,Amat,0.02_wp)
+
+!>--- determine number of subgraphs
+    allocate(frag(nodes),source=0)
+    call setup_fragments(nodes,Amat,frag)
+    self%nfrag=maxval(frag(:),1)
+
 !>--- documment neighbour list
     maxnei = 0
     do i = 1,mol%nat

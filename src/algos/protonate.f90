@@ -434,6 +434,7 @@ subroutine protonation_prep_canonical(env,fname)
   use tblite_api,only:xtblvl
   use canonical_mod
   use iomod, only: remove 
+  use adjacency
   implicit none
   type(systemdata) :: env
   character(len=*),intent(in) :: fname
@@ -441,15 +442,27 @@ subroutine protonation_prep_canonical(env,fname)
   type(calcdata),allocatable :: tmpcalc
   type(calculation_settings) :: ceh
   type(coord),allocatable :: structures(:)
+  type(coord) :: refmol
+  real(wp),allocatable :: cn(:),Bmat(:,:)
+  integer,allocatable :: frag(:),Amat(:,:)
   real(wp),allocatable :: grad(:,:)
   real(wp) :: energy
-  integer :: nat,nall,i,j,k,io,ich
+  integer :: nat,nall,i,j,k,io,ich,refnfrag
 
   type(canonical_sorter),allocatable :: canon(:)
   integer,allocatable :: group(:)
   character(len=*),parameter :: outfile = 'unique.xyz'
 
   call smallhead('Remove duplicates via canonical atom identity')
+
+!>--- reference molecule (unprotonated)
+  call env%ref%to(refmol)  
+  call refmol%cn_to_bond(cn,Bmat,'cov')
+  call wbo2adjacency(refmol%nat,Bmat,Amat,0.01_wp)
+  allocate(frag(refmol%nat),source=0)
+  call setup_fragments(refmol%nat,Amat,frag)
+  refnfrag = maxval(frag(:),1)
+  deallocate(frag,Amat,Bmat)  
 
 !>--- read ensemble
   call rdensemble(fname,nall,structures)
@@ -508,6 +521,18 @@ subroutine protonation_prep_canonical(env,fname)
   end do
   
   write (stdout,'(a,i0,a)') '> ',maxval(group,1),' groups identified based on canonical SMILES algo (CANGEN)'
+
+!>--- more rules (setting group(i) to zero will discard the structure)
+  k = 0
+  do i=1,nall 
+    if(canon(i)%nfrag .ne. refnfrag)then
+       group(i) = 0
+       k=k+1
+    endif
+  enddo
+  if(k>0)then
+    write (stdout,'(a,i0,a)') '> ',k,' structures discared due to fragment change'
+  endif
 
 !>--- dump to new file
   open(newunit=ich,file=outfile)

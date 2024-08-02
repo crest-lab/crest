@@ -212,6 +212,7 @@ module strucrd
     procedure :: cutout => coord_getcutout      !> create a substructure
     procedure :: get_CN => coord_get_CN         !> calculate coordination number
     procedure :: get_z => coord_get_z           !> calculate nuclear charge
+    procedure :: cn_to_bond => coord_cn_to_bond !> generate neighbour matrix from CN
   end type coord
 !=========================================================================================!
   !ensemble class. contains all structures of an ensemble
@@ -1503,6 +1504,23 @@ contains  !> MODULE PROCEDURES START HERE
       if (self%at(i) > 57.and.self%at(i) < 72) z(i) = 3.0_wp
     end do
   end subroutine coord_get_z
+
+!==================================================================!
+   
+   subroutine coord_cn_to_bond(self,cn,bond,cn_type,cn_thr)
+     implicit none
+         class(coord) :: self
+    real(wp),intent(out),allocatable :: cn(:)
+    real(wp),intent(out),allocatable,optional :: bond(:,:)
+    real(wp),intent(in),optional :: cn_thr
+    character(len=*),intent(in),optional :: cn_type
+    if (self%nat <= 0) return
+    if (.not.allocated(self%xyz).or..not.allocated(self%at)) return
+    allocate (cn(self%nat),source=0.0_wp)
+    call calculate_CN(self%nat,self%at,self%xyz,cn, &
+    & cntype=cn_type,cnthr=cn_thr,bond=bond)
+   end subroutine coord_cn_to_bond 
+
 
 !=========================================================================================!
 !=========================================================================================!
