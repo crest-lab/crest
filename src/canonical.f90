@@ -230,6 +230,19 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
+  subroutine get_invariant0_morgan_v(hatms,hadjac,inv)
+    implicit none
+    integer,intent(in)  :: hatms
+    integer,intent(in)  :: hadjac(hatms,hatms)
+    integer,intent(out) :: inv(hatms)
+    inv(:) = 0
+
+
+  end subroutine get_invariant0_morgan_v
+
+
+!========================================================================================!
+
   function get_invariant0(ati,nneigh,nbonds,chrg,hneigh) result(inv)
     implicit none
     integer :: inv
@@ -503,11 +516,11 @@ contains  !> MODULE PROCEDURES START HERE
     class(canonical_sorter) :: can
     type(coord)  :: mol
     integer :: i,k,ii,ati
-    write (stdout,'(a10,a10,a10,a10,2x,a)') 'heavy-atom','type','invariant0','rank','neighbours'
+    write (stdout,'(a10,a10,a12,a10,2x,a)') 'heavy-atom','type','invariant0','rank','neighbours'
     do i = 1,can%hatms
       ii = can%hmap(i)
       ati = mol%at(ii)
-      write (stdout,'(i10,a10,i10,i10,2x,a)') i,i2e(ati,'nc'),can%invariants0(i),can%rank(i),print_neighbours(mol,can%neigh(:,ii))
+      write (stdout,'(i10,a10,i12,i10,2x,a)') i,i2e(ati,'nc'),can%invariants0(i),can%rank(i),print_neighbours(mol,can%neigh(:,ii))
     end do
   end subroutine rankprint
 
