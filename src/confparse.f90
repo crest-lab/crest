@@ -1078,6 +1078,8 @@ subroutine parseflags(env,arg,nra)
       case ('-cross')
         env%performCross = .true.     !> do the genetic crossing
         env%autozsort = .true.
+      case ('-keepdir','-keeptmp')     !> Do not delete temporary directories at the end
+            env%keepModef = .true.
       case ('-opt','-optlev')             !> settings for optimization level of GFN-xTB
         env%optlev = optlevnum(arg(i+1))
         write (*,'(2x,a,1x,a)') trim(arg(i)),optlevflag(env%optlev)

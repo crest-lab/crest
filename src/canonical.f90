@@ -112,6 +112,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer,allocatable :: Amat(:,:) !> adjacency matrix for FULL molecule
     integer :: counth,countb,countbo
     real(wp) :: countbo2
+    real(wp),allocatable :: cn(:),Bmat(:,:)
     integer :: i,j,k,l,ii,ati,atj,maxnei
     integer,allocatable :: ichrgs(:),frag(:)
     logical :: use_icharges
@@ -134,13 +135,16 @@ contains  !> MODULE PROCEDURES START HERE
     allocate (self%rank(k),source=1)
     allocate (self%hadjac(k,k),source=0)
 
-!>--- get connectivity. Easiest is just via WBO (allocates Amat)
-    call wbo2adjacency(nodes,wbo,Amat,0.02_wp)
-
 !>--- determine number of subgraphs
+    call mol%cn_to_bond(cn,Bmat,'cov')
+    call wbo2adjacency(nodes,Bmat,Amat,0.02_wp)
     allocate(frag(nodes),source=0)
     call setup_fragments(nodes,Amat,frag)
     self%nfrag=maxval(frag(:),1)
+    deallocate(frag,cn,Bmat)  
+
+!>--- get connectivity. Easiest is just via WBO (allocates Amat)
+!    call wbo2adjacency(nodes,wbo,Amat,0.02_wp)
 
 !>--- documment neighbour list
     maxnei = 0

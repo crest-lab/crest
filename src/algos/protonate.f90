@@ -38,7 +38,7 @@ subroutine crest_new_protonate(env,tim)
   use parallel_interface
   use cregen_interface
   use iomod
-  use utilities, only: binomial
+  use utilities,only:binomial
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -158,9 +158,13 @@ subroutine crest_new_protonate(env,tim)
   pstep = 0
   write (stdout,'(a)',advance='yes') '> Generating candidate structures ... '
   flush (stdout)
-  natp = mol%nat + env%protb%amount
-  npnew = binomial( np, env%protb%amount )
-  write (stdout,'(a,i0,a)') '> Up to ',npnew,' new structures' 
+  if (env%protb%amount > np) then
+    env%protb%amount = np
+    write (stdout,'(a,i0,a)') '> A maximum of ',np,' protonation sites can be used'
+  end if
+  natp = mol%nat+env%protb%amount
+  npnew = binomial(np,env%protb%amount)
+  write (stdout,'(a,i0,a)') '> Up to ',npnew,' new structures'
   allocate (atp(natp),source=0)
   allocate (xyzp(3,natp,npnew),ep(npnew),source=0.0_wp)
 
@@ -221,6 +225,7 @@ subroutine crest_new_protonate(env,tim)
     env%ewin = 1000.0_wp
     call newcregen(env,7,trim(atmp))
     call rename(trim(atmp)//'.sorted',trim(atmp))
+    write (stdout,'(a)') '> Sorted file was renamed to '//trim(atmp)
     write (stdout,'(a)') '> WARNING: These are force-field energies which are '
     write (stdout,'(a)') '           NOT(!) accurate for bond formation and breaking!'
     write (stdout,*)
@@ -262,20 +267,25 @@ subroutine crest_new_protonate(env,tim)
     write (atmp,'(a,i0,a)') 'protonate_',pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
     call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
+    deallocate (xyzp,atp) !> clear this space to re-use it
+    deallocate (tmpcalc)
+
+!    call tim%start(17,'Ensemble refinement')
+!    call crest_refine(env,trim(atmp),trim(atmp))
+!    call tim%stop(17)
 
     !>--- sorting
     write (stdout,'(a)') '> Sorting structures by energy to remove failed opts. ...'
-    env%ewin = env%protb%ewin*10.0_wp  !> large energy threshold
+    env%ewin = env%protb%ewin*5.0_wp  !> large energy threshold
     call newcregen(env,7,trim(atmp))
     call rename(trim(atmp)//'.sorted',trim(atmp))
+    write (stdout,'(a)') '> Sorted file was renamed to '//trim(atmp)
     write (stdout,*)
 
     !>--- re-read sorted ensemble
-    deallocate (xyzp,atp) !> clear this space to re-use it
     call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
     xyzp = xyzp*aatoau !> don't forget to restore BOHR
 
-    deallocate (tmpcalc)
   end if
 
 !========================================================================================!
@@ -297,12 +307,15 @@ subroutine crest_new_protonate(env,tim)
     write (atmp,'(a,i0,a)') 'protonate_',pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
     call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-
     deallocate (xyzp,atp)
+
+    call tim%start(17,'Ensemble refinement')
+    call crest_refine(env,trim(atmp),trim(atmp))
+    call tim%stop(17)
 
 !>--- sorting
     write (stdout,'(a)') '> Sorting structures by energy ...'
-    env%ewin = env%protb%ewin*5.0_wp
+    env%ewin = env%protb%ewin*3.0_wp
     call newcregen(env,7,trim(atmp))
     call rename(trim(atmp)//'.sorted',trim(atmp))
   end if
@@ -314,7 +327,12 @@ subroutine crest_new_protonate(env,tim)
 !========================================================================================!
 !>--- move final ensemble to protonated.xyz
   call rename(trim(atmp),'protonated.xyz')
-  write (stdout,'(a)') '> sorted file was renamed to protonated.xyz'
+  write (stdout,'(a)') '> Sorted file was renamed to protonated.xyz'
+
+  write (stdout,'(a)') '> All other temporary protonate_*.xyz files are removed by default.'
+  if (.not.env%keepmodef) then
+    call rmrf('protonate_*.xyz')
+  end if
 !========================================================================================!
   return
 end subroutine crest_new_protonate
@@ -330,7 +348,7 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
   use crest_data
   use crest_parameters
   use strucrd,only:coord
-  use utilities, only: binomial,get_combinations
+  use utilities,only:binomial,get_combinations
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -354,11 +372,11 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
 
   if (env%protb%swelem) then
 !>--- User-defined monoatomic ion
-    ichrg = env%protb%swchrg * env%protb%amount
+    ichrg = env%protb%swchrg*env%protb%amount
     ati = env%protb%swat
   else
 !>--- DEFAULT: H⁺
-    ichrg = 1 * env%protb%amount
+    ichrg = 1*env%protb%amount
     ati = 1
   end if
   write (stdout,'(a,i0)') '> Increasing the molecular charge by ',ichrg
@@ -375,40 +393,40 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
   end if
 
 !>--- check combinations
-   k = env%protb%amount
-   nc = binomial( np, k )
-   allocate(tmp(k),combi(k,nc), source=0)
-   c=0
-   call get_combinations(np, k, nc, c, combi, tmp, 0)
+  k = env%protb%amount
+  nc = binomial(np,k)
+  allocate (tmp(k),combi(k,nc),source=0)
+  c = 0
+  call get_combinations(np,k,nc,c,combi,tmp,0)
 
 !>--- Populate
   npnew = 0
   ii = 0
-  COMBILOOP : do i=1,nc
+  COMBILOOP: do i = 1,nc
 !>--- Enforce further constraints, conditions, etc.
-    ADDLOOP1 : do j=1,k
-       jj=combi(j,i)
-       ctype = nint(protxyz(4,jj))
-       if (.not.env%protb%active_lmo(ctype)) cycle COMBILOOP
-    enddo ADDLOOP1
+    ADDLOOP1: do j = 1,k
+      jj = combi(j,i)
+      ctype = nint(protxyz(4,jj))
+      if (.not.env%protb%active_lmo(ctype)) cycle COMBILOOP
+    end do ADDLOOP1
 
 !>--- passed checks in ADDLOOP1 means we can add this config
-    ii = ii+1 !> counter of actually created structures 
+    ii = ii+1 !> counter of actually created structures
     do j = 1,mol%nat
       xyz(1:3,j,ii) = mol%xyz(1:3,j)
       at(j) = mol%at(j)
     end do
     kk = mol%nat
-    ADDLOOP2 : do j=1,k
-      jj=combi(j,i)
-      kk=kk+1
+    ADDLOOP2: do j = 1,k
+      jj = combi(j,i)
+      kk = kk+1
       xyz(1:3,kk,ii) = protxyz(1:3,jj)
       at(kk) = ati
-    enddo ADDLOOP2
-  enddo COMBILOOP
+    end do ADDLOOP2
+  end do COMBILOOP
   npnew = ii
 
-  deallocate(combi,tmp)
+  deallocate (combi,tmp)
 end subroutine protonation_candidates
 
 !========================================================================================!
@@ -420,7 +438,7 @@ subroutine protonation_prep_canonical(env,fname)
   use crest_calculator
   use tblite_api,only:xtblvl
   use canonical_mod
-  use iomod, only: remove 
+  use iomod,only:remove
   use adjacency
   implicit none
   type(systemdata) :: env
@@ -443,13 +461,13 @@ subroutine protonation_prep_canonical(env,fname)
   call smallhead('Remove duplicates via canonical atom identity')
 
 !>--- reference molecule (unprotonated)
-  call env%ref%to(refmol)  
+  call env%ref%to(refmol)
   call refmol%cn_to_bond(cn,Bmat,'cov')
   call wbo2adjacency(refmol%nat,Bmat,Amat,0.01_wp)
-  allocate(frag(refmol%nat),source=0)
+  allocate (frag(refmol%nat),source=0)
   call setup_fragments(refmol%nat,Amat,frag)
   refnfrag = maxval(frag(:),1)
-  deallocate(frag,Amat,Bmat)  
+  deallocate (frag,Amat,Bmat)
 
 !>--- read ensemble
   call rdensemble(fname,nall,structures)
@@ -479,7 +497,7 @@ subroutine protonation_prep_canonical(env,fname)
   do i = 1,nall
     call engrad(structures(i),tmpcalc,energy,grad,io)
 
-    call move_alloc(tmpcalc%calcs(2)%qat, structures(i)%qat)
+    call move_alloc(tmpcalc%calcs(2)%qat,structures(i)%qat)
     call canon(i)%init(structures(i),tmpcalc%calcs(1)%wbo)
     call canon(i)%stereo(structures(i))
     !write(*,*)
@@ -506,32 +524,32 @@ subroutine protonation_prep_canonical(env,fname)
       end if
     end do
   end do
-  
+
   write (stdout,'(a,i0,a)') '> ',maxval(group,1),' groups identified based on canonical SMILES algo (CANGEN)'
 
 !>--- more rules (setting group(i) to zero will discard the structure)
   k = 0
-  do i=1,nall 
-    if(canon(i)%nfrag .ne. refnfrag)then
-       group(i) = 0
-       k=k+1
-    endif
-  enddo
-  if(k>0)then
+  do i = 1,nall
+    if (canon(i)%nfrag .ne. refnfrag) then
+      group(i) = 0
+      k = k+1
+    end if
+  end do
+  if (k > 0) then
     write (stdout,'(a,i0,a)') '> ',k,' structures discared due to fragment change'
-  endif
+  end if
 
 !>--- dump to new file
-  open(newunit=ich,file=outfile)
-  GROUPLOOP : do i=1,maxval(group,1)
-    STRUCTLOOP :do j=1,nall
-       if(group(j) == i)then !> since the structures are energy sorted, writing the first is taking the lowest in the group
-          call structures(j)%append(ich)
-          cycle GROUPLOOP
-       endif
-    enddo STRUCTLOOP
-  enddo GROUPLOOP
-  close(ich)
+  open (newunit=ich,file=outfile)
+  GROUPLOOP: do i = 1,maxval(group,1)
+    STRUCTLOOP: do j = 1,nall
+      if (group(j) == i) then !> since the structures are energy sorted, writing the first is taking the lowest in the group
+        call structures(j)%append(ich)
+        cycle GROUPLOOP
+      end if
+    end do STRUCTLOOP
+  end do GROUPLOOP
+  close (ich)
 !>--- "sort" again for printout
   call newcregen(env,7,outfile)
   call remove(outfile)
