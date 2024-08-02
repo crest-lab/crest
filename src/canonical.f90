@@ -503,11 +503,11 @@ contains  !> MODULE PROCEDURES START HERE
     class(canonical_sorter) :: can
     type(coord)  :: mol
     integer :: i,k,ii,ati
-    write (stdout,'(a10,a10,a10,2x,a)') 'heavy-atom','type','rank','neighbours'
+    write (stdout,'(a10,a10,a10,a10,2x,a)') 'heavy-atom','type','invariant0','rank','neighbours'
     do i = 1,can%hatms
       ii = can%hmap(i)
       ati = mol%at(ii)
-      write (stdout,'(i10,a10,i10,2x,a)') i,i2e(ati,'nc'),can%rank(i),print_neighbours(mol,can%neigh(:,ii))
+      write (stdout,'(i10,a10,i10,i10,2x,a)') i,i2e(ati,'nc'),can%invariants0(i),can%rank(i),print_neighbours(mol,can%neigh(:,ii))
     end do
   end subroutine rankprint
 

@@ -384,19 +384,6 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
 !>--- Populate
   npnew = 0
   ii = 0
-!  do i = 1,np
-!!>--- Enforce further constraints, conditions, etc.
-!    ctype = nint(protxyz(4,i))
-!    if (.not.env%protb%active_lmo(ctype)) cycle !> skip unselected LMO types
-!
-!    ii = ii+1 !> counter of actually created structures
-!    do j = 1,mol%nat
-!      xyz(1:3,j,ii) = mol%xyz(1:3,j)
-!      at(j) = mol%at(j)
-!    end do
-!    xyz(1:3,natp,ii) = protxyz(1:3,i)
-!    at(natp) = ati
-!  end do
   COMBILOOP : do i=1,nc
 !>--- Enforce further constraints, conditions, etc.
     ADDLOOP1 : do j=1,k
