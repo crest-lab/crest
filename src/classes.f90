@@ -173,6 +173,7 @@ module crest_data
     real(wp) :: ewin = 30.0_wp       !> separate EWIN threshold
     integer :: swchrg = 1            !> switch element charge
     integer :: swat = 1              !> switch element element
+    integer :: amount = 1            !> how many protons to add?
     logical :: swelem = .false.      !> switch element to add to lmo lp pair?
     logical :: allowFrag = .false.   !> allow fragmentation
     logical :: threshsort = .false.  !> use ewin threshold

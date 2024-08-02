@@ -38,6 +38,7 @@ subroutine crest_new_protonate(env,tim)
   use parallel_interface
   use cregen_interface
   use iomod
+  use utilities, only: binomial
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -157,9 +158,11 @@ subroutine crest_new_protonate(env,tim)
   pstep = 0
   write (stdout,'(a)',advance='yes') '> Generating candidate structures ... '
   flush (stdout)
-  natp = mol%nat+1
+  natp = mol%nat + env%protb%amount
+  npnew = binomial( np, env%protb%amount )
+  write (stdout,'(a,i0,a)') '> Up to ',npnew,' new structures' 
   allocate (atp(natp),source=0)
-  allocate (xyzp(3,natp,np),ep(np),source=0.0_wp)
+  allocate (xyzp(3,natp,npnew),ep(npnew),source=0.0_wp)
 
   call protonation_candidates(env,mol,natp,np,protxyz,atp,xyzp,npnew)
 !>--- NOTE: after this the global charge (env%chrg) and all charges saved in the calc levels have been increased
@@ -215,7 +218,7 @@ subroutine crest_new_protonate(env,tim)
 
     !>--- sorting
     write (stdout,'(a)') '> Sorting structures by energy to remove failed opts. ...'
-    env%ewin = 5000.0_wp
+    env%ewin = 1000.0_wp
     call newcregen(env,7,trim(atmp))
     call rename(trim(atmp)//'.sorted',trim(atmp))
     write (stdout,'(a)') '> WARNING: These are force-field energies which are '
@@ -327,6 +330,7 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
   use crest_data
   use crest_parameters
   use strucrd,only:coord
+  use utilities, only: binomial,get_combinations
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -336,24 +340,25 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
   real(wp),intent(in) :: protxyz(4,np)
   !> OUTPUT
   integer,intent(out)  :: at(natp)
-  real(wp),intent(out) :: xyz(3,natp,np)
-  integer,intent(out) :: npnew
+  real(wp),intent(out) :: xyz(3,natp,npnew)
+  integer,intent(inout) :: npnew
   !> LOCAL
-  integer :: i,j,k,l,ii
+  integer :: i,j,jj,k,l,ii,c,nc,kk
   integer :: ati,ichrg,ctype
+  integer,allocatable :: combi(:,:),tmp(:)
 
-  if (natp .ne. mol%nat+1) then
+  if (natp .ne. mol%nat+env%protb%amount) then
     write (stdout,'(a)') 'WARNING: Inconsistent number of atoms in protonation routine'
     error stop
   end if
 
   if (env%protb%swelem) then
 !>--- User-defined monoatomic ion
-    ichrg = env%protb%swchrg
+    ichrg = env%protb%swchrg * env%protb%amount
     ati = env%protb%swat
   else
 !>--- DEFAULT: H⁺
-    ichrg = 1
+    ichrg = 1 * env%protb%amount
     ati = 1
   end if
   write (stdout,'(a,i0)') '> Increasing the molecular charge by ',ichrg
@@ -369,24 +374,54 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
     write (stdout,'(a)') 'LMOs ...'
   end if
 
+!>--- check combinations
+   k = env%protb%amount
+   nc = binomial( np, k )
+   allocate(tmp(k),combi(k,nc), source=0)
+   c=0
+   call get_combinations(np, k, nc, c, combi, tmp, 0)
+
 !>--- Populate
   npnew = 0
   ii = 0
-  do i = 1,np
+!  do i = 1,np
+!!>--- Enforce further constraints, conditions, etc.
+!    ctype = nint(protxyz(4,i))
+!    if (.not.env%protb%active_lmo(ctype)) cycle !> skip unselected LMO types
+!
+!    ii = ii+1 !> counter of actually created structures
+!    do j = 1,mol%nat
+!      xyz(1:3,j,ii) = mol%xyz(1:3,j)
+!      at(j) = mol%at(j)
+!    end do
+!    xyz(1:3,natp,ii) = protxyz(1:3,i)
+!    at(natp) = ati
+!  end do
+  COMBILOOP : do i=1,nc
 !>--- Enforce further constraints, conditions, etc.
-    ctype = nint(protxyz(4,i))
-    if (.not.env%protb%active_lmo(ctype)) cycle !> skip unselected LMO types
+    ADDLOOP1 : do j=1,k
+       jj=combi(j,i)
+       ctype = nint(protxyz(4,jj))
+       if (.not.env%protb%active_lmo(ctype)) cycle COMBILOOP
+    enddo ADDLOOP1
 
-    ii = ii+1 !> counter of actually created structures
+!>--- passed checks in ADDLOOP1 means we can add this config
+    ii = ii+1 !> counter of actually created structures 
     do j = 1,mol%nat
       xyz(1:3,j,ii) = mol%xyz(1:3,j)
       at(j) = mol%at(j)
     end do
-    xyz(1:3,natp,ii) = protxyz(1:3,i)
-    at(natp) = ati
-  end do
+    kk = mol%nat
+    ADDLOOP2 : do j=1,k
+      jj=combi(j,i)
+      kk=kk+1
+      xyz(1:3,kk,ii) = protxyz(1:3,jj)
+      at(kk) = ati
+    enddo ADDLOOP2
+  enddo COMBILOOP
   npnew = ii
 
+  deallocate(combi,tmp)
 end subroutine protonation_candidates
 
 !========================================================================================!

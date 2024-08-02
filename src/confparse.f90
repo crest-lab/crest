@@ -1582,6 +1582,11 @@ subroutine parseflags(env,arg,nra)
         env%properties = p_protonate
         env%autozsort = .false.
         env%protb%threshsort = .true.
+        ctmp = trim(arg(i+1))
+        if (ctmp(1:1) .ne. '-') then
+           read(ctmp,*,iostat=io) idum
+           if(io.eq.0) env%protb%amount = idum
+        end if
       case ('-swel')                  !> switch out H+ to something else in protonation script
         if (env%properties .eq. -3) then
           call swparse(arg(i+1),env%protb)
