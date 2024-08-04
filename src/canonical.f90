@@ -135,7 +135,7 @@ contains  !> MODULE PROCEDURES START HERE
     allocate (self%rank(k),source=1)
     allocate (self%hadjac(k,k),source=0)
 
-!>--- determine number of subgraphs
+!>--- determine number of subgraphs via CN
     call mol%cn_to_bond(cn,Bmat,'cov')
     call wbo2adjacency(nodes,Bmat,Amat,0.02_wp)
     allocate(frag(nodes),source=0)
@@ -197,13 +197,18 @@ contains  !> MODULE PROCEDURES START HERE
       countb = 0
       do j = 1,nodes
         if (Amat(j,ii) .ne. 0) then
-          if (mol%at(j) .eq. 1) counth = counth+1 !> count H neighbours
+          if (mol%at(j) .eq. 1)then
+             counth = counth+1 !> count H neighbours
+          !   countbo2 = countbo2-wbo(j,ii) !> but NOT in total bond order
+          endif
           countb = countb+1 !> count all neighbours
+          !countbo2 = countbo2+wbo(j,ii)  !> sum the total bond order
         end if
         countbo2 = countbo2+wbo(j,ii)  !> sum the total bond order
       end do
       countb = countb-counth          !> only heavy atom connections
       countbo = nint(countbo2)-counth !> same for number of bonds
+      !countbo = nint(countbo2)
       if(use_icharges)then
         self%invariants(i) = get_invariant0(ati,countb,countbo,ichrgs(ii),counth) 
       else

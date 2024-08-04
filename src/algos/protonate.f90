@@ -515,11 +515,13 @@ subroutine protonation_prep_canonical(env,fname)
     if (group(i) == 0) then
       k = k+1
       group(i) = k
+      !write(*,*)'structure ',i,' is the reference of ',k
     end if
     do j = i+1,nall
       if (group(j) == 0) then
         if (canon(i)%compare(canon(j))) then
           group(j) = k
+          !write(*,*)'structure ',j,' is in group ',k
         end if
       end if
     end do
