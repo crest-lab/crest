@@ -689,8 +689,6 @@ subroutine crest_new_deprotonate(env,tim)
   write (stdout,'(a)') '> done.'
   write (stdout,*)
 
-  stop 
-
 !========================================================================================!
 !>--- Optimize candidates, optional FF pre-step
   if (env%protb%ffopt) then
