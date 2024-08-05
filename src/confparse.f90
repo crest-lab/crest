@@ -466,6 +466,7 @@ subroutine parseflags(env,arg,nra)
 
       case ('-deprotonate') !> deprotonation tool
         env%properties = p_deprotonate
+        env%crestver = crest_deprotonate
         write (*,'(2x,a,'' : automated deprotonation script'')') trim(arg(i))
         exit
 
@@ -1597,6 +1598,11 @@ subroutine parseflags(env,arg,nra)
         env%properties = p_deprotonate
         env%autozsort = .false.
         env%protb%threshsort = .true.
+        ctmp = trim(arg(i+1))
+        if (ctmp(1:1) .ne. '-') then
+           read(ctmp,*,iostat=io) idum
+           if(io.eq.0) env%protb%amount = idum
+        end if
       case ('-tautomerize')           !> tautomerization tool
         env%properties = p_tautomerize
         env%autozsort = .false.

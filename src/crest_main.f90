@@ -145,9 +145,9 @@ program CREST
 !    call protonate(env,tim)
 !    call propquit(tim)
 !>--- deprotonation
-  case (p_deprotonate)
-    call deprotonate(env,tim)
-    call propquit(tim)
+!  case (p_deprotonate)
+!    call deprotonate(env,tim)
+!    call propquit(tim)
 !>--- tautomerization
   case (p_tautomerize)
     call tautomerize(env,tim)
@@ -292,6 +292,9 @@ program CREST
 
   case(crest_protonate)
     call protonate(env,tim)
+ 
+  case(crest_deprotonate)
+    call deprotonate(env,tim)
 
   case (crest_test)
     call crest_playground(env,tim)
