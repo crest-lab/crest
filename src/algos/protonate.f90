@@ -474,32 +474,34 @@ subroutine protonation_prep_canonical(env,fname)
   call rdensemble(fname,nall,structures)
   nat = structures(1)%nat
 
-  allocate (grad(3,nat),source=0.0_wp)
-!>--- GFN0 job adapted from global settings
-  allocate (tmpcalc)
-  call env2calc(env,tmpcalc,structures(1))
-  tmpcalc%calcs(1)%id = jobtype%gfn0
-  tmpcalc%calcs(1)%rdwbo = .true.      !> WBOs from GFN0
-  tmpcalc%calcs(1)%rdqat = .false.
-  tmpcalc%calcs(1)%chrg = env%chrg
-  tmpcalc%ncalculations = 1
-  tmpcalc%nconstraints = 0
-  ceh%id = jobtype%tblite
-  ceh%tblitelvl = xtblvl%ceh  !> atomic charges from CEH (better than EEQ)
-  ceh%chrg = env%chrg
-  ceh%rdqat = .true.
-  call tmpcalc%add(ceh)
+!  allocate (grad(3,nat),source=0.0_wp)
+!!>--- GFN0 job adapted from global settings
+!  allocate (tmpcalc)
+!  call env2calc(env,tmpcalc,structures(1))
+!  tmpcalc%calcs(1)%id = jobtype%gfn0
+!  tmpcalc%calcs(1)%rdwbo = .true.      !> WBOs from GFN0
+!  tmpcalc%calcs(1)%rdqat = .false.
+!  tmpcalc%calcs(1)%chrg = env%chrg
+!  tmpcalc%ncalculations = 1
+!  tmpcalc%nconstraints = 0
+!  ceh%id = jobtype%tblite
+!  ceh%tblitelvl = xtblvl%ceh  !> atomic charges from CEH (better than EEQ)
+!  ceh%chrg = env%chrg
+!  ceh%rdqat = .true.
+!  call tmpcalc%add(ceh)
 
 !>--- run singlepoints to document WBOs and charges (doesn't need to be parallel)
   allocate (canon(nall))
 
-  write (stdout,'(a,i0,a)') '> Performing ',nall,' GFN0 and CEH calculations to get WBOs and atomic charges ...'
+  !write (stdout,'(a,i0,a)') '> Performing ',nall,' GFN0 and CEH calculations to get WBOs and atomic charges ...'
+  write (stdout,'(a,i0,a)') '> Setting up canonical atom order for ',nall,' structures via CN-based molecular graphs ...'
   call crest_oloop_pr_progress(env,nall,0)
   do i = 1,nall
-    call engrad(structures(i),tmpcalc,energy,grad,io)
+!    call engrad(structures(i),tmpcalc,energy,grad,io)
 
-    call move_alloc(tmpcalc%calcs(2)%qat,structures(i)%qat)
-    call canon(i)%init(structures(i),tmpcalc%calcs(1)%wbo)
+    !call move_alloc(tmpcalc%calcs(2)%qat,structures(i)%qat)
+    !call canon(i)%init(structures(i),tmpcalc%calcs(1)%wbo,invtype='apsp+')
+    call canon(i)%init(structures(i),invtype='apsp+')
     call canon(i)%stereo(structures(i))
     !write(*,*)
     !call canon(i)%rankprint(structures(i))
@@ -528,7 +530,7 @@ subroutine protonation_prep_canonical(env,fname)
     end do
   end do
 
-  write (stdout,'(a,i0,a)') '> ',maxval(group,1),' groups identified based on canonical SMILES algo (CANGEN)'
+  write (stdout,'(a,i0,a)') '> ',maxval(group,1),' groups identified based on canonical atom identifier algorithm'
 
 !>--- more rules (setting group(i) to zero will discard the structure)
   k = 0
@@ -560,7 +562,7 @@ subroutine protonation_prep_canonical(env,fname)
 
   deallocate (group)
   deallocate (canon)
-  deallocate (tmpcalc)
+  !deallocate (tmpcalc)
 end subroutine protonation_prep_canonical
 
 !========================================================================================!
