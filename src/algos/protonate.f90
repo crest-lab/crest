@@ -296,6 +296,7 @@ subroutine crest_new_protonate(env,tim)
     allocate (tmpcalc)
     call env2calc(env,tmpcalc,mol)
     call tmpcalc%info(stdout)
+    tmpcalc%optnewinit=.true.
     !tmpcalc%maxcycle=5
     !tmpcalc%anopt=.true.
     call tim%start(20,'Ensemble optimization')
@@ -474,32 +475,34 @@ subroutine protonation_prep_canonical(env,fname)
   call rdensemble(fname,nall,structures)
   nat = structures(1)%nat
 
-  allocate (grad(3,nat),source=0.0_wp)
-!>--- GFN0 job adapted from global settings
-  allocate (tmpcalc)
-  call env2calc(env,tmpcalc,structures(1))
-  tmpcalc%calcs(1)%id = jobtype%gfn0
-  tmpcalc%calcs(1)%rdwbo = .true.      !> WBOs from GFN0
-  tmpcalc%calcs(1)%rdqat = .false.
-  tmpcalc%calcs(1)%chrg = env%chrg
-  tmpcalc%ncalculations = 1
-  tmpcalc%nconstraints = 0
-  ceh%id = jobtype%tblite
-  ceh%tblitelvl = xtblvl%ceh  !> atomic charges from CEH (better than EEQ)
-  ceh%chrg = env%chrg
-  ceh%rdqat = .true.
-  call tmpcalc%add(ceh)
+!  allocate (grad(3,nat),source=0.0_wp)
+!!>--- GFN0 job adapted from global settings
+!  allocate (tmpcalc)
+!  call env2calc(env,tmpcalc,structures(1))
+!  tmpcalc%calcs(1)%id = jobtype%gfn0
+!  tmpcalc%calcs(1)%rdwbo = .true.      !> WBOs from GFN0
+!  tmpcalc%calcs(1)%rdqat = .false.
+!  tmpcalc%calcs(1)%chrg = env%chrg
+!  tmpcalc%ncalculations = 1
+!  tmpcalc%nconstraints = 0
+!  ceh%id = jobtype%tblite
+!  ceh%tblitelvl = xtblvl%ceh  !> atomic charges from CEH (better than EEQ)
+!  ceh%chrg = env%chrg
+!  ceh%rdqat = .true.
+!  call tmpcalc%add(ceh)
 
 !>--- run singlepoints to document WBOs and charges (doesn't need to be parallel)
   allocate (canon(nall))
 
-  write (stdout,'(a,i0,a)') '> Performing ',nall,' GFN0 and CEH calculations to get WBOs and atomic charges ...'
+  !write (stdout,'(a,i0,a)') '> Performing ',nall,' GFN0 and CEH calculations to get WBOs and atomic charges ...'
+  write (stdout,'(a,i0,a)') '> Setting up canonical atom order for ',nall,' structures via CN-based molecular graphs ...'
   call crest_oloop_pr_progress(env,nall,0)
   do i = 1,nall
-    call engrad(structures(i),tmpcalc,energy,grad,io)
+!    call engrad(structures(i),tmpcalc,energy,grad,io)
 
-    call move_alloc(tmpcalc%calcs(2)%qat,structures(i)%qat)
-    call canon(i)%init(structures(i),tmpcalc%calcs(1)%wbo)
+    !call move_alloc(tmpcalc%calcs(2)%qat,structures(i)%qat)
+    !call canon(i)%init(structures(i),tmpcalc%calcs(1)%wbo,invtype='apsp+')
+    call canon(i)%init(structures(i),invtype='apsp+')
     call canon(i)%stereo(structures(i))
     !write(*,*)
     !call canon(i)%rankprint(structures(i))
@@ -528,7 +531,7 @@ subroutine protonation_prep_canonical(env,fname)
     end do
   end do
 
-  write (stdout,'(a,i0,a)') '> ',maxval(group,1),' groups identified based on canonical SMILES algo (CANGEN)'
+  write (stdout,'(a,i0,a)') '> ',maxval(group,1),' groups identified based on canonical atom identifier algorithm'
 
 !>--- more rules (setting group(i) to zero will discard the structure)
   k = 0
@@ -560,7 +563,7 @@ subroutine protonation_prep_canonical(env,fname)
 
   deallocate (group)
   deallocate (canon)
-  deallocate (tmpcalc)
+  !deallocate (tmpcalc)
 end subroutine protonation_prep_canonical
 
 !========================================================================================!
@@ -694,7 +697,7 @@ subroutine crest_new_deprotonate(env,tim)
   if (env%protb%ffopt) then
     call smallhead('Deprotomer Ensemble FF Pre-Optimization')
     !>--- set up a temporary calculation object
-    write (stdout,'(a)') '> Removal of some hydrogen atoms may be leading to initial'
+    write (stdout,'(a)') '> Removal of some hydrogen atoms may lead to initial'
     write (stdout,'(a)') '  extremely high-energy candidates which can undergo unwanted'
     write (stdout,'(a)') '  chemical changes in optimizations. Classical force-fields'
     write (stdout,'(a)') '  with defined bond-topology can help circumvent this issue.'
@@ -976,3 +979,278 @@ end subroutine deprotonation_candidates
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !========================================================================================!
+
+!========================================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
+!> New implementation of tautomer routines
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
+!========================================================================================!
+subroutine crest_new_tautomerize(env,tim)
+!********************************************************************
+!* Standalone runtype for generating molecule tautomers
+!*
+!* Input/Output:
+!*  env  -  crest's systemdata object
+!*  tim  -  timer object
+!********************************************************************
+  use crest_parameters
+  use crest_data
+  use crest_calculator
+  use strucrd
+  use optimize_module
+  use parallel_interface
+  use cregen_interface
+  use iomod
+  use utilities,only:binomial
+  implicit none
+  type(systemdata),intent(inout) :: env
+  type(timer),intent(inout)      :: tim
+  type(coord) :: mol,molnew
+  integer :: i,j,k,l,io,ich,T,Tn,np
+  logical :: pr,wr
+  character(len=80) :: atmp
+!========================================================================================!
+  type(calcdata) :: calc
+  real(wp) :: accuracy,etemp
+
+  real(wp) :: energy,dip
+  real(wp),allocatable :: grad(:,:)
+  type(calcdata),allocatable :: tmpcalc
+  type(calcdata),allocatable :: tmpcalc_ff
+  type(calculation_settings) :: tmpset
+  integer :: natp,pstep,npnew
+  integer,allocatable :: atp(:)
+  real(wp),allocatable :: xyzp(:,:,:)
+  real(wp),allocatable :: ep(:)
+  logical,allocatable :: atlist(:)
+  character(len=*),parameter :: basename = 'tautomerize_'
+!========================================================================================!
+  write (stdout,*)
+  !call system('figlet singlepoint')
+  write (stdout,*) " _              _                            _         "
+  write (stdout,*) "| |_ __ _ _   _| |_ ___  _ __ ___   ___ _ __(_)_______ "
+  write (stdout,*) "| __/ _` | | | | __/ _ \| '_ ` _ \ / _ \ '__| |_  / _ \"
+  write (stdout,*) "| || (_| | |_| | || (_) | | | | | |  __/ |  | |/ /  __/"
+  write (stdout,*) " \__\__,_|\__,_|\__\___/|_| |_| |_|\___|_|  |_/___\___|"
+  write (stdout,*) "                                                       "
+  write (stdout,*) "-------------------------------------------------------"
+  write (stdout,*) "         automated tautomer screening script           "
+  write (stdout,*) "          revised version (c) P.Pracht 2024            "
+  write (stdout,*) 'Cite as:'
+  write (stdout,*) '  P.Pracht, R.Wilcken, A.Udvarhelyi, S.Rodde, S.Grimme'
+  write (stdout,*) '  JCAMD, 2018, 32, 1139-1149.'
+  write (stdout,*)
+
+!========================================================================================!
+  call new_ompautoset(env,'max',0,T,Tn)
+  call ompprint_intern()
+!========================================================================================!
+  call env%ref%to(mol)
+  write (stdout,*)
+  write (stdout,*) 'Input structure:'
+  call mol%append(stdout)
+  write (stdout,*)
+!========================================================================================!
+!>--- The first step is to sort the input structure so that all heavy atoms are first and
+!>--- all hydrogen atoms follow after that. This is because some of the (parallel) routines
+!>--- rely on identical atom order.
+
+  write (stdout,'(a)') repeat('-',80)
+  write (stdout,'(a)')
+  write (stdout,'(a)') '> Re-sorting input structure ... '
+  call deprotonation_sort(mol,np)
+  call mol%append(stdout)
+  write (stdout,*)
+!>--- check
+  if (np == 0) then
+    write (stdout,*)
+    write (stdout,*) 'WARNING: No deprotonation sites found, therefore no tautomer search possible!'
+    write (stdout,*)
+    return
+  end if
+
+!========================================================================================!
+!>--- If we reached this point, we have candidate positions for our protonation!
+  pstep = 0
+  write (stdout,'(a)',advance='yes') '> Generating candidate structures ... '
+  flush (stdout)
+  if (env%protb%amount > np) then
+    env%protb%amount = np
+    write (stdout,'(a,i0,a)') '> A maximum of ',np,' tautomer permutations can be used'
+  end if
+  natp = mol%nat-env%protb%amount
+  npnew = binomial(np,env%protb%amount)
+  write (stdout,'(a,i0,a)') '> Up to ',npnew,' new structures'
+  allocate (atp(natp),source=0)
+  allocate (xyzp(3,natp,npnew),ep(npnew),source=0.0_wp)
+
+  call deprotonation_candidates(env,mol,natp,np,atp,xyzp,npnew)
+!>--- NOTE: after this the global charge (env%chrg) and all charges saved in the calc levels have been decreas
+
+  if (npnew < 1) then
+    write (stdout,*)
+    write (stdout,'(a)') '> WARNING: No remaining tautomer candidates after applying user defined conditions!'
+    write (stdout,'(a)') '>          Modify the search criteria and check your input structure for sanity.'
+    return
+  end if
+
+  write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
+  write (stdout,'(a,a,a,i0,a)') '> Write ',trim(atmp),' with ',npnew,' candidates ... '
+
+  call wrensemble(basename//'0.xyz',natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
+
+  write (stdout,'(a)') '> done.'
+  write (stdout,*)
+
+!========================================================================================!
+!>--- Optimize candidates, optional FF pre-step
+  if (env%protb%ffopt) then
+    call smallhead('Tautomer Ensemble FF Pre-Optimization')
+    !>--- set up a temporary calculation object
+    write (stdout,'(a)') '> Removal/addition of hydrogen atoms may lead to initial'
+    write (stdout,'(a)') '  extremely high-energy candidates which can undergo unwanted'
+    write (stdout,'(a)') '  chemical changes in optimizations. Classical force-fields'
+    write (stdout,'(a)') '  with defined bond-topology can help circumvent this issue.'
+    write (stdout,'(a)') '> Setting up force-field structure pre-optimization ...'
+    allocate (tmpcalc_ff)
+    tmpcalc_ff%optnewinit = .true.
+    env%calc%optnewinit = .true.
+    tmpcalc_ff%optnewinit = .true.
+    call tmpset%create('gfnff')
+    tmpset%chrg = env%chrg
+    call tmpcalc_ff%add(tmpset)
+    tmpcalc_ff%maxcycle = 10000
+    call tmpcalc_ff%info(stdout)
+
+    !>--- Run optimizations
+    call tim%start(15,'Ensemble optimization (FF)')
+    call print_opt_data(tmpcalc_ff,stdout)
+    write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
+    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc_ff)
+    call tim%stop(15)
+
+    deallocate (tmpcalc_ff)
+
+    pstep = pstep+1
+    write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
+    write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
+    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
+
+    !>--- sorting
+    write (stdout,'(a)') '> Sorting structures by energy to remove failed opts. ...'
+    env%ewin = 1000.0_wp
+    call newcregen(env,7,trim(atmp))
+    call rename(trim(atmp)//'.sorted',trim(atmp))
+    write (stdout,'(a)') '> Sorted file was renamed to '//trim(atmp)
+    write (stdout,'(a)') '> WARNING: These are force-field energies which are '
+    write (stdout,'(a)') '           NOT(!) accurate for bond formation and breaking!'
+    write (stdout,*)
+
+    !>--- re-read sorted ensemble
+    deallocate (xyzp,atp) !> clear this space to re-use it
+    call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
+    xyzp = xyzp*aatoau !> don't forget to restore BOHR
+  end if
+
+!========================================================================================!
+!>--- H-position-only optimization (only makes sense after FF preoptimization)
+  if (env%protb%hnewopt.and.env%protb%ffopt) then
+    call smallhead('Tautomer Ensemble Frozen-Atom Optimization')
+    !>--- create temporary calculation from our intended level of theory
+    write (stdout,'(a)') '> Setting up frozen structure optimization ...'
+    allocate (tmpcalc)
+    call env2calc(env,tmpcalc,mol)
+    !>--- freeze all atoms, EXCEPT the new one
+    allocate (atlist(natp),source=.true.)
+    atlist(natp) = .false. !> the new one is always last
+    do i = 1,natp
+      if (atp(i) == 1) then
+        atlist(i) = .false. !> additionally un-freeze all H's (this seems to be beneficial)
+      end if
+    end do
+    tmpcalc%nfreeze = count(atlist)
+    write (stdout,'(a,i0,a)') '> ',tmpcalc%nfreeze,' frozen atoms. All H non-frozen.'
+    call move_alloc(atlist,tmpcalc%freezelist)
+    call tmpcalc%info(stdout)
+
+    !>--- run opt
+    call tim%start(16,'Ensemble optimization (frozen)')
+    write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
+    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc)
+    call tim%stop(16)
+
+    pstep = pstep+1
+    write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
+    write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
+    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
+    deallocate (xyzp,atp) !> clear this space to re-use it
+    deallocate (tmpcalc)
+
+!    call tim%start(17,'Ensemble refinement')
+!    call crest_refine(env,trim(atmp),trim(atmp))
+!    call tim%stop(17)
+
+    !>--- sorting
+    write (stdout,'(a)') '> Sorting structures by energy to remove failed opts. ...'
+    env%ewin = env%protb%ewin*5.0_wp  !> large energy threshold
+    call newcregen(env,7,trim(atmp))
+    call rename(trim(atmp)//'.sorted',trim(atmp))
+    write (stdout,'(a)') '> Sorted file was renamed to '//trim(atmp)
+    write (stdout,*)
+
+    !>--- re-read sorted ensemble
+    call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
+    xyzp = xyzp*aatoau !> don't forget to restore BOHR
+
+  end if
+
+!========================================================================================!
+!>--- Optimize with global settings
+  if (env%protb%finalopt.and.env%protb%ffopt) then
+    call smallhead('Final Tautomer Ensemble Optimization')
+    allocate (tmpcalc)
+    call env2calc(env,tmpcalc,mol)
+    call tmpcalc%info(stdout)
+    !tmpcalc%maxcycle=5
+    !tmpcalc%anopt=.true.
+    call tim%start(20,'Ensemble optimization')
+    call print_opt_data(env%calc,stdout)
+    write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
+    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep,.false.,tmpcalc)
+    call tim%stop(20)
+
+    pstep = pstep+1
+    write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
+    write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
+    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
+    deallocate (xyzp,atp)
+
+    call tim%start(17,'Ensemble refinement')
+    call crest_refine(env,trim(atmp),trim(atmp))
+    call tim%stop(17)
+
+!>--- sorting
+    write (stdout,'(a)') '> Sorting structures by energy ...'
+    env%ewin = env%protb%ewin*3.0_wp
+    call newcregen(env,7,trim(atmp))
+    call rename(trim(atmp)//'.sorted',trim(atmp))
+  end if
+
+!========================================================================================!
+!> Remove doubly generated tautomers
+  call protonation_prep_canonical(env,trim(atmp))
+
+!========================================================================================!
+!>--- move final ensemble to deprotonated.xyz
+  call rename(trim(atmp),'tautomers.xyz')
+  write (stdout,'(a)') '> Sorted file was renamed to tautomers.xyz'
+
+  write (stdout,'(a)') '> All other temporary tautomerize_*.xyz files are removed by default.'
+  if (.not.env%keepmodef) then
+    call rmrf('tautomerize_*.xyz')
+  end if
+!========================================================================================!
+  return
+end subroutine crest_new_tautomerize
+
+
