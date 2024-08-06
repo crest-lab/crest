@@ -36,7 +36,7 @@ module tblite_api
   use tblite_param, only : param_record
   use tblite_results,only:tblite_resultstype => results_type
   use tblite_wavefunction_mulliken,only:get_molecular_dipole_moment
-  use tblite_ceh_singlepoint,only:ceh_guess
+  use tblite_ceh_singlepoint,only:ceh_singlepoint
   use tblite_ceh_ceh,only:new_ceh_calculator
 #endif
   use wiberg_mayer
@@ -137,19 +137,19 @@ contains  !> MODULE PROCEDURES START HERE
     select case (tblite%lvl)
     case (xtblvl%gfn1)
       if (pr) call tblite%ctx%message("tblite> setting up GFN1-xTB calculation")
-      call new_gfn1_calculator(tblite%calc,mctcmol)
+      call new_gfn1_calculator(tblite%calc,mctcmol,error)
     case (xtblvl%gfn2)
       if (pr) call tblite%ctx%message("tblite> setting up GFN2-xTB calculation")
-      call new_gfn2_calculator(tblite%calc,mctcmol)
+      call new_gfn2_calculator(tblite%calc,mctcmol,error)
     case (xtblvl%ipea1)
       if (pr) call tblite%ctx%message("tblite> setting up IPEA1-xTB calculation")
-      call new_ipea1_calculator(tblite%calc,mctcmol)
+      call new_ipea1_calculator(tblite%calc,mctcmol,error)
     case (xtblvl%ceh)
       if (pr) call tblite%ctx%message("tblite> setting up CEH calculation")
-      call new_ceh_calculator(tblite%calc,mctcmol)
+      call new_ceh_calculator(tblite%calc,mctcmol,error)
     case (xtblvl%eeq)
       if (pr) call tblite%ctx%message("tblite> setting up D4 EEQ charges calculation")
-      call new_ceh_calculator(tblite%calc,mctcmol) !> doesn't matter but needs initialization
+      call new_ceh_calculator(tblite%calc,mctcmol,error) !> doesn't matter but needs initialization
     case (xtblvl%param)
       if (pr) call tblite%ctx%message("tblite> setting up xtb calculator from parameter file")
       if(allocated(tblite%paramfile))then
@@ -161,7 +161,7 @@ contains  !> MODULE PROCEDURES START HERE
         endif
       else
         if (pr) call tblite%ctx%message("tblite> parameter file does not exist, defaulting to GFN2-xTB")
-        call new_gfn2_calculator(tblite%calc,mctcmol)
+        call new_gfn2_calculator(tblite%calc,mctcmol,error)
       endif
     case default
       call tblite%ctx%message("Error: Unknown method in tblite!")
@@ -318,7 +318,7 @@ contains  !> MODULE PROCEDURES START HERE
      &                    energy,gradient, &
      &                    sigma,verbosity,results=tblite%res)
     case (xtblvl%ceh)
-      call ceh_guess(tblite%ctx,tblite%calc,mctcmol,error,tblite%wfn, &
+      call ceh_singlepoint(tblite%ctx,tblite%calc,mctcmol,tblite%wfn, &
       &              tblite%accuracy,verbosity)
     case(xtblvl%eeq)
       call eeq_guess(mctcmol, tblite%calc, tblite%wfn)
