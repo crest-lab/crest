@@ -351,6 +351,10 @@ program CREST
   end block
 
 !=========================================================================================!
+!> one final cleanup
+  call custom_cleanup(env)
+
+!=========================================================================================!
 !> Evaluate and print timings
   call eval_timer(tim)
   write (*,*) 'CREST terminated normally.'
