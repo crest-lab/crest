@@ -1,15 +1,22 @@
 
 module canonical_mod
-!****************************************************************
-!* Implementation of the CANGEN algorithm by Weininger et al.
+!*************************************************************************
+!* Implementation of different algorithms for determining atom identities
+!* 
+!* A) Implementation of the CANGEN algorithm by Weininger et al.
 !* D.Weininger et al., J. Chem. Inf. Comput. Sci., 1989, 29, 97-101.
 !* doi.org/10.1021/ci00062a008
-!*
 !* The algorithm is used as the backend implementation to
 !* determine the unqiue atom sequence in canonical SMILES.
 !* It is pretty useful for all kinds of stuff, e.g.
 !* for determining tautomers, or trying to restore atom order
-!****************************************************************
+!*
+!* B) A custom implementation based on the all-pair-shortest-path
+!* of the molecular graph, inspired by the Morgan algorithm
+!*
+!* C) a Helper algorithm to determine the (relative) stereo orientation
+!* after a given canonical atom ranking has been generated
+!*************************************************************************
   use crest_parameters
   use strucrd
   use adjacency
@@ -77,7 +84,7 @@ contains  !> MODULE PROCEDURES START HERE
     if (allocated(self%hadjac)) deallocate (self%hadjac)
     if (allocated(self%newrank)) deallocate (self%newrank)
     if (allocated(self%newinv)) deallocate (self%newinv)
-    if (allocated(self%neigh)) deallocate(self%neigh)
+    if (allocated(self%neigh)) deallocate (self%neigh)
   end subroutine deallocate_canonical_sorter
 
 !========================================================================================!
@@ -95,19 +102,20 @@ contains  !> MODULE PROCEDURES START HERE
     if (allocated(self%hadjac)) deallocate (self%hadjac)
     if (allocated(self%newrank)) deallocate (self%newrank)
     if (allocated(self%newinv)) deallocate (self%newinv)
-    if (allocated(self%neigh)) deallocate(self%neigh)
+    if (allocated(self%neigh)) deallocate (self%neigh)
   end subroutine shrink_canonical_sorter
 
 !========================================================================================!
 
-  subroutine init_canonical_sorter(self,mol,wbo)
+  subroutine init_canonical_sorter(self,mol,wbo,invtype)
 !*****************************************************************
 !* Initializes the canonical_sorter and runs the CANGEN algorithm
 !*****************************************************************
     implicit none
     class(canonical_sorter),intent(inout) :: self
     type(coord),intent(in) :: mol
-    real(wp),intent(in) :: wbo(mol%nat,mol%nat)
+    real(wp),intent(in),optional :: wbo(mol%nat,mol%nat)
+    character(len=*),intent(in),optional :: invtype
     integer :: nodes
     integer,allocatable :: Amat(:,:) !> adjacency matrix for FULL molecule
     integer :: counth,countb,countbo
@@ -115,7 +123,15 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),allocatable :: cn(:),Bmat(:,:)
     integer :: i,j,k,l,ii,ati,atj,maxnei
     integer,allocatable :: ichrgs(:),frag(:)
+    character(len=:),allocatable :: myinvtype
     logical :: use_icharges
+
+!>--- optional argument handling
+    if (present(invtype)) then
+      myinvtype = invtype
+    else
+      myinvtype = 'cangen'
+    end if
 
 !>--- all atoms of the full mol. graph are nodes
     nodes = mol%nat
@@ -138,10 +154,10 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- determine number of subgraphs via CN
     call mol%cn_to_bond(cn,Bmat,'cov')
     call wbo2adjacency(nodes,Bmat,Amat,0.02_wp)
-    allocate(frag(nodes),source=0)
+    allocate (frag(nodes),source=0)
     call setup_fragments(nodes,Amat,frag)
-    self%nfrag=maxval(frag(:),1)
-    deallocate(frag,cn,Bmat)  
+    self%nfrag = maxval(frag(:),1)
+    deallocate (frag,cn,Bmat)
 
 !>--- get connectivity. Easiest is just via WBO (allocates Amat)
 !    call wbo2adjacency(nodes,wbo,Amat,0.02_wp)
@@ -182,40 +198,65 @@ contains  !> MODULE PROCEDURES START HERE
     end do
 
 !>--- get the first invatiants
-    if(allocated(mol%qat))then
-       use_icharges = .true.
-       allocate(ichrgs(mol%nat), source=0)
-       ichrgs(:) = nint(mol%qat(:))
+    if (allocated(mol%qat)) then
+      use_icharges = .true.
+      allocate (ichrgs(mol%nat),source=0)
+      ichrgs(:) = nint(mol%qat(:))
     else
-       use_icharges = .false.
-    endif
-    do i = 1,k
-      ii = self%hmap(i)
-      ati = mol%at(ii)
-      counth = 0
-      countbo2 = 0.0_wp
-      countb = 0
-      do j = 1,nodes
-        if (Amat(j,ii) .ne. 0) then
-          if (mol%at(j) .eq. 1)then
-             counth = counth+1 !> count H neighbours
-          !   countbo2 = countbo2-wbo(j,ii) !> but NOT in total bond order
-          endif
-          countb = countb+1 !> count all neighbours
-          !countbo2 = countbo2+wbo(j,ii)  !> sum the total bond order
-        end if
-        countbo2 = countbo2+wbo(j,ii)  !> sum the total bond order
+      use_icharges = .false.
+    end if
+    select case (myinvtype)
+    case ('apsp+') !> custom all-pair-shortest-path algo
+
+      call get_invariant0_apsp(self%hatms,self%hadjac,self%invariants0)
+      do i = 1,k
+        ii = self%hmap(i)
+        ati = mol%at(ii)
+        counth = 0
+        do j = 1,nodes
+          if (Amat(j,ii) .ne. 0) then
+            if (mol%at(j) .eq. 1) then
+              counth = counth+1 !> count H neighbours
+            end if
+          end if
+        end do
+        self%invariants0(i) = update_invariant0_apsp(self%invariants0(i),ati,counth)
       end do
-      countb = countb-counth          !> only heavy atom connections
-      countbo = nint(countbo2)-counth !> same for number of bonds
-      !countbo = nint(countbo2)
-      if(use_icharges)then
-        self%invariants(i) = get_invariant0(ati,countb,countbo,ichrgs(ii),counth) 
-      else
-        self%invariants(i) = get_invariant0(ati,countb,countbo,0,counth)
+      self%invariants(:) = real(self%invariants0(:))
+
+    case default !> CANGEN
+
+      if(.not.present(wbo))then
+        error stop 'CANGEN implementation requires wbo matrix as argument'
       endif
-      self%invariants0(i) = int(self%invariants(i)) !> back up for later tasks
-    end do
+      do i = 1,k
+        ii = self%hmap(i)
+        ati = mol%at(ii)
+        counth = 0
+        countbo2 = 0.0_wp
+        countb = 0
+        do j = 1,nodes
+          if (Amat(j,ii) .ne. 0) then
+            if (mol%at(j) .eq. 1) then
+              counth = counth+1 !> count H neighbours
+                 countbo2 = countbo2-wbo(j,ii) !> but NOT in total bond order
+            end if
+            countb = countb+1 !> count all neighbours
+            !countbo2 = countbo2+wbo(j,ii)  !> sum the total bond order
+          end if
+          countbo2 = countbo2+wbo(j,ii)  !> sum the total bond order
+        end do
+        countb = countb-counth          !> only heavy atom connections
+        !countbo = nint(countbo2)-counth !> same for number of bonds
+        countbo = nint(countbo2)
+        if (use_icharges) then
+          self%invariants(i) = get_invariant0(ati,countb,countbo,ichrgs(ii),counth)
+        else
+          self%invariants(i) = get_invariant0(ati,countb,countbo,0,counth)
+        end if
+        self%invariants0(i) = int(self%invariants(i)) !> back up for later tasks
+      end do
+    end select
 
     deallocate (Amat)
 
@@ -239,20 +280,82 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine get_invariant0_morgan_v(hatms,hadjac,inv)
+  subroutine get_invariant0_apsp(hatms,hadjac,inv)
     implicit none
     integer,intent(in)  :: hatms
     integer,intent(in)  :: hadjac(hatms,hatms)
     integer,intent(out) :: inv(hatms)
-    inv(:) = 0
 
+    real(wp),allocatable :: dist(:,:)
+    real(wp),allocatable :: rinv(:),tmprinv(:)
+    integer,allocatable  :: tmp(:,:)
+    integer :: i,j,k,l,maxdist,lpath
+    real(wp) :: maxrinv
+    inv(:) = 1
 
-  end subroutine get_invariant0_morgan_v
+    allocate (tmp(hatms,hatms),source=0)
+    allocate (dist(hatms,hatms),source=0.0_wp)
 
+    !>--- calculate all-pair-shortest-path (APSP)
+    call FloydWarshall(hatms,hadjac,dist,tmp)
+    tmp(:,:) = nint(dist(:,:))
+    maxdist = maxval(tmp)
+    do i = 1,hatms
+      tmp(i,i) = 0
+    end do
+    deallocate (dist)
+
+    !>--- get ranks using the APSP
+    allocate (rinv(hatms),tmprinv(hatms),source=1.0_wp)
+    do i = 1,maxdist
+      tmprinv(:) = 0
+      do j = 1,hatms
+        do k = 1,hatms
+          if (tmp(k,j) .eq. i) then
+            tmprinv(j) = tmprinv(j)+rinv(k)
+          end if
+        end do
+      end do
+      rinv(:) = rinv(:)+tmprinv(:)
+    end do
+
+    !>--- put the reversed order of rinv as "actual" invariant
+    k = 1
+    do i = 1,hatms !> the out loop has the maximum possible number of iterations
+      maxrinv = maxval(rinv(:),1)
+      if (maxrinv < 0.0_wp) exit
+      do j = 1,hatms
+        if (rinv(j) >= maxrinv) then
+          inv(j) = k
+          rinv(j) = -1.0_wp
+        end if
+      end do
+      k = k+1
+    end do
+
+    deallocate (tmprinv,rinv)
+    deallocate (tmp)
+  end subroutine get_invariant0_apsp
+  function update_invariant0_apsp(inv_in,ati,hneigh) result(inv)
+!************************************************************************
+!* update invariant for atom by appending atom type and number of H atoms
+!*************************************************************************
+    implicit none
+    integer :: inv
+    integer,intent(in) :: inv_in !> previous invariant
+    integer,intent(in) :: ati !> atomic number
+    integer,intent(in) :: hneigh !> # H atoms bound to atom
+    inv = inv_in*10**3
+    inv = inv+ati*10
+    inv = inv+hneigh
+  end function update_invariant0_apsp
 
 !========================================================================================!
 
   function get_invariant0(ati,nneigh,nbonds,chrg,hneigh) result(inv)
+!**********************************************************************
+!* Get invariant for atom according to the origin al CANGEN scheme
+!**********************************************************************
     implicit none
     integer :: inv
     integer,intent(in) :: ati !> atomic number
@@ -372,11 +475,11 @@ contains  !> MODULE PROCEDURES START HERE
       zero = count(self%neigh(:,ii) == 0)
       nei = self%maxnei-zero
 !>--- consider only atoms with 4 unique (in terms of CANGEN ranks) neighbours as stereocenter
-      if (nei == 4) then
+      if (nei == 4) then 
         do j = 1,4
           jj = self%neigh(j,ii)
           if (mol%at(jj) == 1) then !> one hydrogen allowed
-            neiranks(j,ii) = maxrank
+            neiranks(j,ii) = maxrank+1
           else
             neiranks(j,ii) = self%rank(jj)
           end if
@@ -412,7 +515,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  function compare_canonical_sorter(self, other) result(yesno)
+  function compare_canonical_sorter(self,other) result(yesno)
 !*****************************************************
 !* compare two canonical_sorter objects to determine
 !* if both correspond to the same molecule
@@ -425,47 +528,46 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: maxrank_a,maxrank_b,hatms
     integer :: i,j,jj,k,kk
 
-    yesno=.false.
+    yesno = .false.
 !>--- the obvious cases first
-    if(self%nat .ne. other%nat) return
-    if(self%hatms .ne. other%hatms) return  
+    if (self%nat .ne. other%nat) return
+    if (self%hatms .ne. other%hatms) return
     maxrank_a = maxval(self%rank(:),1)
-    maxrank_b = maxval(other%rank(:),1)     
-    if(maxrank_a .ne. maxrank_b) return
+    maxrank_b = maxval(other%rank(:),1)
+    if (maxrank_a .ne. maxrank_b) return
 
 !>--- if the easy checks passed, compare the actual invariants!
-    hatms=self%hatms
-    allocate(sorted_invariants(hatms,2), source=0)
-    jj=0
-    kk=0
-    do i=1,maxrank_a  !> maxrank_a == maxrank_b, see above
-      do j=1,hatms
-       if(self%rank(j)==i)then
-          jj=jj+1
-           sorted_invariants(jj,1) = self%invariants0(j)
-       endif 
-      enddo
-      do k=1,hatms
-       if(other%rank(k)==i)then
-          kk=kk+1
+    hatms = self%hatms
+    allocate (sorted_invariants(hatms,2),source=0)
+    jj = 0
+    kk = 0
+    do i = 1,maxrank_a  !> maxrank_a == maxrank_b, see above
+      do j = 1,hatms
+        if (self%rank(j) == i) then
+          jj = jj+1
+          sorted_invariants(jj,1) = self%invariants0(j)
+        end if
+      end do
+      do k = 1,hatms
+        if (other%rank(k) == i) then
+          kk = kk+1
           sorted_invariants(kk,2) = other%invariants0(k)
-       endif
-      enddo
-    enddo
+        end if
+      end do
+    end do
 
-    if(debug)then
-       do i=1,hatms
-          write(stdout,'(i10,i10,i10)') i,sorted_invariants(i,:)
-       enddo
-    endif    
+    if (debug) then
+      do i = 1,hatms
+        write (stdout,'(i10,i10,i10)') i,sorted_invariants(i,:)
+      end do
+    end if
 
 !>--- assign identity
-    yesno = all(sorted_invariants(:,1).eq.sorted_invariants(:,2))
+    yesno = all(sorted_invariants(:,1) .eq. sorted_invariants(:,2))
 
-    deallocate(sorted_invariants)
+    deallocate (sorted_invariants)
     return
   end function compare_canonical_sorter
-
 
 !========================================================================================!
 !========================================================================================!
