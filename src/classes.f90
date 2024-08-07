@@ -73,6 +73,7 @@ module crest_data
   integer,parameter,public :: crest_solv     = 15
   integer,parameter,public :: crest_protonate = 16
   integer,parameter,public :: crest_deprotonate = 17
+  integer,parameter,public :: crest_tautomerize = 18
 !>> runtypes with IDs between use non-legacy routines  <<!
   integer,parameter,public :: crest_sp         = 264
   integer,parameter,public :: crest_optimize   = 265

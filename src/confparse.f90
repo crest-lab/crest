@@ -472,6 +472,7 @@ subroutine parseflags(env,arg,nra)
 
       case ('-tautomerize') !> tautomerization tool
         env%properties = p_tautomerize
+        env%crestver = crest_tautomerize
         write (*,'(2x,a,'' : automated tautomerization script'')') trim(arg(i))
         exit
 

@@ -387,6 +387,26 @@ subroutine deprotonate(env,tim)
   end if
 end subroutine deprotonate
 
+!================================================================================!
+
+subroutine tautomerize(env,tim)
+!*****************************************************
+!* subroutine tautomerize
+!* driver for the automated tautomer search
+!*****************************************************
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  type(timer)   :: tim
+  if (env%legacy) then
+    call tautomerize_legacy(env,tim)
+  else
+    call crest_new_tautomerize(env,tim)
+  end if
+end subroutine tautomerize
+
+
 !========================================================================================!
 
 subroutine catchdiatomic(env)

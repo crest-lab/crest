@@ -35,7 +35,7 @@ end subroutine tauthead
 !--------------------------------------------------------------------------------------------
 ! Tautomerization workflow with GFNn-xTB
 !--------------------------------------------------------------------------------------------
-subroutine tautomerize(env,tim)
+subroutine tautomerize_legacy(env,tim)
   use crest_parameters
   use crest_data
   use iomod
@@ -196,7 +196,7 @@ subroutine tautomerize(env,tim)
     call new_wrsdfens(env,'tautomers.xyz','tautomers.sdf',.true.)
   end if
 
-end subroutine tautomerize
+end subroutine tautomerize_legacy
 
 !--------------------------------------------------------------------------------------------
 ! small verion of the protonate routine
