@@ -323,7 +323,7 @@ subroutine crest_new_protonate(env,tim)
 
 !========================================================================================!
 !> Remove doubly generated tautomers
-  call protonation_prep_canonical(env,trim(atmp))
+  call protonation_prep_canonical(env,mol,trim(atmp))
 
 !========================================================================================!
 !>--- move final ensemble to protonated.xyz
@@ -432,7 +432,7 @@ end subroutine protonation_candidates
 
 !========================================================================================!
 
-subroutine protonation_prep_canonical(env,fname)
+subroutine protonation_prep_canonical(env,refmol,fname)
   use crest_parameters
   use crest_data
   use strucrd
@@ -441,14 +441,16 @@ subroutine protonation_prep_canonical(env,fname)
   use canonical_mod
   use iomod,only:remove
   use adjacency
+  use cregen_interface
   implicit none
   type(systemdata) :: env
+  type(coord),intent(in) :: refmol 
   character(len=*),intent(in) :: fname
 
   type(calcdata),allocatable :: tmpcalc
   type(calculation_settings) :: ceh
   type(coord),allocatable :: structures(:)
-  type(coord) :: refmol
+
   real(wp),allocatable :: cn(:),Bmat(:,:)
   integer,allocatable :: frag(:),Amat(:,:)
   real(wp),allocatable :: grad(:,:)
@@ -462,7 +464,7 @@ subroutine protonation_prep_canonical(env,fname)
   call smallhead('Remove duplicates via canonical atom identity')
 
 !>--- reference molecule (unprotonated)
-  call env%ref%to(refmol)
+!  call env%ref%to(refmol) !> DO NOT USE THIS, CREGEN MAY OVERWRITE
   call refmol%cn_to_bond(cn,Bmat,'cov')
   call wbo2adjacency(refmol%nat,Bmat,Amat,0.01_wp)
   allocate (frag(refmol%nat),source=0)
@@ -474,33 +476,12 @@ subroutine protonation_prep_canonical(env,fname)
   call rdensemble(fname,nall,structures)
   nat = structures(1)%nat
 
-!  allocate (grad(3,nat),source=0.0_wp)
-!!>--- GFN0 job adapted from global settings
-!  allocate (tmpcalc)
-!  call env2calc(env,tmpcalc,structures(1))
-!  tmpcalc%calcs(1)%id = jobtype%gfn0
-!  tmpcalc%calcs(1)%rdwbo = .true.      !> WBOs from GFN0
-!  tmpcalc%calcs(1)%rdqat = .false.
-!  tmpcalc%calcs(1)%chrg = env%chrg
-!  tmpcalc%ncalculations = 1
-!  tmpcalc%nconstraints = 0
-!  ceh%id = jobtype%tblite
-!  ceh%tblitelvl = xtblvl%ceh  !> atomic charges from CEH (better than EEQ)
-!  ceh%chrg = env%chrg
-!  ceh%rdqat = .true.
-!  call tmpcalc%add(ceh)
-
 !>--- run singlepoints to document WBOs and charges (doesn't need to be parallel)
   allocate (canon(nall))
 
-  !write (stdout,'(a,i0,a)') '> Performing ',nall,' GFN0 and CEH calculations to get WBOs and atomic charges ...'
   write (stdout,'(a,i0,a)') '> Setting up canonical atom order for ',nall,' structures via CN-based molecular graphs ...'
   call crest_oloop_pr_progress(env,nall,0)
   do i = 1,nall
-!    call engrad(structures(i),tmpcalc,energy,grad,io)
-
-    !call move_alloc(tmpcalc%calcs(2)%qat,structures(i)%qat)
-    !call canon(i)%init(structures(i),tmpcalc%calcs(1)%wbo,invtype='apsp+')
     call canon(i)%init(structures(i),invtype='apsp+')
     call canon(i)%stereo(structures(i))
     !write(*,*)
@@ -541,7 +522,7 @@ subroutine protonation_prep_canonical(env,fname)
     end if
   end do
   if (k > 0) then
-    write (stdout,'(a,i0,a)') '> ',k,' structures discared due to fragment change'
+    write (stdout,'(a,i0,a,i0,a)') '> ',k,' structures discared due to fragment change (!=',refnfrag,')'
   end if
 
 !>--- dump to new file
@@ -556,13 +537,12 @@ subroutine protonation_prep_canonical(env,fname)
   end do GROUPLOOP
   close (ich)
 !>--- "sort" again for printout
-  call newcregen(env,7,outfile)
+  call newcregen(env,7,trim(outfile))
   call remove(outfile)
   call rename(outfile//'.sorted',fname)
 
   deallocate (group)
   deallocate (canon)
-  !deallocate (tmpcalc)
 end subroutine protonation_prep_canonical
 
 !========================================================================================!
@@ -826,7 +806,7 @@ subroutine crest_new_deprotonate(env,tim)
 
 !========================================================================================!
 !> Remove doubly generated tautomers
-  call protonation_prep_canonical(env,trim(atmp))
+  call protonation_prep_canonical(env,mol,trim(atmp))
 
 !========================================================================================!
 !>--- move final ensemble to deprotonated.xyz
@@ -1219,7 +1199,7 @@ subroutine crest_new_tautomerize(env,tim)
     write (stdout,*)
 
     !> Remove doubly generated tautomers
-    call protonation_prep_canonical(env,trim(atmp))
+    call protonation_prep_canonical(env,mol,trim(atmp))
 
     !>--- re-read sorted ensemble
     call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
@@ -1312,7 +1292,7 @@ subroutine crest_new_tautomerize(env,tim)
 
 !========================================================================================!
 !> Remove doubly generated tautomers
-  call protonation_prep_canonical(env,trim(atmp))
+  call protonation_prep_canonical(env,mol,trim(atmp))
 
 !========================================================================================!
 !========================================================================================!
