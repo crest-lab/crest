@@ -31,6 +31,9 @@ subroutine ompmklset(threads)
   call MKL_Set_Num_Threads(threads)
   call mkl_set_dynamic(0)
 #endif
+#ifdef WITH_OPENBLAS
+  call openblas_set_num_threads(threads)
+#endif
 end subroutine ompmklset
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
@@ -45,6 +48,7 @@ subroutine ompenvset(omp)
 
   io = setenv('OMP_NUM_THREADS',omp)
   io = setenv('MKL_NUM_THREADS',omp)
+  io = setenv('OPENBLAS_NUM_THREADS',omp) 
 
 end subroutine ompenvset
 
