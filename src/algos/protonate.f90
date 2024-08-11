@@ -798,14 +798,13 @@ subroutine crest_new_deprotonate(env,tim)
 !>--- Optimize with global settings
   if (env%protb%finalopt.and.env%protb%ffopt) then
     call smallhead('Final Deprotomer Ensemble Optimization')
-    allocate (tmpcalc)
-    call env2calc(env,tmpcalc,mol)
+    allocate (tmpcalc, source=env%calc)
     call tmpcalc%info(stdout)
     tmpcalc%optnewinit = .true.
     call tim%start(20,'Ensemble optimization')
     call print_opt_data(env%calc,stdout)
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep,.false.,tmpcalc)
+    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc)
     call tim%stop(20)
 
     pstep = pstep+1
@@ -1190,7 +1189,7 @@ subroutine crest_new_tautomerize(env,tim)
     call tmpset%create('gfnff')
     tmpset%chrg = env%chrg
     call tmpcalc_ff%add(tmpset)
-    tmpcalc_ff%maxcycle = 100
+    tmpcalc_ff%maxcycle = 10000
     tmpcalc_ff%anopt=.true.
     call tmpcalc_ff%info(stdout)
 
