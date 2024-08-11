@@ -29,6 +29,7 @@ subroutine ompmklset(threads)
   call OMP_Set_Num_Threads(threads)
 #ifdef WITH_MKL
   call MKL_Set_Num_Threads(threads)
+  call mkl_set_dynamic(0)
 #endif
 end subroutine ompmklset
 
@@ -66,11 +67,10 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
 
   !> The default, all threads allocated to CREST
   T = env%threads
-  parallel_jobs = T
+  parallel_jobs = max(1,T)
   cores_per_job = 1
   !> More settings, nested parallelization reset
   call omp_set_max_active_levels(1)
-  !call omp_set_dynamic(.true.)
 
   select case (modus)
   case ('auto','auto_nested')
@@ -87,7 +87,12 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
       if (env%omp_allow_nested) then
         !> We should never need more than two active nested layers
         call omp_set_max_active_levels(2)
-      end if
+      endif
+    else
+#ifdef WITH_MKL
+      !call mkl_free_buffers()
+      call mkl_set_dynamic(0)
+#endif
     end if
 
   case ('max')
@@ -100,11 +105,18 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
     parallel_jobs = 1
     cores_per_job = 1
 
-  case ('subprocess')
+  case ('subprocess','la-focus')
     !> CREST itself uses one thread, and but the environment variable is set to max
     !> which is useful when driving a single subprocess/systemcall
     parallel_jobs = 1
-    cores_per_job = T
+    cores_per_job = T 
+
+    !> the setting may also be used for linear-algebra focused runs, in which case 
+    !> nested parallelism should be active
+    if (env%omp_allow_nested) then
+      !> We should never need more than two active nested layers
+      call omp_set_max_active_levels(2)
+    endif
 
   end select
 
