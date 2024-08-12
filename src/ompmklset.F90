@@ -31,10 +31,17 @@ subroutine ompmklset(threads)
   call MKL_Set_Num_Threads(threads)
   call mkl_set_dynamic(0)
 #endif
+! call openblasset(threads)
+end subroutine ompmklset
+
+subroutine openblasset(threads)
+  implicit none
+  integer,intent(in) :: threads
 #ifdef WITH_OPENBLAS
   call openblas_set_num_threads(threads)
 #endif
-end subroutine ompmklset
+  return
+end subroutine openblasset
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 !c OMP and MKL parallelization settings (short routine)
@@ -98,7 +105,9 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
       call mkl_set_dynamic(0)
 #endif
     end if
-
+#ifdef WITH_OPENBLAS
+      call openblas_set_num_threads(1)
+#endif
   case ('max')
     !> Both intern and environment variable threads to max
     parallel_jobs = T
@@ -127,7 +136,11 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
   !> apply the calculated settings
   call ompmklset(parallel_jobs)
   call ompenvset(cores_per_job)
-
+#ifdef WITH_OPENBLAS
+  if(modus.ne.'auto'.and.modus.ne.'auto_nested')then
+      call openblas_set_num_threads(cores_per_job)
+  endif
+#endif
 end subroutine new_ompautoset
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
