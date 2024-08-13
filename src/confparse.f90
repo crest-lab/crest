@@ -461,18 +461,21 @@ subroutine parseflags(env,arg,nra)
       case ('-protonate') !> protonation tool
         env%properties = p_protonate
         env%crestver = crest_protonate
+        env%legacy = .true. !> TODO, set active at later version
         write (*,'(2x,a,'' : automated protonation script'')') trim(arg(i))
         exit
 
       case ('-deprotonate') !> deprotonation tool
         env%properties = p_deprotonate
         env%crestver = crest_deprotonate
+        env%legacy = .true. !> TODO, set active at later version
         write (*,'(2x,a,'' : automated deprotonation script'')') trim(arg(i))
         exit
 
       case ('-tautomerize') !> tautomerization tool
         env%properties = p_tautomerize
         env%crestver = crest_tautomerize
+        env%legacy = .true. !> TODO, set active at later version
         write (*,'(2x,a,'' : automated tautomerization script'')') trim(arg(i))
         exit
 
@@ -540,6 +543,7 @@ subroutine parseflags(env,arg,nra)
         env%doOHflip = .false. !> Switch off OH-flip
         if (env%iterativeV2) env%iterativeV2 = .false.
         exit
+        env%legacy = .true. !> force legacy routines for now
 
       case ('-compress')
         env%crestver = crest_compr
