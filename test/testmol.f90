@@ -1,9 +1,12 @@
-module testmol
+module crest_testmol
 !> coffeine
   use iso_fortran_env,only:wp => real64
   use strucrd
   implicit none
   private
+
+  public :: get_testmol
+
 !&<
   integer,parameter ::  caffeine_nat = 24
   integer, parameter :: caffeine_at(caffeine_nat) = [6,7,6,7,6,6,6,8,7,6,8,7,6,6, &
@@ -41,7 +44,7 @@ module testmol
   integer,parameter ::  methane_nat = 5
   integer, parameter :: methane_at(methane_nat) = [6,1,1,1,1]
   real(wp),parameter :: methane_xyz(3,methane_nat) =    reshape(&
-    & [-2.901604086313, 2.032342621828, -0.000007558904, &  
+    & [-2.901604086313, 2.032342621828, -0.000007558904, &
     &  -4.142827301385, 1.660246889672,  1.875960807537, &
     &  -4.354204487169, 0.990001535591, -1.470244961017, &
     &  -3.376685347364, 4.088767344235, -0.405769514737, &
@@ -49,33 +52,30 @@ module testmol
     &  shape(methane_xyz))
 !&>
 
-
-    public :: get_testmol
-
 contains
 
   subroutine get_testmol(name,mol)
     character(len=*),intent(in) :: name
     type(coord),intent(out) :: mol
-    select case(name)
-    case('methane')
+    select case (name)
+    case ('methane')
       mol%nat = methane_nat
-      allocate(mol%at(mol%nat))
+      allocate (mol%at(mol%nat))
       mol%at(:) = methane_at(:)
-      allocate(mol%xyz(3,mol%nat))
+      allocate (mol%xyz(3,mol%nat))
       mol%xyz(:,:) = methane_xyz(:,:)
       mol%chrg = 0
       mol%uhf = 0
     case default
       !> caffeine
       mol%nat = caffeine_nat
-      allocate(mol%at(mol%nat))
-      mol%at(:) = caffeine_at(:)     
-      allocate(mol%xyz(3,mol%nat))
+      allocate (mol%at(mol%nat))
+      mol%at(:) = caffeine_at(:)
+      allocate (mol%xyz(3,mol%nat))
       mol%xyz(:,:) = caffeine_xyz(:,:)
       mol%chrg = 0
       mol%uhf = 0
     end select
   end subroutine get_testmol
 
-end module testmol
+end module crest_testmol

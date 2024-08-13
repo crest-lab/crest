@@ -29,7 +29,6 @@ module optimize_utils
   use axis_module
   use strucrd
   use ls_rmsd
-  use testmol
 
   use optimize_type
   use optimize_maths
