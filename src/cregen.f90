@@ -105,7 +105,7 @@ subroutine newcregen(env,quickset,infile)
   logical :: conffile
   logical :: bonusfiles
   logical :: anal
-  logical :: saveelow = .true.
+  logical :: saveelow
   logical :: userinput
 
 !>--- printout directions
@@ -139,7 +139,7 @@ subroutine newcregen(env,quickset,infile)
 
 !>-- determine which subroutines are required
   call cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
-  &  repairord,newfile,conffile,bonusfiles,anal,topocheck,checkez)
+  &  repairord,newfile,conffile,bonusfiles,anal,topocheck,checkez,saveelow)
 
 !>--- DATA SECTION
   call cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
@@ -444,7 +444,7 @@ end subroutine cregen_prout
 !=========================================================================================!
 
 subroutine cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
-        &  repairord,newfile,conffile,bonusfiles,anal,topocheck,checkez)
+        &  repairord,newfile,conffile,bonusfiles,anal,topocheck,checkez,saveelow)
 !**************************************************************
 !* subroutine cregen_director !IMPORTANT!
 !* handle which comparisons are required and which files shall
@@ -464,6 +464,7 @@ subroutine cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
   logical,intent(out) :: anal
   logical,intent(out) :: topocheck
   logical,intent(out) :: checkez
+  logical,intent(out) :: saveelow 
 
   checkbroken = .true. !> fragmentized structures are sorted out
   sortE = .true.       !> sort based on energy
@@ -474,6 +475,8 @@ subroutine cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
   newfile = .true.  !> sorted input file
 
   conffile = .true. !> sorted unique structure file
+
+  saveelow = .true. !> save (overwrite) lowest structure to env%ref
 
   topocheck = env%checktopo !> topology is compared to reference structure
   checkez = env%checkiso    !> check for C=C cis/trans isomerizations
@@ -509,6 +512,7 @@ subroutine cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
     checkez = .false.
     bonusfiles = .false.
     anal = .false.
+    saveelow = .false.
   end if
 
   if (simpleset == 9) then  !optpurge mode
