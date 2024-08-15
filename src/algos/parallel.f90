@@ -1055,7 +1055,7 @@ subroutine parallel_md_finish_printout(MD,vz,io,profiler)
   if (io == 0) then
     write (btmp,'(a,1x,i3,a)') trim(atmp),vz,' completed successfully'
   else
-    write (btmp,'(a,1x,i3,a)') trim(atmp),vz,' terminated with early'
+    write (btmp,'(a,1x,i3,a)') trim(atmp),vz,' terminated EARLY'
   end if
   call profiler%write_timing(stdout,vz,trim(btmp))
 
