@@ -105,9 +105,8 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
       call mkl_set_dynamic(0)
 #endif
     end if
-#ifdef WITH_OPENBLAS
-      call openblas_set_num_threads(1)
-#endif
+    call openblasset(1)
+
   case ('max')
     !> Both intern and environment variable threads to max
     parallel_jobs = T
@@ -137,9 +136,10 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
   call ompmklset(parallel_jobs)
   call ompenvset(cores_per_job)
 #ifdef WITH_OPENBLAS
-  if(modus.ne.'auto'.and.modus.ne.'auto_nested')then
-      call openblas_set_num_threads(cores_per_job)
-  endif
+!  if(modus.ne.'auto'.and.modus.ne.'auto_nested')then
+!      call openblasset(cores_per_job)
+!  endif
+   call openblasset(1)
 #endif
 end subroutine new_ompautoset
 

@@ -1,4 +1,4 @@
 [wrap-git]
 directory = tblite
-url = https://github.com/tblite/tblite
-revision = main
+url = https://github.com/ppracht/tblite
+revision = xtb_solvation

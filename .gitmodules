@@ -19,5 +19,5 @@
 	url = https://github.com/fortran-lang/test-drive.git
 [submodule "subprojects/tblite"]
 	path = subprojects/tblite
-	url = https://github.com/tblite/tblite.git
-    branch = main
+	url = https://github.com/pprcht/tblite.git
+    branch = xtb_solvation
