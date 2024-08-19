@@ -141,10 +141,10 @@ contains  !> MODULE PROCEDURES START HERE
     iostatus = 0
     dum1 = 1.0_wp
     dum2 = 1.0_wp
-    if(n>0)then
-    calc%etmp = 0.0_wp
-    calc%grdtmp = 0.0_wp
-    endif
+    if (n > 0) then
+      calc%etmp = 0.0_wp
+      calc%grdtmp = 0.0_wp
+    end if
     !$omp end critical
 
 !**************************************
@@ -260,13 +260,13 @@ contains  !> MODULE PROCEDURES START HERE
 
       !!$omp parallel &
       !!$omp shared(calc%cons,mol,n,energy,gradient) &
-      !!$omp private(efix,i,calc%grdfix) 
+      !!$omp private(efix,i,calc%grdfix)
       do i = 1,calc%nconstraints
         efix = 0.0_wp
         calc%grdfix = 0.0_wp
-        if(calc%nfreeze > 0)then
-           call calc%cons(i)%addfreeze(calc%freezelist)
-        endif
+        if (calc%nfreeze > 0) then
+          call calc%cons(i)%addfreeze(calc%freezelist)
+        end if
         if (calc%cons(i)%type >= 0) then
           !>--- structural constraints
           call calc_constraint(mol%nat,mol%xyz,calc%cons(i),efix,calc%grdfix)
@@ -363,13 +363,13 @@ contains  !> MODULE PROCEDURES START HERE
       !> ORCA-style SPs
       call orca_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
 
-    case (jobtype%lj) 
+    case (jobtype%lj)
       !> Lennard-Jones potential calculation
       if (allocated(calc%calcs(id)%other)) then
         read (calc%calcs(id)%other,*) dum1,dum2
       else
         dum2 = 3.4_wp !> Argon-LJ distance (σ) in Angstroem
-        dum1 = 0.238129_wp/627.50947428_wp !> Argon-LJ energy (ε) in atomic units  
+        dum1 = 0.238129_wp/627.50947428_wp !> Argon-LJ energy (ε) in atomic units
       end if
       call lj_engrad(molptr%nat,molptr%xyz*autoaa,dum1,dum2, &
       &              calc%etmp(id),calc%grdtmp(:,1:pnat,id))
@@ -386,52 +386,62 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
-  subroutine numgrad(mol,calc,angrad)
+  subroutine numgrad(mol,calc,angrad,numgradient)
 !*******************************************************
 !* subroutine numgrad
 !* routine to perform a numerical gradient calculation
 !*******************************************************
     implicit none
-
-    type(coord) :: mol
-    type(calcdata) :: calc
-    real(wp) :: angrad(3,mol%nat)
+    type(coord),intent(inout) :: mol
+    type(calcdata),intent(inout) :: calc
+    real(wp),intent(in),optional :: angrad(3,mol%nat)
+    real(wp),allocatable,intent(out),optional :: numgradient(:,:)
     integer :: i,j,k,l,ich,och,io
 
     real(wp) :: energy,el,er
     real(wp),allocatable :: grad(:,:)
-    real(wp),allocatable :: numgrd(:,:)
-    real(wp),parameter :: step = 0.00001_wp,step2 = 0.5_wp/step
+    real(wp),allocatable :: ngrd(:,:)
+    real(wp),parameter :: step = 0.0005_wp
+    real(wp),parameter :: step2 = 0.5_wp/step
 
     allocate (grad(3,mol%nat),source=0.0_wp)
-    allocate (numgrd(3,mol%nat),source=0.0_wp)
+    allocate (ngrd(3,mol%nat),source=0.0_wp)
 
     do i = 1,mol%nat
       do j = 1,3
+        call calc%dealloc_params()
         mol%xyz(j,i) = mol%xyz(j,i)+step
         call engrad(mol,calc,er,grad,io)
 
+        call calc%dealloc_params()
         mol%xyz(j,i) = mol%xyz(j,i)-2*step
         call engrad(mol,calc,el,grad,io)
 
         mol%xyz(j,i) = mol%xyz(j,i)+step
-        numgrd(j,i) = step2*(er-el)
+        ngrd(j,i) = step2*(er-el)
       end do
     end do
 
-    write (stdout,*)
-    write (stdout,*) 'Numerical Gradient:'
-    do i = 1,mol%nat
-      write (*,'(3f18.8)') numgrd(1:3,i)
-    end do
+    if (present(angrad)) then
+      write (stdout,*)
+      write (stdout,*) 'Numerical Gradient:'
+      do i = 1,mol%nat
+        write (*,'(3f18.8)') ngrd(1:3,i)
+      end do
 
-    write (stdout,*)
-    write (stdout,*) 'Gradient Difference:'
-    do i = 1,mol%nat
-      write (stdout,'(3f18.8)') numgrd(1:3,i)-angrad(1:3,i)
-    end do
+      write (stdout,*)
+      write (stdout,*) 'Gradient Difference:'
+      do i = 1,mol%nat
+        write (stdout,'(3f18.8)') ngrd(1:3,i)-angrad(1:3,i)
+      end do
+    end if
 
-    deallocate (numgrd,grad)
+    if (present(numgradient)) then
+      call move_alloc(ngrd,numgradient)
+    else
+      deallocate (ngrd)
+    end if
+    deallocate (grad)
 
     return
   end subroutine numgrad
@@ -537,7 +547,7 @@ contains  !> MODULE PROCEDURES START HERE
     mol%nat = nat
     mol%at = at
     mol%xyz = xyz
-    
+
     allocate (gradr(3,mol%nat),source=0.0_wp) !dummy
     allocate (gradl(3,mol%nat),source=0.0_wp) !dummy
 
@@ -546,15 +556,15 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- prepare potential dipole gradient readout
     rddipoles = (any(calc%calcs(:)%rddip))
-    if(rddipoles)then
-      do m=1,calc%ncalculations
-        if(calc%calcs(m)%rddip)then
-          calc%calcs(m)%rddipgrad = .true. 
-          if(allocated(calc%calcs(m)%dipgrad)) deallocate(calc%calcs(m)%dipgrad)
-          allocate(calc%calcs(m)%dipgrad(3,nat*3))  
-        endif
-      enddo
-    endif
+    if (rddipoles) then
+      do m = 1,calc%ncalculations
+        if (calc%calcs(m)%rddip) then
+          calc%calcs(m)%rddipgrad = .true.
+          if (allocated(calc%calcs(m)%dipgrad)) deallocate (calc%calcs(m)%dipgrad)
+          allocate (calc%calcs(m)%dipgrad(3,nat*3))
+        end if
+      end do
+    end if
 
 !>--- actual numerical Hessian loop
     do i = 1,mol%nat
@@ -564,13 +574,13 @@ contains  !> MODULE PROCEDURES START HERE
         call engrad(mol,calc,er,gradr,io)
 
         gradr_tmp = calc%grdtmp
-        if(rddipoles) call get_dipoles(calc,dipr)
+        if (rddipoles) call get_dipoles(calc,dipr)
 
         mol%xyz(j,i) = mol%xyz(j,i)-2.0_wp*step
         call engrad(mol,calc,el,gradl,io)
 
         gradl_tmp = calc%grdtmp
-        if(rddipoles) call get_dipoles(calc,dipl)
+        if (rddipoles) call get_dipoles(calc,dipl)
 
         mol%xyz(j,i) = mol%xyz(j,i)+step
 
@@ -585,13 +595,13 @@ contains  !> MODULE PROCEDURES START HERE
         end do
 
 !>--- create dipole gradients
-        if(rddipoles)then
-          do m=1,calc%ncalculations
-           if(calc%calcs(m)%rddip)then
-             calc%calcs(m)%dipgrad(1:3, ii) = (dipr(1:3,m) - dipl(1:3,m)) * step2           
-           endif
-          enddo
-        endif
+        if (rddipoles) then
+          do m = 1,calc%ncalculations
+            if (calc%calcs(m)%rddip) then
+              calc%calcs(m)%dipgrad(1:3,ii) = (dipr(1:3,m)-dipl(1:3,m))*step2
+            end if
+          end do
+        end if
 
       end do
     end do
@@ -609,8 +619,8 @@ contains  !> MODULE PROCEDURES START HERE
 
     call engrad(mol,calc,el,gradl,io) !>- to get the gradient of the non-displaced s
 
-    if(allocated(dipl)) deallocate(dipl)
-    if(allocated(dipr)) deallocate(dipr)
+    if (allocated(dipl)) deallocate (dipl)
+    if (allocated(dipr)) deallocate (dipr)
     deallocate (gradl_tmp,gradr_tmp)
     deallocate (gradl,gradr)
     call mol%deallocate()
@@ -652,18 +662,18 @@ contains  !> MODULE PROCEDURES START HERE
     dummycalc%id = -1000
     dummycalc%ncalculations = 0
     dummycalc%pr_energies = .false.
-    
+
     !> copy the constraints
-    dummycalc%nfreeze = calc%nfreeze 
+    dummycalc%nfreeze = calc%nfreeze
     dummycalc%nconstraints = ncons
     !$omp critical
-    allocate(dummycalc%cons( ncons ))
-    do i=1,ncons
-      dummycalc%cons(i) = calc%cons(i)   
-    enddo
-    if(calc%nfreeze > 0)then
-     dummycalc%freezelist = calc%freezelist
-    endif
+    allocate (dummycalc%cons(ncons))
+    do i = 1,ncons
+      dummycalc%cons(i) = calc%cons(i)
+    end do
+    if (calc%nfreeze > 0) then
+      dummycalc%freezelist = calc%freezelist
+    end if
     n3 = nat*3
     allocate (hess(n3,n3),source=0.0_wp)
     !$omp end critical
@@ -677,7 +687,7 @@ contains  !> MODULE PROCEDURES START HERE
         phess(k) = phess(k)+0.5_wp*(hess(j,i)+hess(i,j))
       end do
     end do
-    
+
     deallocate (hess)
     return
   end subroutine constrhess
@@ -706,7 +716,7 @@ contains  !> MODULE PROCEDURES START HERE
       write (atmp,'(f20.12)') energies(i)
       btmp = btmp//atmp
     end do
-    write(atmp,'(e20.5)') gnorm
+    write (atmp,'(e20.5)') gnorm
     btmp = btmp//atmp
     if (present(chnl)) then
       write (chnl,'(a)') btmp

@@ -361,12 +361,51 @@ subroutine protonate(env,tim)
   implicit none
   type(systemdata) :: env
   type(timer)   :: tim
-!  if (env%legacy) then
+  if (env%legacy) then
     call protonate_legacy(env,tim)
-!  else
-!    call crest_new_protonate(env,tim)
-!  end if
+  else
+    call crest_new_protonate(env,tim)
+  end if
 end subroutine protonate
+
+!================================================================================!
+
+subroutine deprotonate(env,tim)
+!*****************************************************
+!* subroutine deprotonate
+!* driver for the automated deprotonation site search
+!*****************************************************
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  type(timer)   :: tim
+  if (env%legacy) then
+    call deprotonate_legacy(env,tim)
+  else
+    call crest_new_deprotonate(env,tim)
+  end if
+end subroutine deprotonate
+
+!================================================================================!
+
+subroutine tautomerize(env,tim)
+!*****************************************************
+!* subroutine tautomerize
+!* driver for the automated tautomer search
+!*****************************************************
+  use iso_fortran_env,only:wp => real64
+  use crest_data
+  implicit none
+  type(systemdata) :: env
+  type(timer)   :: tim
+  if (env%legacy) then
+    call tautomerize_legacy(env,tim)
+  else
+    call crest_new_tautomerize(env,tim)
+  end if
+end subroutine tautomerize
+
 
 !========================================================================================!
 

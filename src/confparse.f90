@@ -461,16 +461,21 @@ subroutine parseflags(env,arg,nra)
       case ('-protonate') !> protonation tool
         env%properties = p_protonate
         env%crestver = crest_protonate
+        env%legacy = .true. !> TODO, set active at later version
         write (*,'(2x,a,'' : automated protonation script'')') trim(arg(i))
         exit
 
       case ('-deprotonate') !> deprotonation tool
         env%properties = p_deprotonate
+        env%crestver = crest_deprotonate
+        env%legacy = .true. !> TODO, set active at later version
         write (*,'(2x,a,'' : automated deprotonation script'')') trim(arg(i))
         exit
 
       case ('-tautomerize') !> tautomerization tool
         env%properties = p_tautomerize
+        env%crestver = crest_tautomerize
+        env%legacy = .true. !> TODO, set active at later version
         write (*,'(2x,a,'' : automated tautomerization script'')') trim(arg(i))
         exit
 
@@ -538,6 +543,7 @@ subroutine parseflags(env,arg,nra)
         env%doOHflip = .false. !> Switch off OH-flip
         if (env%iterativeV2) env%iterativeV2 = .false.
         exit
+        env%legacy = .true. !> force legacy routines for now
 
       case ('-compress')
         env%crestver = crest_compr
@@ -1078,6 +1084,8 @@ subroutine parseflags(env,arg,nra)
       case ('-cross')
         env%performCross = .true.     !> do the genetic crossing
         env%autozsort = .true.
+      case ('-keepdir','-keeptmp')     !> Do not delete temporary directories at the end
+            env%keepModef = .true.
       case ('-opt','-optlev')             !> settings for optimization level of GFN-xTB
         env%optlev = optlevnum(arg(i+1))
         write (*,'(2x,a,1x,a)') trim(arg(i)),optlevflag(env%optlev)
@@ -1582,6 +1590,11 @@ subroutine parseflags(env,arg,nra)
         env%properties = p_protonate
         env%autozsort = .false.
         env%protb%threshsort = .true.
+        ctmp = trim(arg(i+1))
+        if (ctmp(1:1) .ne. '-') then
+           read(ctmp,*,iostat=io) idum
+           if(io.eq.0) env%protb%amount = idum
+        end if
       case ('-swel')                  !> switch out H+ to something else in protonation script
         if (env%properties .eq. -3) then
           call swparse(arg(i+1),env%protb)
@@ -1590,6 +1603,11 @@ subroutine parseflags(env,arg,nra)
         env%properties = p_deprotonate
         env%autozsort = .false.
         env%protb%threshsort = .true.
+        ctmp = trim(arg(i+1))
+        if (ctmp(1:1) .ne. '-') then
+           read(ctmp,*,iostat=io) idum
+           if(io.eq.0) env%protb%amount = idum
+        end if
       case ('-tautomerize')           !> tautomerization tool
         env%properties = p_tautomerize
         env%autozsort = .false.

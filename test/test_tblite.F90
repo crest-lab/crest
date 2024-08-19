@@ -3,7 +3,8 @@ module test_tblite
   use crest_parameters
   use crest_calculator
   use strucrd
-  use testmol
+  use crest_testmol, only: get_testmol
+  use test_helpers, only: test_e, test_g
   implicit none
   private
 
@@ -323,64 +324,23 @@ contains  !> Unit tests for using tblite in crest
     real(wp) :: energy
     real(wp),allocatable :: grad(:,:)
     integer :: io
-!&<
-    real(wp),parameter :: e_ref = -42.150818113966622_wp
-    real(wp),parameter :: g_ref(3,24) = reshape([&
-    &   -0.004041852805369_wp, -0.001459116937018_wp,  0.000004212952013_wp, & 
-    &    0.005431782185647_wp, -0.026769409144275_wp, -0.000053933849249_wp, &
-    &    0.005232547908947_wp,  0.019316152153876_wp,  0.000051828956087_wp, &
-    &    0.003984299183311_wp,  0.004654018323578_wp, -0.000031672641741_wp, &
-    &   -0.034791239964625_wp, -0.009664440508457_wp, -0.000039268100546_wp, &
-    &    0.006792385075909_wp, -0.003127178836761_wp,  0.000032791144117_wp, &
-    &    0.015306198183764_wp,  0.005195424722641_wp,  0.000035383591075_wp, &
-    &   -0.011644038936970_wp,  0.009526167376125_wp, -0.000103656945404_wp, &
-    &   -0.001073718470205_wp, -0.010467260905049_wp,  0.000071170633309_wp, &
-    &   -0.012208257598543_wp,  0.007792225857756_wp, -0.000026835529946_wp, &
-    &    0.024297093142032_wp, -0.020057317289964_wp, -0.000036190038701_wp, &
-    &    0.002288207714506_wp,  0.015784323612706_wp, -0.000015109378387_wp, &
-    &   -0.001839503827186_wp, -0.003557956433963_wp,  0.000003971003294_wp, &
-    &   -0.006475695156935_wp,  0.007869132396390_wp, -0.000061014145496_wp, &
-    &   -0.001323378271276_wp,  0.002797437673167_wp,  0.000004384755727_wp, &
-    &    0.002794743156382_wp,  0.000752555767144_wp,  0.003757718239733_wp, &
-    &    0.002796550406646_wp,  0.000753562108628_wp, -0.003760695667456_wp, &
-    &   -0.003950802127381_wp,  0.008247313874474_wp,  0.000028580331243_wp, &
-    &    0.007699255283409_wp,  0.001924889526582_wp,  0.000000878165662_wp, &
-    &    0.000911988480912_wp, -0.000170582007313_wp,  0.003208806647171_wp, &
-    &    0.000936315963916_wp, -0.000147196304551_wp, -0.003212846696159_wp, &
-    &   -0.002208060498652_wp, -0.009259192346010_wp,  0.000102993956974_wp, &
-    &    0.000531577240056_wp,  0.000047927691044_wp,  0.002360617394228_wp, &
-    &    0.000553603731705_wp,  0.000018519629250_wp, -0.002322114777547_wp &
-    & ], shape(g_ref))
-!&>
+    real(wp),parameter :: e_ref = -23.983234299793384_wp
 
     !> setup
     call sett%create('gfn2')
     sett%solvmodel = 'alpb'
     sett%solvent = 'water'
     call calc%add(sett)
-    call get_testmol('caffeine',mol)
-    allocate (grad(3,mol%nat))
+    call get_testmol('cytosine',mol)
 
-    !> calculation
-    call engrad(mol,calc,energy,grad,io)
-    !write(*,'(F25.15)') energy
-    !write(*,'(3F25.15)') grad
-    call check(error,io,0)
+    !> energy
+    call test_e(mol,calc,error,e_ref)
     if (allocated(error)) return
 
-    call check(error,energy,e_ref,thr=1e-7_wp)
+    !> gradient
+    call test_g(mol,calc,error)
     if (allocated(error)) return
-
-    if (any(abs(grad-g_ref) > thr2)) then
-      call test_failed(error,"Gradient of energy does not match")
-      print'(3es21.14)',grad
-      print'("---")'
-      print'(3es21.14)',g_ref
-      print'("---")'
-      print'(3es21.14)',grad-g_ref
-    end if
-
-    deallocate (grad)
+ 
   end subroutine test_gfn2_sp_alpb
 
 !========================================================================================!

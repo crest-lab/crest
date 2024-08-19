@@ -72,6 +72,8 @@ module crest_data
   integer,parameter,public :: crest_pka      = 14
   integer,parameter,public :: crest_solv     = 15
   integer,parameter,public :: crest_protonate = 16
+  integer,parameter,public :: crest_deprotonate = 17
+  integer,parameter,public :: crest_tautomerize = 18
 !>> runtypes with IDs between use non-legacy routines  <<!
   integer,parameter,public :: crest_sp         = 264
   integer,parameter,public :: crest_optimize   = 265
@@ -173,6 +175,7 @@ module crest_data
     real(wp) :: ewin = 30.0_wp       !> separate EWIN threshold
     integer :: swchrg = 1            !> switch element charge
     integer :: swat = 1              !> switch element element
+    integer :: amount = 1            !> how many protons to add?
     logical :: swelem = .false.      !> switch element to add to lmo lp pair?
     logical :: allowFrag = .false.   !> allow fragmentation
     logical :: threshsort = .false.  !> use ewin threshold

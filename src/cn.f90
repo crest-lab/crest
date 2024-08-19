@@ -51,7 +51,7 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
-  subroutine calculate_CN(nat,at,xyz,cn,cnthr,cntype,dcndr)
+  subroutine calculate_CN(nat,at,xyz,cn,cnthr,cntype,dcndr,bond)
 !*********************************************************
 !* Universal CN calculator with several optional settings
 !* for customisation.
@@ -63,6 +63,7 @@ contains  !> MODULE PROCEDURES START HERE
 !*   cnthr  - pair distance cutoff in Bohr
 !*   cntype - string to select CN type (exp,erf,erf_en)
 !*   dcndr  - optional output cn derivatives
+!*   bond   - optional output "bond" connectivity matrix
 !*********************************************************
     implicit none
     !> INPUT
@@ -75,13 +76,14 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),intent(in),optional :: cnthr
     character(len=*),intent(in),optional :: cntype
     real(wp),intent(out),optional :: dcndr(:,:,:)
+    real(wp),intent(out),allocatable,optional :: bond(:,:)
     !> LOCAL
     real(wp) :: cn_thr,cn_direct
     integer :: cn_type,ati,atj
     real(wp) :: rcovi,rcovj,rij(3),r2,r,rco
     real(wp) :: damp,ddamp(3),den
     integer :: i,j,k,l,iat,jat
-    logical :: deriv
+    logical :: deriv,getbond
 
 !>--- check options and defaults
     if (present(cnthr)) then
@@ -117,6 +119,14 @@ contains  !> MODULE PROCEDURES START HERE
     else
       deriv = .false.
     end if
+
+    if(present(bond))then
+       getbond=.true.
+       allocate(bond(nat,nat),source=0.0_wp)
+    else
+       getbond=.false.
+    endif
+
 
     cn(:) = 0.0_wp
 !>--- actual calculation
@@ -155,6 +165,11 @@ contains  !> MODULE PROCEDURES START HERE
           damp = cn_damp_gfn(rco,r)
           if (deriv) ddamp(:) = dcn_damp_gfn(rco,r)*(rij(:)/r)
         end select
+        
+        if(getbond)then
+           bond(j,i) = damp
+           bond(i,j) = damp 
+        endif
 
         cn(i) = cn(i)+damp
         if (i /= j) then

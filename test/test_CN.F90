@@ -1,7 +1,7 @@
 module test_CN
   use testdrive,only:new_unittest,unittest_type,error_type,check,test_failed
   use crest_parameters
-  use testmol
+  use crest_testmol
   use strucrd
   use crest_cn_module
   use miscdata,only:RCOV  !> D3 covalent radii

@@ -99,7 +99,6 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
   integer :: i,j,k,l,io,ich,ich2,c,z,job_id,zcopy
   logical :: pr,wr,ex
   type(calcdata),allocatable :: calculations(:)
-  integer :: T  !> number of parallel running instances
   real(wp) :: energy,gnorm
   real(wp),allocatable :: grad(:,:),grads(:,:,:)
   integer :: thread_id,vz,job
@@ -107,12 +106,19 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
   real(wp) :: percent,runtime
 
   type(timer) :: profiler
+  integer :: T,Tn  !> threads and threads per core
+  logical :: nested
 
 !>--- check if we have any calculation settings allocated
   if (env%calc%ncalculations < 1) then
     write (stdout,*) 'no calculations allocated'
     return
   end if
+
+!>--- prepare calculation objects for parallelization (one per thread)
+  call new_ompautoset(env,'auto_nested',nall,T,Tn)
+  nested = env%omp_allow_nested
+
 
 !>--- prepare objects for parallelization
   T = env%threads
@@ -153,7 +159,7 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
 !>--- loop over ensemble
   !$omp parallel &
   !$omp shared(env,calculations,nat,nall,at,xyz,eread,grads,c,k,z,pr,wr) &
-  !$omp shared(ich,ich2,mols)
+  !$omp shared(ich,ich2,mols, nested,Tn)
   !$omp single
   do i = 1,nall
 
@@ -161,6 +167,9 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
     vz = i
     !$omp task firstprivate( vz ) private(i,j,job,energy,io,thread_id,zcopy)
     call initsignal()
+
+    !>--- OpenMP nested region threads
+    if (nested) call ompmklset(Tn)
 
     thread_id = OMP_GET_THREAD_NUM()
     job = thread_id+1
@@ -259,7 +268,6 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
   integer :: i,j,k,l,io,ich,ich2,c,z,job_id,zcopy
   logical :: pr,wr,ex
   type(calcdata),allocatable :: calculations(:)
-  integer :: T  !> number of parallel running instances
   real(wp) :: energy,gnorm
   real(wp),allocatable :: grads(:,:,:)
   integer :: thread_id,vz,job
@@ -267,6 +275,8 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
   real(wp) :: percent,runtime
   type(calcdata),pointer :: mycalc
   type(timer) :: profiler
+  integer :: T,Tn  !> threads and threads per core
+  logical :: nested
 
 !>--- decide wether to skip this call
   if (trackrestart(env)) then
@@ -287,8 +297,11 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
     return
   end if
 
+!>--- prepare calculation objects for parallelization (one per thread)
+  call new_ompautoset(env,'auto_nested',nall,T,Tn)
+  nested = env%omp_allow_nested
+
 !>--- prepare objects for parallelization
-  T = env%threads
   allocate (calculations(T),source=mycalc)
   allocate (mols(T),molsnew(T))
   do i = 1,T
@@ -299,6 +312,9 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
       if (.not.ex) then
         io = makedir(trim(mycalc%calcs(j)%calcspace))
       end if
+      if(calculations(i)%calcs(j)%id == jobtype%tblite)then
+         calculations(i)%optnewinit=.true.
+      endif
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = mycalc%calcs(j)%calcspace//trim(atmp)
       call calculations(i)%calcs(j)%printid(i,j)
@@ -331,7 +347,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
 !>--- loop over ensemble
   !$omp parallel &
   !$omp shared(env,calculations,nat,nall,at,xyz,eread,grads,c,k,z,pr,wr,dump) &
-  !$omp shared(ich,ich2,mols,molsnew)
+  !$omp shared(ich,ich2,mols,molsnew, nested,Tn)
   !$omp single
   do i = 1,nall
 
@@ -339,6 +355,9 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
     vz = i
     !$omp task firstprivate( vz ) private(j,job,energy,io,atmp,gnorm,thread_id,zcopy)
     call initsignal()
+
+    !>--- OpenMP nested region threads
+    if (nested) call ompmklset(Tn)
 
     thread_id = OMP_GET_THREAD_NUM()
     job = thread_id+1
@@ -1036,7 +1055,7 @@ subroutine parallel_md_finish_printout(MD,vz,io,profiler)
   if (io == 0) then
     write (btmp,'(a,1x,i3,a)') trim(atmp),vz,' completed successfully'
   else
-    write (btmp,'(a,1x,i3,a)') trim(atmp),vz,' terminated with early'
+    write (btmp,'(a,1x,i3,a)') trim(atmp),vz,' terminated EARLY'
   end if
   call profiler%write_timing(stdout,vz,trim(btmp))
 

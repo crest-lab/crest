@@ -37,7 +37,7 @@ end subroutine deprothead
 !--------------------------------------------------------------------------------------------
 ! Protonation workflow with GFNn-xTB
 !--------------------------------------------------------------------------------------------
-subroutine deprotonate(env,tim)
+subroutine deprotonate_legacy(env,tim)
       use crest_parameters
       use crest_data
       use iomod
@@ -185,7 +185,7 @@ subroutine deprotonate(env,tim)
      !call chdir(thispath)
 
      return
-end subroutine deprotonate
+end subroutine deprotonate_legacy
 
 !----------------------------------------------------!
 ! for every structure calculate an correction

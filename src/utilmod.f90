@@ -38,6 +38,7 @@ module utilities
   public :: TRJappendto_skipfirst
   public :: XYZappendto
   public :: dumpenergies
+  public :: get_combinations
 
   !> functions
   public :: lin
@@ -46,6 +47,8 @@ module utilities
   public :: ohbonded2
   public :: ohbonded
   public :: distcma
+  public :: binomial
+  public :: factorial
 
 !========================================================================================!
 !========================================================================================!
@@ -538,6 +541,67 @@ contains  !> MODULE PROCEDURES START HERE
     end do
     close (ich)
   end subroutine dumpenergies
+
+!========================================================================================!
+
+  function binomial(n, k) result(res)
+!**************************************************
+!* Function to calculate the binomial coefficient 
+!*
+!*  ⎛ n ⎞
+!*  ⎝ k ⎠  = n! / (k! * (n - k)!)
+!*
+!**************************************************
+    implicit none
+    integer, intent(in) :: n, k
+    real(wp) :: reswp
+    integer :: res
+    reswp = factorial(n) / (factorial(k) * factorial(n - k))
+    res = nint(reswp)
+  end function binomial
+
+
+  function factorial(x) result(fact)
+!***************************************************
+!* Function to calculate the factorial of a number  
+!* factorial(x) = x! = x * (x-1) * (x-2) * ... * 1  
+!***************************************************
+    implicit none
+    integer, intent(in) :: x
+    integer :: i
+    real(wp) :: fact
+    fact = 1.0_wp
+    do i = 2, x
+      fact = fact * real(i,wp)
+    end do
+  end function factorial
+
+
+  recursive subroutine get_combinations(n, k, ntot, c, combinations, tmp, depth)
+    implicit none
+    integer, intent(in) :: n, k, ntot, depth !> depth should start out as 0
+    integer,intent(inout) :: c,tmp(k)
+    integer, intent(inout) :: combinations(k,ntot)
+    integer :: i
+    if (depth >= k) then
+      c=c+1
+      combinations(:,c) = tmp(:)
+      return
+    else if(depth==0)then
+       do i=1,n
+          tmp(depth+1) = i
+          call get_combinations(n, k, ntot, c, combinations, tmp, depth+1)
+       enddo
+    else 
+       do i=1,tmp(depth)
+          if(i==tmp(depth)) cycle
+          tmp(depth+1) = i
+          call get_combinations(n, k, ntot, c, combinations, tmp, depth+1) 
+       enddo 
+    end if
+  end subroutine get_combinations
+
+
 
 !========================================================================================!
 !========================================================================================!

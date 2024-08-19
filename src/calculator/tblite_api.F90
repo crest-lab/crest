@@ -32,8 +32,8 @@ module tblite_api
   use tblite_wavefunction_type,only:wavefunction_type,new_wavefunction
   use tblite_wavefunction,only:sad_guess,eeq_guess
   use tblite_xtb,xtb_calculator => xtb_calculator
-  use tblite_xtb_calculator, only: new_xtb_calculator
-  use tblite_param, only : param_record
+  use tblite_xtb_calculator,only:new_xtb_calculator
+  use tblite_param,only:param_record
   use tblite_results,only:tblite_resultstype => results_type
   use tblite_wavefunction_mulliken,only:get_molecular_dipole_moment
   use tblite_ceh_singlepoint,only:ceh_singlepoint
@@ -152,17 +152,17 @@ contains  !> MODULE PROCEDURES START HERE
       call new_ceh_calculator(tblite%calc,mctcmol,error) !> doesn't matter but needs initialization
     case (xtblvl%param)
       if (pr) call tblite%ctx%message("tblite> setting up xtb calculator from parameter file")
-      if(allocated(tblite%paramfile))then
+      if (allocated(tblite%paramfile)) then
         call tblite_read_param_record(tblite%paramfile,param,io)
-        call new_xtb_calculator(tblite%calc, mctcmol, param, error)
-        if(allocated(error))then
-          write(stdout,*) 'Could not read tblite parameter file '//tblite%paramfile
+        call new_xtb_calculator(tblite%calc,mctcmol,param,error)
+        if (allocated(error)) then
+          write (stdout,*) 'Could not read tblite parameter file '//tblite%paramfile
           error stop
-        endif
+        end if
       else
         if (pr) call tblite%ctx%message("tblite> parameter file does not exist, defaulting to GFN2-xTB")
         call new_gfn2_calculator(tblite%calc,mctcmol,error)
-      endif
+      end if
     case default
       call tblite%ctx%message("Error: Unknown method in tblite!")
       error stop
@@ -189,8 +189,9 @@ contains  !> MODULE PROCEDURES START HERE
 #ifdef WITH_TBLITE
     use tblite_container,only:container_type
     use tblite_solvation,only:new_solvation,tblite_solvation_type => solvation_type, &
-    &                            solvent_data,get_solvent_data,solvation_input,  &
-    &                            cpcm_input,alpb_input,alpb_solvation
+    &                         solvent_data,get_solvent_data,solvation_input,  &
+    &                         cpcm_input,alpb_input,alpb_solvation, &
+    &                         cds_input,new_solvation_cds,shift_input,new_solvation_shift
 #endif
     implicit none
     type(coord),intent(in)  :: mol
@@ -207,7 +208,10 @@ contains  !> MODULE PROCEDURES START HERE
     class(tblite_solvation_type),allocatable :: solv
     type(solvation_input),allocatable :: solv_inp
     type(solvent_data) :: solv_data
-    character(len=:),allocatable :: str,solvdum
+    type(alpb_input)  :: alpb_tmp
+    type(cds_input)   :: cds_tmp
+    type(shift_input) :: shift_tmp
+    character(len=:),allocatable :: str,solvdum,method
     logical :: pr
 
     if (.not.allocated(smodel).or..not.allocated(solvent)) then
@@ -216,10 +220,16 @@ contains  !> MODULE PROCEDURES START HERE
     pr = (tblite%ctx%verbosity > 0)
 
 !>--- some tblite calculators have nothing to do with implicit solvation
-    if (tblite%lvl > 3 .and. tblite%lvl.ne.xtblvl%param) then
+    if (tblite%lvl > 3.and.tblite%lvl .ne. xtblvl%param) then
       if (pr) call tblite%ctx%message("tblite> skipping implicit solvation setup for this potential")
       return
     end if
+    select case (tblite%lvl)
+    case (xtblvl%gfn1)
+      method = 'gfn1'
+    case (xtblvl%gfn2)
+      method = 'gfn2'
+    end select
 
 !>--- make an mctcmol object from mol
     call tblite_mol2mol(mol,chrg,uhf,mctcmol)
@@ -240,32 +250,77 @@ contains  !> MODULE PROCEDURES START HERE
     select case (trim(smodel))
     case ('gbsa')
       if (pr) call tblite%ctx%message("tblite> using GBSA/"//solvdum)
-      allocate (solv_inp%alpb)
-      solv_inp%alpb = alpb_input(solv_data%eps,alpb=.false.)
+      alpb_tmp%dielectric_const = solv_data%eps
+      alpb_tmp%alpb=.false.
+      alpb_tmp%method=method
+      alpb_tmp%solvent=solv_data%solvent
+      alpb_tmp%xtb=.true.
+      allocate (solv_inp%alpb, source=alpb_tmp)
+      cds_tmp%alpb=.false.
+      cds_tmp%solvent=solv_data%solvent
+      cds_tmp%method=method 
+      allocate (solv_inp%cds, source=cds_tmp)
+      shift_tmp%alpb=.false.
+      shift_tmp%solvent=solv_data%solvent
+      shift_tmp%method=method
+      allocate (solv_inp%shift, source=shift_tmp)
     case ('cpcm')
       if (pr) call tblite%ctx%message("tblite> using CPCM/"//solvdum)
       allocate (solv_inp%cpcm)
       solv_inp%cpcm = cpcm_input(solv_data%eps)
     case ('alpb')
       if (pr) call tblite%ctx%message("tblite> using ALPB/"//solvdum)
-      allocate (solv_inp%alpb)
-      solv_inp%alpb = alpb_input(solv_data%eps,alpb=.true.)
+      alpb_tmp%dielectric_const = solv_data%eps
+      alpb_tmp%alpb=.true.
+      alpb_tmp%method=method
+      alpb_tmp%solvent=solv_data%solvent
+      alpb_tmp%xtb=.true.
+      allocate (solv_inp%alpb, source=alpb_tmp)
+      cds_tmp%alpb=.true.
+      cds_tmp%solvent=solv_data%solvent
+      cds_tmp%method=method 
+      allocate (solv_inp%cds, source=cds_tmp)
+      shift_tmp%alpb=.true.
+      shift_tmp%solvent=solv_data%solvent
+      shift_tmp%method=method
+      allocate (solv_inp%shift, source=shift_tmp)
     case default
       if (pr) call tblite%ctx%message("tblite> Unknown tblite implicit solvation model!")
       return
     end select
+
     str = 'tblite> WARNING: implicit solvation energies are not entirely '// &
     &'consistent with the xtb implementation.'
     if (pr) call tblite%ctx%message(str)
 
-!>--- add to calculator
-    call new_solvation(solv,mctcmol,solv_inp,error)
+!>--- add electrostatic (Born part) to calculator
+    call new_solvation(solv,mctcmol,solv_inp,error,method)
     if (allocated(error)) then
       if (pr) call tblite%ctx%message("tblite> failed to set up tblite implicit solvation!")
       return
     end if
     call move_alloc(solv,cont)
     call tblite%calc%push_back(cont)
+!>--- add hbond and dispersion pert to calculator
+    if (allocated(solv_inp%cds)) then
+      block
+        class(tblite_solvation_type),allocatable :: cds
+        call new_solvation_cds(cds,mctcmol,solv_inp,error,method)
+        if (allocated(error)) return
+        call move_alloc(cds,cont)
+        call tblite%calc%push_back(cont)
+      end block
+    end if
+!>--- add gsolv shift to calculator
+    if (allocated(solv_inp%shift)) then
+      block
+        class(tblite_solvation_type),allocatable :: shift
+        call new_solvation_shift(shift,solv_inp,error,method)
+        if (allocated(error)) return
+        call move_alloc(shift,cont)
+        call tblite%calc%push_back(cont)
+      end block
+    end if
 
     deallocate (solv_inp)
 
@@ -302,11 +357,11 @@ contains  !> MODULE PROCEDURES START HERE
     energy = 0.0_wp
     gradient(:,:) = 0.0_wp
     pr = (tblite%ctx%verbosity > 0)
-    if(tblite%ctx%verbosity>1)then
+    if (tblite%ctx%verbosity > 1) then
       verbosity = tblite%ctx%verbosity
     else
       verbosity = 0
-    endif
+    end if
 
 !>--- make an mctcmol object from mol
     call tblite_mol2mol(mol,chrg,uhf,mctcmol)
@@ -320,8 +375,8 @@ contains  !> MODULE PROCEDURES START HERE
     case (xtblvl%ceh)
       call ceh_singlepoint(tblite%ctx,tblite%calc,mctcmol,tblite%wfn, &
       &              tblite%accuracy,verbosity)
-    case(xtblvl%eeq)
-      call eeq_guess(mctcmol, tblite%calc, tblite%wfn)
+    case (xtblvl%eeq)
+      call eeq_guess(mctcmol,tblite%calc,tblite%wfn)
     end select
 
     if (tblite%ctx%failed()) then
@@ -409,25 +464,25 @@ contains  !> MODULE PROCEDURES START HERE
     case default
 
       nao = tblite%calc%bas%nao
-      allocate(Pa(nao,nao),Pb(nao,nao))
-      call split_foccab(nao,tblite%wfn%focc, tblite%wfn%nel(1), tblite%wfn%nel(2), &
-      & focca, foccb)
+      allocate (Pa(nao,nao),Pb(nao,nao))
+      call split_foccab(nao,tblite%wfn%focc,tblite%wfn%nel(1),tblite%wfn%nel(2), &
+      & focca,foccb)
       call density_matrix(nao,focca,tblite%wfn%coeff(:,:,1),Pa)
       call density_matrix(nao,foccb,tblite%wfn%coeff(:,:,1),Pb)
-      call get_wbo(nat, nao, Pa,Pb, tblite%res%overlap, tblite%calc%bas%ao2at, wbo)
+      call get_wbo(nat,nao,Pa,Pb,tblite%res%overlap,tblite%calc%bas%ao2at,wbo)
 
     case (xtblvl%ceh)
-    !> no external access to the overlap in CEH, hence use the Wiberg BO with S=I
+      !> no external access to the overlap in CEH, hence use the Wiberg BO with S=I
       nao = tblite%calc%bas%nao
-      allocate(S(nao,nao), source=0.0_wp) 
-      do i=1,nao
+      allocate (S(nao,nao),source=0.0_wp)
+      do i = 1,nao
         S(i,i) = 1.0_wp
-      enddo
+      end do
       call get_wbo_rhf(nat,tblite%calc%bas%nao,tblite%wfn%density, &
       &                S,tblite%calc%bas%ao2at,wbo)
       wbo = wbo*2.0_wp !> somehow this is much better
 
-    case( xtblvl%eeq )
+    case (xtblvl%eeq)
       wbo = 0.0_wp
     end select
 #endif
@@ -477,37 +532,37 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 
 #ifdef WITH_TBLITE
-subroutine tblite_read_param_record(paramfile,param,io)
-   use tomlf
-   implicit none
-   character(len=*),intent(in) :: paramfile
-   type(param_record),intent(out) :: param
-   integer,intent(out) :: io
-   type(error_type),allocatable :: error
-   type(toml_table),allocatable :: table
-   type(toml_error),allocatable :: terror
-   type(toml_context) :: tcontext
-   logical,parameter :: color = .true.
+  subroutine tblite_read_param_record(paramfile,param,io)
+    use tomlf
+    implicit none
+    character(len=*),intent(in) :: paramfile
+    type(param_record),intent(out) :: param
+    integer,intent(out) :: io
+    type(error_type),allocatable :: error
+    type(toml_table),allocatable :: table
+    type(toml_error),allocatable :: terror
+    type(toml_context) :: tcontext
+    logical,parameter :: color = .true.
 
-   io=1
+    io = 1
 
-   call toml_load(table,paramfile,error=terror,context=tcontext, &
-   & config=toml_parser_config(color=color))
-   if(allocated(terror))then
-     io=1
-     return
-   endif
+    call toml_load(table,paramfile,error=terror,context=tcontext, &
+    & config=toml_parser_config(color=color))
+    if (allocated(terror)) then
+      io = 1
+      return
+    end if
 
-   call param%load_from_toml(table,error)
+    call param%load_from_toml(table,error)
 
-   if(allocated(error))then
-     io=1
-   else
-     io=0
-   endif
-   if(allocated(table))deallocate(table)
+    if (allocated(error)) then
+      io = 1
+    else
+      io = 0
+    end if
+    if (allocated(table)) deallocate (table)
 
-end subroutine tblite_read_param_record
+  end subroutine tblite_read_param_record
 #endif
 
 !========================================================================================!

@@ -3,7 +3,7 @@ module test_gfn0
   use crest_parameters
   use crest_calculator
   use strucrd
-  use testmol
+  use crest_testmol
   implicit none
   private
 

@@ -54,6 +54,16 @@ if(NOT TARGET "OpenMP::OpenMP_Fortran" AND WITH_OpenMP)
   find_package("OpenMP" REQUIRED)
 endif()
 
+# Check if we are using OpenBLAS (need a precompiler definition if yes)
+if(LAPACK_LIBRARIES)
+  string(FIND "${LAPACK_LIBRARIES}" "openblas" _openblas_in_lapack)
+
+  if(NOT _openblas_in_lapack EQUAL -1)
+    message(STATUS "libopenblas was found as part of LAPACK")
+    add_compile_definitions(WITH_OPENBLAS)
+  endif()
+endif()
+
 # Fortran unit test interface (also used by other subprojects)
 if(NOT TARGET "test-drive::test-drive" AND WITH_TESTS)
    find_package("test-drive" REQUIRED)
