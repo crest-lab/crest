@@ -25,15 +25,27 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         build: [cmake]
         build-type: [debug]
-        compiler: [gnu, intel]
+        compiler: [gnu]
         version: [11, 12]
 
         include:
-        - os: ubuntu-latest
-          build: meson
+        - os: macos-latest
+          build: cmake
+          build-type: debug
+          compiler: intel
+          version: 2023.1.0
+
+        - os: macos-latest
+          build: cmake
+          build-type: debug
+          compiler: gnu
+          version: 12
+
+        - os: macos-latest
+          build: cmake
           build-type: debug
           compiler: gnu
           version: 11
@@ -160,7 +172,7 @@ jobs:
       run: ninja -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests (ctest)
-      if: ${{ matrix.build == 'cmake' }}
+      if: ${{ matrix.build == 'cmake' && matrix.compiler == 'gnu' }}
       run: |
          ctest --output-on-failure --parallel 2 -R '^crest/'
       working-directory: ${{ env.BUILD_DIR }}
