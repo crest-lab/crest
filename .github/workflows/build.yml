@@ -14,10 +14,10 @@ env:
     ase
     matplotlib
   LINUX_INTEL_COMPONENTS: >-
-    intel-oneapi-compiler-fortran-2021.2.0
-    intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2021.2.0
-    intel-oneapi-mkl-2021.2.0
-    intel-oneapi-mkl-devel-2021.2.0
+    intel-oneapi-compiler-fortran-2023.1.0
+    intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2023.1.0
+    intel-oneapi-mkl-2023.1.0
+    intel-oneapi-mkl-devel-2023.1.0
 
 jobs:
   build:
@@ -26,18 +26,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        build: [meson, cmake]
+        build: [cmake]
         build-type: [debug]
-        compiler: [gnu]
-        version: [12]
+        compiler: [gnu, intel]
+        version: [11, 12]
 
         include:
-        - os: ubuntu-latest
-          build: meson
-          build-type: debug
-          compiler: gnu
-          version: 10
-
         - os: ubuntu-latest
           build: meson
           build-type: debug
@@ -46,9 +40,9 @@ jobs:
 
         - os: ubuntu-latest
           build: meson
-          build-type: debug
+          build-type: debugoptimized
           compiler: intel
-          version: 2021.2.0
+          version: 2023.1.0
 
     defaults:
       run:
@@ -56,7 +50,7 @@ jobs:
 
     env:
       FC: ${{ matrix.compiler == 'intel' && 'ifort' || 'gfortran' }}
-      CC: ${{ matrix.compiler == 'intel' && 'icc' || 'gcc' }}
+      CC: ${{ matrix.compiler == 'intel' && 'icx' || 'gcc' }}
       GCC_V: ${{ matrix.version }}
       PYTHON_V: 3.9
 
@@ -180,7 +174,7 @@ jobs:
         echo "CREST_PREFIX=$PWD/_dist" >> $GITHUB_ENV
 
     - name: Create package
-      if: ${{ matrix.build == 'meson' && matrix.version == 12 && matrix.build-type == 'debug' && matrix.compiler == 'intel' }}
+      if: ${{ matrix.build == 'meson' && matrix.compiler == 'intel' }}
       run: |
         tar cvf ${{ env.OUTPUT }} _dist
         xz -T0 ${{ env.OUTPUT }}
@@ -189,7 +183,7 @@ jobs:
         OUTPUT: crest-${{ matrix.compiler }}-${{ matrix.version }}-${{ matrix.os }}.tar
 
     - name: Upload package
-      if: ${{ matrix.build == 'meson' && matrix.version == 12 && matrix.build-type == 'debug' && matrix.compiler == 'intel' }}
+      if: ${{ matrix.build == 'meson' && matrix.compiler == 'intel' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.CREST_OUTPUT }}
