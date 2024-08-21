@@ -46,12 +46,21 @@ add_subdirectory("config")
 
 # LAPACK, BLAS, OpenMP (usually via shared dependencies)
 if(STATICBUILD)
+ set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+ set(CMAKE_EXE_LINKER_FLAGS "-static")
+ set(CMAKE_LINK_SEARCH_START_STATIC TRUE)
+ set(CMAKE_LINK_SEARCH_END_STATIC TRUE)
  set(BLA_STATIC ON)
 endif()
 find_package(LAPACK REQUIRED)
 find_package(BLAS REQUIRED)
 if(NOT TARGET "OpenMP::OpenMP_Fortran" AND WITH_OpenMP)
   find_package("OpenMP" REQUIRED)
+  get_target_property(OpenMP_Fortran_LIBRARIES OpenMP::OpenMP_Fortran INTERFACE_LINK_LIBRARIES)
+  message(STATUS "OpenMP::OpenMP_Fortran is linking the following libraries:")
+  foreach(lib ${OpenMP_Fortran_LIBRARIES})
+    message(STATUS "${lib}")
+  endforeach() 
 endif()
 
 # Check if we are using OpenBLAS (need a precompiler definition if yes)
@@ -177,7 +186,7 @@ else()
    )
 endif()
 
-# workaround attemp. doesn't work yet
+# workaround
 set(LINK_OpenMP FALSE)
 if(WITH_OpenMP AND NOT STATICBUILD)
   set(LINK_OpenMP TRUE)
@@ -297,11 +306,11 @@ target_include_directories(
 ###############################################################################
 
 # Build output artifacts
-if (WITH_OBJECT)
+if (WITH_OBJECT AND NOT STATICBUILD)
    install(
       TARGETS
       "lib-${PROJECT_NAME}-static"
-      "lib-${PROJECT_NAME}-shared"
+#      "lib-${PROJECT_NAME}-shared"
       "${PROJECT_NAME}-exe"
       EXPORT "${PROJECT_NAME}-targets"
       LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
