@@ -48,7 +48,7 @@ jobs:
           build: cmake
           build-type: debugoptimized
           compiler: gnu
-          version: 14
+          version: 12
 
         - os: ubuntu-latest
           build: meson
