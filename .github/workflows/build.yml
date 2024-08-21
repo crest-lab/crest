@@ -102,6 +102,10 @@ jobs:
           --slave /usr/bin/gfortran gfortran /usr/bin/gfortran-${{ env.GCC_V }} \
           --slave /usr/bin/gcov gcov /usr/bin/gcov-${{ env.GCC_V }}
 
+    - name: Install libopenblas (Linux GNU build only)
+      if: ${{ matrix.compiler == 'gnu' && matrix.build-type == 'debugoptimized' }}
+      run: sudo apt-get update && sudo apt-get install -y libopenblas-dev
+
     - name: Prepare for cache restore
       if: ${{ matrix.compiler == 'intel' }}
       run: |
