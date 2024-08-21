@@ -45,6 +45,12 @@ jobs:
           version: 12
 
         - os: ubuntu-latest
+          build: cmake
+          build-type: debugoptimized
+          compiler: gnu
+          version: 14
+
+        - os: ubuntu-latest
           build: meson
           build-type: debugoptimized
           compiler: intel
@@ -145,15 +151,15 @@ jobs:
         --prefix=$PWD/_dist
         --libdir=lib
         --warnlevel=0
-        ${{ env.MESON_ARGS }}
-      env:
+#        ${{ env.MESON_ARGS }}
+#      env:
 #        COVERAGE: ${{ matrix.build-type == 'coverage' }}
-        MESON_ARGS: >-
+#        MESON_ARGS: >-
 #          ${{ matrix.compiler == 'intel' && '-Dfortran_link_args=-qopenmp -Dapi=false' || '' }}
 #          ${{ contains(matrix.os, 'macos') && '-Dlapack=openblas' || '' }}
 
-    - name: Configure build (CMake)
-      if: ${{ matrix.build == 'cmake' }}
+    - name: Configure build (CMake, debug)
+      if: ${{ matrix.build == 'cmake'  && matrix.build-type == 'debug' }}
       run: >-
         cmake -B${{ env.BUILD_DIR }}
         -GNinja
@@ -161,7 +167,17 @@ jobs:
         -DCMAKE_INSTALL_PREFIX=$PWD/_dist
         -DCMAKE_INSTALL_LIBDIR=lib
 
-    - name: Build library
+    - name: Configure build (CMake, static)
+      if: ${{ matrix.build == 'cmake' && matrix.build-type == 'debugoptimized' }}
+      run: >-
+        cmake -B${{ env.BUILD_DIR }}
+        -GNinja
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DCMAKE_INSTALL_PREFIX=$PWD/_dist
+        -DCMAKE_INSTALL_LIBDIR=lib
+        -DSTATICBUILD=ON
+
+    - name: Build project
       run: ninja -C ${{ env.BUILD_DIR }}
 
     - name: Run unit tests (ctest)
@@ -178,7 +194,8 @@ jobs:
         echo "CREST_PREFIX=$PWD/_dist" >> $GITHUB_ENV
 
     - name: Create package
-      if: ${{ matrix.build == 'meson' && matrix.compiler == 'intel' }}
+#      if: ${{ (matrix.build == 'meson' && matrix.compiler == 'intel') || (matrix.build == 'cmake' && matrix.build-type == 'debugoptimized') }}
+      if: ${{ matrix.build-type == 'debugoptimized' }}
       run: |
         mkdir crest
         cp COPYING crest/LICENSE
@@ -191,7 +208,8 @@ jobs:
         OUTPUT: crest-${{ matrix.compiler }}-${{ matrix.version }}-${{ matrix.os }}.tar
 
     - name: Upload package
-      if: ${{ matrix.build == 'meson' && matrix.compiler == 'intel' }}
+#      if: ${{ matrix.build == 'meson' && matrix.compiler == 'intel' }}
+      if: ${{ matrix.build-type == 'debugoptimized' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.CREST_OUTPUT }}
