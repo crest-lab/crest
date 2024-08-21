@@ -1,4 +1,6 @@
-# CREST
+<h1 align="center">CREST</h1>
+<h3 align="center">Conformer-Rotamer Ensemble Sampling Tool</h3>
+<p align="center">
 
 [![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest)](https://github.com/crest-lab/crest/releases/latest)
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2Fc9cp06869d%20-blue)](http://dx.doi.org/10.1039/c9cp06869d)
@@ -6,7 +8,9 @@
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/crest-lab/crest/total)](https://github.com/crest-lab/crest/releases)
 
-CREST (originally abbreviated from ***C***onformer-***R***otamer ***E***nsemble ***S***ampling ***T***ool) is a program for the automated exploration of the low-energy molecular chemical space.
+</p>
+
+CREST (abbreviated from ***C***onformer-***R***otamer ***E***nsemble ***S***ampling ***T***ool) is a program for the automated exploration of the low-energy molecular chemical space.
 It functions as an OMP scheduler for calculations with efficient force-field and semiempirical quantum mechanical methods such as xTB, and provides
 a variety of capabilities for creation and analysis of structure ensembles.
 
@@ -44,11 +48,7 @@ of this repository.
 The most recent program version is automatically build (`meson`/`ifort`) from the main branch and can be found at the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest).
 Simply unpack the binary and add it to your *PATH* variable.
 ```bash
-unzip crest.zip
-```
-or
-```bash
-tar -xf crest-latest.tar.xz
+tar -xf crest-intel-2023.1.0-ubuntu-latest.tar.xz
 ```
 The program should be directly executable.
 
@@ -59,9 +59,7 @@ Working and tested builds of CREST (mostly on Ubuntu 20.04 LTS):
 |--------------|----------|------------------------|:--------------:|:----------:|:----:|
 | CMake 3.30.2 | GNU (gcc 14.1.0)  | [libopenblas 0.3.27](https://anaconda.org/conda-forge/libopenblas) | dynamic | ✅ ||
 | CMake 3.28.3 | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ⚠️  | OpenMP/MKL problem ([#285](https://github.com/crest-lab/crest/issues/285)) |
-| Meson 1.2.0 | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ | [continuous release build](https://github.com/crest-lab/crest/releases/tag/latest) |
-| Meson 1.2.0 | [Intel (`ifort` 2021.9.0/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ ||
-
+| Meson 1.2.0 | [Intel (`ifort`/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ | [continuous release build](https://github.com/crest-lab/crest/releases/tag/latest) |
 
 
 Generally, subprojects should be initialized for the *default* build options, which can be done by 
