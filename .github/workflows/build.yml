@@ -180,7 +180,11 @@ jobs:
     - name: Create package
       if: ${{ matrix.build == 'meson' && matrix.compiler == 'intel' }}
       run: |
-        tar cvf ${{ env.OUTPUT }} _dist
+        mkdir crest
+        cp COPYING crest/LICENSE
+        cp COPYING.LESSER crest/LICENSE.LESSER
+        cp _dist/bin/crest crest/ 
+        tar cvf ${{ env.OUTPUT }} crest
         xz -T0 ${{ env.OUTPUT }}
         echo "CREST_OUTPUT=${{ env.OUTPUT }}.xz" >> $GITHUB_ENV
       env:
@@ -269,7 +273,7 @@ jobs:
             github-release upload \
               --tag ${{ env.RELEASE_TAG }} \
               --replace \
-              --name "${dir}.tar.xz" \
+              --name "${dir}" \
               --file "$dir/$dir"
           fi
         done
