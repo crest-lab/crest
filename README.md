@@ -2,17 +2,18 @@
 <h3 align="center">Conformer-Rotamer Ensemble Sampling Tool</h3>
 <p align="center">
 
-[![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest)](https://github.com/crest-lab/crest/releases/latest)
+[![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest?color=khaki)](https://github.com/crest-lab/crest/releases/latest)
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2Fc9cp06869d%20-blue)](http://dx.doi.org/10.1039/c9cp06869d)
-![example workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
-[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![DOI](https://img.shields.io/badge/DOI-10.1063%2F5.0197592-blue)](https://doi.org/10.1063/5.0197592)
+![CI workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-coral.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Github Downloads All Releases](https://img.shields.io/github/downloads/crest-lab/crest/total)](https://github.com/crest-lab/crest/releases)
 
 </p>
 
 CREST (abbreviated from ***C***onformer-***R***otamer ***E***nsemble ***S***ampling ***T***ool) is a program for the automated exploration of the low-energy molecular chemical space.
 It functions as an OMP scheduler for calculations with efficient force-field and semiempirical quantum mechanical methods such as xTB, and provides
-a variety of capabilities for creation and analysis of structure ensembles.
+a variety of capabilities for creation and analysis of structure ensembles.<br> See our recent publication in *J. Chem. Phys.* for a feature overview: [**https://doi.org/10.1063/5.0197592**](https://doi.org/10.1063/5.0197592)
 
 <div align="center">
 <img src="./assets/newtoc.png" alt="CREST" width="750">
@@ -31,35 +32,41 @@ The CREST documentation with installation instructions and application examples 
 
 ## Installation quick guide
 
-For any installation make sure that you have correctly installed and sourced the [`xtb`](https://github.com/grimme-lab/xtb) program before attempting any calculations with CREST.
-**While `xtb` is technically not needed for the primary runtypes of CREST versions >3.0 thanks to an integration of [`tblite`](https://github.com/tblite/tblite), some functionalities, like QCG, still require it!**
+There are multiple possible ways of installing CREST. Detailed build instructions can be found at <https://crest-lab.github.io/crest-docs/page/installation>.
 
-There are multiple possible ways of installing CREST. 
-For building the program from source we recommend the Intel `ifort` and `icc` compilers (the [continuous release build](https://github.com/crest-lab/crest/releases/tag/latest) uses the 2023.1.0 version of these compilers).
-
-Detailed build instructions can be found at <https://crest-lab.github.io/crest-docs/page/installation>.
-
+> [!WARNING]  
+> For any installation make sure that you have correctly installed and sourced the [`xtb`](https://github.com/grimme-lab/xtb) program before attempting any calculations with CREST.
+> **While `xtb` is technically not needed for the primary runtypes of CREST versions >3.0 thanks to an integration of [`tblite`](https://github.com/tblite/tblite), some functionalities, like QCG, still require it!**
 
 ### Precompiled binaries
 
-To use the statically linked binaries (Intel compilers)
-that can be found at the [release page](https://github.com/crest-lab/crest/releases),
-of this repository.
-The most recent program version is automatically build (`meson`/`ifort`) from the main branch and can be found at the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest).
-Simply unpack the binary and add it to your *PATH* variable.
+The *statically linked* binaries can be found at the [release page](https://github.com/crest-lab/crest/releases) of this repository.
+The most recent program version is automatically build (both `meson`/`ifort` and `cmake`/`gnu`) from the main branch and can be found at the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest), or directly download them here:
+
+[![Download (GNU)](https://img.shields.io/badge/download-GNU_build_binary-green)](https://github.com/crest-lab/crest/releases/download/latest/crest-gnu-12-ubuntu-latest.tar.xz)
+[![Download (ifort)](https://img.shields.io/badge/download-ifort_build_binary-blue.svg)](https://github.com/crest-lab/crest/releases/download/latest/crest-intel-2023.1.0-ubuntu-latest.tar.xz)
+
+Simply unpack the binary  and add it to your *PATH* variable.
+```bash
+tar -xf crest-gnu-12-ubuntu-latest.tar.xz
+```
+or
 ```bash
 tar -xf crest-intel-2023.1.0-ubuntu-latest.tar.xz
 ```
 The program should be directly executable.
 
 ### Tested builds
+![CI workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
+
 Working and tested builds of CREST (mostly on Ubuntu 20.04 LTS):
 
 | Build System | Compiler | Linear Algebra Backend | Build type     | Status     | Note |
 |--------------|----------|------------------------|:--------------:|:----------:|:----:|
 | CMake 3.30.2 | GNU (gcc 14.1.0)  | [libopenblas 0.3.27](https://anaconda.org/conda-forge/libopenblas) | dynamic | ✅ ||
+| CMake 3.30.2 | GNU (gcc 12.3.0)  | [libopenblas-dev](https://packages.debian.org/stable/libdevel/libopenblas-dev) | static  | ✅ | [![Download (GNU)](https://img.shields.io/badge/download-GNU_build_binary-green)](https://github.com/crest-lab/crest/releases/download/latest/crest-gnu-12-ubuntu-latest.tar.xz)|
 | CMake 3.28.3 | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ⚠️  | OpenMP/MKL problem ([#285](https://github.com/crest-lab/crest/issues/285)) |
-| Meson 1.2.0 | [Intel (`ifort`/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ | [continuous release build](https://github.com/crest-lab/crest/releases/tag/latest) |
+| Meson 1.2.0 | [Intel (`ifort`/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ | [![Download (ifort)](https://img.shields.io/badge/download-ifort_build_binary-blue.svg)](https://github.com/crest-lab/crest/releases/download/latest/crest-intel-2023.1.0-ubuntu-latest.tar.xz) |
 
 
 Generally, subprojects should be initialized for the *default* build options, which can be done by 
@@ -86,8 +93,12 @@ and then to build the CREST binary
 ```bash
 make -C _build
 ```
-
+*Optionally*, the build can be tested via
+```bash
+make test -C _build
+```
 The `CMake` build typically requires access to shared libraries of LAPACK and OpenMP. They must be present in the library paths at compile and runtime.
+Alternatively, a static build can be selected by using `-DSTATICBUILD=true` in the CMake setup step. The current static build with GNU compilers is available from the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest). 
 </details>
 
 <details>
@@ -105,7 +116,7 @@ meson install -C _build
 
 The `meson` build of CREST is mainly focused on and tested with the Intel `ifort`/`icc` compilers.
 When using newer versions of Intel's oneAPI, replacing `icc` with `icx` should work. Please refrain from using `ifx` instead of `ifort`, however.
-When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Compatibility with the GNU compilers might be limited. We recommend the CMake build (see below) in this instance.
+When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Compatibility with the GNU compilers might be limited. We recommend the CMake build (see the corresponding section) in this instance.
 
 By default the `meson` build will create a **statically** linked binary.
 </details>
