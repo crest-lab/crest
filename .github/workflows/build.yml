@@ -256,20 +256,24 @@ jobs:
   
     - name: Create SHA256 checksums
       run: |
-        for file in crest-*.tar.xz; do
-          sha256sum $file > $file.sha256.txt
+        for dir in crest-*.tar.xz; do
+          if [ -d "$dir" ]; then
+            sha256sum "$dir/$dir" > "$dir.sha256.txt"
+          fi
         done
   
-    - name: Upload crest tarballs to release
+    - name: Upload CREST tarballs to release
       run: |
-        for file in crest-*.tar.xz; do
-          github-release upload \
-            --tag ${{ env.RELEASE_TAG }} \
-            --replace \
-            --name "$file" \
-            --file "$file"
+        for dir in crest-*.tar.xz; do
+          if [ -d "$dir" ]; then
+            github-release upload \
+              --tag ${{ env.RELEASE_TAG }} \
+              --replace \
+              --name "${dir}.tar.xz" \
+              --file "$dir/$dir"
+          fi
         done
-  
+
     - name: Upload SHA256 checksums to release
       run: |
         for file in crest-*.tar.xz.sha256.txt; do
