@@ -47,14 +47,20 @@ contains  !> MODULE PROCEDURES START HERE
     class(datablock) :: self
     type(keyvalue) :: kv
     type(keyvalue),allocatable :: newlist(:)
-    integer :: i,j
+    integer :: i,j,ii
     i = self%nkv
     j = i+1
     allocate (newlist(j))
-    newlist(1:i) = self%kv_list(1:i)
-    newlist(j) = kv
-    call move_alloc(newlist,self%kv_list)
+    if(allocated(self%kv_list))then
+      do ii=1,i
+        newlist(ii) = self%kv_list(ii)%copy()
+      enddo 
+      deallocate(self%kv_list)
+    endif
+    newlist(j) = kv%copy()
+    allocate(self%kv_list, source=newlist)
     self%nkv = j
+    deallocate(newlist)
   end subroutine blk_addkv
 
 !========================================================================================!

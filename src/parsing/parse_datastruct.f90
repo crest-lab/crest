@@ -67,12 +67,14 @@ contains  !> MODULE PROCEDURES START HERE
     class(root_object) :: self
     type(keyvalue) :: kv
     type(keyvalue),allocatable :: newlist(:)
-    integer :: i,j
+    integer :: i,j,ii
     i = self%nkv
     j = i+1
     allocate (newlist(j))
-    newlist(1:i) = self%kv_list(1:i)
-    newlist(j) = kv
+    do ii=1,i
+     newlist(ii) = self%kv_list(ii)%copy()
+    enddo
+    newlist(j) = kv%copy()
     call move_alloc(newlist,self%kv_list)
     self%nkv = j
   end subroutine root_addkv
@@ -86,10 +88,14 @@ contains  !> MODULE PROCEDURES START HERE
     i = self%nblk
     j = i+1
     allocate (newlist(j))
-    newlist(1:i) = self%blk_list(1:i)
+    if(allocated(self%blk_list))then
+      newlist(1:i) = self%blk_list(1:i)
+      deallocate(self%blk_list)
+    endif
     newlist(j) = blk
-    call move_alloc(newlist,self%blk_list)
+    !call move_alloc(newlist,self%blk_list)
     self%nblk = j
+    allocate(self%blk_list, source=newlist)
   end subroutine root_addblk
 
   subroutine root_lowercase_keys(self)

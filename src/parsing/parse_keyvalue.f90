@@ -44,6 +44,7 @@ module parse_keyvalue
     procedure :: deallocate => deallocate_kv
     procedure :: set_valuestring => kv_set_valuestring
     procedure :: add_raw_array_string => kv_add_raw_array_string
+    procedure :: copy => copy_kv
   end type keyvalue
 
   character(len=*),parameter :: kv_indicator = '='  !> used for fallback parsing
@@ -88,6 +89,55 @@ contains !> MODULE PROCEDURES START HERE
     if (allocated(self%value_ca)) deallocate (self%value_ca)
     return
   end subroutine
+
+  function copy_kv(self) result(kv)
+    implicit none
+    class(keyvalue) :: self
+    type(keyvalue) :: kv
+    integer :: k,i
+    if (allocated(self%key)) kv%key = self%key
+    if (allocated(self%rawvalue)) kv%rawvalue = self%rawvalue
+    kv%id = self%id
+    kv%value_f = self%value_f 
+    kv%value_i = self%value_i
+    kv%value_b = self%value_b
+    if (allocated(self%value_c)) kv%value_c = self%value_c
+    kv%na = self%na
+    if (allocated(self%value_rawa))then
+      k = len(self%rawvalue)
+      allocate(kv%value_rawa(kv%na), source=repeat(' ',k))
+      do i=1,self%na
+        kv%value_rawa(i) = self%value_rawa(i)
+      enddo
+    endif 
+    if (allocated(self%value_fa))then
+      allocate(kv%value_fa(kv%na), source=0.0_wp)
+      do i=1,self%na
+        kv%value_fa(i) = self%value_fa(i)
+      enddo
+    endif
+    if (allocated(self%value_ia))then
+      allocate(kv%value_ia(kv%na), source=0)
+      do i=1,self%na
+        kv%value_ia(i) = self%value_ia(i)
+      enddo
+    endif
+    if (allocated(self%value_ba))then
+      allocate(kv%value_ba(kv%na), source=.false.)
+      do i=1,self%na
+        kv%value_ba(i) = self%value_ba(i)
+      enddo
+    endif
+    if (allocated(self%value_ca))then
+      k = len(self%rawvalue)
+      allocate(kv%value_ca(kv%na), source=repeat(' ',k))
+      do i=1,self%na
+        kv%value_ca(i) = self%value_ca(i)
+      enddo
+    endif
+    return
+  end function copy_kv
+
 
 !========================================================================================!
 
@@ -445,7 +495,7 @@ contains !> MODULE PROCEDURES START HERE
   subroutine kv_set_valuestring(self)
     implicit none
     class(keyvalue) :: self
-    character(len=20) :: atmp
+    character(len=100) :: atmp
     character(len=:),allocatable :: btmp
     integer :: i
     if (allocated(self%rawvalue)) deallocate (self%rawvalue)

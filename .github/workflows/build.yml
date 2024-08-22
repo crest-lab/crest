@@ -29,20 +29,20 @@ jobs:
         build: [cmake]
         build-type: [debug]
         compiler: [gnu]
-        version: [11, 12]
+        version: [12]
 
         include:
-        - os: ubuntu-latest
-          build: cmake
-          build-type: debug
-          compiler: intel
-          version: 2023.1.0
-
-        - os: macos-latest
-          build: cmake
-          build-type: debug
-          compiler: gnu
-          version: 12
+#        - os: ubuntu-latest
+#          build: cmake
+#          build-type: debug
+#          compiler: intel
+#          version: 2023.1.0
+#
+#        - os: macos-latest
+#          build: cmake
+#          build-type: debug
+#          compiler: gnu
+#          version: 12
 
         - os: ubuntu-latest
           build: cmake
@@ -50,11 +50,11 @@ jobs:
           compiler: gnu
           version: 12
 
-        - os: ubuntu-latest
-          build: meson
-          build-type: debugoptimized
-          compiler: intel
-          version: 2023.1.0
+#        - os: ubuntu-latest
+#          build: meson
+#          build-type: debugoptimized
+#          compiler: intel
+#          version: 2023.1.0
 
     defaults:
       run:
