@@ -99,8 +99,8 @@ subroutine box3(version,date,commit,author)
     write (*,'(a,a)') repeat(" ",pad_left),trim(logo(i))
   end do
   write (*,'(a,''Version '',a,'', '',a)') repeat(" ",pad_left),trim(version),trim(date)
-  if(author(1:1).eq.'@')then
-   write (*,'(a,"commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,'usr'//author
+  if(author(1:2).eq."'@")then
+   write (*,'(a,"commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,"'usr"//author(2:)
   else
   write (*,'(a,"commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,author
   endif
@@ -719,12 +719,13 @@ subroutine print_crest_metadata()
 !* print metadata from include
 !********************************
   include 'crest_metadata.fh'
-
+  integer :: l
   write (*,'(2x,a,1x,a)') 'CREST version    :',version
   write (*,'(2x,a,1x,a)') 'timestamp        :',date
   write (*,'(2x,a,1x,a)') 'commit           :',commit
-  if(author(1:1).eq.'@')then
-  write (*,'(2x,a,1x,a)') 'compiled by      :','usr'//author
+  if(author(1:2).eq."'@")then
+  l = len_trim(author)
+  write (*,'(2x,a,1x,a)') 'compiled by      :',"'usr"//author(2:l)
   else
   write (*,'(2x,a,1x,a)') 'compiled by      :',author
   endif
