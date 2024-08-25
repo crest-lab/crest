@@ -24,9 +24,15 @@ macro(
   methods
   url
 )
+
+  if(NOT DEFINED ARGV3)
+    set(branch "HEAD")  # Default to HEAD if branch is not provided
+  else()
+    set(branch "${ARGV3}")  # Use the provided branch
+  endif()
+
   string(TOLOWER "${package}" _pkg_lc)
   string(TOUPPER "${package}" _pkg_uc)
-
 
   # iterate through lookup types in order
   foreach(method ${methods})
@@ -112,7 +118,7 @@ macro(
       FetchContent_Declare(
         "${_pkg_lc}"
         GIT_REPOSITORY "${url}"
-        GIT_TAG "HEAD"
+        GIT_TAG "${branch}"
       )
       FetchContent_MakeAvailable("${_pkg_lc}")
 
