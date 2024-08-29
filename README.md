@@ -1,15 +1,16 @@
 <h1 align="center">CREST</h1>
 <h3 align="center">Conformer-Rotamer Ensemble Sampling Tool</h3>
-<p align="center">
+<div align="center">
 
 [![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest?color=khaki)](https://github.com/crest-lab/crest/releases/latest)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/crest?color=khaki)](https://anaconda.org/conda-forge/crest)
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2Fc9cp06869d%20-blue)](http://dx.doi.org/10.1039/c9cp06869d)
 [![DOI](https://img.shields.io/badge/DOI-10.1063%2F5.0197592-blue)](https://doi.org/10.1063/5.0197592)
 ![CI workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
-[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-coral.svg)](https://www.gnu.org/licenses/lgpl-3.0)
-[![Github Downloads All Releases](https://img.shields.io/github/downloads/crest-lab/crest/total)](https://github.com/crest-lab/crest/releases)
+[![License: LGPL v3](https://img.shields.io/badge/license-LGPL_v3-coral.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![Documentation](https://img.shields.io/badge/documentation-crest--lab.github.io%2Fcrest--docs%2F-gold)](https://crest-lab.github.io/crest-docs/)
 
-</p>
+</div>
 
 CREST (abbreviated from ***C***onformer-***R***otamer ***E***nsemble ***S***ampling ***T***ool) is a program for the automated exploration of the low-energy molecular chemical space.
 It functions as an OMP scheduler for calculations with efficient force-field and semiempirical quantum mechanical methods such as xTB, and provides
@@ -19,14 +20,14 @@ a variety of capabilities for creation and analysis of structure ensembles.<br> 
 <img src="./assets/newtoc.png" alt="CREST" width="750">
 </div>
 
----
 
 ## Documentation
 
 The CREST documentation with installation instructions and application examples is hosted at: <br>
 <div align="center">
 
-[**https://crest-lab.github.io/crest-docs/**](https://crest-lab.github.io/crest-docs/)
+[![Documentation](https://img.shields.io/badge/documentation-crest--lab.github.io%2Fcrest--docs%2F-gold)](https://crest-lab.github.io/crest-docs/)
+
 
 </div>
 
@@ -38,10 +39,14 @@ There are multiple possible ways of installing CREST. Detailed build instruction
 > For any installation make sure that you have correctly installed and sourced the [`xtb`](https://github.com/grimme-lab/xtb) program before attempting any calculations with CREST.
 > **While `xtb` is technically not needed for the primary runtypes of CREST versions >3.0 thanks to an integration of [`tblite`](https://github.com/tblite/tblite), some functionalities, like QCG, still require it!**
 
-### Precompiled binaries
+##
+
+### Option 1: Precompiled binaries 
+[![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest?color=khaki)](https://github.com/crest-lab/crest/releases/latest)
+[![Github Downloads All Releases](https://img.shields.io/github/downloads/crest-lab/crest/total)](https://github.com/crest-lab/crest/releases)
 
 The *statically linked* binaries can be found at the [release page](https://github.com/crest-lab/crest/releases) of this repository.
-The most recent program version is automatically build (both `meson`/`ifort` and `cmake`/`gnu`) from the main branch and can be found at the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest), or directly download them here:
+The most recent program version is automatically build (both Meson/Intel and CMake/GNU) from the main branch and can be found at the [continous release page](https://github.com/crest-lab/crest/releases/tag/latest), or directly download them here:
 
 [![Download (GNU)](https://img.shields.io/badge/download-GNU_build_binary-green)](https://github.com/crest-lab/crest/releases/download/latest/crest-gnu-12-ubuntu-latest.tar.xz)
 [![Download (ifort)](https://img.shields.io/badge/download-ifort_build_binary-blue.svg)](https://github.com/crest-lab/crest/releases/download/latest/crest-intel-2023.1.0-ubuntu-latest.tar.xz)
@@ -56,7 +61,31 @@ tar -xf crest-intel-2023.1.0-ubuntu-latest.tar.xz
 ```
 The program should be directly executable.
 
-### Tested builds
+##
+
+### Option 2: Conda
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/crest?color=khaki)](https://anaconda.org/conda-forge/crest) 
+[![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/crest.svg)](https://anaconda.org/conda-forge/crest)
+
+A [conda-forge](https://github.com/conda-forge) feedstock is maintained at <https://github.com/conda-forge/crest-feedstock>.
+
+Installing CREST from the `conda-forge` channel can be done via:
+
+```
+conda install conda-forge::crest
+```
+
+The conda-forge distribution is based on a *dynamically linked* CMake/GNU build.
+> [!WARNING]
+> When using OpenBLAS as shared library backend for the linear algebra in CREST, please set the system variable `export OPENBLAS_NUM_THREADS=1`, as there may be an ugly warning in the concurrent (nested) parallel code parts otherwise. 
+
+
+##
+
+### Option 3: Compiling from source
+<h4>Tested builds</h4>
+<!--blank line after HTML-->
+
 ![CI workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
 
 Working and tested builds of CREST (mostly on Ubuntu 20.04 LTS):
@@ -119,29 +148,6 @@ When using newer versions of Intel's oneAPI, replacing `icc` with `icx` should w
 When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Compatibility with the GNU compilers might be limited. We recommend the CMake build (see the corresponding section) in this instance.
 
 By default the `meson` build will create a **statically** linked binary.
-</details>
-
-
-<details>
-<summary><h4>Conda build</h4></summary>
-<!-- blank line to recover markdown format-->
-
-A [conda-forge](https://github.com/conda-forge) feedstock is maintained at <https://github.com/conda-forge/crest-feedstock>.
-
-Installing CREST from the `conda-forge` channel can be achieved by adding `conda-forge` to your channels with:
-
-```
-conda config --add channels conda-forge
-conda config --set channel_priority strict
-```
-
-Once the `conda-forge` channel has been enabled, CREST can be installed with `conda`:
-
-```
-conda install crest
-```
-
-The confa-forge distribution is based on a CMake/`gfortran` build. 
 </details>
 
 
