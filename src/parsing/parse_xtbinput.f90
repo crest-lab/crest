@@ -715,9 +715,6 @@ contains  !> MODULE PROCEDURES START HERE
       call get_xtb_keyvalue(kvdum,rawline,io)
       if (io == 0) then
         call blk%addkv(kvdum)
-        if(.not.allocated(blk%kv_list(blk%nkv)%value_rawa))then
-           allocate(blk%kv_list(blk%nkv)%value_rawa, source=kvdum%value_rawa)  
-        endif
       end if
     end do
 
