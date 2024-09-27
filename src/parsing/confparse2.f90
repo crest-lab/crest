@@ -109,6 +109,7 @@ subroutine parseinputfile(env,fname)
   call parse_dynamics_data(env,mddat,dict,l1,readstatus)
   if (l1) then
     env%mddat = mddat
+    call env_mddat_specialcases(env)
   end if
 
 !>--- terminate if there were any unrecognized keywords
@@ -212,3 +213,33 @@ subroutine env_calcdat_specialcases(env)
   end if
 
 end subroutine env_calcdat_specialcases
+
+!========================================================================================!
+
+subroutine env_mddat_specialcases(env)
+!****************************************************
+!* Some special treatments are sometimes necessary
+!* depending on a choosen calculation level,
+!* e.g. for on-the-fly multilevel setup
+!* These depend on both the calc data and md data
+!***************************************************
+  use crest_parameters
+  use crest_data
+  use crest_calculator
+  implicit none
+  type(systemdata) :: env
+  integer :: nac,ii,iac
+
+!>--- Check for MD-active only levels
+  if(allocated(env%mddat%active_potentials))then
+    nac = size(env%mddat%active_potentials)
+    do ii=1,nac
+    !>--- deactivate by default (the MD routine will set them to active automatically)  
+     iac = env%mddat%active_potentials(ii)
+     if(iac <= env%calc%ncalculations)then
+       env%calc%calcs(iac)%active = .false.
+     endif
+    enddo
+  endif
+
+end subroutine env_mddat_specialcases

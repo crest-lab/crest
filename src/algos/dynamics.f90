@@ -81,14 +81,12 @@ subroutine crest_moleculardynamics(env,tim)
   !>--- init SHAKE? --> we need connectivity info
   if (mddat%shake) then
     calc%calcs(1)%rdwbo = .true.
+    if(.not.calc%calcs(1)%active) calc%calcs(1)%active=.true.
     allocate (grad(3,mol%nat),source=0.0_wp)
     call engrad(mol,calc,energy,grad,io)
     deallocate (grad)
     calc%calcs(1)%rdwbo = .false.
     call move_alloc(calc%calcs(1)%wbo,mddat%shk%wbo)
-    !> moved to within the MD call
-    !call init_shake(mol%nat,mol%at,mol%xyz,mddat%shk,pr)
-    !mddat%nshake = mddat%shk%ncons
   end if
 
   !>--- complete real-time settings to steps
