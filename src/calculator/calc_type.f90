@@ -203,6 +203,7 @@ module calc_type
     real(wp),allocatable :: grdtmp(:,:,:)
     real(wp),allocatable :: eweight(:)
     real(wp),allocatable :: weightbackup(:)
+    logical,allocatable  :: activebackup(:)
     real(wp),allocatable :: etmp2(:)
     real(wp),allocatable :: grdtmp2(:,:,:)
     real(wp),allocatable :: eweight2(:)
@@ -640,18 +641,23 @@ contains  !>--- Module routines start here
     integer,intent(in) :: ids(:)
     integer :: i,j,k,l
     if (allocated(self%weightbackup)) deallocate (self%weightbackup)
+    if (allocated(self%activebackup)) deallocate (self%activebackup)
 !>--- on-the-fly multiscale definition
     allocate (self%weightbackup(self%ncalculations),source=1.0_wp)
+    allocate (self%activebackup(self%ncalculations),source=.true.)
     do i = 1,self%ncalculations
 !>--- save backup weights
       self%weightbackup(i) = self%calcs(i)%weight
+      self%activebackup(i) = self%calcs(i)%active
 !>--- set the weight of all unwanted calculations to 0
       if (.not.any(ids(:) .eq. i)) then
         self%calcs(i)%weight = 0.0_wp
         self%calcs(i)%active = .false.
       else
-!>--- and all other to 1
-        self%calcs(i)%weight = 1.0_wp
+!>--- and all other to active
+        if(self%calcs(i)%weight == 0.0_wp)then
+           self%calcs(i)%weight = 1.0_wp
+        endif 
         self%calcs(i)%active = .true.
       end if
     end do
@@ -662,10 +668,11 @@ contains  !>--- Module routines start here
     class(calcdata) :: self
     integer :: i,j,k,l
     if (.not.allocated(self%weightbackup)) return
+    if (.not.allocated(self%activebackup)) return
     do i = 1,self%ncalculations
 !>--- set all to active and restore saved weights
       self%calcs(i)%weight = self%weightbackup(i)
-      self%calcs(i)%active = .true.
+      self%calcs(i)%active = self%activebackup(i)
       self%eweight(i) = self%weightbackup(i)
     end do
     deallocate (self%weightbackup)
