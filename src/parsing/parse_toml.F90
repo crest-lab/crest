@@ -226,8 +226,10 @@ contains  !> MODULE PROCEDURES START HERE
       call get_value(table,key,kv%value_b)
     case (valuetypes%int)
       call get_value(table,key,kv%value_i)
+      kv%value_f = real(kv%value_i)
     case (valuetypes%float)
       call get_value(table,key,kv%value_f)
+      kv%value_i = nint(kv%value_f)
     case (valuetypes%string)
       call get_value(table,key,kv%value_c)
     end select
