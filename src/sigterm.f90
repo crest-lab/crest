@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2023 Philipp Pracht
+! Copyright (C) 2023-2024 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -16,6 +16,41 @@
 ! You should have received a copy of the GNU Lesser General Public License
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
+
+subroutine creststop(io)
+  use crest_parameters
+  use crest_data
+  implicit none
+  integer,intent(in) :: io
+
+  select case(io)
+  case (status_normal)
+    write (stdout,*) 'CREST terminated normally.'
+  case default
+    write (stdout,*) 'CREST terminated abnormally.'
+  case ( status_error )
+    write (stdout,*) 'CREST terminated with errors.'
+  case ( status_ioerr )
+    write (stdout,*) 'CREST terminated with I/O errors.'
+  case ( status_args )
+    write (stdout,*) 'CREST terminated due to invalid parameters.'
+  case ( status_input )
+    write (stdout,*) 'CREST terminated due to failed input file read.'
+  case ( status_config )
+    write (stdout,*) 'CREST terminated due to invalid configuration.'
+  case ( status_failed )
+    write (stdout,*) 'CREST terminated with failures.'
+  case ( status_safety )
+    write (stdout,*) 'Safety termination of CREST.'
+  end select
+  call exit(io)
+
+end subroutine creststop
+
+!================================================================================!
+!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
+!================================================================================!
+
 subroutine wsigint !> Ctrl+C
   use crest_parameters,only:stderr,stdout
   use crest_restartlog,only:dump_restart
@@ -25,7 +60,7 @@ subroutine wsigint !> Ctrl+C
   write (stderr,'(" recieved SIGINT, trying to terminate CREST...")')
   !call dump_restart()
   call cs_shutdown(io)
-  call exit(1)
+  call exit(130)
   error stop
 end subroutine wsigint
 
@@ -38,7 +73,7 @@ subroutine wsigquit !> Ctrl+D or Ctrl+\
   write (stderr,'(" recieved SIGQUIT, trying to terminate CREST...")')
   !call dump_restart()
   call cs_shutdown(io)
-  call exit(1)
+  call exit(131)
   error stop
 end subroutine wsigquit
 
@@ -51,7 +86,7 @@ subroutine wsigterm !> Recieved by the "kill" pid command
   write (stderr,'(" recieved SIGTERM, trying to terminate CREST...")')
   !call dump_restart()
   call cs_shutdown(io)
-  call exit(1)
+  call exit(143)
   error stop
 end subroutine wsigterm
 
@@ -62,6 +97,7 @@ subroutine wsigkill
   integer :: io
   !call dump_restart()
   call cs_shutdown(io)
+  call exit(137)
   error stop 'CREST recieved SIGKILL.'
 end subroutine wsigkill
 

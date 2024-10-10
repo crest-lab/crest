@@ -162,6 +162,8 @@ subroutine crest_numhess(env,tim)
         write (stdout,*) 'At least two calculation level must be'
         write (stdout,*) 'given for the calculation of the effective Hessian.'
         write (stdout,*)
+        env%iostatus_meta = status_config
+        return
 
       end if
 
@@ -388,7 +390,8 @@ subroutine thermo_standalone(env)
     write(stdout,'(1x,a,a)') 'Reading frequencies from:  ',trim(env%thermo%vibfile)
     call rdfreq(env%thermo%vibfile,nat3,freq)
   else
-    error stop 'No Hessian or vibspectrum file allocated for thermo routine!'
+    write(stdout,'(1x,a)') 'No Hessian or vibspectrum file allocated for thermo routine!'
+    call creststop(status_input)
   endif
   write(stdout,*) 
   

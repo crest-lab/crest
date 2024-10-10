@@ -19,6 +19,7 @@
 
 module parse_inputfile
   use crest_parameters
+  use crest_data
   use parse_datastruct
   use parse_toml
   implicit none
@@ -26,6 +27,8 @@ module parse_inputfile
 
   public :: parse_test
   public :: parse_input
+
+  external creststop
 
 !========================================================================================!
 !========================================================================================!
@@ -72,7 +75,7 @@ contains  !> MODULE PROCEDURES START HERE
     select case (extension)
     case default
       write (stdout,'(a,a)') 'Unknown file format of input file ',trim(fname)
-      error stop
+      call creststop(status_input)
     case ('.toml')
 #ifdef WITH_TOMLF
 !>--- parse .toml file via the toml-f library (the DEFAULT setting)

@@ -149,6 +149,7 @@ subroutine crest_new_protonate(env,tim)
     write (stdout,*) 'WARNING: No suitable protonation sites found!'
     write (stdout,*) '         Confirm whether you expect π- or LP-centers for your molecule!'
     write (stdout,*)
+    env%iostatus_meta = status_failed
     return
   end if
   deallocate (tmpcalc)
@@ -176,6 +177,7 @@ subroutine crest_new_protonate(env,tim)
     write (stdout,*)
     write (stdout,'(a)') '> WARNING: No remaining protonation sites after applying user defined conditions!'
     write (stdout,'(a)') '>          Modify the search criteria and check your input structure for sanity.'
+    env%iostatus_meta = status_failed
     return
   end if
 
@@ -368,7 +370,7 @@ subroutine protonation_candidates(env,mol,natp,np,protxyz,at,xyz,npnew)
 
   if (natp .ne. mol%nat+env%protb%amount) then
     write (stdout,'(a)') 'WARNING: Inconsistent number of atoms in protonation routine'
-    error stop
+    call creststop(status_args)
   end if
 
   if (env%protb%swelem) then
@@ -902,7 +904,7 @@ subroutine deprotonation_candidates(env,mol,natp,np,at,xyz,npnew)
 
   if (natp .ne. mol%nat-env%protb%amount) then
     write (stdout,'(a)') 'WARNING: Inconsistent number of atoms in deprotonation routine'
-    error stop
+    call creststop(status_args)
   end if
 
   if (env%protb%swelem) then
@@ -1114,6 +1116,7 @@ subroutine crest_new_tautomerize(env,tim)
     write (stdout,*) 'WARNING: No suitable protonation sites found!'
     write (stdout,*) '         Confirm whether you expect π- or LP-centers for your molecule!'
     write (stdout,*)
+    env%iostatus_meta = status_failed
     return
   end if
   deallocate (tmpcalc)
@@ -1340,7 +1343,7 @@ subroutine tautomer_candidates(env,mol,natp,npadd,npremove,protxyz,at,xyz,npnew)
 
   if (natp .ne. mol%nat) then
     write (stdout,'(a)') 'WARNING: Inconsistent number of atoms in protonation routine'
-    error stop
+    call creststop(status_args)
   end if
 
   ati = 1  !> always refer to Hydrogen for tautomers

@@ -516,7 +516,8 @@ end subroutine write_cts_biasext
 ! build a constrainment file for the chosen list of atoms
 !-----------------------------------------------------------------------------
 subroutine quick_constrain_file(fname,nat,at,atlist)
-  use iso_fortran_env,only:output_unit
+  use crest_parameters
+  use crest_data
   use iomod
   implicit none
   !> Input
@@ -541,10 +542,11 @@ subroutine quick_constrain_file(fname,nat,at,atlist)
   write (*,'(1x,i0,a,i0,a)') ncon,' of ',nat,' atoms will be constrained.'
   write (*,'(1x,a,a,a)') 'A reference coord file ',fname,'.ref was created.'
   write (*,'(1x,a,/)') 'The following will be written to <.xcontrol.sample>:'
-  call cat_mod(output_unit,' > ','.xcontrol.sample','')
+  call cat_mod(stdout,' > ','.xcontrol.sample','')
   write (*,*)
   deallocate (unconstrained)
-  stop '<.xcontrol.sample> written. exit.'
+  write(stdout,'(a)') '<.xcontrol.sample> written. exit.'
+  call creststop(status_normal)
 end subroutine quick_constrain_file
 
 subroutine build_constrain_file(fname,nat,unconstrained)

@@ -115,7 +115,7 @@ subroutine parseinputfile(env,fname)
 !>--- terminate if there were any unrecognized keywords
   if(readstatus /= 0)then
     write(stdout, '(i0,a)') readstatus,' error(s) while reading input file'
-    error stop
+    call creststop(status_config)
   endif  
 
 !>--- check for lwONIOM setup (will be read at end of confparse)
@@ -191,6 +191,10 @@ subroutine env_calcdat_specialcases(env)
   type(systemdata) :: env
   integer :: i,j,k,l
   integer :: refine_lvl
+
+  !> if this return is triggered, the program will fall back to GFN2 at some point
+  if(env%calc%ncalculations .lt. 1) return
+   
 
   !> special case for GFN-FF calculations
   if (any(env%calc%calcs(:)%id == jobtype%gfnff)) then

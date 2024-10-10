@@ -87,6 +87,7 @@ subroutine crest_search_newnci(env,tim)
     call tim%start(1,'Trial metadynamics (MTD)')
     call trialmd(env)
     call tim%stop(1)
+    if(env%iostatus_meta .ne. 0 ) return
   end if
 
 !===========================================================!
@@ -131,6 +132,7 @@ subroutine crest_search_newnci(env,tim)
       call optlev_to_multilev(env%optlev,multilevel)
       call crest_multilevel_oloop(env,ensnam,multilevel)
       call tim%stop(3)
+      if(env%iostatus_meta .ne. 0 ) return
 
 !>--- save the CRE under a backup name
       call checkname_xyz(crefile,atmp,str)
@@ -192,6 +194,7 @@ subroutine crest_search_newnci(env,tim)
   call checkname_xyz(crefile,atmp,str)
   call crest_multilevel_wrap(env,trim(atmp),0)
   call tim%stop(3)
+  if(env%iostatus_meta .ne. 0 ) return
 
 !==========================================================!
 !>--- print CREGEN results and clean up Directory a bit

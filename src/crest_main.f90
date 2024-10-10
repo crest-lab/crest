@@ -21,10 +21,11 @@
 !  This is the code of the Conformer-Rotamer Ensemble Sampling Tool (CREST).
 !=========================================================================================!
 program CREST
-  use iso_fortran_env,wp => real64
-  !> module for the main data storage
-  use crest_data
-  use crest_restartlog
+!  use iso_fortran_env,wp => real64
+  use crest_parameters !> Datatypes and constants
+  use crest_data !> module for the main data storage (imports systemdata and timer)
+  use crest_restartlog 
+    USE, INTRINSIC :: IEEE_EXCEPTIONS
   implicit none
   type(systemdata) :: env  !> MAIN STORAGE OF SYSTEM DATA
   type(timer)   :: tim     !> timer object
@@ -38,6 +39,7 @@ program CREST
   logical :: ex,ex1,ex2
 
   intrinsic :: iargc,getarg
+    LOGICAL :: overflow, division_by_zero, invalid_operation
 
   call initsignal() !SIGTERM catcher
 
@@ -361,9 +363,9 @@ program CREST
   call custom_cleanup(env)
 
 !=========================================================================================!
-!> Evaluate and print timings
+!> Evaluate and print timings, then stop the program
   call eval_timer(tim)
-  write (*,*) 'CREST terminated normally.'
+  call creststop(env%iostatus_meta)
 !> end of main program
 end program CREST
 

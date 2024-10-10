@@ -111,6 +111,16 @@ module crest_data
   integer,parameter,public :: p_useonly      = -227
   integer,parameter,public :: p_qcg          = 37
 
+!>--- exit status
+  integer,parameter,public :: status_normal = 0    !> success
+  integer,parameter,public :: status_error  = 1    !> general error
+  integer,parameter,public :: status_ioerr  = 2    !> general I/O error
+  integer,parameter,public :: status_args   = 4    !> invalid subroutine arguments 
+  integer,parameter,public :: status_input  = 10   !> Input file read error
+  integer,parameter,public :: status_config = 20   !> invalid configuration
+  integer,parameter,public :: status_failed = 155  !> general calculation failure
+  integer,parameter,public :: status_safety = 156  !> safety terminantion
+
 !>--- refinement levels (typically after multilevel opt.)
   type ,private:: refine_type
     integer :: non         = 0
@@ -307,6 +317,9 @@ module crest_data
 !========================================================================================!
 !>--- GENERAL data
   type :: systemdata
+
+    integer :: iostatus_meta = status_normal !> The overall program exit status
+
     integer :: crestver          !> Runtype-variable
     integer :: runver            !> additional runtype-variable
     integer :: properties        !> additional stuff before or after the confsearch

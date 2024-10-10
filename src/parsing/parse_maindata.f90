@@ -40,6 +40,8 @@ module parse_maindata
   character(len=*),parameter,private :: fmturk = '("unrecognized KEYWORD in ",a," : ",a)'
   character(len=*),parameter,private :: fmtura = '("unrecognized ARGUMENT : ",a)'
 
+  external creststop
+
 !========================================================================================!
 !========================================================================================!
 contains   !> MODULE PROCEDURES START HERE
@@ -212,7 +214,7 @@ contains   !> MODULE PROCEDURES START HERE
       case default
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) val
-        error stop
+        call creststop(status_config)
 
       end select
     case ('ensemble_input','ensemble','input_ensemble')

@@ -25,6 +25,8 @@ module parse_toml
   public :: parse_tomlf
   public :: parse_toml_input_fallback
 
+  external creststop
+
 !========================================================================================!
 !========================================================================================!
 contains  !> MODULE PROCEDURES START HERE
@@ -87,7 +89,7 @@ contains  !> MODULE PROCEDURES START HERE
     type(toml_error),intent(in),optional :: error
     if (present(error)) then
       write (stderr,'(a)') error%message
-      stop 1
+      call creststop(2)
     end if
   end subroutine handle_tomlf_error
 !=======================================================================================!
