@@ -98,6 +98,7 @@ subroutine crest_optimization(env,tim)
     close (ich)
   else
     write (stdout,*) 'geometry optimization FAILED!'
+    env%iostatus_meta = status_failed
   endif
 
   write (stdout,*)
@@ -169,7 +170,8 @@ subroutine crest_ensemble_optimization(env,tim)
   if (ex) then
     ensnam = env%ensemblename
   else
-    write (stdout,*) 'no ensemble file provided.'
+    write (stdout,*) '**ERROR** no ensemble file provided.'
+    env%iostatus_meta = status_input
     return
   end if
 
@@ -178,7 +180,11 @@ subroutine crest_ensemble_optimization(env,tim)
 
 !>---- read the input ensemble
   call rdensembleparam(ensnam,nat,nall)
-  if (nall .lt. 1) return
+  if (nall .lt. 1)then
+    write (stdout,*) '**ERROR** empty ensemble file.'
+    env%iostatus_meta = status_input
+    return
+  endif
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
   call rdensemble(ensnam,nat,nall,at,xyz,eread)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
@@ -275,7 +281,8 @@ subroutine crest_ensemble_screening(env,tim)
   if (ex) then
     ensnam = env%ensemblename
   else
-    write (stdout,*) 'no ensemble file provided.'
+    write (stdout,*) '**ERROR** no ensemble file provided.'
+    env%iostatus_meta = status_input
     return
   end if
 
@@ -284,8 +291,11 @@ subroutine crest_ensemble_screening(env,tim)
 
 !>---- read the input ensemble
   call rdensembleparam(ensnam,nat,nall)
-  if (nall .lt. 1) return
-
+  if (nall .lt. 1)then
+    write (stdout,*) '**ERROR** empty ensemble file.'
+    env%iostatus_meta = status_input
+    return
+  endif
 !>--- set OMP parallelization
   call new_ompautoset(env,'auto',nall,T,Tn)
 
@@ -305,7 +315,8 @@ subroutine crest_ensemble_screening(env,tim)
   call rmrfw('crest_rotamers_')
   call optlev_to_multilev(3.0d0,multilevel)
   call crest_multilevel_oloop(env,ensnam,multilevel)
- 
+  if(env%iostatus_meta .ne. 0 ) return
+
 !>--- printout
   call catdel('cregen.out.tmp')
   write (stdout,'(/,1x,a,1x,a)') 'Final ensemble on file','<'//trim(ensemblefile)//'>'

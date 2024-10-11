@@ -66,6 +66,8 @@ module parse_calcdata
   character(len=*),parameter,private :: fmturk = '("unrecognized KEYWORD in ",a," : ",a)'
   character(len=*),parameter,private :: fmtura = '("unrecognized ARGUMENT : ",a)'
 
+  external creststop
+
 !========================================================================================!
 !========================================================================================!
 contains !> MODULE PROCEDURES START HERE
@@ -245,7 +247,7 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%unknown
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) kv%value_c
-        error stop
+        call creststop(status_config)
       end select
 
     case ('bin','binary','script')
@@ -276,7 +278,8 @@ contains !> MODULE PROCEDURES START HERE
         job%gradtype = gradtype%unknown
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) kv%value_c
-        error stop
+        call creststop(status_config)
+
       end select
 
     case ('gradkey')
@@ -306,7 +309,8 @@ contains !> MODULE PROCEDURES START HERE
         job%tblitelvl = xtblvl%unknown
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) kv%value_c
-        error stop
+        call creststop(status_config)
+
       end select
     case ('tblite_param')
       job%tbliteparam = kv%value_c
@@ -336,7 +340,8 @@ contains !> MODULE PROCEDURES START HERE
         job%refine_lvl = refine%non
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) kv%value_c
-        error stop
+        call creststop(status_config)
+
       end select
 
     case ('restartfile','topo','reftopo')
@@ -346,31 +351,34 @@ contains !> MODULE PROCEDURES START HERE
         job%restartfile = kv%value_c
       else
         write (stderr,'(a,a,a)') 'specified restart file ',kv%value_c,' does not exist'
-        error stop
+        call creststop(status_input)
       end if
+
     case ('refgeo','refxyz')
       inquire (file=kv%value_c,exist=ex)
       if (ex) then
         job%refgeo = kv%value_c
       else
         write (stderr,'(a,a,a)') 'specified reference geometry file ',kv%value_c,' does not exist'
-        error stop
+        call creststop(status_input)
       end if
+
     case ('parametrisation')
       inquire (file=kv%value_c,exist=ex)
       if (ex) then
         job%parametrisation = kv%value_c
       else
         write (stderr,'(a,a,a)') 'specified parametrisation file ',kv%value_c,' does not exist'
-        error stop
+        call creststop(status_input)
       end if
+
     case ('refchrg','refcharges')
       inquire (file=kv%value_c,exist=ex)
       if (ex) then
         job%refcharges = kv%value_c
       else
         write (stderr,'(a,a,a)') 'specified reference charge file ',kv%value_c,' does not exist'
-        error stop
+        call creststop(status_config)
       end if
 
     case ('print')
@@ -509,7 +517,7 @@ contains !> MODULE PROCEDURES START HERE
       case default
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) kv%value_c
-        error stop
+        call creststop(status_config)
       end select
 
     case ('opt','opt_engine','opt_algo')
@@ -525,7 +533,7 @@ contains !> MODULE PROCEDURES START HERE
       case default
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) kv%value_c
-        error stop
+        call creststop(status_config)
       end select
 
     case ('freeze')
@@ -614,7 +622,7 @@ contains !> MODULE PROCEDURES START HERE
       case default
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) kv%value_c
-        error stop
+        call creststop(status_config)
       end select
       if (constr%type /= 0) success = .true.
 
@@ -793,7 +801,8 @@ contains !> MODULE PROCEDURES START HERE
         dum4 = kv%value_fa(6)
         call constr%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3,T=dum4)
       case default
-        error stop '**ERROR** wrong number of arguments in bondrange constraint'
+        write(stdout,'(a)') '**ERROR** wrong number of arguments in bondrange constraint'
+        call creststop(status_config)
       end select
       success = .true.
 !>--------------

@@ -221,6 +221,8 @@ contains  !> MODULE PROCEDURES START HERE
       esave = etot !> save energy before relaxation
 !>--- call the actual relaxation routine
 !>    this routine will perform [maxmicro] relaxation steps
+      if(iter+maxmicro >= maxcycle) maxmicro = maxcycle - iter
+!>    [maxmicro] need to be adapted to not overshoot maxcycle
       call relax(molopt,calc,OPT,iter,maxmicro,etot,grd,  &
             &      ethr,gthr,converged,                  &
             &      pr,wr,ilog,iostatus,avconv)

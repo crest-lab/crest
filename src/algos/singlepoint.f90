@@ -99,6 +99,7 @@ subroutine crest_singlepoint(env,tim)
   if (io /= 0) then
     write (stdout,*)
     write (stdout,*) 'WARNING: Calculation exited with error!'
+    env%iostatus_meta = status_failed
   else
 !>--- print out the results
     write (stdout,*) 'SUCCESS!'
@@ -182,7 +183,8 @@ subroutine crest_xtbsp(env,xtblevel,molin)
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
 !>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<!
   if (io .ne. 0) then
-    error stop 'crest_xtbsp failed'
+    write(stdout,'(a)') 'crest_xtbsp() failed'
+    call creststop(status_error)
   end if
 
 !>--- write wbo file
@@ -238,7 +240,8 @@ subroutine crest_ensemble_singlepoints(env,tim)
   if (ex) then
     ensnam = env%ensemblename
   else
-    write (stdout,*) 'no ensemble file provided.'
+    write (stdout,*) '**ERROR** no ensemble file provided.'
+    env%iostatus_meta = status_input
     return
   end if
 
@@ -247,7 +250,11 @@ subroutine crest_ensemble_singlepoints(env,tim)
 
 !>---- read the input ensemble
   call rdensembleparam(ensnam,nat,nall)
-  if (nall .lt. 1) return
+  if (nall .lt. 1)then
+    write (stdout,*) '**ERROR** empty ensemble file.'
+    env%iostatus_meta = status_input
+    return
+  endif
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
   call rdensemble(ensnam,nat,nall,at,xyz,eread)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!

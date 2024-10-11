@@ -96,7 +96,8 @@ subroutine crest_search_1(env,tim)
 !>--- read ensemble
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) then
-    write(stdout,*) 'empty ensemble file'
+    write(stdout,*) '**ERROR** empty ensemble file'
+    env%iostatus_meta = status_failed
     return
   endif
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
