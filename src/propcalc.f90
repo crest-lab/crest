@@ -37,7 +37,7 @@ subroutine protreffrag(env)
 !------ get number of fragments for original structure
     allocate (xyz(3,nat),at(nat),molvec(nat))
     call rdcoord('coord',nat,at,xyz)
-    call mrec(env%ptb%nfrag,xyz,nat,at,molvec) !requires xyz in bohr
+    call mrec(env%protb%nfrag,xyz,nat,at,molvec) !requires xyz in bohr
     deallocate (molvec,at,xyz)
   end associate
 end subroutine protreffrag

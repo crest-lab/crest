@@ -25,6 +25,8 @@ module parse_toml
   public :: parse_tomlf
   public :: parse_toml_input_fallback
 
+  external creststop
+
 !========================================================================================!
 !========================================================================================!
 contains  !> MODULE PROCEDURES START HERE
@@ -87,7 +89,7 @@ contains  !> MODULE PROCEDURES START HERE
     type(toml_error),intent(in),optional :: error
     if (present(error)) then
       write (stderr,'(a)') error%message
-      stop 1
+      call creststop(2)
     end if
   end subroutine handle_tomlf_error
 !=======================================================================================!
@@ -226,8 +228,10 @@ contains  !> MODULE PROCEDURES START HERE
       call get_value(table,key,kv%value_b)
     case (valuetypes%int)
       call get_value(table,key,kv%value_i)
+      kv%value_f = real(kv%value_i)
     case (valuetypes%float)
       call get_value(table,key,kv%value_f)
+      kv%value_i = nint(kv%value_f)
     case (valuetypes%string)
       call get_value(table,key,kv%value_c)
     end select

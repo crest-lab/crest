@@ -1,9 +1,12 @@
-module testmol
+module crest_testmol
 !> coffeine
   use iso_fortran_env,only:wp => real64
   use strucrd
   implicit none
   private
+
+  public :: get_testmol
+
 !&<
   integer,parameter ::  caffeine_nat = 24
   integer, parameter :: caffeine_at(caffeine_nat) = [6,7,6,7,6,6,6,8,7,6,8,7,6,6, &
@@ -41,7 +44,7 @@ module testmol
   integer,parameter ::  methane_nat = 5
   integer, parameter :: methane_at(methane_nat) = [6,1,1,1,1]
   real(wp),parameter :: methane_xyz(3,methane_nat) =    reshape(&
-    & [-2.901604086313, 2.032342621828, -0.000007558904, &  
+    & [-2.901604086313, 2.032342621828, -0.000007558904, &
     &  -4.142827301385, 1.660246889672,  1.875960807537, &
     &  -4.354204487169, 0.990001535591, -1.470244961017, &
     &  -3.376685347364, 4.088767344235, -0.405769514737, &
@@ -50,32 +53,59 @@ module testmol
 !&>
 
 
-    public :: get_testmol
+!&<
+  !> distorted methane
+  integer,parameter ::  cytosine_nat = 13
+  integer, parameter :: cytosine_at(cytosine_nat) = [8,6,7,6,6,6,7,7,1,1,1,1,1]
+  real(wp),parameter :: cytosine_xyz(3,cytosine_nat) = reshape(&
+    & [-4.142195348814,  2.008151058305, -0.018151734373, & 
+    &  -2.160173249661,  0.802767457051, -0.000058193762, &  
+    &  -2.268542712629, -1.794135272435,  0.003855688769, &
+    &  -0.191488773092, -3.309463007997, -0.005095763012, &
+    &   2.109332653259, -2.284418067990, -0.007062235327, &
+    &   2.185078861327,  0.516677179272,  0.028019148471, &
+    &   4.467560431809,  1.727180498582,  0.071380211323, &
+    &   0.177657703530,  1.926043596048,  0.012000916144, &
+    &  -4.036103295159, -2.521391305153,  0.014335396651, &
+    &  -0.507864921184, -5.333664751031, -0.008697813741, &
+    &   3.837497023245, -3.367210871956, -0.007065809214, &
+    &   5.961039176371,  0.856469245914, -0.742491063662, &
+    &   4.318834327087,  3.589804055892, -0.368535366892],&
+    &  shape(cytosine_xyz))
+!&>
 
 contains
 
   subroutine get_testmol(name,mol)
     character(len=*),intent(in) :: name
     type(coord),intent(out) :: mol
-    select case(name)
-    case('methane')
+    select case (name)
+    case ('methane')
       mol%nat = methane_nat
-      allocate(mol%at(mol%nat))
+      allocate (mol%at(mol%nat))
       mol%at(:) = methane_at(:)
-      allocate(mol%xyz(3,mol%nat))
+      allocate (mol%xyz(3,mol%nat))
       mol%xyz(:,:) = methane_xyz(:,:)
+      mol%chrg = 0
+      mol%uhf = 0
+    case ('cytosine')
+      mol%nat = cytosine_nat
+      allocate (mol%at(mol%nat))
+      mol%at(:) = cytosine_at(:)
+      allocate (mol%xyz(3,mol%nat))
+      mol%xyz(:,:) = cytosine_xyz(:,:)
       mol%chrg = 0
       mol%uhf = 0
     case default
       !> caffeine
       mol%nat = caffeine_nat
-      allocate(mol%at(mol%nat))
-      mol%at(:) = caffeine_at(:)     
-      allocate(mol%xyz(3,mol%nat))
+      allocate (mol%at(mol%nat))
+      mol%at(:) = caffeine_at(:)
+      allocate (mol%xyz(3,mol%nat))
       mol%xyz(:,:) = caffeine_xyz(:,:)
       mol%chrg = 0
       mol%uhf = 0
     end select
   end subroutine get_testmol
 
-end module testmol
+end module crest_testmol

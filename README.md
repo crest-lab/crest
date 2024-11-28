@@ -1,69 +1,101 @@
-# CREST
+<h1 align="center">CREST</h1>
+<h3 align="center">Conformer-Rotamer Ensemble Sampling Tool</h3>
+<div align="center">
 
-[![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest)](https://github.com/crest-lab/crest/releases/latest)
+[![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest?color=khaki)](https://github.com/crest-lab/crest/releases/latest)
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/crest?color=khaki)](https://anaconda.org/conda-forge/crest)
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2Fc9cp06869d%20-blue)](http://dx.doi.org/10.1039/c9cp06869d)
-![example workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
-[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
-[![Github Downloads All Releases](https://img.shields.io/github/downloads/crest-lab/crest/total)](https://github.com/crest-lab/crest/releases)
+[![DOI](https://img.shields.io/badge/DOI-10.1063%2F5.0197592-blue)](https://doi.org/10.1063/5.0197592)
+![CI workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
+[![License: LGPL v3](https://img.shields.io/badge/license-LGPL_v3-coral.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![Documentation](https://img.shields.io/badge/documentation-crest--lab.github.io%2Fcrest--docs%2F-gold)](https://crest-lab.github.io/crest-docs/)
 
-CREST (originally abbreviated from ***C***onformer-***R***otamer ***E***nsemble ***S***ampling ***T***ool) is a program for the automated exploration of the low-energy molecular chemical space.
+</div>
+
+CREST (abbreviated from ***C***onformer-***R***otamer ***E***nsemble ***S***ampling ***T***ool) is a program for the automated exploration of the low-energy molecular chemical space.
 It functions as an OMP scheduler for calculations with efficient force-field and semiempirical quantum mechanical methods such as xTB, and provides
-a variety of capabilities for creation and analysis of structure ensembles.
+a variety of capabilities for creation and analysis of structure ensembles.<br> See our recent publication in *J. Chem. Phys.* for a feature overview: [**https://doi.org/10.1063/5.0197592**](https://doi.org/10.1063/5.0197592)
 
 <div align="center">
 <img src="./assets/newtoc.png" alt="CREST" width="750">
 </div>
 
----
 
 ## Documentation
 
 The CREST documentation with installation instructions and application examples is hosted at: <br>
 <div align="center">
 
-[**https://crest-lab.github.io/crest-docs/**](https://crest-lab.github.io/crest-docs/)
+[![Documentation](https://img.shields.io/badge/documentation-crest--lab.github.io%2Fcrest--docs%2F-gold)](https://crest-lab.github.io/crest-docs/)
+
 
 </div>
 
 ## Installation quick guide
 
-For any installation make sure that you have correctly installed and sourced the [`xtb`](https://github.com/grimme-lab/xtb) program before attempting any calculations with CREST.
-**While `xtb` is technically not needed for the primary runtypes of CREST versions >3.0 thanks to an integration of [`tblite`](https://github.com/tblite/tblite), some functionalities, like QCG, still require it!**
+There are multiple possible ways of installing CREST. Detailed build instructions can be found at <https://crest-lab.github.io/crest-docs/page/installation>.
 
-There are multiple possible ways of installing CREST. 
-For building the program from source we recommend the Intel `ifort` and `icc` compilers (the [continuous release build](https://github.com/crest-lab/crest/releases/tag/latest) uses the 2023.1.0 version of these compilers).
+> [!WARNING]  
+> For any installation make sure that you have correctly installed and sourced the [`xtb`](https://github.com/grimme-lab/xtb) program before attempting any calculations with CREST.
+> **While `xtb` is technically not needed for the primary runtypes of CREST versions >3.0 thanks to an integration of [`tblite`](https://github.com/tblite/tblite), some functionalities, like QCG, still require it!**
 
-Detailed build instructions can be found at <https://crest-lab.github.io/crest-docs/page/installation>.
+##
 
+### Option 1: Precompiled binaries 
+[![Latest Version](https://img.shields.io/github/v/release/crest-lab/crest?color=khaki)](https://github.com/crest-lab/crest/releases/latest)
+[![Github Downloads All Releases](https://img.shields.io/github/downloads/crest-lab/crest/total)](https://github.com/crest-lab/crest/releases)
 
-### Precompiled binaries
+The *statically linked* binaries can be found at the [release page](https://github.com/crest-lab/crest/releases) of this repository.
+The most recent program version is automatically build (both Meson/Intel and CMake/GNU) from the main branch and can be found at the [continous release page](https://github.com/crest-lab/crest/releases/tag/latest), or directly download them here:
 
-To use the statically linked binaries (Intel compilers)
-that can be found at the [release page](https://github.com/crest-lab/crest/releases),
-of this repository.
-The most recent program version is automatically build (`meson`/`ifort`) from the main branch and can be found at the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest).
-Simply unpack the binary and add it to your *PATH* variable.
+[![Download (GNU)](https://img.shields.io/badge/download-GNU_build_binary-green)](https://github.com/crest-lab/crest/releases/download/latest/crest-gnu-12-ubuntu-latest.tar.xz)
+[![Download (ifort)](https://img.shields.io/badge/download-ifort_build_binary-blue.svg)](https://github.com/crest-lab/crest/releases/download/latest/crest-intel-2023.1.0-ubuntu-latest.tar.xz)
+
+Simply unpack the binary  and add it to your *PATH* variable.
 ```bash
-unzip crest.zip
+tar -xf crest-gnu-12-ubuntu-latest.tar.xz
 ```
 or
 ```bash
-tar -xf crest-latest.tar.xz
+tar -xf crest-intel-2023.1.0-ubuntu-latest.tar.xz
 ```
 The program should be directly executable.
 
-### Tested builds
+##
+
+### Option 2: Conda
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/crest?color=khaki)](https://anaconda.org/conda-forge/crest) 
+[![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/crest.svg)](https://anaconda.org/conda-forge/crest)
+
+A [conda-forge](https://github.com/conda-forge) feedstock is maintained at <https://github.com/conda-forge/crest-feedstock>.
+
+Installing CREST from the `conda-forge` channel can be done via:
+
+```
+conda install conda-forge::crest
+```
+
+The conda-forge distribution is based on a *dynamically linked* CMake/GNU build.
+> [!WARNING]
+> When using OpenBLAS as shared library backend for the linear algebra in CREST, please set the system variable `export OPENBLAS_NUM_THREADS=1`, as there may be an ugly warning in the concurrent (nested) parallel code parts otherwise. 
+
+
+##
+
+### Option 3: Compiling from source
+<h4>Tested builds</h4>
+<!--blank line after HTML-->
+
+![CI workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
+
 Working and tested builds of CREST (mostly on Ubuntu 20.04 LTS):
 
 | Build System | Compiler | Linear Algebra Backend | Build type     | Status     | Note |
 |--------------|----------|------------------------|:--------------:|:----------:|:----:|
-| CMake 3.28.3 | GNU (gcc 10.3.0)  | [OpenBLAS](https://github.com/xianyi/OpenBLAS) (with OpenMP) | dynamic | ✅ ||
-| CMake 3.28.3 | GNU (gcc 10.3.0)  |  [MKL shared (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ✅ ||
-| CMake 3.28.3 | GNU (gcc 9.5.0)  |  [MKL shared (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ✅ ||
-| CMake 3.28.3 | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ⚠️  | OpenMP problem ([#285](https://github.com/crest-lab/crest/issues/285)) |
-| Meson 1.2.0 | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ | [continuous release build](https://github.com/crest-lab/crest/releases/tag/latest) |
-| Meson 1.2.0 | [Intel (`ifort` 2021.9.0/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ ||
-
+| CMake 3.30.2 | GNU (gcc 14.1.0)  | [libopenblas 0.3.27](https://anaconda.org/conda-forge/libopenblas) | dynamic | ✅ ||
+| CMake 3.30.2 | GNU (gcc 12.3.0)  | [libopenblas-dev](https://packages.debian.org/stable/libdevel/libopenblas-dev) | static  | ✅ | [![Download (GNU)](https://img.shields.io/badge/download-GNU_build_binary-green)](https://github.com/crest-lab/crest/releases/download/latest/crest-gnu-12-ubuntu-latest.tar.xz)|
+| CMake 3.28.3 | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ⚠️  | OpenMP/MKL problem ([#285](https://github.com/crest-lab/crest/issues/285)) |
+| Meson 1.2.0 | [Intel (`ifort`/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ | [![Download (ifort)](https://img.shields.io/badge/download-ifort_build_binary-blue.svg)](https://github.com/crest-lab/crest/releases/download/latest/crest-intel-2023.1.0-ubuntu-latest.tar.xz) |
 
 
 Generally, subprojects should be initialized for the *default* build options, which can be done by 
@@ -90,8 +122,12 @@ and then to build the CREST binary
 ```bash
 make -C _build
 ```
-
+*Optionally*, the build can be tested via
+```bash
+make test -C _build
+```
 The `CMake` build typically requires access to shared libraries of LAPACK and OpenMP. They must be present in the library paths at compile and runtime.
+Alternatively, a static build can be selected by using `-DSTATICBUILD=true` in the CMake setup step. The current static build with GNU compilers is available from the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest). 
 </details>
 
 <details>
@@ -109,32 +145,9 @@ meson install -C _build
 
 The `meson` build of CREST is mainly focused on and tested with the Intel `ifort`/`icc` compilers.
 When using newer versions of Intel's oneAPI, replacing `icc` with `icx` should work. Please refrain from using `ifx` instead of `ifort`, however.
-When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Compatibility with the GNU compilers might be limited. We recommend the CMake build (see below) in this instance.
+When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Compatibility with the GNU compilers might be limited. We recommend the CMake build (see the corresponding section) in this instance.
 
 By default the `meson` build will create a **statically** linked binary.
-</details>
-
-
-<details>
-<summary><h4>Conda build</h4></summary>
-<!-- blank line to recover markdown format-->
-
-A [conda-forge](https://github.com/conda-forge) feedstock is maintained at <https://github.com/conda-forge/crest-feedstock>.
-
-Installing CREST from the `conda-forge` channel can be achieved by adding `conda-forge` to your channels with:
-
-```
-conda config --add channels conda-forge
-conda config --set channel_priority strict
-```
-
-Once the `conda-forge` channel has been enabled, CREST can be installed with `conda`:
-
-```
-conda install crest
-```
-
-The confa-forge distribution is based on a CMake/`gfortran` build. 
 </details>
 
 

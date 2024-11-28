@@ -41,7 +41,7 @@ module strucrd
   use geo
 !> element symbols
   use miscdata,only:PSE
-  use crest_cn_module, only: calculate_cn
+  use crest_cn_module,only:calculate_cn
   implicit none
 
 !=========================================================================================!
@@ -127,6 +127,9 @@ module strucrd
     module procedure wrensemble_conf
     module procedure wrensemble_conf_energy
     module procedure wrensemble_conf_energy_comment
+
+    module procedure wrensemble_coord_name
+    module procedure wrensemble_coord_channel
   end interface wrensemble
 
   public :: pdbdata
@@ -190,6 +193,9 @@ module strucrd
     !>-- lattice vectors
     real(wp),allocatable :: lat(:,:)
 
+    !>-- atomic charges
+    real(wp),allocatable :: qat(:)
+
     !>-- (optional) PDB data
     type(pdbdata) :: pdb
 
@@ -203,8 +209,10 @@ module strucrd
     procedure :: dist => coord_getdistance      !> calculate distance between two atoms
     procedure :: angle => coord_getangle        !> calculate angle between three atoms
     procedure :: dihedral => coord_getdihedral  !> calculate dihedral angle between four atoms
-    procedure :: cutout => coord_getcutout      !> create a substructure 
+    procedure :: cutout => coord_getcutout      !> create a substructure
     procedure :: get_CN => coord_get_CN         !> calculate coordination number
+    procedure :: get_z => coord_get_z           !> calculate nuclear charge
+    procedure :: cn_to_bond => coord_cn_to_bond !> generate neighbour matrix from CN
   end type coord
 !=========================================================================================!
   !ensemble class. contains all structures of an ensemble
@@ -262,7 +270,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*),intent(in) :: fname
     integer,intent(out) :: nat
     integer,intent(out) :: nall
-    logical,optional :: conform
+    logical,intent(out),optional :: conform
     logical :: conformdum
     integer :: dum,iosum
     integer :: natref
@@ -495,7 +503,7 @@ contains  !> MODULE PROCEDURES START HERE
 ! can have a diferent number and order of atoms.
 ! version 2 does not read energies
 !=================================================================!
-  subroutine rdensemble_mixed2(fname,natmax,nall,nats,ats,xyz)
+  subroutine rdensemble_mixed2(fname,natmax,nall,nats,ats,xyz,comments)
     implicit none
     character(len=*),intent(in) :: fname
     integer,intent(in) :: natmax
@@ -503,6 +511,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer  :: nats(nall)
     integer  :: ats(natmax,nall)
     real(wp) :: xyz(3,natmax,nall)
+    character(len=*) :: comments(nall)
     integer :: i,j,k,ich,io
     logical :: ex
     integer :: dum
@@ -516,6 +525,7 @@ contains  !> MODULE PROCEDURES START HERE
       nats(i) = dum
       read (ich,'(a)',iostat=io) line
       if (io < 0) exit
+      comments(i) = trim(line)
       do j = 1,dum
         read (ich,'(a)',iostat=io) line
         if (io < 0) exit
@@ -534,7 +544,7 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine rdensemble_mixed2
 
 !========================================================================================!
-  subroutine rdensemble_coord_type(fname,nall,ensemble)
+  subroutine rdensemble_coord_type(fname,nall,structures)
 !*********************************************************
 !* subroutine rdensemble_coord_type
 !* A variant of the rdensemble routine that automatically
@@ -543,34 +553,41 @@ contains  !> MODULE PROCEDURES START HERE
     implicit none
     character(len=*),intent(in) :: fname !> name of the ensemble file
     integer,intent(out) :: nall  !> number of structures in ensemble
-    type(coord),intent(out),allocatable :: ensemble(:)
+    type(coord),intent(out),allocatable :: structures(:)
 
     real(wp),allocatable :: xyz(:,:,:)
     integer :: nat
+    integer,allocatable :: nats(:)
     integer,allocatable :: at(:)
+    integer,allocatable :: ats(:,:)
     real(wp),allocatable :: eread(:)
-    integer :: i,j,k,ich,io
-    logical :: ex
+    character(len=512),allocatable :: comments(:)
+    integer :: i,j,k,ich,io,nat_i
+    logical :: ex,multiple_sizes
 
-    call rdensembleparam(fname,nat,nall)
-    allocate (xyz(3,nat,nall),at(nat),eread(nall))
-    call rdensemble(fname,nat,nall,at,xyz,eread)
+    call rdensembleparam(fname,nat,nall,multiple_sizes)
+    !>--- multiple sizes
+    allocate (structures(nall))
+    allocate (xyz(3,nat,nall),ats(nat,nall),nats(nall),eread(nall))
+    allocate (comments(nall))
+    call rdensemble_mixed2(fname,nat,nall,nats,ats,xyz,comments)
     !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
     !>--- Important: coord types must be in Bohrs
     xyz = xyz/bohr
     !>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<!
-
-    allocate (ensemble(nall))
     do i = 1,nall
-      ensemble(i)%nat = nat
-      allocate (ensemble(i)%at(nat))
-      ensemble(i)%at(:) = at(:)
-      allocate (ensemble(i)%xyz(3,nat))
-      ensemble(i)%xyz(:,:) = xyz(:,:,i)
-      ensemble(i)%energy = eread(i)
+      nat_i = nats(i)
+      structures(i)%nat = nats(i)
+      allocate (structures(i)%at(nat_i))
+      structures(i)%at(:) = ats(1:nat_i,i)
+      allocate (structures(i)%xyz(3,nat_i))
+      structures(i)%xyz(:,:) = xyz(1:3,1:nat_i,i)
+      eread(i) = grepenergy(comments(i))
+      structures(i)%energy = eread(i)
+      structures(i)%comment = trim(comments(i))
     end do
 
-    deallocate (eread,at,xyz)
+    deallocate (comments,eread,nats,ats,xyz)
   end subroutine rdensemble_coord_type
 
 !=================================================================!
@@ -658,6 +675,32 @@ contains  !> MODULE PROCEDURES START HERE
     call wrensemble_conf_energy(fname,self%nat,self%nall,self%at,self%xyz,self%er)
     return
   end subroutine write_ensemble
+
+  subroutine wrensemble_coord_name(fname,nall,structures)
+    implicit none
+    character(len=*),intent(in) :: fname
+    integer,intent(in) :: nall
+    type(coord) :: structures(nall)
+    integer :: ich,i
+    open (newunit=ich,file=fname,status='replace')
+    do i = 1,nall
+      call structures(i)%append(ich)
+    end do
+    close (ich)
+    return
+  end subroutine wrensemble_coord_name
+
+  subroutine wrensemble_coord_channel(ich,nall,structures)
+    implicit none
+    integer,intent(in) :: ich
+    integer,intent(in) :: nall
+    type(coord) :: structures(nall)
+    integer :: i
+    do i = 1,nall
+      call structures(i)%append(ich)
+    end do
+    return
+  end subroutine wrensemble_coord_channel
 
 !==================================================================!
 ! subroutine deallocate_ensembletype
@@ -1411,22 +1454,22 @@ contains  !> MODULE PROCEDURES START HERE
     logical,intent(in) :: atlist(self%nat)
     type(coord) :: molout
     integer :: newnat,i,j,k,l
-    
+
     newnat = count(atlist,1)
-    if(newnat == self%nat)then
-       molout = self
+    if (newnat == self%nat) then
+      molout = self
     else
-      allocate(molout%at( newnat ), source = 0)
-      allocate(molout%xyz(3,newnat), source = 0.0_wp)
+      allocate (molout%at(newnat),source=0)
+      allocate (molout%xyz(3,newnat),source=0.0_wp)
       k = 0
-      do i=1,self%nat
-        if(atlist(i))then
-          k = k + 1 
-          molout%at(k) = self%at( i )
-          molout%xyz(1:3,k) = self%xyz(1:3, i) 
-        endif
-      enddo
-    endif
+      do i = 1,self%nat
+        if (atlist(i)) then
+          k = k+1
+          molout%at(k) = self%at(i)
+          molout%xyz(1:3,k) = self%xyz(1:3,i)
+        end if
+      end do
+    end if
     return
   end function coord_getcutout
 
@@ -1439,12 +1482,45 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),intent(in),optional :: cn_thr
     character(len=*),intent(in),optional :: cn_type
     real(wp),intent(out),optional :: dcndr(3,self%nat,self%nat)
-    if(self%nat <= 0) return
-    if(.not.allocated(self%xyz) .or. .not.allocated(self%at)) return
-    allocate(cn(self%nat), source=0.0_wp)
-    call calculate_CN(self%nat, self%at, self%xyz, cn, &
-    & cntype=cn_type, cnthr=cn_thr, dcndr=dcndr)
+    if (self%nat <= 0) return
+    if (.not.allocated(self%xyz).or..not.allocated(self%at)) return
+    allocate (cn(self%nat),source=0.0_wp)
+    call calculate_CN(self%nat,self%at,self%xyz,cn, &
+    & cntype=cn_type,cnthr=cn_thr,dcndr=dcndr)
   end subroutine coord_get_CN
+
+!==================================================================!
+
+  subroutine coord_get_z(self,z)
+    implicit none
+    class(coord) :: self
+    real(wp),intent(out),allocatable :: z(:)
+    integer :: i,j,k
+    if (self%nat <= 0) return
+    if (.not.allocated(self%xyz).or..not.allocated(self%at)) return
+    allocate (z(self%nat),source=0.0_wp)
+    do i = 1,self%nat
+      z(i) = real(self%at(i),wp)-real(ncore(self%at(i)))
+      if (self%at(i) > 57.and.self%at(i) < 72) z(i) = 3.0_wp
+    end do
+  end subroutine coord_get_z
+
+!==================================================================!
+   
+   subroutine coord_cn_to_bond(self,cn,bond,cn_type,cn_thr)
+     implicit none
+         class(coord) :: self
+    real(wp),intent(out),allocatable :: cn(:)
+    real(wp),intent(out),allocatable,optional :: bond(:,:)
+    real(wp),intent(in),optional :: cn_thr
+    character(len=*),intent(in),optional :: cn_type
+    if (self%nat <= 0) return
+    if (.not.allocated(self%xyz).or..not.allocated(self%at)) return
+    allocate (cn(self%nat),source=0.0_wp)
+    call calculate_CN(self%nat,self%at,self%xyz,cn, &
+    & cntype=cn_type,cnthr=cn_thr,bond=bond)
+   end subroutine coord_cn_to_bond 
+
 
 !=========================================================================================!
 !=========================================================================================!
@@ -2011,6 +2087,32 @@ contains  !> MODULE PROCEDURES START HERE
     call move_alloc(sout,convertlable)
   end function convertlable
 
+!=============================================================!
+  pure elemental integer function ncore(at)
+    integer,intent(in) :: at
+    if (at .le. 2) then
+      ncore = 0
+    elseif (at .le. 10) then
+      ncore = 2
+    elseif (at .le. 18) then
+      ncore = 10
+    elseif (at .le. 29) then   !zn
+      ncore = 18
+    elseif (at .le. 36) then
+      ncore = 28
+    elseif (at .le. 47) then
+      ncore = 36
+    elseif (at .le. 54) then
+      ncore = 46
+    elseif (at .le. 71) then
+      ncore = 54
+    elseif (at .le. 79) then
+      ncore = 68
+    elseif (at .le. 86) then
+      ncore = 78
+    end if
+  end function ncore
+
 !============================================================!
 ! e2i is used to map the element (as a string) to integer
 !============================================================!
@@ -2125,21 +2227,33 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*),intent(in) :: line
     real(wp) :: energy
     character(len=:),allocatable :: atmp
-    integer :: i,io
+    integer :: i,io,k
     atmp = trim(line)
     energy = 0.0_wp
-    !> assumes that the first float in the line is the energy
-    do i = 1,len_trim(atmp)
-      if (len_trim(atmp) .lt. 1) exit
+    if(index(atmp,'energy=').ne.0)then
+      k=index(atmp,'energy=')
+      atmp=atmp(k+7:)
       read (atmp,*,iostat=io) energy
-      if (io > 0) then
-        atmp = atmp(2:)
-        atmp = adjustl(atmp)
-        cycle
-      else
-        exit
-      end if
-    end do
+      if(io.ne.0) energy=0.0_wp
+    else if(index(atmp,'energy:').ne.0)then
+      k=index(atmp,'energy:')
+      atmp=atmp(k+7:)
+      read (atmp,*,iostat=io) energy
+      if (io .ne. 0) energy = 0.0_wp
+    else
+      !> assumes that the first float in the line is the energy
+      do i = 1,len_trim(atmp)
+        if (len_trim(atmp) .lt. 1) exit
+        read (atmp,*,iostat=io) energy
+        if (io > 0) then
+          atmp = atmp(2:)
+          atmp = adjustl(atmp)
+          cycle
+        else
+          exit
+        end if
+      end do
+    end if
     grepenergy = energy
     return
   end function grepenergy
@@ -2210,24 +2324,24 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- analyze stuff
     do i = 1,ns
       atmp = trim(substr(i))
-      if(atmp.eq.'all')then
-         atlist(:) = .true.
-         exit
-      endif
-      if(index(atmp,'.').ne.0) cycle !> exclude floats
+      if (atmp .eq. 'all') then
+        atlist(:) = .true.
+        exit
+      end if
+      if (index(atmp,'.') .ne. 0) cycle !> exclude floats
       l = index(atmp,'-')
       if (l .eq. 0) then
         read (atmp,*,iostat=io) i1
         !> check if it is an element symbol
         if (io /= 0) then
-          if(len_trim(atmp) > 2)then
-            if(index(trim(atmp),'heavy').ne.0)then !> all heavy atoms
+          if (len_trim(atmp) > 2) then
+            if (index(trim(atmp),'heavy') .ne. 0) then !> all heavy atoms
               if (present(at)) then
-              do j = 1,nat
-                if (at(j) > 1) atlist(j) = .true.
-              end do
+                do j = 1,nat
+                  if (at(j) > 1) atlist(j) = .true.
+                end do
               end if
-            endif
+            end if
           else !> element symbols
             k = e2i(atmp)
             if (present(at)) then
@@ -2235,7 +2349,7 @@ contains  !> MODULE PROCEDURES START HERE
                 if (at(j) == k) atlist(j) = .true.
               end do
             end if
-          endif
+          end if
         else
           atlist(i1) = .true.
         end if
@@ -2253,7 +2367,7 @@ contains  !> MODULE PROCEDURES START HERE
         end if
       end if
     end do
-    deallocate(substr)
+    deallocate (substr)
   end subroutine get_atlist
 
 !=========================================================================================!

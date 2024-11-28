@@ -74,6 +74,12 @@ subroutine crest_search_imtdgc(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 
+!>--- saftey termination
+  if(mol%nat .le. 2)then
+     call catchdiatomic(env)
+    return
+  endif
+
 !>--- sets the MD length according to a flexibility measure
   call md_length_setup(env) 
 !>--- create the MD calculator saved to env
@@ -84,6 +90,7 @@ subroutine crest_search_imtdgc(env,tim)
    call tim%start(1,'Trial metadynamics (MTD)')
    call trialmd(env)  
    call tim%stop(1)
+   if(env%iostatus_meta .ne. 0 ) return
   end if
 
 !===========================================================!
@@ -128,6 +135,7 @@ subroutine crest_search_imtdgc(env,tim)
     call optlev_to_multilev(env%optlev,multilevel)
     call crest_multilevel_oloop(env,ensnam,multilevel)
     call tim%stop(3)
+    if(env%iostatus_meta .ne. 0 ) return
 
 !>--- save the CRE under a backup name
     call checkname_xyz(crefile,atmp,str)
@@ -180,6 +188,7 @@ subroutine crest_search_imtdgc(env,tim)
     call tim%start(4,'Molecular dynamics (MD)')
     call crest_rotamermds(env,conformerfile)
     call tim%stop(4)
+    if(env%iostatus_meta .ne. 0 ) return
 
 !>--- Reoptimization of trajectories
     call checkname_xyz(crefile,atmp,btmp)
@@ -189,6 +198,7 @@ subroutine crest_search_imtdgc(env,tim)
     call tim%start(3,'Geometry optimization')
     call crest_multilevel_wrap(env,trim(atmp),-1)
     call tim%stop(3)
+    if(env%iostatus_meta .ne. 0 ) return
 
     call elowcheck(lower,env)
     if (lower) then
@@ -205,6 +215,8 @@ subroutine crest_search_imtdgc(env,tim)
       call tim%start(5,'Genetic crossing (GC)')
       call crest_newcross3(env)
       call tim%stop(5)
+      if(env%iostatus_meta .ne. 0 ) return
+
       call confg_chk3(env)
       call elowcheck(lower,env)
       if (lower) then
@@ -230,6 +242,7 @@ subroutine crest_search_imtdgc(env,tim)
     call checkname_xyz(crefile,atmp,str)
     call crest_multilevel_wrap(env,trim(atmp),0) 
     call tim%stop(3)                 
+    if(env%iostatus_meta .ne. 0 ) return
 
 !==========================================================!
 !>--- final ensemble sorting
@@ -294,6 +307,7 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel_in)
   use optimize_module
   use utilities
   use crest_restartlog
+  use parallel_interface
   implicit none
   type(systemdata) :: env 
   character(len=*),intent(in) :: ensnam
@@ -350,7 +364,8 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel_in)
 !>--- read ensemble
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) then
-    write(stdout,*) 'empty ensemble file ',trim(ensnam)
+    write(stdout,*) '**ERROR** empty ensemble file ',trim(ensnam)
+    env%iostatus_meta = status_failed
     return
   endif
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
@@ -382,8 +397,9 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel_in)
      !>--- check for empty ensemble content
        call rdensembleparam(trim(inpnam),nat,nall)
        if (nall .lt. 1) then
-         write(stdout,*) 'empty ensemble file',trim(inpnam)
-         stop
+         write(stdout,*) '**ERROR** empty ensemble file',trim(inpnam)
+         env%iostatus_meta = status_failed
+         return
        endif
 
        write(stdout,*)
@@ -398,8 +414,9 @@ subroutine crest_multilevel_oloop(env,ensnam,multilevel_in)
      !>--- check for empty ensemble content (again)
        call rdensembleparam(trim(inpnam),nat,nall)
        if (nall .lt. 1) then
-         write(stdout,*) 'empty ensemble file',trim(inpnam)
-         stop
+         write(stdout,*) '**ERROR** empty ensemble file',trim(inpnam)
+         env%iostatus_meta = status_failed
+         return
        endif
      !>--- read new ensemble for next iteration
        allocate (xyz(3,nat,nall),at(nat),eread(nall))
@@ -501,7 +518,8 @@ subroutine crest_rotamermds(env,ensnam)
   call env%ref%to(mol)
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) then
-    write(stdout,*) 'empty ensemble file',trim(ensnam)
+    write(stdout,*) '**ERROR** empty ensemble file',trim(ensnam)
+    env%iostatus_meta = status_failed
     return
   endif
 
@@ -608,6 +626,7 @@ subroutine crest_newcross3(env)
       multilevel(4) = .true.
     end if
     call crest_multilevel_oloop(env,'confcross.xyz',multilevel)
+    if(env%iostatus_meta .ne. 0 ) return
 
 !>-- append optimized crossed structures and original to a single file
     call checkname_xyz(crefile,inpnam,outnam)

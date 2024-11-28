@@ -14,6 +14,11 @@ program tester
   character(len=:), allocatable :: suite_name, test_name
   type(testsuite_type), allocatable :: testsuites(:)
   character(len=*), parameter :: fmt = '("#", *(1x, a))'
+  external ompmklset,openblasset
+
+  !> only run on one thread
+  call ompmklset(1)
+  call openblasset(1)
 
   stat = 0
 

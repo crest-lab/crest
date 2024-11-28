@@ -22,7 +22,6 @@ subroutine crest_search_entropy(env,tim)
 !* This is the re-implementation of CREST's sMTD-iMTD workflow
 !* from https://doi.org/10.1039/d1sc00621e
 !* with calculation of conformational entropy
-!* This is a TODO
 !*******************************************************************
   use crest_parameters,only:wp,stdout
   use crest_data
@@ -81,6 +80,12 @@ subroutine crest_search_entropy(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 
+!>--- saftey termination
+  if(mol%nat .le. 2)then
+     call catchdiatomic(env)
+    return
+  endif
+
 !>--- sets the MD length according to a flexibility measure
   call md_length_setup(env)
 !>--- create the MD calculator saved to env
@@ -91,6 +96,7 @@ subroutine crest_search_entropy(env,tim)
    call tim%start(1,'Trial metadynamics (MTD)')
    call trialmd(env)    
    call tim%stop(1)
+   if(env%iostatus_meta .ne. 0) return
   end if
 
 !===========================================================!
@@ -135,6 +141,7 @@ subroutine crest_search_entropy(env,tim)
       call optlev_to_multilev(env%optlev,multilevel)
       call crest_multilevel_oloop(env,ensnam,multilevel)
       call tim%stop(3)
+      if(env%iostatus_meta .ne. 0 ) return
 
 !>--- save the CRE under a backup name
       call checkname_xyz(crefile,atmp,str)
@@ -205,6 +212,7 @@ subroutine crest_search_entropy(env,tim)
           !>-- start from the current crest_conformers.xyz
           call crest_smtd_mds(env,conformerfile)
           call tim%stop(6)
+          if(env%iostatus_meta .ne. 0) return
           call emtdcheckempty(env,fail,env%emtd%nbias)
 
           if (fail) then
@@ -221,6 +229,7 @@ subroutine crest_search_entropy(env,tim)
             multilevel = (/.true.,.false.,.false.,.false.,.false.,.true./)
             call crest_multilevel_oloop(env,trim(atmp),multilevel)
             call tim%stop(3)
+            if(env%iostatus_meta .ne. 0 ) return
 
 !>--- if in the entropy mode a lower structure was found -> cycle (required for extrapolation)
             call elowcheck(lower,env)
@@ -306,7 +315,8 @@ subroutine crest_smtd_mds(env,ensnam)
   call env%ref%to(mol)
   call rdensembleparam(ensnam,nat,nall)
   if (nall .lt. 1) then
-    write (stdout,*) 'empty ensemble file',trim(ensnam)
+    write (stdout,*) '**ERROR** empty ensemble file',trim(ensnam)
+    env%iostatus_meta = status_failed
     return
   end if
 
@@ -444,7 +454,10 @@ subroutine crest_init_multimd_smtd(env,mddats,nsim,biasfile)
 
 !>--- load static bias stuctures
   inquire (file=biasfile,exist=ex)
-  if (.not.ex) error stop 'Could not initialize static metadynamics'
+  if (.not.ex)then
+    write(stdout,'(a,a)') 'Could not initialize static metadynamics: missing ',trim(biasfile)
+    call creststop(status_input)
+  endif
   call rdensembleparam(biasfile,nat,nall)
   allocate (xyz(3,nat,nall),at(nat),eread(nall))
   call rdensemble(biasfile,nat,nall,at,xyz,eread)

@@ -62,8 +62,8 @@ contains  !> MODULE PROCEDURES START HERE
     type(systemdata) :: env
     character(len=*) :: fname
 
-    type(root_object) :: dict
-    type(datablock) :: blk
+    type(root_object),allocatable,target :: dict
+    type(datablock),pointer :: blk
     logical :: ex
     character(len=:),allocatable :: hdr
     integer :: i,j,k,l
@@ -71,6 +71,7 @@ contains  !> MODULE PROCEDURES START HERE
     inquire (file=fname,exist=ex)
     if (.not.ex) return
 
+    allocate(dict)
     call parse_xtb_input_fallback(fname,dict)
     !call dict%print()
 
@@ -78,7 +79,7 @@ contains  !> MODULE PROCEDURES START HERE
     & ' to set up calculators ...'
     !> iterate through the blocks and save the necessary information
     do i = 1,dict%nblk
-      blk = dict%blk_list(i)
+      blk => dict%blk_list(i)
       hdr = trim(blk%header)
       select case (hdr)
       case ('constrain')
@@ -107,8 +108,8 @@ contains  !> MODULE PROCEDURES START HERE
     type(systemdata),intent(inout) :: env
     type(filetype) :: file
     integer :: i,j,k,io
-    type(keyvalue) :: kv
-    type(datablock),intent(in) :: blk
+    type(keyvalue),pointer :: kv
+    type(datablock),intent(in),target :: blk
     real(wp) :: force_constant,dist,angl
     real(wp) :: rdum
     type(coord) :: mol
@@ -125,7 +126,7 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- a default xtb force constant (in Eh), must be read first, if present
     force_constant = 0.05
     do i = 1,blk%nkv
-      kv = blk%kv_list(i)
+      kv => blk%kv_list(i)
       select case (kv%key)
 
       case ('force constant')
@@ -154,13 +155,14 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- then the common constraints: distance, angle, dihedral
     do i = 1,blk%nkv
-      kv = blk%kv_list(i)
+      kv => blk%kv_list(i)
+      call get_xtb_rawa(kv,kv%rawvalue,io)
       select case (kv%key)
       case ('force constant','reference')
         !> already read above
 
       case ('distance','bond')
-        if (kv%na .eq. 3) then
+        if (kv%na .eq. 3 .or. kv%na .eq. 4) then
           read (kv%value_rawa(1),*,iostat=io) i1
           if (io == 0) read (kv%value_rawa(2),*,iostat=io) i2
           if (io == 0) then
@@ -171,13 +173,18 @@ contains  !> MODULE PROCEDURES START HERE
                 dist = mol%dist(i1,i2)
               end if
             else
-              read (kv%value_rawa(3),*) dist
+              read (kv%value_rawa(3),*,iostat=io) dist
               dist = dist*aatoau
             end if
-            call cons%deallocate()
-            call cons%bondconstraint(i1,i2,dist,force_constant)
-            if (debug) call cons%print(stdout)
-            call env%calc%add(cons)
+            !if(io == 0 .and. kv%na == 4)then
+            !  read (kv%value_rawa(3),*,iostat=io) rdum
+            !endif
+            if(io == 0)then
+              call cons%deallocate()
+              call cons%bondconstraint(i1,i2,dist,force_constant)
+              if (debug) call cons%print(stdout)
+              call env%calc%add(cons)
+            endif
           end if
         end if
 
@@ -324,8 +331,8 @@ contains  !> MODULE PROCEDURES START HERE
     type(systemdata),intent(inout) :: env
     type(filetype) :: file
     integer :: i,j,k,io
-    type(keyvalue) :: kv
-    type(datablock),intent(in) :: blk
+    type(keyvalue),pointer :: kv
+    type(datablock),intent(in),target :: blk
     real(wp) :: force_constant,dist,angl
     real(wp) :: T,alpha,beta
     real(wp) :: rdum,rabc(3),r1,r2,r3
@@ -350,7 +357,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- get the parameters first
     do i = 1,blk%nkv
-      kv = blk%kv_list(i)
+      kv => blk%kv_list(i)
       select case (kv%key)
       case ('force constant')
         !> already read above
@@ -381,7 +388,8 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- create the potentials
     do i = 1,blk%nkv
-      kv = blk%kv_list(i)
+      kv => blk%kv_list(i)
+      call get_xtb_rawa(kv,kv%rawvalue,io)
       select case (kv%key)
       case ('force constant','potential','alpha','beta','temp')
         !> created in higher prio loop already
@@ -455,8 +463,8 @@ contains  !> MODULE PROCEDURES START HERE
     type(systemdata),intent(inout) :: env
     type(filetype) :: file
     integer :: i,j,k,io
-    type(keyvalue) :: kv
-    type(datablock),intent(in) :: blk
+    type(keyvalue),pointer :: kv
+    type(datablock),intent(in),target :: blk
     real(wp) :: force_constant,dist,angl
     real(wp) :: T,alpha,beta
     real(wp) :: rdum,rabc(3),r1,r2,r3
@@ -471,7 +479,8 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- get the parameters first
     do i = 1,blk%nkv
-      kv = blk%kv_list(i)
+      kv => blk%kv_list(i)
+      call get_xtb_rawa(kv,kv%rawvalue,io)
       select case (kv%key)
 
       case ('atoms')
@@ -530,8 +539,8 @@ contains  !> MODULE PROCEDURES START HERE
     type(systemdata),intent(inout) :: env
     type(filetype) :: file
     integer :: i,j,k,io
-    type(keyvalue) :: kv
-    type(datablock),intent(in) :: blk
+    type(keyvalue),pointer :: kv
+    type(datablock),intent(in),target :: blk
     real(wp) :: force_constant,dist,angl
     real(wp) :: T,alpha,beta
     real(wp) :: rdum,rabc(3),r1,r2,r3
@@ -546,7 +555,8 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- get the parameters first
     do i = 1,blk%nkv
-      kv = blk%kv_list(i)
+      kv => blk%kv_list(i)
+      call get_xtb_rawa(kv,kv%rawvalue,io)
       select case (kv%key)
 
       case ('atoms')
@@ -633,7 +643,6 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- the loop where the input file is read
     do i = 1,file%nlines
       if (file%current_line > i) cycle
-
       !> key-value pairs of the root dict (ignored for xtb)
       if (get_root_kv) then
         call get_keyvalue(kvdum,file%line(i),io)
@@ -715,10 +724,11 @@ contains  !> MODULE PROCEDURES START HERE
 
   subroutine get_xtb_keyvalue(kv,str,io)
     implicit none
-    class(keyvalue) :: kv
+    class(keyvalue),intent(inout) :: kv
     character(len=*) :: str
     integer,intent(out) :: io
     character(len=:),allocatable :: tmpstr
+    character(len=:),allocatable :: tmpstr_rc
     character(len=:),allocatable :: ktmp
     character(len=:),allocatable :: vtmp
     integer :: i,j,k,na,plast
@@ -726,6 +736,7 @@ contains  !> MODULE PROCEDURES START HERE
     call kv%deallocate()
     io = 0
     tmpstr = adjustl(lowercase(str))
+    tmpstr_rc=adjustl(trim(str))
 
     !> key-value conditions
     l(1) = index(tmpstr,'=')
@@ -747,7 +758,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
     ktmp = trim(adjustl(tmpstr(:k-1)))
-    vtmp = trim(adjustl(tmpstr(k+1:)))
+    vtmp = trim(adjustl(tmpstr_rc(k+1:)))
     kv%key = ktmp !> the key as string
     kv%rawvalue = vtmp !> value as unformatted string
 
@@ -769,6 +780,7 @@ contains  !> MODULE PROCEDURES START HERE
       do i = 1,j
         if (na == kv%na) then !> for the last argument
           kv%value_rawa(na) = trim(adjustl(vtmp(plast:)))
+          exit
         end if
         if (vtmp(i:i) .eq. ',') then
           kv%value_rawa(na) = trim(adjustl(vtmp(plast:i-1)))
@@ -776,9 +788,51 @@ contains  !> MODULE PROCEDURES START HERE
           na = na+1
         end if
       end do
-
     end if
   end subroutine get_xtb_keyvalue
+
+
+  subroutine get_xtb_rawa(kv,str,io)
+    implicit none
+    class(keyvalue),intent(inout) :: kv
+    character(len=*) :: str
+    integer,intent(out) :: io
+    character(len=:),allocatable :: ktmp
+    character(len=:),allocatable :: vtmp
+    integer :: i,j,k,na,plast
+    integer :: l(3)
+
+    if(allocated(kv%value_rawa)) deallocate(kv%value_rawa)
+
+    vtmp = trim(adjustl(str))
+
+    !> comma denotes an array of strings
+    k = index(vtmp,',')
+    if (k .ne. 0) then
+      j = len_trim(vtmp)
+      na = 1
+      !> count elements
+      do i = 1,j
+        if (vtmp(i:i) .eq. ',') na = na+1
+      end do
+      !> allocate
+      kv%na = na
+      allocate (kv%value_rawa(na),source=repeat(' ',j))
+      plast = 1
+      na = 1
+      do i = 1,j
+        if (na == kv%na) then !> for the last argument
+          kv%value_rawa(na) = trim(adjustl(vtmp(plast:)))
+          exit
+        end if
+        if (vtmp(i:i) .eq. ',') then
+          kv%value_rawa(na) = trim(adjustl(vtmp(plast:i-1)))
+          plast = i+1
+          na = na+1
+        end if
+      end do
+    end if
+  end subroutine get_xtb_rawa
 
 !========================================================================================!
 !> for given input file parse the next block

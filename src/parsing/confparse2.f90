@@ -62,6 +62,7 @@ subroutine parseinputfile(env,fname)
   type(mddata) :: mddat
   logical :: ex,l1,l2
   integer :: i,j,k,l
+  integer :: readstatus
 
 !>--- check for the input files' existence
   inquire (file=fname,exist=ex)
@@ -74,12 +75,15 @@ subroutine parseinputfile(env,fname)
 
 !>--- read the file into the object 'dict'
   call parse_input(fname,dict)
-  call dict%print()
+  call dict%print2()
+
+!>--- sanity check for input files
+  readstatus = 0  !> has to remain 0, or something went wrong 
 
 !>--- parse all root-level key-value pairs
   do i = 1,dict%nkv
     kv = dict%kv_list(i)
-    call parse_main_auto(env,kv)
+    call parse_main_auto(env,kv,readstatus)
   end do
 !>------------------------------------------------------
 !> After this point I assume an input structure was
@@ -89,12 +93,12 @@ subroutine parseinputfile(env,fname)
 !>--- parse all objects that write to env or global data
   do i = 1,dict%nblk
     blk = dict%blk_list(i)
-    call parse_main_blk(env,blk)
+    call parse_main_blk(env,blk,readstatus)
   end do
 
 !>--- check objects for a calculation setup
 !     i.e., all [calculation] and [[calculation.*]] blocks
-  call parse_calculation_data(env,newcalc,dict,l1)
+  call parse_calculation_data(env,newcalc,dict,l1,readstatus)
   if (l1) then
     env%calc = newcalc
     call env_calcdat_specialcases(env)
@@ -102,10 +106,17 @@ subroutine parseinputfile(env,fname)
 
 !>--- check for molecular dynamics setup
 !     i.e., all [dynamics] and [[dynamics.*]] blocks
-  call parse_dynamics_data(env,mddat,dict,l1)
+  call parse_dynamics_data(env,mddat,dict,l1,readstatus)
   if (l1) then
     env%mddat = mddat
+    call env_mddat_specialcases(env)
   end if
+
+!>--- terminate if there were any unrecognized keywords
+  if(readstatus /= 0)then
+    write(stdout, '(i0,a)') readstatus,' error(s) while reading input file'
+    call creststop(status_config)
+  endif  
 
 !>--- check for lwONIOM setup (will be read at end of confparse)
   do i = 1,dict%nblk
@@ -181,6 +192,10 @@ subroutine env_calcdat_specialcases(env)
   integer :: i,j,k,l
   integer :: refine_lvl
 
+  !> if this return is triggered, the program will fall back to GFN2 at some point
+  if(env%calc%ncalculations .lt. 1) return
+   
+
   !> special case for GFN-FF calculations
   if (any(env%calc%calcs(:)%id == jobtype%gfnff)) then
     env%mdstep = 1.5d0
@@ -202,3 +217,33 @@ subroutine env_calcdat_specialcases(env)
   end if
 
 end subroutine env_calcdat_specialcases
+
+!========================================================================================!
+
+subroutine env_mddat_specialcases(env)
+!****************************************************
+!* Some special treatments are sometimes necessary
+!* depending on a choosen calculation level,
+!* e.g. for on-the-fly multilevel setup
+!* These depend on both the calc data and md data
+!***************************************************
+  use crest_parameters
+  use crest_data
+  use crest_calculator
+  implicit none
+  type(systemdata) :: env
+  integer :: nac,ii,iac
+
+!>--- Check for MD-active only levels
+  if(allocated(env%mddat%active_potentials))then
+    nac = size(env%mddat%active_potentials)
+    do ii=1,nac
+    !>--- deactivate by default (the MD routine will set them to active automatically)  
+     iac = env%mddat%active_potentials(ii)
+     if(iac <= env%calc%ncalculations)then
+       env%calc%calcs(iac)%active = .false.
+     endif
+    enddo
+  endif
+
+end subroutine env_mddat_specialcases

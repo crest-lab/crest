@@ -7,6 +7,7 @@ subroutine crest_search_mecp(env,tim)
   use dynamics_module
   use shake_module
   use cregen_interface
+  use parallel_interface
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -49,8 +50,9 @@ subroutine crest_search_mecp(env,tim)
 !>--- check calculation setup
   ex = env%calc%ncalculations > 1
   if (.not.ex) then
-    write (stdout,*) 'not enough calculation levels specified for MECP search.'
-    error stop
+    write (stdout,*) '**ERROR** Not enough calculation levels specified for MECP search.'
+    env%iostatus_meta = status_config
+    return
   end if
   call print_gapcons(env%calc)
 
@@ -119,6 +121,7 @@ end subroutine crest_search_mecp
 
 subroutine print_gapcons(calc)
   use crest_parameters
+  use crest_data
   use crest_calculator
   implicit none
 
@@ -151,8 +154,8 @@ subroutine print_gapcons(calc)
   end do
 
   if (.not.ex) then
-    write (stdout,*) 'no gap constraint provided'
-    error stop
+    write (stdout,*) '**ERROR** no gap constraint provided'
+    call creststop(status_config)
   else
     write (stdout,*)
   end if

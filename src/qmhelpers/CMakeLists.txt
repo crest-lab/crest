@@ -18,6 +18,9 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/wiberg_mayer.f90"
+  "${dir}/intpack.f90"
+  "${dir}/lopt.f90"
+  "${dir}/local.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

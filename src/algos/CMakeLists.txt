@@ -28,6 +28,7 @@ list(APPEND srcs
   "${dir}/search_1.f90"
   "${dir}/search_mecp.f90"
   "${dir}/setuptest.f90"
+  "${dir}/protonate.f90"
   "${dir}/hessian_tools.f90"
   "${dir}/ConfSolv.F90"
   "${dir}/search_conformers.f90"

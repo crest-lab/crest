@@ -41,7 +41,7 @@ end subroutine prothead
 !--------------------------------------------------------------------------------------------
 ! Protonation workflow with GFNn-xTB
 !--------------------------------------------------------------------------------------------
-subroutine protonate(env,tim)
+subroutine protonate_legacy(env,tim)
   use crest_parameters
   use crest_data
   use iomod
@@ -80,10 +80,10 @@ subroutine protonate(env,tim)
      error stop 'protonate unavailable with GFN-FF -> need LMOs'
   endif
 
-  if (.not.allocated(env%ptb%atmap)) allocate (env%ptb%atmap(env%nat))
-  if (.not.env%ptb%strictPDT.and..not.env%ptb%fixPDT) then
+  if (.not.allocated(env%protb%atmap)) allocate (env%protb%atmap(env%nat))
+  if (.not.env%protb%strictPDT.and..not.env%protb%fixPDT) then
 !--- sort the input file (H atoms to the bottom)
-    call htothebottom('coord',env%chrg,env%nat,env%ptb%atmap)
+    call htothebottom('coord',env%chrg,env%nat,env%protb%atmap)
   else
 !--- or sort AND apply heavy atom bond constraints
     call PDT_constraints(env)
@@ -93,7 +93,7 @@ subroutine protonate(env,tim)
   call getcwd(thispath)
   dirn = 'PROT'
   protname = 'protonate_0.xyz'
-  prot = env%ptb
+  prot = env%protb
   refchrg = env%chrg
   prot%newchrg = env%chrg+1  !increase chrg by one
   natp = env%nat+1 !additional proton, Nat is increased by one
@@ -205,12 +205,12 @@ subroutine protonate(env,tim)
     close (ich)
   end if
   env%nat = natp-1 !reset nat
-end subroutine protonate
+end subroutine protonate_legacy
 
 !--------------------------------------------------------------------------------------------
 ! A quick single point xtb calculation and calculate LMOs
 !--------------------------------------------------------------------------------------------
-subroutine xtblmo(env,print)
+subroutine xtblmo(env,pr)
   use crest_parameters
   use iomod
   use crest_data
@@ -220,7 +220,7 @@ subroutine xtblmo(env,print)
   character(len=:),allocatable :: jobcall
   integer :: io,T,Tn
   character(len=*),parameter :: pipe = ' > xtb.out 2>/dev/null'
-  logical, optional :: print ! leave the xtb.out file (e.g. for msreact mode)
+  logical, optional :: pr ! leave the xtb.out file (e.g. for msreact mode)
 
 !---- setting threads
   call new_ompautoset(env,'auto',1,T,Tn)
@@ -241,7 +241,9 @@ subroutine xtblmo(env,print)
 
 !---- cleanup
   call remove(fname)
-  if (.not. print) call remove('xtb.out')
+  if(present(pr))then 
+    if (.not. pr) call rmrf('xtb.out')
+  endif
   call remove('energy')
   call remove('charges')
   call remove('xtbrestart')
@@ -267,7 +269,7 @@ subroutine swelem(iname,env)
   real(wp),allocatable :: eread(:)
   integer,allocatable  :: at(:)
 
-  prot = env%ptb
+  prot = env%protb
   nchrg = env%chrg+prot%swchrg
   prot%newchrg = nchrg
 
@@ -289,7 +291,7 @@ subroutine swelem(iname,env)
   close (ich)
   deallocate (at,eread,xyz)
 
-  env%ptb = prot
+  env%protb = prot
   return
 end subroutine swelem
 

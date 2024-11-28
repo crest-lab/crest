@@ -1147,7 +1147,7 @@ end subroutine elowcheck
 !-----------------------------------------------------------------------
 ! diatomic "error" catcher ---> we will have no conformers
 !-----------------------------------------------------------------------
-subroutine catchdiatomic(env)
+subroutine catchdiatomic_legacy(env)
   use crest_parameters
   use crest_data
   use strucrd
@@ -1174,7 +1174,7 @@ subroutine catchdiatomic(env)
 
   call mol%deallocate
   return
-end subroutine catchdiatomic
+end subroutine catchdiatomic_legacy
 
 !-------------------------------------------------------------------------------------!
 ! entropy ensemble file copy routine

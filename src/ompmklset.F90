@@ -29,8 +29,19 @@ subroutine ompmklset(threads)
   call OMP_Set_Num_Threads(threads)
 #ifdef WITH_MKL
   call MKL_Set_Num_Threads(threads)
+  call mkl_set_dynamic(0)
 #endif
+! call openblasset(threads)
 end subroutine ompmklset
+
+subroutine openblasset(threads)
+  implicit none
+  integer,intent(in) :: threads
+#ifdef WITH_OPENBLAS
+  call openblas_set_num_threads(threads)
+#endif
+  return
+end subroutine openblasset
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!
 !c OMP and MKL parallelization settings (short routine)
@@ -44,6 +55,7 @@ subroutine ompenvset(omp)
 
   io = setenv('OMP_NUM_THREADS',omp)
   io = setenv('MKL_NUM_THREADS',omp)
+  io = setenv('OPENBLAS_NUM_THREADS',omp) 
 
 end subroutine ompenvset
 
@@ -66,11 +78,10 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
 
   !> The default, all threads allocated to CREST
   T = env%threads
-  parallel_jobs = T
+  parallel_jobs = max(1,T)
   cores_per_job = 1
   !> More settings, nested parallelization reset
   call omp_set_max_active_levels(1)
-  !call omp_set_dynamic(.true.)
 
   select case (modus)
   case ('auto','auto_nested')
@@ -87,8 +98,14 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
       if (env%omp_allow_nested) then
         !> We should never need more than two active nested layers
         call omp_set_max_active_levels(2)
-      end if
+      endif
+    else
+#ifdef WITH_MKL
+      !call mkl_free_buffers()
+      call mkl_set_dynamic(0)
+#endif
     end if
+    call openblasset(1)
 
   case ('max')
     !> Both intern and environment variable threads to max
@@ -100,18 +117,30 @@ subroutine new_ompautoset(env,modus,maxjobs,parallel_jobs,cores_per_job)
     parallel_jobs = 1
     cores_per_job = 1
 
-  case ('subprocess')
+  case ('subprocess','la-focus')
     !> CREST itself uses one thread, and but the environment variable is set to max
     !> which is useful when driving a single subprocess/systemcall
     parallel_jobs = 1
-    cores_per_job = T
+    cores_per_job = T 
+
+    !> the setting may also be used for linear-algebra focused runs, in which case 
+    !> nested parallelism should be active
+    if (env%omp_allow_nested) then
+      !> We should never need more than two active nested layers
+      call omp_set_max_active_levels(2)
+    endif
 
   end select
 
   !> apply the calculated settings
   call ompmklset(parallel_jobs)
   call ompenvset(cores_per_job)
-
+#ifdef WITH_OPENBLAS
+!  if(modus.ne.'auto'.and.modus.ne.'auto_nested')then
+!      call openblasset(cores_per_job)
+!  endif
+   call openblasset(1)
+#endif
 end subroutine new_ompautoset
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc!

@@ -250,35 +250,34 @@ subroutine parseflags(env,arg,nra)
   inquire (file='.CHRG',exist=ex)
   if (any(index(arg,'-chrg') .ne. 0)) ex = .false.
   if (ex) then
-    call rdshort('.CHRG',env%chrg)
-    if (env%chrg .ne. 0) then
-      write (*,'(2x,a,i0)') 'molecular charge read from .CHRG:  ',env%chrg
-    end if
+    write(stdout,*) '**ERROR** CREST will not read .CHRG files following version 3.0.2'
+    write(stdout,*) 'Please use --chrg or the input file specifications.'
+    error stop
   end if
   inquire (file='.UHF',exist=ex)
   if (any(index(arg,'-uhf') .ne. 0)) ex = .false.
   if (ex) then
-    call rdshort('.UHF',env%uhf)
-    if (env%uhf .ne. 0) then
-      write (*,'(2x,a,i0)') 'nα-nβ electrons read from .UHF:  ',env%uhf
-    end if
+    write(stdout,*) '**ERROR** CREST will not read .UHF files following version 3.0.2'
+    write(stdout,*) 'Please use --uhf or the input file specifications.'
+    error stop
   end if
+
 
 !>--- options for constrained conformer sampling
   env%fixfile = 'none selected'
 
 !>--- options for possible property calculations, mainly protonation/deprotonation/taut. tool
-  env%ptb%popthr = 0.01_wp  !> = 1% population
-  env%ptb%ewin = 30.0_wp  !> 30 kcal for protonation
-  env%ptb%swat = 0
-  env%ptb%swchrg = 0
-  env%ptb%iter = 1           !> number of iteration cycles for tautomerization
-  env%ptb%swelem = .false. !> replace H⁺ in protonation routine by something else?
-  env%ptb%allowFrag = .false. !> allow dissociated Structures?
-  env%ptb%threshsort = .false. !> use ewin threshold window
-  env%ptb%protdeprot = .false. !> (tautomerize) do first protonation and then deprotonation
-  env%ptb%deprotprot = .false. !> (tautomerize) do first deprotonation and then protonation
-  env%ptb%strictPDT = .false.  !> strict mode (i.e. bond constraints) for (de)protonation,tautomerization
+  env%protb%ewin = 30.0_wp  !> 30 kcal for protonation
+  env%protb%swat = 0
+  env%protb%swchrg = 0
+  env%protb%iter = 1             !> number of iteration cycles for tautomerization
+  env%protb%swelem = .false.     !> replace H⁺ in protonation routine by something else?
+  env%protb%allowFrag = .false.  !> allow dissociated Structures?
+  env%protb%threshsort = .false. !> use ewin threshold window
+  env%protb%protdeprot = .false. !> (tautomerize) do first protonation and then deprotonation
+  env%protb%deprotprot = .false. !> (tautomerize) do first deprotonation and then protonation
+  env%protb%strictPDT = .false.  !> strict mode (i.e. bond constraints) for (de)protonation,tautomerization
+  env%protb%ffopt = .true. !> FF pre-optimization (CREST>3.0.2)
   env%pclean = .false.       !> cleanup option for property mode
 
 !>--- options for principal component analysis (PCA) and clustering
@@ -430,12 +429,12 @@ subroutine parseflags(env,arg,nra)
         env%performCross = .false.    !skip the genetic crossing
         env%trackorigin = .false.
         env%Maxrestart = 1
-        env%ptb%ewin = 15.0d0
+        env%protb%ewin = 15.0d0
         env%gbsa = .true.
         env%solv = '--alpb h2o'
-        env%ptb%h_acidic = 0
-        call pka_argparse(arg(i+1),env%ptb%h_acidic)
-        if (env%ptb%h_acidic == -2) env%ptb%pka_baseinp = trim(arg(i+1))
+        env%protb%h_acidic = 0
+        call pka_argparse(arg(i+1),env%protb%h_acidic)
+        if (env%protb%h_acidic == -2) env%protb%pka_baseinp = trim(arg(i+1))
 
       case ('-compare')   !> flag for comparing two ensembles, analysis tool
         env%compareens = .true.
@@ -461,16 +460,22 @@ subroutine parseflags(env,arg,nra)
 
       case ('-protonate') !> protonation tool
         env%properties = p_protonate
+        env%crestver = crest_protonate
+        env%legacy = .true. !> TODO, set active at later version
         write (*,'(2x,a,'' : automated protonation script'')') trim(arg(i))
         exit
 
       case ('-deprotonate') !> deprotonation tool
         env%properties = p_deprotonate
+        env%crestver = crest_deprotonate
+        env%legacy = .true. !> TODO, set active at later version
         write (*,'(2x,a,'' : automated deprotonation script'')') trim(arg(i))
         exit
 
       case ('-tautomerize') !> tautomerization tool
         env%properties = p_tautomerize
+        env%crestver = crest_tautomerize
+        env%legacy = .true. !> TODO, set active at later version
         write (*,'(2x,a,'' : automated tautomerization script'')') trim(arg(i))
         exit
 
@@ -496,7 +501,7 @@ subroutine parseflags(env,arg,nra)
         call xyz2coord(env%ensemblename,'coord') !> write coord from lowest structure
         env%inputcoords = env%ensemblename !> just for a printout
         if (argument == '-forall') then
-          env%ptb%alldivers = .true.
+          env%protb%alldivers = .true.
         end if
         exit
 
@@ -538,6 +543,7 @@ subroutine parseflags(env,arg,nra)
         env%doOHflip = .false. !> Switch off OH-flip
         if (env%iterativeV2) env%iterativeV2 = .false.
         exit
+        env%legacy = .true. !> force legacy routines for now
 
       case ('-compress')
         env%crestver = crest_compr
@@ -652,16 +658,16 @@ subroutine parseflags(env,arg,nra)
 
       case ('-exlig','-exligand','-exchligand')
         env%properties = p_ligand
-        env%ptb%infile = trim(arg(1))
+        env%protb%infile = trim(arg(1))
         ctmp = trim(arg(i+1))
-        env%ptb%newligand = trim(ctmp)
+        env%protb%newligand = trim(ctmp)
         read (arg(i+2),*,iostat=io) j
         if (io == 0) then
-          env%ptb%centeratom = j
+          env%protb%centeratom = j
         end if
         read (arg(i+3),*,iostat=io) j
         if (io == 0) then
-          env%ptb%ligand = j
+          env%protb%ligand = j
         end if
         exit
 
@@ -669,18 +675,18 @@ subroutine parseflags(env,arg,nra)
         !> crest --ab <acid.xyz> <base.xyz> --chrg <acidchrg>
         env%properties = p_acidbase
         if (index(arg(i),'prep') .ne. 0) then
-          call pka_argparse2(env,arg(i+1),arg(i+2),env%ptb%pka_mode)
+          call pka_argparse2(env,arg(i+1),arg(i+2),env%protb%pka_mode)
         else
           ctmp = trim(arg(i+1))
           inquire (file=ctmp,exist=ex)
           if (ex) then
-            env%ptb%pka_acidensemble = trim(ctmp)
+            env%protb%pka_acidensemble = trim(ctmp)
             write (*,'(1x,a,a)') 'File used for the acid: ',trim(ctmp)
           end if
           ctmp = trim(arg(i+2))
           inquire (file=ctmp,exist=ex)
           if (ex) then
-            env%ptb%pka_baseensemble = trim(ctmp)
+            env%protb%pka_baseensemble = trim(ctmp)
             write (*,'(1x,a,a)') 'File used for the base: ',trim(ctmp)
           end if
         end if
@@ -1078,6 +1084,8 @@ subroutine parseflags(env,arg,nra)
       case ('-cross')
         env%performCross = .true.     !> do the genetic crossing
         env%autozsort = .true.
+      case ('-keepdir','-keeptmp')     !> Do not delete temporary directories at the end
+            env%keepModef = .true.
       case ('-opt','-optlev')             !> settings for optimization level of GFN-xTB
         env%optlev = optlevnum(arg(i+1))
         write (*,'(2x,a,1x,a)') trim(arg(i)),optlevflag(env%optlev)
@@ -1487,7 +1495,7 @@ subroutine parseflags(env,arg,nra)
         call readl(arg(i+1),xx,j)
         env%ewin = abs(xx(1))
         if (any((/p_protonate,p_deprotonate,p_tautomerize/) == env%properties)) then
-          env%ptb%ewin = abs(xx(1))
+          env%protb%ewin = abs(xx(1))
         end if
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
       case ('-rthr')             !> set RMSD thr
@@ -1581,19 +1589,29 @@ subroutine parseflags(env,arg,nra)
       case ('-protonate')             !> protonation tool
         env%properties = p_protonate
         env%autozsort = .false.
-        env%ptb%threshsort = .true.
+        env%protb%threshsort = .true.
+        ctmp = trim(arg(i+1))
+        if (ctmp(1:1) .ne. '-') then
+           read(ctmp,*,iostat=io) idum
+           if(io.eq.0) env%protb%amount = idum
+        end if
       case ('-swel')                  !> switch out H+ to something else in protonation script
         if (env%properties .eq. -3) then
-          call swparse(arg(i+1),env%ptb)
+          call swparse(arg(i+1),env%protb)
         end if
       case ('-deprotonate')           !> deprotonation tool
         env%properties = p_deprotonate
         env%autozsort = .false.
-        env%ptb%threshsort = .true.
+        env%protb%threshsort = .true.
+        ctmp = trim(arg(i+1))
+        if (ctmp(1:1) .ne. '-') then
+           read(ctmp,*,iostat=io) idum
+           if(io.eq.0) env%protb%amount = idum
+        end if
       case ('-tautomerize')           !> tautomerization tool
         env%properties = p_tautomerize
         env%autozsort = .false.
-        env%ptb%threshsort = .true.
+        env%protb%threshsort = .true.
       case ('-tautomerize2','-exttautomerize')
         if (env%properties == p_propcalc) then
           env%properties = p_tautomerize2
@@ -1601,7 +1619,7 @@ subroutine parseflags(env,arg,nra)
           call env%addjob(abs(p_tautomerize2))
         end if
         env%autozsort = .false.
-        env%ptb%threshsort = .true.
+        env%protb%threshsort = .true.
         env%runver = 33
         env%relax = .true.
         env%performCross = .false.  !> skip the genetic crossing
@@ -1614,34 +1632,34 @@ subroutine parseflags(env,arg,nra)
         env%trackorigin = .false.
         env%Maxrestart = 1
       case ('-trev','-tdp')
-        env%ptb%deprotprot = .true. !> switch to deprotonation-first mode in tautomerization
+        env%protb%deprotprot = .true. !> switch to deprotonation-first mode in tautomerization
       case ('-iter')                !> number of Protonation/Deprotonation cycles in Tautomerization
         call readl(arg(i+1),xx,j)
-        env%ptb%iter = nint(xx(1))
+        env%protb%iter = nint(xx(1))
       case ('-texcl','-blacklist')
         ctmp = trim(arg(i+1))
       case ('-strict')
-        env%ptb%strictPDT = .true.
+        env%protb%strictPDT = .true.
       case ('-verystrict','-vstrict')
-        env%ptb%strictPDT = .false.
-        env%ptb%fixPDT = .true.
+        env%protb%strictPDT = .false.
+        env%protb%fixPDT = .true.
       case ('-fstrict')
-        env%ptb%strictPDT = .true.
-        env%ptb%fixPDT = .true.
+        env%protb%strictPDT = .true.
+        env%protb%fixPDT = .true.
       case ('-corr','-abcorr')
-        env%ptb%strictPDT = .true.
-        env%ptb%fixPDT = .true.
-        env%ptb%ABcorrection = .true.
+        env%protb%strictPDT = .true.
+        env%protb%fixPDT = .true.
+        env%protb%ABcorrection = .true.
       case ('-pkaensemble')
         env%preopt = .false.
         env%presp = .false.
-        call pka_argparse2(env,arg(i+1),arg(i+2),env%ptb%pka_mode)
+        call pka_argparse2(env,arg(i+1),arg(i+2),env%protb%pka_mode)
       case ('-pkaparam')
-        env%ptb%rdcfer = .true.
+        env%protb%rdcfer = .true.
         if (i+1 .le. nra) then
           ctmp = trim(arg(i+1))
           if (ctmp(1:1) .ne. '-') then
-            env%ptb%cferfile = ctmp
+            env%protb%cferfile = ctmp
           end if
         end if
 !========================================================================================!
@@ -2470,7 +2488,7 @@ subroutine inputcoords(env,arg)
 !>-- for protonation/deprotonation applications get ref. number of fragments
 !>-- also get some other structure based info
   call simpletopo_file('coord',zmol,.false.,.false.,'')
-  env%ptb%nfrag = zmol%nfrag
+  env%protb%nfrag = zmol%nfrag
   call zmol%deallocate()
 
   return

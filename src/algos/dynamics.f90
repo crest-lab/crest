@@ -69,9 +69,11 @@ subroutine crest_moleculardynamics(env,tim)
   !>--- check if we have any MD & calculation settings allocated
   if (.not. mddat%requested) then
     write (stdout,*) 'MD requested, but no MD settings present.'
+    env%iostatus_meta = status_config
     return
   else if (calc%ncalculations < 0) then
     write (stdout,*) 'MD requested, but no calculation settings present.'
+    env%iostatus_meta = status_config
     return
   end if
 
@@ -81,14 +83,12 @@ subroutine crest_moleculardynamics(env,tim)
   !>--- init SHAKE? --> we need connectivity info
   if (mddat%shake) then
     calc%calcs(1)%rdwbo = .true.
+    if(.not.calc%calcs(1)%active) calc%calcs(1)%active=.true.
     allocate (grad(3,mol%nat),source=0.0_wp)
     call engrad(mol,calc,energy,grad,io)
     deallocate (grad)
     calc%calcs(1)%rdwbo = .false.
     call move_alloc(calc%calcs(1)%wbo,mddat%shk%wbo)
-    !> moved to within the MD call
-    !call init_shake(mol%nat,mol%at,mol%xyz,mddat%shk,pr)
-    !mddat%nshake = mddat%shk%ncons
   end if
 
   !>--- complete real-time settings to steps
@@ -101,7 +101,8 @@ subroutine crest_moleculardynamics(env,tim)
     write (stdout,*) 'MD run completed successfully'
     write (stdout,*) 'Trajectory written to ',trjf
   else
-    write (stdout,*) 'MD run terminated with error'
+    write (stdout,*) 'WARNING: MD run terminated ABNORMALLY'
+    env%iostatus_meta = status_failed
   end if
 !========================================================================================!
   call tim%stop(14)

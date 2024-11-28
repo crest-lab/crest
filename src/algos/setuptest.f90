@@ -149,7 +149,8 @@ subroutine trialMD_calculator(env)
         write (stdout,'(1x,"Automatic MD restart failed ",i0," times!")') counter
         write (stdout,'(1x,"Please try other settings manually.")')
         write (stdout,*)
-        error stop
+        env%iostatus_meta = status_safety
+        return
       end if
       counter = counter+1
 
@@ -163,7 +164,9 @@ subroutine trialMD_calculator(env)
       else if (tstep <= 1.0d0.and.shakemode == 0) then
         write (stdout,'(1x,"Automatic MTD settings check failed!")')
         write (stdout,'(1x,"Please try other settings manually.")')
-        error stop
+        write (stdout,*)
+        env%iostatus_meta = status_safety
+        return
       end if
 
       !> don't reduce the timestep below 1 fs automatically
@@ -273,6 +276,7 @@ subroutine trialOPT_calculator(env)
   use crest_calculator
   use optimize_module
   use strucrd
+  use iomod
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -301,11 +305,19 @@ subroutine trialOPT_calculator(env)
 !>--- perform geometry optimization
   pr = .false. !> stdout printout
   wr = .true.  !> write crestopt.log
+  if(wr)then
+    call remove('crestopt.log')
+  endif 
   call optimize_geometry(mol,molopt,tmpcalc,energy,grd,pr,wr,io)
 
 !>--- check success 
   success = (io == 0)
   call trialOPT_warning(env,molopt,success)
+!>--- if the checks were successfull, env%ref is overwritten
+  env%ref%nat = molopt%nat
+  env%ref%at = molopt%at
+  env%ref%xyz = molopt%xyz
+  env%ref%etot = energy  
 
   deallocate(grd) 
 end subroutine trialOPT_calculator
@@ -336,8 +348,8 @@ subroutine trialOPT_warning(env,mol,success)
   if (.not.success) then
     write (stdout,*)
     write (stdout,*) ' Initial geometry optimization failed!'
-    write (stdout,*) ' Please check your input.'
-    error stop
+    write (stdout,*) ' Please check your input and, if present, crestopt.log.'
+    call creststop(status_failed)
   end if
   write (stdout,*) 'Geometry successfully optimized.'
 !---- if necessary, check if the topology has changed!
@@ -390,16 +402,12 @@ subroutine trialOPT_warning(env,mol,success)
         write (stdout,'(/,4x,a)') 'C) Fix the initial input geometry by introducing bond length constraints'
         write (stdout,'(4x,a)') '   or by using a method with fixed topology (e.g. GFN-FF).'
         write (stdout,*)
-        error stop 'safety termination of CREST'
+        call creststop(status_safety)
       end if
     end if
   end if
 
-!>--- If all checks succeded, update reference with optimized geometry
-  env%ref%nat = mol%nat
-  env%ref%at = mol%at
-  env%ref%xyz = mol%xyz
-
+  return
 end subroutine trialOPT_warning
 
 !========================================================================================!

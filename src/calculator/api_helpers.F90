@@ -210,6 +210,7 @@ contains    !> MODULE PROCEDURES START HERE
     if (allocated(calc%solvent).and.allocated(calc%solvmodel)) then
       call gfn0_addsettings(mol,g0calc,calc%solvent,calc%solvmodel)
     end if
+    if(calc%getlmocent) calc%rdwbo=.true.
     call gfn0_addsettings(mol,g0calc,loadwbo=calc%rdwbo)
 #endif
   end subroutine gfn0_init2
@@ -248,6 +249,9 @@ contains    !> MODULE PROCEDURES START HERE
        if(.not.allocated(calc%qat)) &
        & allocate (calc%qat(mol%nat), source=0.0_wp)
        call gfn0_getqat(g0calc,mol,calc%qat) 
+    endif
+    if (calc%getlmocent)then
+       call gfn0_getlmocent(g0calc,mol,calc%nprot,calc%protxyz)
     endif
 #endif
   end subroutine gfn0_properties
@@ -324,6 +328,9 @@ contains    !> MODULE PROCEDURES START HERE
       end if
       if (allocated(calc%parametrisation)) then
         calc%ff_dat%refgeo = calc%parametrisation
+      end if
+      if (allocated(calc%refcharges)) then
+        calc%ff_dat%refcharges = calc%refcharges
       end if
 
     end if

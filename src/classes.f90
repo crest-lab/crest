@@ -71,6 +71,9 @@ module crest_data
   integer,parameter,public :: crest_msreac   = 9
   integer,parameter,public :: crest_pka      = 14
   integer,parameter,public :: crest_solv     = 15
+  integer,parameter,public :: crest_protonate = 16
+  integer,parameter,public :: crest_deprotonate = 17
+  integer,parameter,public :: crest_tautomerize = 18
 !>> runtypes with IDs between use non-legacy routines  <<!
   integer,parameter,public :: crest_sp         = 264
   integer,parameter,public :: crest_optimize   = 265
@@ -108,6 +111,16 @@ module crest_data
   integer,parameter,public :: p_useonly      = -227
   integer,parameter,public :: p_qcg          = 37
 
+!>--- exit status
+  integer,parameter,public :: status_normal = 0    !> success
+  integer,parameter,public :: status_error  = 1    !> general error
+  integer,parameter,public :: status_ioerr  = 2    !> general I/O error
+  integer,parameter,public :: status_args   = 4    !> invalid subroutine arguments 
+  integer,parameter,public :: status_input  = 10   !> Input file read error
+  integer,parameter,public :: status_config = 20   !> invalid configuration
+  integer,parameter,public :: status_failed = 155  !> general calculation failure
+  integer,parameter,public :: status_safety = 156  !> safety terminantion
+
 !>--- refinement levels (typically after multilevel opt.)
   type ,private:: refine_type
     integer :: non         = 0
@@ -122,13 +135,14 @@ module crest_data
 
 !========================================================================================!
 !========================================================================================!
-
   private
-
 !========================================================================================!
 !========================================================================================!
 
   type :: constra
+!****************************************************
+!* separate settings for LEGACY constraint handling
+!****************************************************
     integer :: ndim
     logical :: used = .false.
     logical :: NCI = .false.
@@ -162,22 +176,30 @@ module crest_data
 !========================================================================================!
 
   type :: protobj
-    integer :: nfrag
-    integer :: newchrg
-    integer :: iter
-    real(wp) :: popthr
-    real(wp) :: ewin
-    integer :: swchrg        !switch element charge
-    integer :: swat          !switch element element
-    logical :: swelem        !switch element to add to lmo lp pair?
-    logical :: allowFrag
-    logical :: threshsort    !use ewin threshold
-    logical :: protdeprot    !currently unused!
-    logical :: deprotprot    !(tautomerize) do first deprotonation and then protonation
+!************************************************************
+!* separate settings for protonation and related procedures
+!************************************************************
+    integer :: nfrag  = 0 
+    integer :: newchrg = 0
+    integer :: iter = 1
+    real(wp) :: ewin = 30.0_wp       !> separate EWIN threshold
+    integer :: swchrg = 1            !> switch element charge
+    integer :: swat = 1              !> switch element element
+    integer :: amount = 1            !> how many protons to add?
+    logical :: swelem = .false.      !> switch element to add to lmo lp pair?
+    logical :: allowFrag = .false.   !> allow fragmentation
+    logical :: threshsort = .false.  !> use ewin threshold
+    logical :: protdeprot = .false.  !> currently unused!
+    logical :: deprotprot = .false.  !> (tautomerize) do first deprotonation and then protonation
 
-    logical :: strictPDT = .false.  ! strict mode (i.e. bond constraints) for (de)protonation,tautomerization
-    logical :: fixPDT = .false.  ! extension to the strict mode, fix heavy atom positions
-    logical :: ABcorrection = .false.
+    logical :: ffopt = .true.    !> pre-optimize with a force-field to avoid high-energy artifacts
+    logical :: hnewopt = .true.  !> optimization step only using the newly added atom
+    logical :: finalopt = .true. !> final optimization (only if ffopt is true)
+
+    logical :: active_lmo(3) = (/.true.,.true.,.true./) !> consider pi, LP and delpi LMOs for protonation?
+
+    logical :: strictPDT = .false.  !> LEGACY: strict mode (i.e. bond constraints) for (de)protonation,tautomerization
+    logical :: fixPDT = .false.     !> LEGACY: extension to the strict mode, fix heavy atom positions
 
     integer,allocatable :: atmap(:)
 
@@ -189,6 +211,7 @@ module crest_data
     character(len=:),allocatable :: newligand
 
     !--- pka
+    logical :: ABcorrection = .false.
     integer :: h_acidic = 0  !which h atom to remove in pka script
     integer :: pka_mode = 0  !what to do in the pka calc.
     character(len=:),allocatable :: pka_baseinp  !if a base file is read in instead
@@ -204,8 +227,10 @@ module crest_data
 
 !========================================================================================!
 
-!>--- ENTROPY mode setting object
   type :: entropyMTD
+!*********************************
+!* Separate ENTROPY mode settings
+!*********************************
     integer :: nMDs           ! number of static MTDs
     integer :: nBias          ! number of Bias structures
     real(wp) :: nbiasgrow = 1.2d0
@@ -243,8 +268,11 @@ module crest_data
   end type entropyMTD
 
 !========================================================================================!
-!>--- thermodynamics evaluation data
+
   type :: thermodata
+!*****************************************
+!* separate thermodynamics evaluation data
+!******************************************
     real(wp) :: ithr = -50.0_wp  !> imaginary mode inversion (in xtb -20.0)
     real(wp) :: fscal = 1.0_wp   !> frequency scaling
     real(wp) :: sthr = 25.0_wp   !> rot/vib interpol threshold (in xtb 50.0)
@@ -264,14 +292,18 @@ module crest_data
   end type thermodata
 
 !========================================================================================!
-!>--- storage of the reference (input structure)
+
   type :: refdata
+!******************************************
+!* separate storage of REFERENCE STRUCTURE
+!******************************************
     integer :: nat
     integer,allocatable :: at(:)
     real(wp),allocatable :: xyz(:,:)
     integer :: ichrg = 0
     integer :: uhf = 0
-    integer :: ntopo
+    integer :: ntopo = 0
+    real(wp) :: etot = 0.0_wp
     integer,allocatable :: topo(:)
     real(wp),allocatable :: charges(:)
     real(wp),allocatable :: wbo(:,:)
@@ -285,6 +317,9 @@ module crest_data
 !========================================================================================!
 !>--- GENERAL data
   type :: systemdata
+
+    integer :: iostatus_meta = status_normal !> The overall program exit status
+
     integer :: crestver          !> Runtype-variable
     integer :: runver            !> additional runtype-variable
     integer :: properties        !> additional stuff before or after the confsearch
@@ -392,7 +427,7 @@ module crest_data
     logical,allocatable  :: excludeTOPO(:)
 
     !>--- property data objects
-    type(protobj) :: ptb
+    type(protobj) :: protb
 
     !>--- saved constraints
     type(constra) :: cts

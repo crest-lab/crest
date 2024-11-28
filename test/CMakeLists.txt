@@ -11,6 +11,7 @@ set(
 set(
   test-srcs
   "testmol.f90"
+  "helpers.f90"
   "main.f90"
 )
 foreach(t IN LISTS tests)

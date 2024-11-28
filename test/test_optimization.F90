@@ -3,7 +3,7 @@ module test_optimization
   use crest_parameters
   use crest_calculator
   use strucrd
-  use testmol
+  use crest_testmol
   use optimize_module
   implicit none
   private

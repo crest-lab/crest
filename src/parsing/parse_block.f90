@@ -15,6 +15,7 @@ module parse_block
   contains
     procedure :: addkv => blk_addkv
     procedure :: print => blk_print
+    procedure :: print2 => blk_print2
     procedure :: fmt_header => blk_fmt_header
     procedure :: deallocate => blk_deallocate
   end type datablock
@@ -46,14 +47,20 @@ contains  !> MODULE PROCEDURES START HERE
     class(datablock) :: self
     type(keyvalue) :: kv
     type(keyvalue),allocatable :: newlist(:)
-    integer :: i,j
+    integer :: i,j,ii
     i = self%nkv
     j = i+1
     allocate (newlist(j))
-    newlist(1:i) = self%kv_list(1:i)
-    newlist(j) = kv
-    call move_alloc(newlist,self%kv_list)
+    if(allocated(self%kv_list))then
+      do ii=1,i
+        newlist(ii) = self%kv_list(ii)%copy()
+      enddo 
+      deallocate(self%kv_list)
+    endif
+    newlist(j) = kv%copy()
+    allocate(self%kv_list, source=newlist)
     self%nkv = j
+    deallocate(newlist)
   end subroutine blk_addkv
 
 !========================================================================================!
@@ -95,6 +102,20 @@ contains  !> MODULE PROCEDURES START HERE
       end if
     end do
   end subroutine blk_print
+
+    subroutine blk_print2(self)
+    class(datablock) :: self
+    integer :: i
+    if(index(self%header,'.').ne.0)then
+      write (stdout,'("*",1x,a)') '[['//self%header//']]'
+    else
+      write (stdout,'("*",1x,a)') '['//self%header//']'
+    endif
+    do i = 1,self%nkv
+      write (stdout,'("*",1x,a)') trim(self%kv_list(i)%print2())
+    end do
+  end subroutine blk_print2
+
 !========================================================================================!
 
 !> the following routines are only used in the fallback parsing routines
@@ -197,7 +218,7 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine deallocate_block
 
 !========================================================================================!
-!> deallocate block data
+!> print block data
   subroutine print_block(self)
     implicit none
     class(parseblock) :: self
@@ -214,6 +235,25 @@ contains  !> MODULE PROCEDURES START HERE
     end if
     return
   end subroutine print_block
+
+  subroutine print_block2(self)
+    implicit none
+    class(parseblock) :: self
+    integer :: i
+
+    write (*,*)
+    if (allocated(self%header)) then
+      write (*,*) trim(self%header)
+      if (allocated(self%content)) then
+        do i = 1,self%len
+          write (*,*) self%content(i)
+        end do
+      end if
+    end if
+    return
+  end subroutine print_block2
+
+
 
 !=======================================================================================!
 !> check if string is a toml block header

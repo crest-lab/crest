@@ -44,6 +44,7 @@ module parse_datastruct
     procedure :: addblk => root_addblk
     procedure :: lowercase_keys => root_lowercase_keys
     procedure :: print => root_print
+    procedure :: print2 => root_print2
   end type root_object
 
 !========================================================================================!
@@ -66,12 +67,14 @@ contains  !> MODULE PROCEDURES START HERE
     class(root_object) :: self
     type(keyvalue) :: kv
     type(keyvalue),allocatable :: newlist(:)
-    integer :: i,j
+    integer :: i,j,ii
     i = self%nkv
     j = i+1
     allocate (newlist(j))
-    newlist(1:i) = self%kv_list(1:i)
-    newlist(j) = kv
+    do ii=1,i
+     newlist(ii) = self%kv_list(ii)%copy()
+    enddo
+    newlist(j) = kv%copy()
     call move_alloc(newlist,self%kv_list)
     self%nkv = j
   end subroutine root_addkv
@@ -85,10 +88,14 @@ contains  !> MODULE PROCEDURES START HERE
     i = self%nblk
     j = i+1
     allocate (newlist(j))
-    newlist(1:i) = self%blk_list(1:i)
+    if(allocated(self%blk_list))then
+      newlist(1:i) = self%blk_list(1:i)
+      deallocate(self%blk_list)
+    endif
     newlist(j) = blk
-    call move_alloc(newlist,self%blk_list)
+    !call move_alloc(newlist,self%blk_list)
     self%nblk = j
+    allocate(self%blk_list, source=newlist)
   end subroutine root_addblk
 
   subroutine root_lowercase_keys(self)
@@ -123,6 +130,25 @@ contains  !> MODULE PROCEDURES START HERE
       call self%blk_list(i)%print()
     end do
   end subroutine root_print
+
+
+  subroutine root_print2(self)
+    class(root_object) :: self
+    integer :: i
+    if (allocated(self%filename)) then
+      write(stdout,'(a)') repeat('*',80)
+      write (stdout,'("*",1x,a,a,a)') 'INPUT FILE ',self%filename,' content (without comments):'
+    end if
+    write(stdout,'(a)') repeat('*',80)
+    do i = 1,self%nkv
+      write (stdout,'("*",1x,a)') trim(self%kv_list(i)%print2())
+    end do
+    do i = 1,self%nblk
+      call self%blk_list(i)%print2()
+    end do
+    write(stdout,'(a)') repeat('*',80)
+  end subroutine root_print2
+
 
 !========================================================================================!
 end module parse_datastruct

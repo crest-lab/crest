@@ -31,15 +31,7 @@ subroutine crest_playground(env,tim)
   use crest_data
   use crest_calculator
   use strucrd 
-  use optimize_module
-  use tblite_api
-  use wiberg_mayer, only: write_wbo 
-  use adjacency
-  use zdata
-  use probabilities_module
-  use parse_csv
-  use cregen_interface
-  use dynamics_module
+  use canonical_mod
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -55,21 +47,11 @@ subroutine crest_playground(env,tim)
   logical,allocatable :: rings(:,:)
   integer,allocatable :: tmp(:)
   logical :: connected,fail
-  type(zmolecule) :: zmol
 
   real(wp) :: energy
   real(wp),allocatable :: grad(:,:),geo(:,:),csv(:,:)
-  integer,allocatable :: na(:),nb(:),nc(:),at2(:)
-  integer :: nat2
-  real(wp),allocatable :: mu(:)
-  real(wp) :: kappa,rrad
 
-  integer :: nsim
-  character(len=:),allocatable :: ensnam
-  type(mddata) :: mddat
-  type(mddata),allocatable :: mddats(:)
-
-
+  type(canonical_sorter) ::  can
 !========================================================================================!
   call tim%start(14,'Test implementation') 
 !========================================================================================!
@@ -88,23 +70,20 @@ subroutine crest_playground(env,tim)
   write(*,*) 
 !========================================================================================!
 
-!>--- sets the MD length according to a flexibility measure
-  call md_length_setup(env)
-!>--- create the MD calculator saved to env
-  call env_to_mddat(env)
+  allocate(grad(3,mol%nat), source=0.0_wp)
+  call env2calc(env,calc,mol)
+  calc%calcs(1)%rdwbo=.true.
+  call calc%info(stdout)
 
+  call engrad(mol,calc,energy,grad,io)
+  call calculation_summary(calc,mol,energy,grad)
+  
 
-    nsim = 3
-    call crest_search_multimd_init(env,mol,mddat,nsim)
-    allocate (mddats(nsim), source=mddat)
-    call crest_search_multimd_init2(env,mddats,nsim)
-
-    call crest_search_multimd(env,mol,mddats,nsim)
-!>--- a file called crest_dynamics.trj should have been written
-    ensnam = 'crest_dynamics.trj'
-!>--- deallocate for next iteration
-    if(allocated(mddats))deallocate(mddats)
-
+  write(stdout,*)
+  write(stdout,*) 'CANGEN algorithm' 
+  call can%init(mol,calc%calcs(1)%wbo,'apsp+')
+  call can%stereo(mol)
+  call can%rankprint(mol) 
 
 !========================================================================================!
   call tim%stop(14)
