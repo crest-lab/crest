@@ -211,6 +211,14 @@ contains   !> MODULE PROCEDURES START HERE
         env%properties = p_protonate
         env%crestver = crest_protonate
 
+      case ('deprotonate')
+        env%properties = p_deprotonate
+        env%crestver = crest_deprotonate
+
+      case ('tautomerize')
+        env%properties = p_tautomerize
+        env%crestver = crest_tautomerize
+
       case default
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) val
