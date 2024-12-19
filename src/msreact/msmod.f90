@@ -201,7 +201,7 @@ contains  !> MODULE PROCEDURES START HERE
 
   subroutine get_input_energy(env,etemp,etot)
 !******************************************************************************
-!* A quick xtb geometry optimization in xyz coordinates to get starting energy
+!* A quick xtb singlepoint calculation in xyz coordinates to get starting energy
 !******************************************************************************
     implicit none
     type(systemdata) :: env
@@ -211,8 +211,6 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=256) :: atmp
     integer :: ich,iost,io,i,T,Tn
     type(coord) :: mol
-    integer :: ntopo
-    integer,allocatable :: topo(:)
     real(wp),intent(out) :: etot
     real(wp) :: etemp ! electronic temperature in K
     logical :: tchange = .false.
@@ -223,7 +221,7 @@ contains  !> MODULE PROCEDURES START HERE
 
 !---- small header
     write (*,*)
-    call smallhead('xTB Geometry Optimization')
+    call smallhead('xTB Singlepoint Calculation')
 !---- some options
     pipe = ' > xtb.out 2>/dev/null'
     call remove('gfnff_topo')
@@ -274,6 +272,75 @@ contains  !> MODULE PROCEDURES START HERE
     call remove('gfnff_topo')
   end subroutine get_input_energy
 
+  subroutine get_wbo(env,etemp)
+    !******************************************************************************
+    !* A quick xtb wbo calculation at charge 0 to get WBO bond orders for the MSREACT mode
+    !******************************************************************************
+        implicit none
+        type(systemdata) :: env
+        character(len=80) :: fname,pipe
+        character(len=:),allocatable :: jobcall
+        logical :: fin
+        character(len=256) :: atmp
+        integer :: ich,iost,io,i,T,Tn
+        type(coord) :: mol
+        real(wp) :: etemp ! electronic temperature in K
+        logical :: tchange = .false.
+        logical :: ldum
+    
+    !---- setting threads
+        call new_ompautoset(env,'auto',1,T,Tn)
+    
+    !---- small header
+        write (*,*)
+        call smallhead('xTB WBO Calculation')
+    !---- some options
+        pipe = ' > xtb.out 2>/dev/null'
+        call remove('gfnff_topo')
+        if (.not.env%chargesfile) call remove('charges')
+        call remove('grad')
+        call remove('mos')
+        call remove('xtbopt.log')
+        call remove('xtbrestart')
+    
+       
+    !---- input xyz file
+        fname = env%inputcoords
+    
+    !    write (jobcall,'(a,1x,a,f10.4,1x,a,1x,a)') &
+    !    &     trim(env%ProgName),trim(fname)//" --sp --etemp ",etemp,trim(env%gfnver),trim(pipe)
+        jobcall = trim(env%ProgName)
+        jobcall = trim(jobcall)//' '//trim(fname)
+        write(atmp,'(f10.4)') etemp
+        !always perform at charge 0
+        jobcall = trim(jobcall)//' --sp --chrg 0 --etemp '//trim(atmp)
+        jobcall = trim(jobcall)//trim(env%gfnver)//trim(pipe)
+    
+        call execute_command_line(trim(jobcall),exitstat=io)
+    
+        call minigrep('xtb.out','finished run',fin)
+        if (.not.fin) then
+          write (*,*)
+          write (*,*) ' Initial singlepoint calculation failed!'
+          write (*,*) ' Please check your input.'
+          error stop
+        end if
+        write (*,*) 'WBO successfully calculated.'
+    
+
+    !---- cleanup
+        call remove('xtb.out')
+        call remove('energy')
+        if (.not.env%chargesfile) call remove('charges')
+        call remove('grad')
+        call remove('mos')
+        call remove('xtbopt.log')
+        call remove('xtbtopo.mol')
+        call remove('.xtbopttok')
+        call remove('xtbrestart')
+        call remove('gfnff_topo')
+      end subroutine get_wbo
+
 !=======================================================================================!
 
   subroutine readbasicpos(env,nbaseat,basicatlist)
@@ -303,8 +370,9 @@ contains  !> MODULE PROCEDURES START HERE
     do
       read (ich,'(a)',iostat=io) tmp
       if (index(tmp,'files:') .ne. 0) exit
-      if (index(tmp,'pi ') .ne. 0) nbaseat = nbaseat+2 ! count first two  atoms of pi or delpi bond with highest participation and ignore the rest
-      if (index(tmp,'LP ') .ne. 0) nbaseat = nbaseat+1 ! count LP
+      if (index(tmp,'pi ') .ne. 0 .and. tmp(76:76) .ne. ' ') nbaseat = nbaseat+2 ! count first two  atoms of pi or delpi bond with highest participation and ignore the rest
+      if (index(tmp,'LP ') .ne. 0 .or. (index(tmp,'pi ') .ne. 0 .and. tmp(76:76) .eq. ' ')) nbaseat = nbaseat+1 ! count LP
+      
     end do
     allocate (dumlist(nbaseat))
     dumlist = 0
@@ -314,19 +382,19 @@ contains  !> MODULE PROCEDURES START HERE
       read (ich,'(a)',iostat=io) tmp
       if (index(tmp,'starting deloc pi') .ne. 0) exit
       if (index(tmp,'files:') .ne. 0) exit
-      if (index(tmp,'pi ') .ne. 0) then
-        backspace (ich)
+      ! pi bond with at least one LMO located on each atom
+      if (index(tmp,'pi ') .ne. 0 .and. tmp(76:76) .ne. ' ') then
         if (tmp(64:64) == ' ') then ! if element symbol has one character, there is a space and we use this routine
           if (tmp(80:80) == ' ') then
-            read (ich,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumc,dumr,at2,dumc,dumc,dumr ! first element has one and second has one character
+            read (tmp,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumc,dumr,at2,dumc,dumc,dumr ! first element has one and second has one character
           else
-            read (ich,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumc,dumr,at2,dumc,dumr ! first element has one and second has two character
+            read (tmp,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumc,dumr,at2,dumc,dumr ! first element has one and second has two character
           end if
         else
           if (tmp(80:80) == ' ') then
-            read (ich,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumr,at2,dumc,dumc,dumr  ! first element has two and second has pm character
+            read (tmp,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumr,at2,dumc,dumc,dumr  ! first element has two and second has pm character
           else
-            read (ich,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumr,at2,dumc,dumr ! first element has two and second has two character
+            read (tmp,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumr,at2,dumc,dumr ! first element has two and second has two character
           end if
         end if
         if (findloc(dumlist,at1,1) .eq. 0) then
@@ -338,13 +406,12 @@ contains  !> MODULE PROCEDURES START HERE
           dumlist(j) = at2
         end if
       end if
-
-      if (index(tmp,'LP ') .ne. 0) then
-        backspace (ich)
+      ! Lone pair or pi bond with LMO located on only one atom 
+      if (index(tmp,'LP ') .ne. 0 .or. (index(tmp,'pi ') .ne. 0 .and. tmp(76:76) .eq. ' ')) then
         if (tmp(64:64) == ' ') then ! if element symbol has one character, there is a space and we use this routine
-          read (ich,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumc,dumr
+          read (tmp,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumc,dumr
         else ! if element symbol has two characters, there is no space and we use this routine
-          read (ich,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumr
+          read (tmp,*) dumr,type,dumr,dumr,dumr,dumr,dumr,at1,dumc,dumr
         end if
         if (findloc(dumlist,at1,1) .eq. 0) then
           j = j+1
