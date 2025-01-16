@@ -103,7 +103,7 @@ jobs:
           --slave /usr/bin/gcov gcov /usr/bin/gcov-${{ env.GCC_V }}
 
     - name: Install libopenblas (Linux GNU build only)
-      if: ${{ matrix.compiler == 'gnu' }} #&& matrix.build-type == 'debugoptimized' }}
+      if: ${{ matrix.compiler == 'gnu' && contains(matrix.os, 'ubuntu') }}
       run: sudo apt-get update && sudo apt-get install -y libopenblas-dev
 
     - name: Prepare for cache restore
