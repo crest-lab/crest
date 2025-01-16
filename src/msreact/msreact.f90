@@ -62,6 +62,7 @@ subroutine msreact_handler(env,tim)
 
   ! get starting energy of lowest fragment
   call get_input_energy(env,mso%T,estart)
+  call get_wbo(env,mso%T)
   !-- read the input coord and put it into the
   !   product-list as first structure
   call struc%open('coord')
