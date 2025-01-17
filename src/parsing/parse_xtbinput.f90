@@ -138,6 +138,7 @@ contains  !> MODULE PROCEDURES START HERE
 
       case ('reference')
         !> a reference geometry (must be the same molecule as the input)
+        call env%ref%to(mol)
         call molref%open(kv%rawvalue)
         if (any(mol%at(:) .ne. molref%at(:))) then
           write (stdout,'(a,/,a)') '**ERROR** while reading xtb-style input:',&
