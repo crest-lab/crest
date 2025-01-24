@@ -105,10 +105,10 @@ contains    !> MODULE PROCEDURES START HERE
     logical :: ex,reopen,append
     integer :: io
 
-    pr = calc%pr
+    pr = calc%pr .or. calc%prstdout
     append = calc%prappend
     reopen = .false.
-    if (pr) then
+    if (pr .and. .not.calc%prstdout) then
       inquire (unit=calc%prch,opened=ex)
       if ((calc%prch .ne. stdout).and.ex.and..not.append) then
         close (calc%prch)
@@ -136,6 +136,9 @@ contains    !> MODULE PROCEDURES START HERE
       deallocate (cpath)
 
       call api_print_input_structure(pr,calc%prch,mol)
+
+    else if(pr.and.calc%prstdout)then
+      calc%prch=stdout
     end if
 
   end subroutine api_handle_output

@@ -76,7 +76,7 @@ contains    !> MODULE PROCEDURES START HERE
     call tblite_init(calc,loadnew)
 !>--- tblite printout handling
     call api_handle_output(calc,'tblite.out',mol,pr)
-    if (pr) then
+    if (pr .or. calc%prstdout) then
       !> tblite uses its context (ctx) type, rather than calc%prch
       calc%tblite%ctx%unit = calc%prch
       calc%tblite%ctx%verbosity = 1
@@ -105,7 +105,8 @@ contains    !> MODULE PROCEDURES START HERE
     call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%tblite, &
     &                       energy,grad,iostatus)
     if (iostatus /= 0) return
-    call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+    if(.not.calc%prstdout) &
+    & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
 
 !>--- postprocessing, getting other data
     !$omp critical
@@ -160,7 +161,8 @@ contains    !> MODULE PROCEDURES START HERE
     if (iostatus /= 0) return
     if (pr) then
       call gfn0_print(calc%prch,g0calc,res)
-      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+      if(.not.calc%prstdout) &
+      & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data
@@ -215,7 +217,8 @@ contains    !> MODULE PROCEDURES START HERE
     if (iostatus /= 0) return
     if (pr) then
       call gfn0_print(calc%prch,g0calc,res)
-      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+      if(.not.calc%prstdout) &
+      & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data
@@ -267,7 +270,8 @@ contains    !> MODULE PROCEDURES START HERE
 !>--- printout
     if (pr) then
       call gfnff_printout(calc%prch,calc%ff_dat)
-      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+      if(.not.calc%prstdout) & 
+      & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data
@@ -320,7 +324,8 @@ contains    !> MODULE PROCEDURES START HERE
 !>--- printout
     if (pr) then
       !> the libpvol_sp call includes the printout within libpvol-lib
-      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+      if(.not.calc%prstdout) &
+      & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data
