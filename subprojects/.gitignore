@@ -14,6 +14,7 @@ lammps*
 !gfnff
 !tblite
 !test-drive
+!libpvol
 
 !packagefiles
 !packagefiles/tblite
