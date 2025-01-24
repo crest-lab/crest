@@ -237,8 +237,8 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%gfn0occ
       case ('gfnff','gff','gfn-ff')
         job%id = jobtype%gfnff
-      case ('xhcff')
-        job%id = jobtype%xhcff
+      case ('pvol','libpvol','xhcff')
+        job%id = jobtype%libpvol
       case ('none')
         job%id = jobtype%unknown
       case ('lj','lennard-jones')

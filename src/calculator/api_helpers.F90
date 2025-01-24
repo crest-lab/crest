@@ -372,20 +372,20 @@ contains    !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-!>--- XHCFF setup/helper routines
-  subroutine xhcff_initcheck(calc,loadnew)
+!>--- LIBPVOL setup/helper routines
+  subroutine libpvol_initcheck(calc,loadnew)
     implicit none
     type(calculation_settings),intent(inout) :: calc
     logical,intent(out) :: loadnew
     loadnew = .false.
-#ifdef WITH_XHCFF
-    if (.not.allocated(calc%xhcff)) then
-      allocate (calc%xhcff)
+#ifdef WITH_LIBPVOL
+    if (.not.allocated(calc%libpvol)) then
+      allocate (calc%libpvol)
       loadnew = .true.
     end if
     if (calc%apiclean) loadnew = .true.
 #endif
-  end subroutine xhcff_initcheck
+  end subroutine libpvol_initcheck
 
 !========================================================================================!
 !========================================================================================!

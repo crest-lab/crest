@@ -14,8 +14,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-set(_lib "libpvol")
-set(_pkg "LIBPVOL")
+set(_lib "pvol")
+set(_pkg "PVOL")
 set(_url "https://github.com/neudecker-group/libpvol.git")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
@@ -27,7 +27,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/crest-utils.cmake")
 crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
 
 set(found FALSE)
-if(TARGET "libpvol::libpvol")
+if(TARGET "pvol::pvol")
   set (found TRUE)
 endif()
 message(STATUS "Found libpvol: ${found}")
