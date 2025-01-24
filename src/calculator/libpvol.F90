@@ -34,8 +34,8 @@ module libpvol_api
 #endif
 
   public :: libpvol_calculator  !> if compiled without(!!!) -DWITH_LIBPVOL=true this will export
-                        !> the placeholder from above. Otherwise it will re-export
-                        !> the type from libpvol_interface
+  !> the placeholder from above. Otherwise it will re-export
+  !> the type from libpvol_interface
 
   public :: libpvol_setup,libpvol_sp,libpvol_print
 
@@ -45,33 +45,36 @@ contains  !>--- Module routines start here
 !========================================================================================!
 !========================================================================================!
 
-  subroutine libpvol_setup(mol, libpvol, pressure, model, gridpts, &
-  &                        proberad, vdwset, radscal, pr, iunit, iostatus)
+  subroutine libpvol_setup(mol,libpvol,pressure,model,gridpts, &
+  &                        proberad,vdwset,radscal,pr,iunit,iostatus)
     implicit none
     type(coord),intent(in)  :: mol
-    real(wp), intent(in)    :: pressure !> pressure
+    real(wp),intent(in)    :: pressure !> pressure
     integer,intent(in)      :: model
-    integer, intent(in)     :: gridpts
-    real(wp), intent(in)    :: proberad
-    integer, intent(in)     :: vdwset
+    integer,intent(in)     :: gridpts
+    real(wp),intent(in)    :: proberad
+    integer,intent(in)     :: vdwset
     real(wp),intent(in)     :: radscal
     type(libpvol_calculator),intent(inout) :: libpvol
-    integer, intent(inout)  :: iostatus
-    logical, intent(in)     :: pr
+    integer,intent(inout)  :: iostatus
+    logical,intent(in)     :: pr
     integer,intent(in)      :: iunit
+    integer :: selectedGrid
 #ifdef WITH_LIBPVOL
+    !> check grid size
+    call match_lebedev(gridpts,selectedGrid)
     !> initialize LIBPVOL
-    select case(model)
+    select case (model)
     case (1) !> PV
-    call libpvol%init(mol%nat,mol%at,mol%xyz,pressure,'PV', &
-     &  gridpts=gridpts, proberad=proberad, verbose=pr,iunit=iunit, &
-     &  printlevel=2,scaling=radscal,vdwset=vdwset,iostat=iostatus)
+      call libpvol%init(mol%nat,mol%at,mol%xyz,pressure,'PV', &
+       &  gridpts=selectedGrid,proberad=proberad,verbose=pr,iunit=iunit, &
+       &  printlevel=2,scaling=radscal,vdwset=vdwset,iostat=iostatus)
     case (0) !> XHCFF
-    call libpvol%init(mol%nat,mol%at,mol%xyz,pressure,'XHCFF', &
-     &  gridpts=gridpts, proberad=proberad, verbose=pr,iunit=iunit, &
-     &  printlevel=2,scaling=radscal,vdwset=vdwset,iostat=iostatus)
+      call libpvol%init(mol%nat,mol%at,mol%xyz,pressure,'XHCFF', &
+       &  gridpts=selectedGrid,proberad=proberad,verbose=pr,iunit=iunit, &
+       &  printlevel=2,scaling=radscal,vdwset=vdwset,iostat=iostatus)
     case default
-    error stop 'Unkown libpvol model type'
+      error stop 'Unkown libpvol model type'
     end select
 
 #else /* WITH_LIBPVOL */
@@ -106,7 +109,7 @@ contains  !>--- Module routines start here
     fail = .false.
 #ifdef WITH_LIBPVOL
 !TODO update
-     call libpvol%singlepoint(mol%nat,mol%at,mol%xyz,energy,gradient,iostat=iostatus)
+    call libpvol%singlepoint(mol%nat,mol%at,mol%xyz,energy,gradient,iostat=iostatus)
 #else
     write (stdout,*) 'Error: Compiled without LIBPVOL-lib support!'
     write (stdout,*) 'Use -DWITH_LIBPVOL=true in the setup to enable this function'
@@ -125,6 +128,33 @@ contains  !>--- Module routines start here
 #endif
     return
   end subroutine libpvol_print
+
+!========================================================================================!
+
+  subroutine match_lebedev(ngrid,match)
+!********************************************************************
+!* Returns the Lebedev-Laikov grid size closest to a provided ngrid
+!********************************************************************
+    implicit none
+    integer,intent(in)  :: ngrid
+    integer,intent(out) :: match
+    !> Available Lebedev-Laikov grids
+    integer,parameter :: gridSize(32) = [ &
+       &    6,14,26,38,50,74,86,110, &
+       &  146,170,194,230,266,302,350,434, &
+       &  590,770,974,1202,1454,1730,2030,2354, &
+       & 2702,3074,3470,3890,4334,4802,5294,5810]
+    integer :: i,dist,best_idx
+    dist = abs(ngrid-gridSize(1))
+    best_idx = 1
+    do i = 2,size(gridSize)
+      if (abs(ngrid-gridSize(i)) < dist) then
+        dist = abs(ngrid-gridSize(i))
+        best_idx = i
+      end if
+    end do
+    match = gridSize(best_idx)
+  end subroutine match_lebedev
 
 !========================================================================================!
 !========================================================================================!
