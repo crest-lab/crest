@@ -102,10 +102,10 @@ if(NOT TARGET "gfn0::gfn0" AND WITH_GFN0)
    add_compile_definitions(WITH_GFN0)
 endif()
 
-# XHCFF
-if(NOT TARGET "xhcff::xhcff" AND WITH_XHCFF)
-   find_package("xhcff" REQUIRED)
-   add_compile_definitions(WITH_XHCFF)
+# libpvol
+if(NOT TARGET "libpvol::libpvol" AND WITH_LIBPVOL)
+   find_package("libpvol" REQUIRED)
+   add_compile_definitions(WITH_LIBPVOL)
 endif()
 
 # lwONIOM

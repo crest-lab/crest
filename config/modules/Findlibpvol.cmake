@@ -14,9 +14,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-set(_lib "xhcff")
-set(_pkg "XHCFF")
-set(_url "https://github.com/zellerf/xhcff-lib")
+set(_lib "libpvol")
+set(_pkg "LIBPVOL")
+set(_url "https://github.com/neudecker-group/libpvol.git")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
   set("${_pkg}_FIND_METHOD" "subproject" "cmake" "fetch" "pkgconf" )
@@ -27,10 +27,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/crest-utils.cmake")
 crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
 
 set(found FALSE)
-if(TARGET "xhcff::xhcff")
+if(TARGET "libpvol::libpvol")
   set (found TRUE)
 endif()
-message(STATUS "Found xhcff: ${found}")
+message(STATUS "Found libpvol: ${found}")
 
 unset(_lib)
 unset(_pkg)
