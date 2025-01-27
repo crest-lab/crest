@@ -29,7 +29,7 @@ jobs:
         build: [cmake]
         build-type: [debug]
         compiler: [gnu]
-        version: [11,12]
+        version: [11,12,14]
 
         include:
         - os: ubuntu-latest
@@ -48,11 +48,17 @@ jobs:
           build: cmake
           build-type: debugoptimized
           compiler: gnu
+          version: 14
+
+        - os: ubuntu-latest
+          build: cmake
+          build-type: static
+          compiler: gnu
           version: 12
 
         - os: ubuntu-latest
           build: meson
-          build-type: debugoptimized
+          build-type: static
           compiler: intel
           version: 2023.1.0
 
@@ -155,12 +161,6 @@ jobs:
         --prefix=$PWD/_dist
         --libdir=lib
         --warnlevel=0
-#        ${{ env.MESON_ARGS }}
-#      env:
-#        COVERAGE: ${{ matrix.build-type == 'coverage' }}
-#        MESON_ARGS: >-
-#          ${{ matrix.compiler == 'intel' && '-Dfortran_link_args=-qopenmp -Dapi=false' || '' }}
-#          ${{ contains(matrix.os, 'macos') && '-Dlapack=openblas' || '' }}
 
     - name: Configure build (CMake, debug)
       if: ${{ matrix.build == 'cmake'  && matrix.build-type == 'debug' }}
@@ -179,6 +179,16 @@ jobs:
         -DCMAKE_BUILD_TYPE=RelWithDebInfo
         -DCMAKE_INSTALL_PREFIX=$PWD/_dist
         -DCMAKE_INSTALL_LIBDIR=lib
+
+    - name: Configure build (CMake, static)
+      if: ${{ matrix.build == 'cmake' && matrix.build-type == 'static' }}
+      run: >-
+        cmake -B${{ env.BUILD_DIR }}
+        -GNinja
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        -DCMAKE_INSTALL_PREFIX=$PWD/_dist
+        -DCMAKE_INSTALL_LIBDIR=lib
+        -DWITH_TESTS=OFF
         -DSTATICBUILD=ON
 
     - name: Build project
@@ -198,7 +208,7 @@ jobs:
         echo "CREST_PREFIX=$PWD/_dist" >> $GITHUB_ENV
 
     - name: Create package
-      if: ${{ matrix.build-type == 'debugoptimized' }}
+      if: ${{ matrix.build-type == 'static' }}
       run: |
         mkdir crest
         cp COPYING crest/LICENSE
@@ -211,7 +221,7 @@ jobs:
         OUTPUT: crest-${{ matrix.compiler }}-${{ matrix.version }}-${{ matrix.os }}.tar
 
     - name: Upload package
-      if: ${{ matrix.build-type == 'debugoptimized' }}
+      if: ${{ matrix.build-type == 'static' }}
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.CREST_OUTPUT }}
