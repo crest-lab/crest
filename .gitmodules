@@ -21,6 +21,3 @@
 	path = subprojects/tblite
 	url = https://github.com/pprcht/tblite.git
     branch = xtb_solvation
-[submodule "subprojects/pvol"]
-	path = subprojects/pvol
-	url = https://github.com/neudecker-group/libpvol.git
