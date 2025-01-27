@@ -33,7 +33,7 @@ module api_engrad
   use tblite_api
   use gfn0_api
   use gfnff_api
-  use xhcff_api
+  use libpvol_api
   use lj
   implicit none
 !>--- private module variables and parameters
@@ -42,7 +42,7 @@ module api_engrad
   public :: tblite_engrad
   public :: gfn0_engrad,gfn0occ_engrad
   public :: gfnff_engrad
-  public :: xhcff_engrad
+  public :: libpvol_engrad
   public :: lj_engrad !> RE-EXPORT
 
 !=========================================================================================!
@@ -76,7 +76,7 @@ contains    !> MODULE PROCEDURES START HERE
     call tblite_init(calc,loadnew)
 !>--- tblite printout handling
     call api_handle_output(calc,'tblite.out',mol,pr)
-    if (pr) then
+    if (pr .or. calc%prstdout) then
       !> tblite uses its context (ctx) type, rather than calc%prch
       calc%tblite%ctx%unit = calc%prch
       calc%tblite%ctx%verbosity = 1
@@ -105,7 +105,8 @@ contains    !> MODULE PROCEDURES START HERE
     call tblite_singlepoint(mol,calc%chrg,calc%uhf,calc%tblite, &
     &                       energy,grad,iostatus)
     if (iostatus /= 0) return
-    call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+    if(.not.calc%prstdout) &
+    & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
 
 !>--- postprocessing, getting other data
     !$omp critical
@@ -160,7 +161,8 @@ contains    !> MODULE PROCEDURES START HERE
     if (iostatus /= 0) return
     if (pr) then
       call gfn0_print(calc%prch,g0calc,res)
-      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+      if(.not.calc%prstdout) &
+      & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data
@@ -215,7 +217,8 @@ contains    !> MODULE PROCEDURES START HERE
     if (iostatus /= 0) return
     if (pr) then
       call gfn0_print(calc%prch,g0calc,res)
-      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+      if(.not.calc%prstdout) &
+      & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data
@@ -267,7 +270,8 @@ contains    !> MODULE PROCEDURES START HERE
 !>--- printout
     if (pr) then
       call gfnff_printout(calc%prch,calc%ff_dat)
-      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+      if(.not.calc%prstdout) & 
+      & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data
@@ -280,7 +284,7 @@ contains    !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine xhcff_engrad(mol,calc,energy,grad,iostatus)
+  subroutine libpvol_engrad(mol,calc,energy,grad,iostatus)
 !***************************************************************
 !* Interface singlepoint call between CREST and XHC force field
 !***************************************************************
@@ -300,33 +304,34 @@ contains    !> MODULE PROCEDURES START HERE
     pr = .false.
 !>--- setup system call information
     !$omp critical
-    call xhcff_initcheck(calc,loadnew)
+    call libpvol_initcheck(calc,loadnew)
 !>--- printout handling
-    call api_handle_output(calc,'xhcff.out',mol,pr)
+    call api_handle_output(calc,'libpvol.out',mol,pr)
 !>--- populate parameters
     if (loadnew) then
-      !> call xhcff with verbosity turned off
-      call xhcff_setup(mol,calc%xhcff,calc%extpressure,calc%ngrid,calc%proberad, &
-      &                calc%vdwset,pr,calc%prch,iostatus)
+      !> call libpvol with verbosity turned off
+      call libpvol_setup(mol,calc%libpvol,calc%extpressure,calc%pvmodel, &
+      &        calc%ngrid,calc%proberad,calc%vdwset,calc%pvradscal,pr,calc%prch,iostatus)
     end if
     !$omp end critical
     if (iostatus /= 0) return
 
 !>--- do the engrad call
     call initsignal()
-    call xhcff_sp(mol,calc%xhcff,energy,grad,iostatus)
+    call libpvol_sp(mol,calc%libpvol,energy,grad,iostatus)
     if (iostatus /= 0) return
 
 !>--- printout
     if (pr) then
-      !> the xhcff_sp call includes the printout within xhcff-lib
-      call api_print_e_grd(pr,calc%prch,mol,energy,grad)
+      !> the libpvol_sp call includes the printout within libpvol-lib
+      if(.not.calc%prstdout) &
+      & call api_print_e_grd(pr,calc%prch,mol,energy,grad)
     end if
 
 !>--- postprocessing, getting other data
 
     return
-  end subroutine xhcff_engrad
+  end subroutine libpvol_engrad
 
 !========================================================================================!
 !========================================================================================!

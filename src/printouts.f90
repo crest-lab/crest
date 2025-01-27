@@ -736,7 +736,7 @@ subroutine print_crest_metadata()
   write (*,'(2x,a,1x,a)') '-DWITH_GFN0      :',gfn0var
   write (*,'(2x,a,1x,a)') '-DWITH_GFNFF     :',gfnffvar
   write (*,'(2x,a,1x,a)') '-DWITH_TBLITE    :',tblitevar
-  write (*,'(2x,a,1x,a)') '-DWITH_XHCFF     :',xhcffvar
+  write (*,'(2x,a,1x,a)') '-DWITH_LIBPVOL   :',libpvolvar
   write (*,'(2x,a,1x,a)') '-DWITH_LWONIOM   :',lwoniomvar
 end subroutine print_crest_metadata
 

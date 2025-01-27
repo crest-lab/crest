@@ -29,7 +29,7 @@ srcs += files(
   'api_helpers.F90',
   'api_engrad.f90', 
   'gradreader.f90',
-  'xhcff.F90',
+  'libpvol.F90',
   'xtb_sc.f90',
   'subprocess_types.f90',
   'orca_sc.f90',
