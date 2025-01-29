@@ -34,7 +34,7 @@ option(WITH_TBLITE  "Enable support for tblite"   TRUE)
 option(WITH_TOMLF   "Enable support for toml-f"   TRUE)
 option(WITH_GFN0    "Enable support for GFN0-xTB" TRUE)
 option(WITH_GFNFF   "Enable support for GFN-FF"   TRUE)
-option(WITH_LIBPVOL "Enable support for LIBPVOL"  FALSE)
+option(WITH_LIBPVOL "Enable support for LIBPVOL"  TRUE)
 option(WITH_LWONIOM "Enable support for lwONIOM"  TRUE)
 option(WITH_TESTS   "Enable unit tests"           TRUE)
 
