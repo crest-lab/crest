@@ -1,0 +1,4 @@
+[wrap-git]
+directory = pvol
+url = https://github.com/neudecker-group/libpvol.git
+revision = head
