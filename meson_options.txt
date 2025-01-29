@@ -62,7 +62,7 @@ option(
 option(
   'WITH_LIBPVOL',
   type: 'boolean',
-  value: false,
+  value: true,
   description: 'build with libpvol integration',
 )
 

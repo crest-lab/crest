@@ -160,7 +160,7 @@ module calc_type
 
 !>--- libpvol data
     integer  :: pvmodel = 1            !> libpvol model type (0=XHCFF, 1=PV)
-    integer  :: ngrid = 230            !> lebedev grid points per atom
+    integer  :: ngrid = 1202           !> lebedev grid points per atom
     real(wp) :: extpressure = 0.0_wp   !> hydorstatic pressure in Gpa
     real(wp) :: proberad = 1.5_wp      !> proberadius in Angstroem
     integer  :: vdwset = 0             !> Type of VDW radii -> 0 (default) D3, 1 -> Bondi

@@ -244,7 +244,7 @@ if get_option('WITH_LIBPVOL')
  add_project_arguments('-DWITH_LIBPVOL', language: 'fortran')
  libpvol_dep = dependency(
    'libpvol',
-   fallback: ['libpvol', 'libpvollib_dep'],
+   fallback: ['libpvol', 'libpvol_dep'],
    default_options: ['default_library=static'],
  )
  exe_deps += libpvol_dep
