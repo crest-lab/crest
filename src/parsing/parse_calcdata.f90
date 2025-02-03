@@ -239,11 +239,8 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%gfn0occ
       case ('gfnff','gff','gfn-ff')
         job%id = jobtype%gfnff
-      case ('pvol','libpvol')
+      case ('pvol','libpvol', 'pv')
         job%id = jobtype%libpvol
-      case ('xhcff')
-        job%id = jobtype%libpvol
-        job%pvmodel=0   
       case ('none')
         job%id = jobtype%unknown
       case ('lj','lennard-jones')
@@ -270,6 +267,18 @@ contains !> MODULE PROCEDURES START HERE
 
     case ('gradfile')
       job%gradfile = kv%value_c
+
+    case('pgrad', 'pvgrad')
+      select case (kv%value_c)
+        case('analytic')
+          job%pvmodel=1
+        case('xhcff')
+          job%pvmodel=0
+        case default
+          !>--- keyword was recognized, but invalid argument supplied
+          write (stdout,fmtura) kv%value_c
+          call creststop(status_config)
+      end select
 
     case ('gradtype')
       select case (kv%value_c)
