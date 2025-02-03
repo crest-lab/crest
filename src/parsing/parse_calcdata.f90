@@ -239,11 +239,8 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%gfn0occ
       case ('gfnff','gff','gfn-ff')
         job%id = jobtype%gfnff
-      case ('pvol','libpvol')
+      case ('pvol','libpvol', 'pv')
         job%id = jobtype%libpvol
-      case ('xhcff')
-        job%id = jobtype%libpvol
-        job%pvmodel=0   
       case ('none')
         job%id = jobtype%unknown
       case ('lj','lennard-jones')
@@ -406,7 +403,7 @@ contains !> MODULE PROCEDURES START HERE
     case ('getsasa')
       call get_atlist(env%ref%nat,job%getsasa,kv%value_c,env%ref%at)
 
-    case ('pvol_model')
+    case ('pvol_model','pgrad','pvgrad')
       select case (kv%id)
       case (valuetypes%int)
         job%pvmodel = kv%value_i
@@ -414,8 +411,11 @@ contains !> MODULE PROCEDURES START HERE
         select case (kv%value_c)
         case ('xhcff')
           job%pvmodel = 0
-        case default
+        case ('analytic')
           job%pvmodel = 1
+        case default
+          write (stdout,fmtura) kv%value_c
+          call creststop(status_config)
         end select
       case default
         write (stdout,fmtura) trim(kv%rawvalue)
