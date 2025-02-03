@@ -268,18 +268,6 @@ contains !> MODULE PROCEDURES START HERE
     case ('gradfile')
       job%gradfile = kv%value_c
 
-    case('pgrad', 'pvgrad')
-      select case (kv%value_c)
-        case('analytic')
-          job%pvmodel=1
-        case('xhcff')
-          job%pvmodel=0
-        case default
-          !>--- keyword was recognized, but invalid argument supplied
-          write (stdout,fmtura) kv%value_c
-          call creststop(status_config)
-      end select
-
     case ('gradtype')
       select case (kv%value_c)
       case ('engrad','xtb','orca')
@@ -415,7 +403,7 @@ contains !> MODULE PROCEDURES START HERE
     case ('getsasa')
       call get_atlist(env%ref%nat,job%getsasa,kv%value_c,env%ref%at)
 
-    case ('pvol_model')
+    case ('pvol_model','pgrad','pvgrad')
       select case (kv%id)
       case (valuetypes%int)
         job%pvmodel = kv%value_i
@@ -423,8 +411,11 @@ contains !> MODULE PROCEDURES START HERE
         select case (kv%value_c)
         case ('xhcff')
           job%pvmodel = 0
-        case default
+        case ('analytic')
           job%pvmodel = 1
+        case default
+          write (stdout,fmtura) kv%value_c
+          call creststop(status_config)
         end select
       case default
         write (stdout,fmtura) trim(kv%rawvalue)
