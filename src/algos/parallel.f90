@@ -78,7 +78,7 @@ end module parallel_interface
 subroutine crest_sploop(env,nat,nall,at,xyz,eread)
 !***************************************************************
 !* subroutine crest_sploop
-!* This subroutine performs concurrent singlpoint evaluations
+!* This subroutine performs concurrent singlepoint evaluations
 !* for the given ensemble. Input eread is overwritten
 !***************************************************************
   use crest_parameters,only:wp,stdout,sep
