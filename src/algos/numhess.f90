@@ -77,7 +77,7 @@ subroutine crest_numhess(env,tim)
 
   !>--- start with an initial single point
   write(stdout,'(a)') repeat(":",80)
-  write (stdout,'(1x,a)') 'Initial singlpoint calculation ...'
+  write (stdout,'(1x,a)') 'Initial singlepoint calculation ...'
   allocate(grad0(3,mol%nat),source=0.0_wp)
   allocate(energies0( calc%ncalculations ), source=0.0_wp)
 
