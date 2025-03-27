@@ -557,6 +557,7 @@ subroutine qcg_grow(env, solu, solv, clus, tim)
    call chdir('tmp_grow')
    call wrc0('solute', solu%nat, solu%at, solu%xyz)
    call wrc0('solvent', solv%nat, solv%at, solv%xyz)
+   call env%wrtCHRG('') !Write .CHRG file for docking
 
    call ellipsout('solute_cavity.coord', clus%nat, clus%at, clus%xyz, solu%ell_abc)
    solv%ell_abc = clus%ell_abc
