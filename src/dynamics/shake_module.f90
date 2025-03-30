@@ -214,10 +214,10 @@ contains !> MODULE PROCEDURES START HERE
               !>--- do not constrain M bonds except Li/Be
               metalbond = metal(at(i)) .eq. 1.or.metal(at(j)) .eq. 1
               if (at(i) .eq. 3.or.at(i) .eq. 4.or.at(j) .eq. 3.or.at(j) .eq. 4) &
-                 &         metalbond = .false.
+                               &         metalbond = .false.
               if (metalbond) then
                 if ((i .lt. j).and.pr) &
-                  & write (*,*) 'init_shake: metal bond ',i,j,'not constrained'
+               & write (*,*) 'init_shake: metal bond ',i,j,'not constrained'
               else
                 list(ij) = 1
                 nconsu = nconsu+1
@@ -382,10 +382,22 @@ contains !> MODULE PROCEDURES START HERE
     end do
 
     if (conv) then
-      velo = velo+(shk%xyzt-xyz)*tau1
-      acc = acc+(shk%xyzt-xyz)*tau2
-      xyz = shk%xyzt
-      io = 0 !> successful termination
+
+      if (nfrz .eq. 0) then
+        velo = velo+(shk%xyzt-xyz)*tau1
+        acc = acc+(shk%xyzt-xyz)*tau2
+        xyz = shk%xyzt
+        io = 0 !> successful termination
+      else
+        do i = 1,nat
+          if (.not.shk%freezeptr(i)) then
+            velo(:,i) = velo(:,i)+(shk%xyzt(:,i)-xyz(:,i))*tau1
+            acc(:,i) = acc(:,i)+(shk%xyzt(:,i)-xyz(:,i))*tau2
+            xyz(:,i) = shk%xyzt(:,i)
+          end if
+        end do
+      end if
+      io = 0
     else if (pr) then
       write (*,*) 'SHAKE did not converge! maxdev=',maxdev
     end if
