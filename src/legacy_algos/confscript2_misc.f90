@@ -988,6 +988,7 @@ end subroutine append_INPUT_to
 ! print the number of remaining files in an ensemble file for a given energy window
 !-------------------------------------------------------------------------
 subroutine remaining_in(filename,ewin,nall)
+  use crest_data
   use crest_parameters
   use crest_restartlog, only: restart_write_dummy
   use strucrd,only:rdensembleparam,rdensemble
@@ -995,23 +996,24 @@ subroutine remaining_in(filename,ewin,nall)
   integer :: nall
   real(wp) :: ewin
   character(len=*) :: filename
-  integer :: k,nat
+  integer :: k,nat,io
 
   call restart_write_dummy(trim(filename))
 
   open (newunit=k,file=trim(filename))
-  read (k,*) nat
+  read (k,*,iostat=io) nat
+  if(io/=0)then
+    write(stdout,*) 'File '//trim(filename)//' is empty.'
+    write(stdout,*) 'If this happened duing conformational sampling, likely either the caluclations'
+    write(stdout,*) 'failed, or all structures have been discared during sorting due to structural'
+    write(stdout,*) '(i.e. chemical rather than conformational) changes to the molecule.'
+    write(stdout,*) 'Please review the job setup.'
+    call creststop(status_failed)
+  endif
   close (k)
 
   call rdensembleparam(trim(filename),nat,nall)
-
-  if (nall .lt. 1) then
-    write (*,*) 'No conformer was left. Something must be seriously wrong.'
-    write (*,*) 'Terminating the run.'
-    error stop
-  end if
-
-  write (*,'(1x,i0,'' structures remain within '',f8.2,'' kcal/mol window'')') &
+  write (stdout,'(1x,i0,'' structures remain within '',f8.2,'' kcal/mol window'')') &
   &        nall,ewin
   return
 end subroutine remaining_in
