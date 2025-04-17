@@ -954,10 +954,10 @@ subroutine kmeans_seeds(nclust,npc,mm,centroid,pcvec,ndist,dist)
 
   !>--- first two centroids are located at the most apart points
   !>    in the PC space
-  !k = maxloc(dist,1)
   ddum = 0.0_sp
   do kiter = 1,ndist
     if (dist(kiter) > ddum) then
+      ddum=dist(kiter)
       k = kiter
     end if
   end do
@@ -1102,7 +1102,7 @@ subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
   real(wp),allocatable :: compact(:)
   real(wp),allocatable :: DBmat(:,:)
   real(ap) :: eucdist !this is a function
-  real(wp) :: d,Rij,maxDB
+  real(wp) :: d,Rij,maxDB,weight
   integer :: i,c,k,c2
 
   DBI = 0.0d0
@@ -1131,9 +1131,10 @@ subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
   SST = 0.0d0
   p = 0.0d0
   do c = 1,nclust
-    p(1:npc) = p(1:npc)+centroid(1:npc,c)
+    weight = real(count(member(:)==c,1),wp)/real(mm,wp)
+    p(1:npc) = p(1:npc)+centroid(1:npc,c)*weight
   end do
-  p = p/float(nclust)
+  !p = p/float(nclust)
   do i = 1,mm
     q(1:npc) = pcvec(1:npc,i)
     d = eucdist(npc,p,q)
