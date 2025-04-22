@@ -106,7 +106,7 @@ subroutine CCEGEN(env,pr,fname)
   call ctimer%init(20)
   if (pr) then
     call largehead('Principal Component Analysis (PCA) and Clustering')
-    write (*,'(1x,a,a)') 'Input file: ',trim(fname)
+    write (stdout,'(1x,a,a)') 'Input file: ',trim(fname)
   end if
 
 !=========================================================!
@@ -123,8 +123,8 @@ subroutine CCEGEN(env,pr,fname)
     error stop "Ensemble is empty! must stop"
   else if (zens%nall == 1) then
     if (pr) then
-      write (*,*) 'Only one structure in ensemble!'
-      write (*,*) 'Write structure to ',clusterfile,' and skip PCA parts'
+      write (stdout,*) 'Only one structure in ensemble!'
+      write (stdout,*) 'Write structure to ',clusterfile,' and skip PCA parts'
     end if
     open (newunit=ich,file=clusterfile)
     dum = zens%er(1)
@@ -165,38 +165,38 @@ subroutine CCEGEN(env,pr,fname)
 !===========================================================!
     !>--- 2. read nuclear equivalencies
     if (pr) then
-      write (*,*)
+      write (stdout,*)
       call smallhead('READING NUCLEAR EQUIVALENCIES')
     end if
     call readequals('anmr_nucinfo',zmol,groups)
     if (pr) then
       call groups%prsum(6) !--- print summary to screen
-      write (*,'(1x,a)') 'Unlisted nuclei (groups) are unique.'
+      write (stdout,'(1x,a)') 'Unlisted nuclei (groups) are unique.'
     end if
 
     !>--- 3. distribute groups into subgroups basedon topology
     if (pr) then
-      write (*,*)
+      write (stdout,*)
       call smallhead('ANALYZING EQUIVALENCIES')
     end if
     call distsubgr(zmol,groups,subgroups,inc,pr)
 
     !>--- 4. Equivalent atoms must be excluded in clustering to reduce noise
     if (pr) then
-      write (*,*)
+      write (stdout,*)
       call smallhead('DETERMINE ATOMS TO INCLUDE IN PCA')
     end if
     call excludeFromRMSD(zmol,inc)
     if (sum(inc) == 0) then
       if (pr) then
-        write (*,*) 'WARNING: No atoms included in PCA'
-        write (*,*) 'Including more atoms ...'
+        write (stdout,*) 'WARNING: No atoms included in PCA'
+        write (stdout,*) 'Including more atoms ...'
       end if
       inc = 1
       !-- for this exclude the equivalent atoms from anmr_nucinfo directly
       do i = 1,groups%ng
         if (groups%grp(i)%nm > 1) then
-          write (*,*) groups%grp(i)%mem
+          write (stdout,*) groups%grp(i)%mem
           do j = 1,groups%grp(i)%nm
             k = groups%grp(i)%mem(j)
             inc(k) = 0
@@ -215,7 +215,7 @@ subroutine CCEGEN(env,pr,fname)
     if (pr) then
       do i = 1,zmol%nat
         if (inc(i) == 1) then
-          write (*,'(1x,a,a,i0,a,5x,a)') zmol%zat(i)%el,'(',i,')','taken'
+          write (stdout,'(1x,a,a,i0,a,5x,a)') zmol%zat(i)%el,'(',i,')','taken'
         end if
       end do
     end if
@@ -225,7 +225,7 @@ subroutine CCEGEN(env,pr,fname)
       do i = 1,zmol%nat
         if (zmol%at(i) /= 1) then
           inc(i) = 1
-          if (pr) write (*,'(1x,a,a,i0,a,5x,a)') zmol%zat(i)%el,'(',i,')','taken'
+          if (pr) write (stdout,'(1x,a,a,i0,a,5x,a)') zmol%zat(i)%el,'(',i,')','taken'
         end if
       end do
     end if
@@ -294,7 +294,7 @@ subroutine CCEGEN(env,pr,fname)
   if (ntaken > 3) then !> all of this only makes sense if we have something to compare
     call ctimer%start(1,'PCA')
     if (pr) then
-      write (*,*)
+      write (stdout,*)
       call smallhead('PRINCIPAL COMPONENT ANALYSIS')
     end if
     !mm = zens%nall
@@ -303,7 +303,7 @@ subroutine CCEGEN(env,pr,fname)
       !==========================================================================!
     case ('cma','CMA','cmadist')
       if (pr) then
-        write (*,'(1x,a)') 'Using CMA DISTANCES as descriptors:'
+        write (stdout,'(1x,a)') 'Using CMA DISTANCES as descriptors:'
       end if
       !>-- all structures should have been shifted to the CMA by CREGEN
       !>   therefore assume the CMA is at (0,0,0).
@@ -321,7 +321,7 @@ subroutine CCEGEN(env,pr,fname)
       !==========================================================================!
     case ('cartesian','coords')
       if (pr) then
-        write (*,'(1x,a)') 'Using CARTESIAN COORDINATES as descriptors:'
+        write (stdout,'(1x,a)') 'Using CARTESIAN COORDINATES as descriptors:'
       end if
       !>-- all Cartesian components of the selected atoms
       !>   REQUIRES PERFECT ALIGNMENT(!), hence not very robust
@@ -339,14 +339,14 @@ subroutine CCEGEN(env,pr,fname)
       !==========================================================================!
     case default !case( 'zmat','zmatrix' )
       if (pr) then
-        write (*,'(1x,a)') 'Using ZMATRIX as descriptors:'
+        write (stdout,'(1x,a)') 'Using ZMATRIX as descriptors:'
       end if
       !>-- dihedral angles
       mn = ntaken-3 !>--- first three dihedral angles are zero
       mn = min(mm,mn) !>--- no more descriptors than structures for SVD!
       if (mn < 1) then !> we need at least 2 dihedral angles, and therefore 5 descriptors
         if (pr) then
-          write (*,*) "Not enough descriptors for PCA!"
+          write (stdout,*) "Not enough descriptors for PCA!"
           return
         end if
       end if
@@ -368,11 +368,11 @@ subroutine CCEGEN(env,pr,fname)
       mn = min(mm,ntaken) !>--- no more descriptors than structures for SVD!
       allocate (measure(mn,mm),diedr(ndied))
       if (pr) then
-        write (*,'(1x,a)') 'Using DIHEDRAL ANGLES as descriptors:'
+        write (stdout,'(1x,a)') 'Using DIHEDRAL ANGLES as descriptors:'
         do i = 1,mn
-          write (*,'(1x,a,4i6)') 'Atoms: ',diedat(1:4,i)
+          write (stdout,'(1x,a,4i6)') 'Atoms: ',diedat(1:4,i)
         end do
-        write (*,*)
+        write (stdout,*)
       end if
       do i = 1,mm
         call calc_dieders(zens%nat,zens%xyz(:,:,i),ndied,diedat,diedr)
@@ -390,8 +390,8 @@ subroutine CCEGEN(env,pr,fname)
     end select
     !=====================================================!
     if (pr) then
-      write (*,*)
-      write (*,'(1x,a,i0,a,i0,a)') 'Performing SVD for ', &
+      write (stdout,*)
+      write (stdout,'(1x,a,i0,a,i0,a)') 'Performing SVD for ', &
 &          mm,' structures and ',mn,' props'
     end if
     !>--- do the SVD  ! MM must not be smaller than MN !
@@ -399,8 +399,8 @@ subroutine CCEGEN(env,pr,fname)
 !=========================================================================================!
     call ctimer%stop(1)
   else
-    write (*,*) 'There are not enough descriptors for a PCA!'
-    write (*,*) 'Taking all structures as representative and writing ',clusterfile
+    write (stdout,*) 'There are not enough descriptors for a PCA!'
+    write (stdout,*) 'Taking all structures as representative and writing ',clusterfile
     open (newunit=ich,file=clusterfile)
     do i = 1,zens%nall
       dum = zens%er(i)
@@ -436,19 +436,19 @@ subroutine CCEGEN(env,pr,fname)
   if (pr) then
     i = min(100,MM)
     k = min(npc,6)
-    write (*,*)
+    write (stdout,*)
     call smallhead('EIGENVECTORS AND NORMALIZED EIGENVALUES OF SVD ANALYIS')
     call PRMAT(6,pcvec,i,k,'Eigenvectors of principal components')
-    write (*,'(1x,a,i0,a)') 'NOTE: eigenvectors are only shown for the first ',i,' structures'
-    write (*,'(1x,a,i0,a)') '      and the first ',k,' contributing principal components.'
-    write (*,*)
+    write (stdout,'(1x,a,i0,a)') 'NOTE: eigenvectors are only shown for the first ',i,' structures'
+    write (stdout,'(1x,a,i0,a)') '      and the first ',k,' contributing principal components.'
+    write (stdout,*)
 
-    write (*,*) mn,'principal component eigenvalues (normalized)'
-    write (*,*) pc
+    write (stdout,*) mn,'principal component eigenvalues (normalized)'
+    write (stdout,*) pc
     !call PRMAT(6,pc,mn,1,'Principal components (eigenvalues)')
-    write (*,*)
-    write (*,'(1x,a,i0,a,f6.2,a)') 'The first ',npc,' components account for a total of ',100.d0*pcsum,'% of the'
-    write (*,'(1x,a)') 'ensembles unique structural features and are used for the clustering'
+    write (stdout,*)
+    write (stdout,'(1x,a,i0,a,f6.2,a)') 'The first ',npc,' components account for a total of ',100.d0*pcsum,'% of the'
+    write (stdout,'(1x,a)') 'ensembles unique structural features and are used for the clustering'
   end if
 
   !>--- use some less memory and rearrange the eigenvectors (COLUMNS AND ROWS ARE SWAPPED)
@@ -464,7 +464,7 @@ subroutine CCEGEN(env,pr,fname)
 !=========================================================!
 
   if (pr) then
-    write (*,*)
+    write (stdout,*)
     call smallhead('CLUSTERING ANALYSIS OF PRINCIPAL COMPONENTS')
   end if
 
@@ -502,17 +502,17 @@ subroutine CCEGEN(env,pr,fname)
   if (pr) then
     select case (clusteralgo)
     case ('means','kmeans')
-      write (*,'(1x,a)') 'Using a MEANS cluster algorithm.'
+      write (stdout,'(1x,a)') 'Using a MEANS cluster algorithm.'
     end select
-    write (*,'(1x,a)') 'For a good review of cluster algorithms see'
-    write (*,'(1x,a)') 'JCTC, 2007, 3, 2312 (doi.org/10.1021/ct700119m)'
-    write (*,*)
-    write (*,'(1x,a)') 'DBI = Davies-Bouldin index'
-    write (*,'(1x,a)') 'pSF = pseudo F-statistic'
-    write (*,'(1x,a)') 'SSR/SST = ratio of explained and unexplained variation'
-    write (*,*)
-    write (*,'(1x,a8,4x,a14,4x,a14,4x,a14)') 'Nclust','DBI','pSF','SSR/SST'
-    write (*,'(1x,a8,4x,a14,4x,a14,4x,a14)') '------','-------------','-------------','-------------'
+    write (stdout,'(1x,a)') 'For a good review of cluster algorithms see'
+    write (stdout,'(1x,a)') 'JCTC, 2007, 3, 2312 (doi.org/10.1021/ct700119m)'
+    write (stdout,*)
+    write (stdout,'(1x,a)') 'DBI = Davies-Bouldin index'
+    write (stdout,'(1x,a)') 'pSF = pseudo F-statistic'
+    write (stdout,'(1x,a)') 'SSR/SST = ratio of explained and unexplained variation'
+    write (stdout,*)
+    write (stdout,'(1x,a8,4x,a14,4x,a14,4x,a14)') 'Nclust','DBI','pSF','SSR/SST'
+    write (stdout,'(1x,a8,4x,a14,4x,a14,4x,a14)') '------','-------------','-------------','-------------'
   end if
 
 !-----------------------------------------------------------------------!
@@ -561,7 +561,7 @@ subroutine CCEGEN(env,pr,fname)
     call ctimer%start(3,'statistics')
     call cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
     if (pr) then
-      write (*,'(1x,i8,4x,f14.6,4x,f14.6,4x,f14.6)') nclust,DBI,pSF,SSRSST
+      write (stdout,'(1x,i8,4x,f14.6,4x,f14.6,4x,f14.6)') nclust,DBI,pSF,SSRSST
     end if
     call ctimer%stop(3)
     deallocate (centroid)
@@ -575,14 +575,14 @@ subroutine CCEGEN(env,pr,fname)
   end do CLUSTERSIZES
   if (allocated(centroid)) deallocate (centroid)
 
-  write (*,*)
+  write (stdout,*)
   if (env%nclust == 0) then
     if (pr) then
-      write (*,'(1x,a,i0,a)') 'Ensemble checked up to a partitioning into ',nclust,' clusters.'
-      write (*,'(1x,a)') 'Local MINIMA of the DBI indicate adequate cluster counts.'
-      write (*,'(1x,a)') 'Local MAXIMA of the pSF indicate adequate cluster counts.'
-      write (*,'(1x,a)') 'Higher SSR/SST vaules indicate more distinct clusters.'
-      write (*,'(1x,a)') 'Analyzing statistical values ...'
+      write (stdout,'(1x,a,i0,a)') 'Ensemble checked up to a partitioning into ',nclust,' clusters.'
+      write (stdout,'(1x,a)') 'Local MINIMA of the DBI indicate adequate cluster counts.'
+      write (stdout,'(1x,a)') 'Local MAXIMA of the pSF indicate adequate cluster counts.'
+      write (stdout,'(1x,a)') 'Higher SSR/SST vaules indicate more distinct clusters.'
+      write (stdout,'(1x,a)') 'Analyzing statistical values ...'
     end if
     k = nclust
     allocate (extrema(2,k))
@@ -599,8 +599,8 @@ subroutine CCEGEN(env,pr,fname)
     call ctimer%stop(3)
     deallocate (extrema)
     if (pr) then
-      write (*,*)
-      write (*,'(1x,a,f4.2,a,i0)') 'Suggested (SSR/SST >',csthr,') cluster count: ',nclust
+      write (stdout,*)
+      write (stdout,'(1x,a,f4.2,a,i0)') 'Suggested (SSR/SST >',csthr,') cluster count: ',nclust
     end if
     !>-- calculate the determined partition into clusters again for final file
     allocate (centroid(npc,nclust),source=0.0_ap)
@@ -613,7 +613,7 @@ subroutine CCEGEN(env,pr,fname)
     deallocate (centroid)
   else
     if (pr) then
-      write (*,'(1x,a,i0,a)') 'Ensemble partitioning into ',nclust,' clsuters.'
+      write (stdout,'(1x,a,i0,a)') 'Ensemble partitioning into ',nclust,' clsuters.'
     end if
   end if
   deallocate (statistics)
@@ -630,13 +630,24 @@ subroutine CCEGEN(env,pr,fname)
   if (ancb .le. 1) return
 
   if (pr) then
-    write (*,*)
-    write (*,'(1x,a)') 'Representative structures'
-    write (*,'(1x,a6,1x,a6,3x,a6,1x,a16,1x,a16)') 'Nr.','conf.','clust.','Etot/Eh','Erel/ kcal/mol'
-    write (*,'(1x,a6,1x,a6,3x,a6,1x,a16,1x,a16)') '---','-----','------','-------','--------------'
+    write (stdout,*)
+    write (stdout,'(1x,a)') 'Representative structures'
+    write (stdout,'(1x,a6,1x,a6,3x,a6,1x,a16,1x,a16)') 'Nr.','conf.','clust.','Etot/Eh','Erel/ kcal/mol'
+    write (stdout,'(1x,a6,1x,a6,3x,a6,1x,a16,1x,a16)') '---','-----','------','-------','--------------'
   end if
   allocate (eclust(ncb),source=0.0d0)
   allocate (clustbest(ncb),ind(ncb),source=0)
+  !>--- initialize eclust and clustbest
+  iiincb: do i = 1,ncb
+    do j = 1,mm
+      if (member(j) == i) then
+        eclust(i) = zens%er(j)
+        clustbest(i) = j
+        cycle iiincb
+      end if
+    end do
+  end do iiincb
+  !>--- then, look for the lowest energy
   do i = 1,ncb
     ind(i) = i
     c = 0
@@ -665,23 +676,23 @@ subroutine CCEGEN(env,pr,fname)
       call wrxyz(ich,zens%nat,zens%at,zens%xyz(:,:,k),dum)
       if (pr) then
         erel = (dum-emin)*kcal
-        write (*,'(1x,i6,1x,i6,3x,i6,1x,f16.8,1x,f16.4)') i,k,member(k),dum,erel
+        write (stdout,'(1x,i6,1x,i6,3x,i6,1x,f16.8,1x,f16.4)') i,k,member(k),dum,erel
       end if
     end if
   end do
   close (ich)
   if (pr) then
-    write (*,'(/,1x,a)') '(The "clust." column refers to the cluster "name")'
-    write (*,*)
-    write (*,'(1x,a,a,a,i0,a)') 'File ',clusterfile,' written with ',ancb,' representative structures.'
+    write (stdout,'(/,1x,a)') '(The "clust." column refers to the cluster "ID")'
+    write (stdout,*)
+    write (stdout,'(1x,a,a,a,i0,a)') 'File ',clusterfile,' written with ',ancb,' representative structures.'
     if (ancb < ncb) then
-      write (*,'(1x,a,i0,a)') '(',ncb-ancb,' clusters discarded due to cluster merge)'
+      write (stdout,'(1x,a,i0,a)') '(',ncb-ancb,' clusters discarded due to cluster merge)'
     end if
   end if
   call zens%deallocate()
 
   if (pr) then
-    write (*,*)
+    write (stdout,*)
     !write(*,'(1x,a)') 'Timings:'
     !call eval_sub_timer(ctimer)
     call ctimer%write(stdout,'PCA/k-Means clustering')
@@ -821,8 +832,8 @@ subroutine svd_to_pc(measure,m,n,sig,U,pr)
   integer,allocatable :: iwork(:)
   logical :: pr
   if (pr) then
-    write (*,*) m,' mesaurements'
-    write (*,*) n,' props'
+    write (stdout,*) m,' mesaurements'
+    write (stdout,*) n,' props'
   end if
   allocate (mean(n),ind(m),tmp(m))
   lwork = max(2*M+N,6*N+2*N*N)
@@ -834,7 +845,7 @@ subroutine svd_to_pc(measure,m,n,sig,U,pr)
     end do
   end do
   mean = mean/float(m)
-  if (pr) write (*,*) mean
+  if (pr) write (stdout,*) mean
   do i = 1,m
     do j = 1,n
       X(i,j) = (mean(j)-measure(j,i))
@@ -848,8 +859,8 @@ subroutine svd_to_pc(measure,m,n,sig,U,pr)
  &              m,n,X,m,sig,U,m,V,n,                &
  &              WORK,LWORK,IWORK,INFO)
   if (pr) then
-    write (*,*) info
-    write (*,*) sig
+    write (stdout,*) info
+    write (stdout,*) sig
     call PRMAT(6,U**2,M,N,'U')
     call PRMAT(6,V,N,N,'V')
   end if
@@ -943,10 +954,10 @@ subroutine kmeans_seeds(nclust,npc,mm,centroid,pcvec,ndist,dist)
 
   !>--- first two centroids are located at the most apart points
   !>    in the PC space
-  !k = maxloc(dist,1)
   ddum = 0.0_sp
   do kiter = 1,ndist
     if (dist(kiter) > ddum) then
+      ddum=dist(kiter)
       k = kiter
     end if
   end do
@@ -1091,7 +1102,7 @@ subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
   real(wp),allocatable :: compact(:)
   real(wp),allocatable :: DBmat(:,:)
   real(ap) :: eucdist !this is a function
-  real(wp) :: d,Rij,maxDB
+  real(wp) :: d,Rij,maxDB,weight
   integer :: i,c,k,c2
 
   DBI = 0.0d0
@@ -1120,9 +1131,10 @@ subroutine cluststat(nclust,npc,mm,centroid,pcvec,member,DBI,pSF,SSRSST)
   SST = 0.0d0
   p = 0.0d0
   do c = 1,nclust
-    p(1:npc) = p(1:npc)+centroid(1:npc,c)
+    weight = real(count(member(:)==c,1),wp)/real(mm,wp)
+    p(1:npc) = p(1:npc)+centroid(1:npc,c)*weight
   end do
-  p = p/float(nclust)
+  !p = p/float(nclust)
   do i = 1,mm
     q(1:npc) = pcvec(1:npc,i)
     d = eucdist(npc,p,q)
@@ -1224,19 +1236,19 @@ subroutine statanal(n,nmax,statistics,extrema,pr)
   end do
 
   if (pr) then
-    write (*,*)
-    write (*,'(1x,a,/)') 'Suggestions for cluster sizes:'
+    write (stdout,*)
+    write (stdout,'(1x,a,/)') 'Suggestions for cluster sizes:'
     do i = 1,n
       if (extrema(1,i).or.extrema(2,i)) then
         if (extrema(1,i).and.extrema(2,i)) then
-          write (*,'(1x,i8,''*'',3x,a,f8.4)') i,'SSR/SST',statistics(3,i)
+          write (stdout,'(1x,i8,''*'',3x,a,f8.4)') i,'SSR/SST',statistics(3,i)
         else
-          write (*,'(1x,i8,4x,a,f8.4)') i,'SSR/SST',statistics(3,i)
+          write (stdout,'(1x,i8,4x,a,f8.4)') i,'SSR/SST',statistics(3,i)
         end if
       end if
     end do
-    write (*,'(/,1x,a)') 'Cluster counts marked with a star (*) are reasonable'
-    write (*,'(1x,a)') 'suggestions according to BOTH the DBI and pSF.'
+    write (stdout,'(/,1x,a)') 'Cluster counts marked with a star (*) are reasonable'
+    write (stdout,'(1x,a)') 'suggestions according to BOTH the DBI and pSF.'
   end if
 
   return
@@ -1246,24 +1258,25 @@ end subroutine statanal
 ! print a warning regarding the nature of the cluster partitioning
 !==============================================================!
 subroutine statwarning(fname)
+  use crest_parameters
   implicit none
   character(len=*) :: fname
-  write (*,*)
-  write (*,'(1x,a)') '!---------------------------- NOTE ----------------------------!'
-  write (*,'(2x,a)') 'The partitioning of data (the ensemble) into clusters'
-  write (*,'(2x,a)') 'of similar characteristics (structures) is ARBITRARY'
-  write (*,'(2x,a)') 'and depends on many criteria (e.g. choice of PCs).'
-  write (*,'(2x,a)') 'The selected cluster count is the smallest reasonable'
-  write (*,'(2x,a)') 'number of clusters that can be formed according to'
-  write (*,'(2x,a)') 'the DBI and pSF values for the given data.'
-  write (*,*)
-  write (*,'(2x,a)') 'If other cluster sizes are desired, rerun CREST with'
-  write (*,'(2x,3a)') '"crest --for ',trim(fname),' --cluster <number of clusters>"'
-  write (*,*)
-  write (*,'(2x,a)') 'Other default evaluation settings can be chosen with the'
-  write (*,'(2x,a)') 'keywords "loose","normal", and "tight" as <level> via'
-  write (*,'(2x,3a)') '"crest --for ',trim(fname),' --cluster <level>"'
-  write (*,'(1x,a)') '!--------------------------------------------------------------!'
+  write (stdout,*)
+  write (stdout,'(1x,a)') '!---------------------------- NOTE ----------------------------!'
+  write (stdout,'(2x,a)') 'The partitioning of data (the ensemble) into clusters'
+  write (stdout,'(2x,a)') 'of similar characteristics (structures) is ARBITRARY'
+  write (stdout,'(2x,a)') 'and depends on many criteria (e.g. choice of PCs).'
+  write (stdout,'(2x,a)') 'The selected cluster count is the smallest reasonable'
+  write (stdout,'(2x,a)') 'number of clusters that can be formed according to'
+  write (stdout,'(2x,a)') 'the DBI and pSF values for the given data.'
+  write (stdout,*)
+  write (stdout,'(2x,a)') 'If other cluster sizes are desired, rerun CREST with'
+  write (stdout,'(2x,3a)') '"crest --for ',trim(fname),' --cluster <number of clusters>"'
+  write (stdout,*)
+  write (stdout,'(2x,a)') 'Other default evaluation settings can be chosen with the'
+  write (stdout,'(2x,a)') 'keywords "loose","normal", and "tight" as <level> via'
+  write (stdout,'(2x,3a)') '"crest --for ',trim(fname),' --cluster <level>"'
+  write (stdout,'(1x,a)') '!--------------------------------------------------------------!'
 end subroutine statwarning
 
 !====================================================================!
