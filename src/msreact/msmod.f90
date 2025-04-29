@@ -208,7 +208,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=80) :: fname,pipe
     character(len=:),allocatable :: jobcall
     logical :: fin
-    character(len=256) :: atmp
+    character(len=256) :: atmp,chrg,uhf
     integer :: ich,iost,io,i,T,Tn
     type(coord) :: mol
     real(wp),intent(out) :: etot
@@ -245,7 +245,11 @@ contains  !> MODULE PROCEDURES START HERE
     jobcall = trim(jobcall)//' '//trim(fname)
     write(atmp,'(f10.4)') etemp
     jobcall = trim(jobcall)//' --sp --etemp '//trim(atmp)
-    jobcall = trim(jobcall)//trim(env%gfnver)//trim(pipe)
+    jobcall = trim(jobcall)//' '//trim(env%gfnver)
+    write(chrg,'(i0)') env%chrg
+    write(uhf,'(i0)') env%uhf
+    jobcall = trim(jobcall)//' --chrg '//trim(chrg)//' --uhf '//trim(uhf)
+    jobcall = trim(jobcall)//trim(pipe)
 
     call execute_command_line(trim(jobcall),exitstat=io)
 
@@ -281,8 +285,8 @@ contains  !> MODULE PROCEDURES START HERE
         character(len=80) :: fname,pipe
         character(len=:),allocatable :: jobcall
         logical :: fin
-        character(len=256) :: atmp
-        integer :: ich,iost,io,i,T,Tn
+        character(len=256) :: atmp,uhf_wbo,chrg
+        integer :: ich,iost,io,i,T,Tn,uhf
         type(coord) :: mol
         real(wp) :: etemp ! electronic temperature in K
         logical :: tchange = .false.
@@ -309,12 +313,35 @@ contains  !> MODULE PROCEDURES START HERE
     
     !    write (jobcall,'(a,1x,a,f10.4,1x,a,1x,a)') &
     !    &     trim(env%ProgName),trim(fname)//" --sp --etemp ",etemp,trim(env%gfnver),trim(pipe)
+
+        !---- calculating the remaining uhf for the wob calculation. Has to be modified when the CID mode is implemented.
+        !---- For EI the molecule is assumed to be in a low spin state and to be closed shell before ionization.
+        !---- For CID the molecule is assumed to be in a low spin state after the ionization.
+        if (env%msei) then
+          if (env%uhf .gt. 0) then
+            if (mod(env%chrg, 2) .ne. 0) then
+              uhf = env%uhf - 1
+              write (uhf_wbo,'(i0)') uhf
+            else
+              write (uhf_wbo,'(i0)') env%uhf
+            end if
+          else
+            write (uhf_wbo,'(i0)') 0
+          end if
+          write (chrg,'(i0)') 0
+        end if
+
+        if (env%mscid) then
+          write (chrg,'(i0)') env%chrg
+          write (uhf_wbo,'(i0)') env%uhf
+        end if
+
         jobcall = trim(env%ProgName)
         jobcall = trim(jobcall)//' '//trim(fname)
         write(atmp,'(f10.4)') etemp
         !always perform at charge 0
-        jobcall = trim(jobcall)//' --sp --chrg 0 --etemp '//trim(atmp)
-        jobcall = trim(jobcall)//trim(env%gfnver)//trim(pipe)
+        jobcall = trim(jobcall)//' --sp --chrg '//trim(chrg)//' --uhf '//trim(uhf_wbo)//' --etemp '//trim(atmp)
+        jobcall = trim(jobcall)//' '//trim(env%gfnver)//trim(pipe)
     
         call execute_command_line(trim(jobcall),exitstat=io)
     
