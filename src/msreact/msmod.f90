@@ -314,6 +314,8 @@ contains  !> MODULE PROCEDURES START HERE
     !    write (jobcall,'(a,1x,a,f10.4,1x,a,1x,a)') &
     !    &     trim(env%ProgName),trim(fname)//" --sp --etemp ",etemp,trim(env%gfnver),trim(pipe)
 
+        !---- For the EI bond analysis the molecule has to be calculated in the neutral state. The GFN2 bond orders can be wrong after the ionization.
+        !---- For the CID bond analysis the molecule has to be calculated in the ionized state.
         !---- calculating the remaining uhf for the wob calculation. Has to be modified when the CID mode is implemented.
         !---- For EI the molecule is assumed to be in a low spin state and to be closed shell before ionization.
         !---- For CID the molecule is assumed to be in a low spin state after the ionization.
