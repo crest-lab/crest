@@ -22,6 +22,7 @@ module msmod
   use crest_data
   use strucrd
   use iomod
+  use strucrd
   implicit none
 
   !>-- storage for a single mol
@@ -209,7 +210,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=:),allocatable :: jobcall
     logical :: fin
     character(len=256) :: atmp,chrg,uhf
-    integer :: ich,iost,io,i,T,Tn
+    integer :: ich,iost,io,i,T,Tn,nel
     type(coord) :: mol
     real(wp),intent(out) :: etot
     real(wp) :: etemp ! electronic temperature in K
@@ -238,6 +239,16 @@ contains  !> MODULE PROCEDURES START HERE
 
 !---- input xyz file
     fname = env%inputcoords
+
+!---- Calculate the number of electrons from the input file
+    call readnel(fname,env%nat,nel)
+
+    ! Check parity - UHF and number of electrons should have same parity
+    if (mod(env%uhf, 2) /= mod((nel - env%chrg), 2)) then
+      write (*,*) 'Error: UHF and number of electrons must have the same parity (both odd or both even).'
+      write (*,'(A,I0,A,I0)') ' Number of electrons = ', nel - env%chrg, ', UHF = ', env%uhf
+      error stop
+    end if
 
 !    write (jobcall,'(a,1x,a,f10.4,1x,a,1x,a)') &
 !    &     trim(env%ProgName),trim(fname)//" --sp --etemp ",etemp,trim(env%gfnver),trim(pipe)
@@ -1240,6 +1251,25 @@ contains  !> MODULE PROCEDURES START HERE
     close (ich)
     return
   end subroutine wrplist
+
+subroutine readnel(fname,nat,nel)
+!********************************
+!* read number of electrons from file
+!********************************
+    implicit none
+    character(len=*) :: fname
+    integer :: nel,nat
+    integer :: i
+    integer,allocatable :: at(:)
+    real(wp),allocatable :: xyz(:,:)
+
+    allocate(at(nat),xyz(3,nat))
+    call rdcoord(fname,nat,at,xyz) ! Read coordinates from the file
+    nel = 0
+    do i = 1,nat
+      nel = nel + at(i)
+    end do
+  end subroutine readnel
 
 !=======================================================================================!
 !=======================================================================================!
