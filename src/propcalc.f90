@@ -382,7 +382,7 @@ subroutine propcalc(iname,imode,env,tim)
       & env%ensemblename)
     end if
 
-  case (998) !singlpoint (no reranking) + dipoles
+  case (998) !singlepoint (no reranking) + dipoles
     open (newunit=ich,file='crest_property.xyz')
     open (newunit=ich2,file='crest.dipoles')
     do i = 1,TMPCONF
@@ -407,7 +407,7 @@ subroutine propcalc(iname,imode,env,tim)
     write (*,*)
     write (*,*) 'Dipole moments for each conformer (x,y,z,total) written to crest.dipoles'
 
-  case (999) !singlpoint reranking
+  case (999) !singlepoint reranking
     open (newunit=ich,file='crest_property.xyz')
     do i = 1,TMPCONF
       write (tmppath,'(a,i0,a,a)') 'TMPCONF',i,'/','xtb.out'

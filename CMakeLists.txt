@@ -102,10 +102,10 @@ if(NOT TARGET "gfn0::gfn0" AND WITH_GFN0)
    add_compile_definitions(WITH_GFN0)
 endif()
 
-# XHCFF
-if(NOT TARGET "xhcff::xhcff" AND WITH_XHCFF)
-   find_package("xhcff" REQUIRED)
-   add_compile_definitions(WITH_XHCFF)
+# libpvol
+if(NOT TARGET "pvol::pvol" AND WITH_LIBPVOL)
+   find_package("libpvol" REQUIRED)
+   add_compile_definitions(WITH_LIBPVOL)
 endif()
 
 # lwONIOM
@@ -150,7 +150,7 @@ if(WITH_OBJECT AND NOT STATICBUILD)
       $<$<BOOL:${WITH_TBLITE}>:tblite::tblite>
       $<$<BOOL:${WITH_GFN0}>:gfn0::gfn0>
       $<$<BOOL:${WITH_GFNFF}>:gfnff::gfnff>
-      $<$<BOOL:${WITH_XHCFF}>:xhcff::xhcff>
+      $<$<BOOL:${WITH_LIBPVOL}>:pvol::pvol>
       $<$<BOOL:${WITH_TOMLF}>:toml-f::toml-f>
       $<$<BOOL:${WITH_LWONIOM}>:lwoniom::lwoniom>
       $<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>
@@ -201,7 +201,7 @@ target_link_libraries(
    $<$<BOOL:${WITH_TBLITE}>:tblite::tblite>
    $<$<BOOL:${WITH_GFN0}>:gfn0::gfn0>
    $<$<BOOL:${WITH_GFNFF}>:gfnff::gfnff>
-   $<$<BOOL:${WITH_XHCFF}>:xhcff::xhcff>
+   $<$<BOOL:${WITH_LIBPVOL}>:pvol::pvol>
    $<$<BOOL:${WITH_TOMLF}>:toml-f::toml-f>
    $<$<BOOL:${WITH_LWONIOM}>:lwoniom::lwoniom>
    $<$<BOOL:${STATICBUILD}>:-static>
@@ -246,7 +246,7 @@ if (WITH_OBJECT AND NOT STATICBUILD)
       $<$<BOOL:${WITH_TBLITE}>:tblite::tblite>
       $<$<BOOL:${WITH_GFN0}>:gfn0::gfn0>
       $<$<BOOL:${WITH_GFNFF}>:gfnff::gfnff>
-      $<$<BOOL:${WITH_XHCFF}>:xhcff::xhcff>
+      $<$<BOOL:${WITH_LIBPVOL}>:pvol::pvol>
       $<$<BOOL:${WITH_TOMLF}>:toml-f::toml-f>
       $<$<BOOL:${WITH_LWONIOM}>:lwoniom::lwoniom>
    )

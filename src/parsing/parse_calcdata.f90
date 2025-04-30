@@ -185,8 +185,10 @@ contains !> MODULE PROCEDURES START HERE
       job%weight = kv%value_f
     case ('pressure')
       job%extpressure = kv%value_f
-    case ('proberad')
+    case ('proberad','pvol_proberad')
       job%proberad = kv%value_f
+    case ('radscal','pvol_radscal')
+      job%pvradscal = kv%value_f
 
 !>--- integers
     case ('uhf','multiplicity')
@@ -197,9 +199,9 @@ contains !> MODULE PROCEDURES START HERE
       job%id = kv%value_i
     case ('maxscc')
       job%maxscc = kv%value_i
-    case ('lebedev')
+    case ('lebedev','pvol_ngrid')
       job%ngrid = kv%value_i
-    case ('vdwset')
+    case ('vdwset','pvol_vdwset')
       job%vdwset = kv%value_i
     case ('config')
       call job%addconfig(kv%value_ia)
@@ -237,8 +239,8 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%gfn0occ
       case ('gfnff','gff','gfn-ff')
         job%id = jobtype%gfnff
-      case ('xhcff')
-        job%id = jobtype%xhcff
+      case ('pvol','libpvol', 'pv')
+        job%id = jobtype%libpvol
       case ('none')
         job%id = jobtype%unknown
       case ('lj','lennard-jones')
@@ -400,6 +402,25 @@ contains !> MODULE PROCEDURES START HERE
 
     case ('getsasa')
       call get_atlist(env%ref%nat,job%getsasa,kv%value_c,env%ref%at)
+
+    case ('pvol_model','pgrad','pvgrad')
+      select case (kv%id)
+      case (valuetypes%int)
+        job%pvmodel = kv%value_i
+      case (valuetypes%string)
+        select case (kv%value_c)
+        case ('xhcff')
+          job%pvmodel = 0
+        case ('analytic')
+          job%pvmodel = 1
+        case default
+          write (stdout,fmtura) kv%value_c
+          call creststop(status_config)
+        end select
+      case default
+        write (stdout,fmtura) trim(kv%rawvalue)
+        call creststop(status_config)
+      end select
 
 !>--- booleans
     case ('rdwbo')

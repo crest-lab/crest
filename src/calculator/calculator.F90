@@ -351,9 +351,9 @@ contains  !> MODULE PROCEDURES START HERE
       !> GFN-FF api
       call gfnff_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
 
-    case (jobtype%xhcff)
-      !> XHCFF-lib
-      call xhcff_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+    case (jobtype%libpvol)
+      !> libpvol
+      call libpvol_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
 
     case (jobtype%turbomole)
       !> Turbomole-style SPs

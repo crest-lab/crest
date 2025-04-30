@@ -91,7 +91,6 @@ module shake_module
   public :: init_shake
   public :: do_shake
 
-
 !========================================================================================!
 !========================================================================================!
 contains !> MODULE PROCEDURES START HERE
@@ -101,7 +100,7 @@ contains !> MODULE PROCEDURES START HERE
   subroutine init_shake(nat,at,xyz,shk,pr)
 !********************************************
 !* subroutine init_shake
-!* initialize SHAKE algorithm by documenting 
+!* initialize SHAKE algorithm by documenting
 !* which pairs of atoms to constrain
 !********************************************
     implicit none
@@ -125,29 +124,29 @@ contains !> MODULE PROCEDURES START HERE
     integer,allocatable :: cons2(:,:)
 
 !>--- if shake was already set up, return
-    if(shk%initialized) return
+    if (shk%initialized) return
 
 !>--- reset counter
     nconsu = 0
     n2 = 0
     checkfreeze = associated(shk%freezeptr)
     !> gfortran workaround
-    if(checkfreeze)then !> gfortran check
+    if (checkfreeze) then !> gfortran check
       nfrz = size(shk%freezeptr,1)
     else
-      nfrz = 0  
-    endif
+      nfrz = 0
+    end if
 
 !>--- count user-defined bonds
-    if ((shk%nusr > 0) .and. allocated(shk%conslistu)) then
+    if ((shk%nusr > 0).and.allocated(shk%conslistu)) then
       do i = 1,shk%nusr
-        nconsu = nconsu + 1
+        nconsu = nconsu+1
       end do
     end if
 
 !>--- constrain all X-H only
     if (shk%shake_mode == 1) then
-      ij = nat * (nat + 1) / 2
+      ij = nat*(nat+1)/2
       allocate (cons2(2,ij),source=0)
       do i = 1,nat
         if (at(i) .eq. 1) then
@@ -156,11 +155,11 @@ contains !> MODULE PROCEDURES START HERE
             if (j .ne. i) then
 
               !> check if BOTH are frozen
-              if(checkfreeze.and.j<=nfrz.and.i<=nfrz)then
-                if( shk%freezeptr(i) .and. shk%freezeptr(j) ) cycle
-              endif 
-              
-              rij = (xyz(1,i) - xyz(1,j))**2 + (xyz(2,i) - xyz(2,j))**2 + (xyz(3,i) - xyz(3,j))**2
+              if (checkfreeze.and.j <= nfrz.and.i <= nfrz) then
+                if (shk%freezeptr(i).and.shk%freezeptr(j)) cycle
+              end if
+
+              rij = (xyz(1,i)-xyz(1,j))**2+(xyz(2,i)-xyz(2,j))**2+(xyz(3,i)-xyz(3,j))**2
               if (rij .lt. minrij) then
                 minrij = rij
                 jmin = j
@@ -169,14 +168,14 @@ contains !> MODULE PROCEDURES START HERE
           end do
           if (at(jmin) .eq. 1) then
             if (jmin .gt. i) then
-              nconsu = nconsu + 1
-              n2 = n2 + 1
+              nconsu = nconsu+1
+              n2 = n2+1
               cons2(1,n2) = i
               cons2(2,n2) = jmin
             end if
           else
-            nconsu = nconsu + 1
-            n2 = n2 + 1
+            nconsu = nconsu+1
+            n2 = n2+1
             cons2(1,n2) = i
             cons2(2,n2) = jmin
           end if
@@ -187,7 +186,7 @@ contains !> MODULE PROCEDURES START HERE
 !>--- SHAKE all bonds
     if (shk%shake_mode == 2) then
       if (allocated(shk%wbo)) then
-        ij = nat * (nat + 1) / 2
+        ij = nat*(nat+1)/2
         allocate (cons2(2,ij),source=0)
         allocate (list(ij),source=0)
         do i = 1,nat
@@ -195,34 +194,34 @@ contains !> MODULE PROCEDURES START HERE
             if (i .eq. j) cycle
 
             !>--- if both are frozen, no SHAKE!
-            if(checkfreeze.and.j<=nfrz.and.i<=nfrz)then
-              if( shk%freezeptr(i) .and. shk%freezeptr(j) ) cycle
-            endif
+            if (checkfreeze.and.j <= nfrz.and.i <= nfrz) then
+              if (shk%freezeptr(i).and.shk%freezeptr(j)) cycle
+            end if
 
-            rij = (xyz(1,i) - xyz(1,j))**2 + (xyz(2,i) - xyz(2,j))**2 + (xyz(3,i) - xyz(3,j))**2
-            rco = (atomicRad(at(j)) + atomicRad(at(i))) * autoaa
+            rij = (xyz(1,i)-xyz(1,j))**2+(xyz(2,i)-xyz(2,j))**2+(xyz(3,i)-xyz(3,j))**2
+            rco = (atomicRad(at(j))+atomicRad(at(i)))*autoaa
             ij = shake_lin(i,j)
             !>--- to consider?
-            rcut = (0.52917726_wp * sqrt(rij) .lt. 1.2_wp * rco) .and. (list(ij) .eq. 0)
+            rcut = (0.52917726_wp*sqrt(rij) .lt. 1.2_wp*rco).and.(list(ij) .eq. 0)
             !>--- metal bond?
-            metalbond = metal(at(i)) .eq. 1 .or. metal(at(j)) .eq. 1
+            metalbond = metal(at(i)) .eq. 1.or.metal(at(j)) .eq. 1
             !>--- WBO threshold. if WBO > thr, the bond is constrained
             wthr = 0.5_wp
             !>--- modify wthr, e.g. K...O in phosphates have WBO around 0.15
             if (metalbond) wthr = 0.1_wp
             !>--- check relevant
-            if (rcut .and. shk%wbo(i,j) .gt. wthr) then
+            if (rcut.and.shk%wbo(i,j) .gt. wthr) then
               !>--- do not constrain M bonds except Li/Be
-              metalbond = metal(at(i)) .eq. 1 .or. metal(at(j)) .eq. 1
-              if (at(i) .eq. 3 .or. at(i) .eq. 4 .or. at(j) .eq. 3 .or. at(j) .eq. 4) &
-                 &         metalbond = .false.
+              metalbond = metal(at(i)) .eq. 1.or.metal(at(j)) .eq. 1
+              if (at(i) .eq. 3.or.at(i) .eq. 4.or.at(j) .eq. 3.or.at(j) .eq. 4) &
+                               &         metalbond = .false.
               if (metalbond) then
-                if ((i .lt. j) .and. pr) &
-                  & write (*,*) 'init_shake: metal bond ',i,j,'not constrained'
+                if ((i .lt. j).and.pr) &
+               & write (*,*) 'init_shake: metal bond ',i,j,'not constrained'
               else
                 list(ij) = 1
-                nconsu = nconsu + 1
-                n2 = n2 + 1
+                nconsu = nconsu+1
+                n2 = n2+1
                 cons2(1,n2) = i
                 cons2(2,n2) = j
               end if
@@ -250,7 +249,7 @@ contains !> MODULE PROCEDURES START HERE
 
     if (shk%nusr > 0) then
       shk%conslist(1:2,1:shk%nusr) = shk%conslistu(1:2,1:shk%nusr)
-      j = shk%nusr + 1
+      j = shk%nusr+1
     else
       j = 1
     end if
@@ -260,8 +259,8 @@ contains !> MODULE PROCEDURES START HERE
     do i = 1,shk%ncons
       iat = shk%conslist(1,i)
       jat = shk%conslist(2,i)
-      drij(1:3) = xyz(1:3,iat) - xyz(1:3,jat)
-      shk%distcons(i) = drij(1)**2 + drij(2)**2 + drij(3)**2
+      drij(1:3) = xyz(1:3,iat)-xyz(1:3,jat)
+      shk%distcons(i) = drij(1)**2+drij(2)**2+drij(3)**2
     end do
 
     if (allocated(cons2)) deallocate (cons2)
@@ -291,22 +290,31 @@ contains !> MODULE PROCEDURES START HERE
     real(wp) :: r,dev,dist,denom
     real(wp) :: gcons,rmi,rmj
     real(wp) :: tau1,tau2
-    integer :: jmaxdev
+    integer :: jmaxdev,nfrz
+    logical :: checkfreeze
 
     conv = .false. !> assume not converged
     io = 1         !> and therefore unsuccessfull
     icyc = 0
 
-    if(.not.allocated(shk%xyzt)) allocate(shk%xyzt(3,nat))
+    if (.not.allocated(shk%xyzt)) allocate (shk%xyzt(3,nat))
     shk%xyzt = xyz
 
-    tau1 = 1.0_wp / tstep
-    tau2 = tau1 * tau1
+    checkfreeze = associated(shk%freezeptr)
+    !> gfortran workaround
+    if (checkfreeze) then !> gfortran check
+      nfrz = size(shk%freezeptr,1)
+    else
+      nfrz = 0
+    end if
+
+    tau1 = 1.0_wp/tstep
+    tau2 = tau1*tau1
 
     do i = 1,shk%ncons
       iat = shk%conslist(1,i)
       jat = shk%conslist(2,i)
-      shk%dro(1:3,i) = xyzo(1:3,iat) - xyzo(1:3,jat)
+      shk%dro(1:3,i) = xyzo(1:3,iat)-xyzo(1:3,jat)
     end do
 
 !>--- iterative SHAKE loop
@@ -316,10 +324,10 @@ contains !> MODULE PROCEDURES START HERE
       do i = 1,shk%ncons
         iat = shk%conslist(1,i)
         jat = shk%conslist(2,i)
-        shk%dr(1:3,i) = shk%xyzt(1:3,iat) - shk%xyzt(1:3,jat)
-        shk%dr(4,i) = shk%dr(1,i)**2 + shk%dr(2,i)**2 + shk%dr(3,i)**2
+        shk%dr(1:3,i) = shk%xyzt(1:3,iat)-shk%xyzt(1:3,jat)
+        shk%dr(4,i) = shk%dr(1,i)**2+shk%dr(2,i)**2+shk%dr(3,i)**2
         dist = shk%distcons(i)
-        dev = abs(shk%dr(4,i) - dist) / dist
+        dev = abs(shk%dr(4,i)-dist)/dist
         if (dev .gt. maxdev) then
           maxdev = dev
           jmaxdev = i
@@ -328,38 +336,75 @@ contains !> MODULE PROCEDURES START HERE
 
       if (maxdev .lt. shk%tolshake) conv = .true.
 
-      if (.not. conv) then
-        do i = 1,shk%ncons
-          iat = shk%conslist(1,i)
-          jat = shk%conslist(2,i)
-          dist = shk%distcons(i)
-          rmi = 1.0_wp / mass(iat)
-          rmj = 1.0_wp / mass(jat)
-          denom = 2.0_wp * (rmi + rmj) * (shk%dr(1,i) * shk%dro(1,i) +  &
-             &     shk%dr(2,i) * shk%dro(2,i) + &
-             &                            shk%dr(3,i) * shk%dro(3,i))
-          gcons = (dist - shk%dr(4,i)) / denom
-          shk%xyzt(1:3,iat) = shk%xyzt(1:3,iat) + rmi * gcons * shk%dro(1:3,i)
-          shk%xyzt(1:3,jat) = shk%xyzt(1:3,jat) - rmj * gcons * shk%dro(1:3,i)
-        end do
+      if (.not.conv) then
+        if (.not.checkfreeze.or.nfrz > 0) then  !> Non-frozen case
+
+          do i = 1,shk%ncons
+            iat = shk%conslist(1,i)
+            jat = shk%conslist(2,i)
+            dist = shk%distcons(i)
+            rmi = 1.0_wp/mass(iat)
+            rmj = 1.0_wp/mass(jat)
+            denom = 2.0_wp*(rmi+rmj)*(shk%dr(1,i)*shk%dro(1,i)+  &
+               &     shk%dr(2,i)*shk%dro(2,i)+ &
+               &                            shk%dr(3,i)*shk%dro(3,i))
+            gcons = (dist-shk%dr(4,i))/denom
+            shk%xyzt(1:3,iat) = shk%xyzt(1:3,iat)+rmi*gcons*shk%dro(1:3,i)
+            shk%xyzt(1:3,jat) = shk%xyzt(1:3,jat)-rmj*gcons*shk%dro(1:3,i)
+          end do
+
+        else !> Frozen case
+
+          do i = 1,shk%ncons
+            iat = shk%conslist(1,i)
+            jat = shk%conslist(2,i)
+            dist = shk%distcons(i)
+            rmi = 1.0_wp/mass(iat)
+            rmj = 1.0_wp/mass(jat)
+            denom = 2.0_wp*(rmi+rmj)*(shk%dr(1,i)*shk%dro(1,i)+  &
+               &     shk%dr(2,i)*shk%dro(2,i)+ &
+               &                            shk%dr(3,i)*shk%dro(3,i))
+            gcons = (dist-shk%dr(4,i))/denom
+            !> update only non-frozen
+            if (.not.shk%freezeptr(iat)) then
+              shk%xyzt(1:3,iat) = shk%xyzt(1:3,iat)+rmi*gcons*shk%dro(1:3,i)
+            end if
+            if (.not.shk%freezeptr(jat)) then
+              shk%xyzt(1:3,jat) = shk%xyzt(1:3,jat)-rmj*gcons*shk%dro(1:3,i)
+            end if
+          end do
+        end if
+
       end if
-      icyc = icyc + 1
-      if (.not. conv .and. icyc .le. shk%maxcyc) cycle
+      icyc = icyc+1
+      if (.not.conv.and.icyc .le. shk%maxcyc) cycle
       exit
     end do
 
     if (conv) then
-      velo = velo + (shk%xyzt - xyz) * tau1
-      acc = acc + (shk%xyzt - xyz) * tau2
-      xyz = shk%xyzt
-      io = 0 !> successful termination
+
+      if (nfrz .eq. 0) then
+        velo = velo+(shk%xyzt-xyz)*tau1
+        acc = acc+(shk%xyzt-xyz)*tau2
+        xyz = shk%xyzt
+        io = 0 !> successful termination
+      else
+        do i = 1,nat
+          if (.not.shk%freezeptr(i)) then
+            velo(:,i) = velo(:,i)+(shk%xyzt(:,i)-xyz(:,i))*tau1
+            acc(:,i) = acc(:,i)+(shk%xyzt(:,i)-xyz(:,i))*tau2
+            xyz(:,i) = shk%xyzt(:,i)
+          end if
+        end do
+      end if
+      io = 0
     else if (pr) then
       write (*,*) 'SHAKE did not converge! maxdev=',maxdev
     end if
 
-    if(present(iostat))then
+    if (present(iostat)) then
       iostat = io
-    endif 
+    end if
 
     return
   end subroutine do_shake
@@ -372,7 +417,7 @@ contains !> MODULE PROCEDURES START HERE
     integer :: i1,i2,idum1,idum2
     idum1 = max(i1,i2)
     idum2 = min(i1,i2)
-    shake_lin = idum2 + idum1 * (idum1 - 1) / 2
+    shake_lin = idum2+idum1*(idum1-1)/2
     return
   end function shake_lin
 

@@ -78,7 +78,7 @@ end module parallel_interface
 subroutine crest_sploop(env,nat,nall,at,xyz,eread)
 !***************************************************************
 !* subroutine crest_sploop
-!* This subroutine performs concurrent singlpoint evaluations
+!* This subroutine performs concurrent singlepoint evaluations
 !* for the given ensemble. Input eread is overwritten
 !***************************************************************
   use crest_parameters,only:wp,stdout,sep
@@ -127,13 +127,15 @@ subroutine crest_sploop(env,nat,nall,at,xyz,eread)
   do i = 1,T
     do j = 1,env%calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
-      !>--- directories
+      !>--- directories and io preparation
       ex = directory_exist(env%calc%calcs(j)%calcspace)
       if (.not.ex) then
         io = makedir(trim(env%calc%calcs(j)%calcspace))
       end if
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+      if(allocated(calculations(i)%calcs(j)%calcfile)) deallocate(calculations(i)%calcs(j)%calcfile)
+      if(allocated(calculations(i)%calcs(j)%systemcall)) deallocate(calculations(i)%calcs(j)%systemcall)
       call calculations(i)%calcs(j)%printid(i,j)
     end do
     calculations(i)%pr_energies = .false.
@@ -307,7 +309,7 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
   do i = 1,T
     do j = 1,mycalc%ncalculations
       calculations(i)%calcs(j) = mycalc%calcs(j)
-      !>--- directories
+      !>--- directories and io preparation
       ex = directory_exist(mycalc%calcs(j)%calcspace)
       if (.not.ex) then
         io = makedir(trim(mycalc%calcs(j)%calcspace))
@@ -317,6 +319,8 @@ subroutine crest_oloop(env,nat,nall,at,xyz,eread,dump,customcalc)
       endif
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = mycalc%calcs(j)%calcspace//trim(atmp)
+      if(allocated(calculations(i)%calcs(j)%calcfile)) deallocate(calculations(i)%calcs(j)%calcfile)
+      if(allocated(calculations(i)%calcs(j)%systemcall)) deallocate(calculations(i)%calcs(j)%systemcall)
       call calculations(i)%calcs(j)%printid(i,j)
     end do
     calculations(i)%pr_energies = .false.
@@ -564,13 +568,15 @@ subroutine crest_search_multimd(env,mol,mddats,nsim)
     moltmps(i)%xyz = mol%xyz
     do j = 1,env%calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
-      !>--- directories
+      !>--- directories and io preparation
       ex = directory_exist(env%calc%calcs(j)%calcspace)
       if (.not.ex) then
         io = makedir(trim(env%calc%calcs(j)%calcspace))
       end if
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+      if(allocated(calculations(i)%calcs(j)%calcfile)) deallocate(calculations(i)%calcs(j)%calcfile)
+      if(allocated(calculations(i)%calcs(j)%systemcall)) deallocate(calculations(i)%calcs(j)%systemcall)
       call calculations(i)%calcs(j)%printid(i,j)
     end do
     calculations(i)%pr_energies = .false.
@@ -866,13 +872,15 @@ subroutine crest_search_multimd2(env,mols,mddats,nsim)
   do i = 1,T
     do j = 1,env%calc%ncalculations
       calculations(i)%calcs(j) = env%calc%calcs(j)
-      !>--- directories
+      !>--- directories and io preparation
       ex = directory_exist(env%calc%calcs(j)%calcspace)
       if (.not.ex) then
         io = makedir(trim(env%calc%calcs(j)%calcspace))
       end if
       write (atmp,'(a,"_",i0)') sep,i
       calculations(i)%calcs(j)%calcspace = env%calc%calcs(j)%calcspace//trim(atmp)
+      if(allocated(calculations(i)%calcs(j)%calcfile)) deallocate(calculations(i)%calcs(j)%calcfile)
+      if(allocated(calculations(i)%calcs(j)%systemcall)) deallocate(calculations(i)%calcs(j)%systemcall)
       call calculations(i)%calcs(j)%printid(i,j)
     end do
     calculations(i)%pr_energies = .false.

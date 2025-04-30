@@ -34,11 +34,12 @@ option(WITH_TBLITE  "Enable support for tblite"   TRUE)
 option(WITH_TOMLF   "Enable support for toml-f"   TRUE)
 option(WITH_GFN0    "Enable support for GFN0-xTB" TRUE)
 option(WITH_GFNFF   "Enable support for GFN-FF"   TRUE)
-option(WITH_XHCFF   "Enable support for XHCFF"    FALSE)
+option(WITH_LIBPVOL "Enable support for LIBPVOL"  TRUE)
 option(WITH_LWONIOM "Enable support for lwONIOM"  TRUE)
 option(WITH_TESTS   "Enable unit tests"           TRUE)
 
-option(STATICBUILD  "Attempt to link everything statically" FALSE) # doesn't work yet
+option(STATICBUILD  "Attempt to link everything statically" FALSE) 
+set(PYTHON_BINDINGS OFF CACHE BOOL "Disable python bindings for submodules that have them" FORCE)
 
 #########################################################################################
 #########################################################################################
@@ -100,7 +101,7 @@ set(tomlfvar "${WITH_TOMLF}")
 set(gfn0var "${WITH_GFN0}")
 set(gfnffvar "${WITH_GFNFF}")
 set(tblitevar "${WITH_TBLITE}")
-set(xhcffvar "${WITH_XHCFF}")
+set(libpvolvar "${WITH_LIBPVOL}")
 set(lwoniomvar "${WITH_LWONIOM}")
 
 configure_file(

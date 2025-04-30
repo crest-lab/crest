@@ -615,6 +615,7 @@ subroutine crest_newcross3(env)
     call touch(trim(tmppath)) 
     call crest_crossing(env,imax,trim(refnam),env%gcmaxparent)
     if (imax .lt. 1) then
+      call remove(trim(tmppath))
       return
       exit
     end if

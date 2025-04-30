@@ -60,10 +60,10 @@ option(
   description: 'build with toml-f integration',
 )
 option(
-  'WITH_XHCFF',
+  'WITH_LIBPVOL',
   type: 'boolean',
-  value: false,
-  description: 'build with XHCFF integration',
+  value: true,
+  description: 'build with libpvol integration',
 )
 
 option(

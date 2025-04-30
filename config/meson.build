@@ -239,15 +239,15 @@ if get_option('WITH_GFNFF')
 endif
 
 
-# XHCFF
-if get_option('WITH_XHCFF')
- add_project_arguments('-DWITH_XHCFF', language: 'fortran')
- xhcff_dep = dependency(
-   'xhcff',
-   fallback: ['xhcff', 'xhcfflib_dep'],
+# LIBPVOL
+if get_option('WITH_LIBPVOL')
+ add_project_arguments('-DWITH_LIBPVOL', language: 'fortran')
+ libpvol_dep = dependency(
+   'libpvol',
+   fallback: ['libpvol', 'libpvol_dep'],
    default_options: ['default_library=static'],
  )
- exe_deps += xhcff_dep
+ exe_deps += libpvol_dep
 endif
 
 
@@ -292,7 +292,7 @@ config = configuration_data({
   'gfn0var': get_option('WITH_GFN0'),
   'gfnffvar': get_option('WITH_GFNFF'), 
   'tblitevar': get_option('WITH_TBLITE'),
-  'xhcffvar': get_option('WITH_XHCFF'),
+  'libpvolvar': get_option('WITH_LIBPVOL'),
   'lwoniomvar': get_option('WITH_LWONIOM'),
 })
 

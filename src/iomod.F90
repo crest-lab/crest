@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2018-2023 Philipp Pracht
+! Copyright (C) 2018-2025 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -96,8 +96,21 @@ module iomod
     module procedure to_str_bool
   end interface to_str
 
+  interface
+    function c_realpath(source_ptr,resolved_ptr) bind(c,name="realpath")
+      use iso_c_binding
+      implicit none
+      type(c_ptr) :: c_realpath  !> function returns a pointer to char
+
+      !> Both arguments must be type(c_ptr), value
+      type(c_ptr),value :: source_ptr
+      type(c_ptr),value :: resolved_ptr
+    end function c_realpath
+  end interface
+
   public :: checkprog
   public :: checkprog_silent
+  public :: absolute_path,absolute_filepath
   private :: getpath
 
 !========================================================================================!
@@ -769,7 +782,7 @@ contains !> MODULE PROCEDURES START HERE
 #ifdef __INTEL_COMPILER
     logical,external :: isatty
 #endif
-    term = isatty(channel) 
+    term = isatty(channel)
   end function myisatty
 
 !=========================================================================================!
@@ -998,6 +1011,155 @@ contains !> MODULE PROCEDURES START HERE
 
     return
   end subroutine checkprog_silent
+
+!========================================================================================!
+
+  function absolute_path(path_in) result(abs_path)
+    use iso_c_binding
+    implicit none
+    character(len=*),intent(in)  :: path_in
+    character(len=:),allocatable :: abs_path
+    character(kind=c_char),allocatable,target :: c_path(:)
+    character(kind=c_char),target             :: c_buffer(4096)
+    type(c_ptr) :: ret_ptr
+    integer :: n,i
+
+    !> Trim empty
+    if (len_trim(path_in) == 0) then
+      allocate (character(len=0) :: abs_path)
+      return
+    end if
+
+    !> Convert Fortran string to C string (null-terminated)
+    n = len_trim(path_in)
+    allocate (c_path(n+1))
+    c_path(1:n) = transfer(path_in(1:n),c_path(1:n))
+    c_path(n+1) = c_null_char
+
+    !> realpath call: use c_loc on the entire arrays, not on slices
+    ret_ptr = c_realpath(c_loc(c_path),c_loc(c_buffer))
+
+    !> Check success/failure
+    if (.not.c_associated(ret_ptr)) then
+      !> realpath failed => return original
+      allocate (character(len=n) :: abs_path)
+      abs_path = path_in(1:n)
+      return
+    end if
+
+    !> Find length of C string in c_buffer
+    i = 1
+    do while (i <= size(c_buffer).and.c_buffer(i) /= c_null_char)
+      i = i+1
+    end do
+    i = i-1
+    allocate (character(len=i) :: abs_path)
+    abs_path = transfer(c_buffer(1:i),abs_path)
+  end function absolute_path
+
+  function absolute_filepath(path_in) result(abs_file)
+!****************************************************************************
+!* Returns an absolute path even if the final filename does not exist.
+!* Splits path_in into directory + file, calls absolute_path(directory),
+!* then re-appends the filename.
+!* If the input is *just* a file name without any separators, it is returned
+!****************************************************************************
+    implicit none
+    character(len=*),intent(in) :: path_in
+    character(len=:),allocatable :: abs_file
+    character(len=:),allocatable :: dir_part,file_part,abs_dir
+    logical :: has_slash
+
+    !> If empty => return empty
+    if (len_trim(path_in) == 0) then
+      allocate (character(len=0)::abs_file)
+      return
+    end if
+
+    !> Split the path into directory part + file part
+    call split_path(path_in,dir_part,file_part,has_slash)
+
+    !> If directory part is empty, we don't generate an absolute path!
+    if (len_trim(dir_part) == 0) then
+      abs_dir = '' !absolute_path(".")
+    else
+      abs_dir = absolute_path(dir_part)
+    end if
+
+    !> If absolute_path failed => just return path_in as is
+    if (len_trim(abs_dir) == len_trim(dir_part).and. &
+        trim(abs_dir) == trim(dir_part)) then
+      !> realpath didn't improve or directory doesn't exist
+      allocate (character(len=len_trim(path_in)) :: abs_file)
+      abs_file = path_in
+      return
+    end if
+
+    !> Re-append the file part if any
+    if (len_trim(file_part) == 0) then
+      !> It's just a directory
+      allocate (character(len=len_trim(abs_dir)) :: abs_file)
+      abs_file = abs_dir
+    else
+      !> Ensure abs_dir ends with a slash
+      if (abs_dir(len_trim(abs_dir):len_trim(abs_dir)) /= "/") then
+        abs_dir = trim(abs_dir)//"/"
+      end if
+
+      allocate (character(len=len_trim(abs_dir)+len_trim(file_part)) :: abs_file)
+      abs_file = trim(abs_dir)//trim(file_part)
+    end if
+
+  end function absolute_filepath
+
+  subroutine split_path(fullpath,dir_part,base_part,has_slash)
+!*************************************************************************
+!* split_path(fullpath, dir_part, base_part, has_slash):
+!* Splits "fullpath" into "dir_part" and "base_part".
+!* e.g.  "some/dir/file.txt" => dir_part="some/dir", base_part="file.txt"
+!*        "/tmp/" => dir_part="/tmp/", base_part=""
+!*        "filename" => dir_part="", base_part="filename"
+!*************************************************************************
+    implicit none
+    character(len=*),intent(in) :: fullpath
+    character(len=:),allocatable,intent(out) :: dir_part,base_part
+    logical,intent(out) :: has_slash
+
+    integer :: i,n,last_slash
+    character(len=:),allocatable :: p
+
+    n = len_trim(fullpath)
+    allocate (character(len=n)::p)
+    p = fullpath(1:n)
+
+    last_slash = 0
+    do i = n,1,-1
+      if (p(i:i) == "/") then
+        last_slash = i
+        exit
+      end if
+    end do
+
+    if (last_slash == 0) then
+      !> No slash at all
+      has_slash = .false.
+      allocate (character(len=0)::dir_part)
+      allocate (character(len=n)::base_part)
+      base_part = p
+    else
+      has_slash = .true.
+      allocate (character(len=last_slash)::dir_part)
+      dir_part = p(:last_slash)
+      if (last_slash < n) then
+        allocate (character(len=n-last_slash)::base_part)
+        base_part = p(last_slash+1:)
+      else
+        !> slash is at the end => no file part
+        allocate (character(len=0)::base_part)
+      end if
+    end if
+
+  end subroutine split_path
 
 !========================================================================================!
 !========================================================================================!
