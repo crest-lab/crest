@@ -226,7 +226,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
     select case (tblite%lvl)
     case (xtblvl%gfn1)
-      method = 'gfn1'
+      method ='gfn1'
     case (xtblvl%gfn2)
       method = 'gfn2'
     end select
@@ -252,17 +252,17 @@ contains  !> MODULE PROCEDURES START HERE
       if (pr) call tblite%ctx%message("tblite> using GBSA/"//solvdum)
       alpb_tmp%dielectric_const = solv_data%eps
       alpb_tmp%alpb=.false.
-      alpb_tmp%method=method
+      !alpb_tmp%method=method
       alpb_tmp%solvent=solv_data%solvent
-      alpb_tmp%xtb=.true.
+      !alpb_tmp%xtb=.true.
       allocate (solv_inp%alpb, source=alpb_tmp)
       cds_tmp%alpb=.false.
       cds_tmp%solvent=solv_data%solvent
-      cds_tmp%method=method 
+      !cds_tmp%method=method 
       allocate (solv_inp%cds, source=cds_tmp)
       shift_tmp%alpb=.false.
       shift_tmp%solvent=solv_data%solvent
-      shift_tmp%method=method
+      !shift_tmp%method=method
       allocate (solv_inp%shift, source=shift_tmp)
     case ('cpcm')
       if (pr) call tblite%ctx%message("tblite> using CPCM/"//solvdum)
@@ -272,17 +272,17 @@ contains  !> MODULE PROCEDURES START HERE
       if (pr) call tblite%ctx%message("tblite> using ALPB/"//solvdum)
       alpb_tmp%dielectric_const = solv_data%eps
       alpb_tmp%alpb=.true.
-      alpb_tmp%method=method
+      !alpb_tmp%method=method
       alpb_tmp%solvent=solv_data%solvent
-      alpb_tmp%xtb=.true.
+      !alpb_tmp%xtb=.true.
       allocate (solv_inp%alpb, source=alpb_tmp)
       cds_tmp%alpb=.true.
       cds_tmp%solvent=solv_data%solvent
-      cds_tmp%method=method 
+      !cds_tmp%method=method 
       allocate (solv_inp%cds, source=cds_tmp)
       shift_tmp%alpb=.true.
       shift_tmp%solvent=solv_data%solvent
-      shift_tmp%method=method
+      !shift_tmp%method=method
       allocate (solv_inp%shift, source=shift_tmp)
     case default
       if (pr) call tblite%ctx%message("tblite> Unknown tblite implicit solvation model!")
@@ -301,7 +301,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
     call move_alloc(solv,cont)
     call tblite%calc%push_back(cont)
-!>--- add hbond and dispersion pert to calculator
+!>--- add hbond and dispersion part to calculator
     if (allocated(solv_inp%cds)) then
       block
         class(tblite_solvation_type),allocatable :: cds
