@@ -305,6 +305,8 @@ subroutine parseflags(env,arg,nra)
   env%solu_file = ''
 
 !>--- options for msreact
+  env%msei = .true.
+  env%mscid = .false.
   env%msiso = .false.  ! msiso and msnoiso are mutually exclusive !!!
   env%msnoiso = .false.
   env%msmolbar = .false.
@@ -1037,6 +1039,11 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
       if (env%crestver == crest_msreac) then
         select case (argument) !> msreact
+        case('-msei')
+          env%msei=.true.
+        case('-mscid')
+          env%mscid=.true.
+          env%msei=.false.
         case('-msnoiso') !> filter out non fragmentated structures in msreact
           env%msnoiso=.true.
         case('-msiso') !> filter out fragmentated structures in msreact
