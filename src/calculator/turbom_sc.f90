@@ -32,11 +32,12 @@ module turbom_sc
   implicit none
   !>--- private module variables and parameters
   private
-  integer,parameter :: nf = 6
+  integer,parameter :: nf = 7
   character(len=*),parameter :: oldfiles(nf) = [&
           & 'energy       ','ceh.charges  ', &
           & 'output       ','.data        ', &
-          & 'NOT_CONVERGED','gp3restart   ' ]
+          & 'NOT_CONVERGED','gp3restart   ', &
+          & 'gxtbrestart  ']
   character(len=*),parameter :: ridft = 'ridft' !> Turbomoles 'ridft'
   character(len=*),parameter :: xyzn = 'coord'  !> input coords must be in coord
   character(len=*),parameter :: ef = 'energy'   !> energy will be read from file energy
