@@ -510,6 +510,8 @@ module crest_data
     !================================================!
 
     !>--- msreact mode settings
+    logical :: msei =.true. ! use the ei mode as default
+    logical :: mscid =.false. ! use the cid mode
     logical :: msnoiso =.false. ! print only dissociated structures in msreact
     logical :: msiso =.false. ! only print non-dissociated structures in msreact
     logical :: msmolbar =.false. ! sort out duplicates by molbar
