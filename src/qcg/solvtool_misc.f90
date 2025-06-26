@@ -232,7 +232,7 @@ subroutine xtb_dock(env, fnameA, fnameB, solu, clus)
    call new_ompautoset(env,'auto',1,T,Tn)
 
 !--- Jobcall docking
-   write (jobcall, '(a,1x,''dock'',1x,a,1x,a,1x,a,1x,f4.2,1x,''--nfrag1'',1x,i0,1x,a,1x&
+   write (jobcall, '(a,1x,''dock'',1x,a,1x,a,1x,a,1x,f4.2,1x,''--nfrag1'',1x,i0,1x,a,1x, &
            & ''--input xcontrol > xtb_dock.out'',a)') &
            &     trim(env%ProgName), trim(fnameA), trim(fnameB), trim(env%gfnver),&
            &     env%optlev, solu%nat, trim(env%docking_qcg_flag), trim(pipe)
