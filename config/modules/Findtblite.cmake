@@ -16,8 +16,7 @@
 
 set(_lib "tblite")
 set(_pkg "TBLITE")
-#set(_url "https://github.com/tblite/tblite")
-set(_url "https://github.com/pprcht/tblite")
+set(_url "https://github.com/tblite/tblite")
 set(_branch "xtb_solvation")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")

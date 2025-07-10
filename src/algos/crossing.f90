@@ -123,7 +123,7 @@ subroutine crest_crossing(env,maxgen,fname,maxpairs)
 
   maxgen2 = maxgen
   call crossing(nat,nall,at,xyz,eread,ewin,rthr,cthr,maxgen2)
-
+  maxgen = maxgen2
 
   deallocate (eread,at,xyz)
 !========================================================================================!
@@ -372,6 +372,8 @@ subroutine crossing(nat,nall,at,xyz,er,ewin,rthr,cthr,maxgen)
     if (pr) then
       write (stdout,'(/,1x,i0,1x,a,/)') maxgen,'structures written to confcross.xyz'
     end if
+  else
+    maxgen = ntaken
   end if
 
   !>--- cleanup
