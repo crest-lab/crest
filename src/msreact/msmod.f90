@@ -331,20 +331,10 @@ contains  !> MODULE PROCEDURES START HERE
         !---- For EI the molecule is assumed to be in a low spin state and to be closed shell before ionization.
         !---- For CID the molecule is assumed to be in a low spin state after the ionization.
         if (env%msei) then
-          if (env%uhf .gt. 0) then
-            if (mod(env%chrg, 2) .ne. 0) then
-              uhf = env%uhf - 1
-              write (uhf_wbo,'(i0)') uhf
-            else
-              write (uhf_wbo,'(i0)') env%uhf
-            end if
-          else
-            write (uhf_wbo,'(i0)') 0
-          end if
+          call getspin(env%nat,0,fname,uhf)
           write (chrg,'(i0)') 0
-        end if
-
-        if (env%mscid) then
+          write (uhf_wbo,'(i0)') uhf
+        elseif (env%mscid) then
           write (chrg,'(i0)') env%chrg
           write (uhf_wbo,'(i0)') env%uhf
         end if
@@ -1270,6 +1260,29 @@ subroutine readnel(fname,nat,nel)
       nel = nel + at(i)
     end do
   end subroutine readnel
+
+!*********************************
+!* get spin multiplicity from number of electrons
+!*********************************
+!> The number of unpaired electrons is calculated in a low spin state.
+  subroutine getspin(nat, chrg, fname, isp)
+    integer, intent(in) :: nat !> number of atoms
+    integer, intent(in) :: chrg !> total charge of the molecule
+    character(len=*), intent(in) :: fname !> file name for electron calculation
+    integer, intent(out) :: isp !> number of unpaired electrons
+    integer :: nel !> number of electrons
+
+    call readnel(fname, nat, nel) !> Read number of electrons from file
+    nel = nel - chrg !> number of electrons
+    
+    isp = mod(nel, 2)
+    if (nel < 1) then
+       ! if j < 1, we have an error in the number of electrons
+       ! This subroutine sets isp = -1 and prints an error message.
+       isp = -1
+       write(*,*) "Error: Invalid number of electrons (", nel, ") in getspin. Setting isp = -1."
+    end if
+  end subroutine getspin
 
 !=======================================================================================!
 !=======================================================================================!
