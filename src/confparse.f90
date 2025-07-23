@@ -1129,8 +1129,12 @@ subroutine parseflags(env,arg,nra)
         case default
           env%gfnver = '--gfn2'
         end select !> GFN
+
+      case ('-gxtb')
+        call gxtb_dev_warning()
       case ('-gxtb_dev')
         env%gfnver = 'gxtb_dev'
+
       case ('-gfn2@gfn0','-gfn2@gfn1','-gfn2@gff','-gfn2@ff','-gfn2@gfnff')
         if (.not.env%legacy) then !TODO
           write (*,'("> ",a,1x,a)') argument,'option not yet available with new calculator'

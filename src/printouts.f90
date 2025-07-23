@@ -95,30 +95,30 @@ subroutine box3(version,date,commit,author)
   !write (logo(8),'(''║          based on the xTB methods          ║'')')
   !write (logo(9),'(''║                                            ║'')')
   !write (logo(10),'("╚════════════════════════════════════════════╝")')
- 
-  write (logo(1), '(''╔════════════════════════════════════════════════╗'')') 
-  write (logo(2), '(''║                                                ║'')') 
-  write (logo(3), '(''║     ██████╗██████╗ ███████╗███████╗████████╗   ║'')') 
-  write (logo(4), '(''║    ██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝   ║'')') 
-  write (logo(5), '(''║    ██║     ██████╔╝█████╗  ███████╗   ██║      ║'')') 
-  write (logo(6), '(''║    ██║     ██╔══██╗██╔══╝  ╚════██║   ██║      ║'')') 
-  write (logo(7), '(''║    ╚██████╗██║  ██║███████╗███████║   ██║      ║'')')
-  write (logo(8), '(''║     ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝      ║'')')
-  write (logo(9), '(''║                                                ║'')') 
-  write (logo(10),'(''║    Conformer-Rotamer Ensemble Sampling Tool    ║'')') 
-  write (logo(11),'(''║            based on the xTB methods            ║'')') 
-  write (logo(12),'(''║                                                ║'')') 
-  write (logo(13),'(''╚════════════════════════════════════════════════╝'')')  
+
+  write (logo(1),'(''╔════════════════════════════════════════════════╗'')')
+  write (logo(2),'(''║                                                ║'')')
+  write (logo(3),'(''║     ██████╗██████╗ ███████╗███████╗████████╗   ║'')')
+  write (logo(4),'(''║    ██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝   ║'')')
+  write (logo(5),'(''║    ██║     ██████╔╝█████╗  ███████╗   ██║      ║'')')
+  write (logo(6),'(''║    ██║     ██╔══██╗██╔══╝  ╚════██║   ██║      ║'')')
+  write (logo(7),'(''║    ╚██████╗██║  ██║███████╗███████║   ██║      ║'')')
+  write (logo(8),'(''║     ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝      ║'')')
+  write (logo(9),'(''║                                                ║'')')
+  write (logo(10),'(''║    Conformer-Rotamer Ensemble Sampling Tool    ║'')')
+  write (logo(11),'(''║            based on the xTB methods            ║'')')
+  write (logo(12),'(''║                                                ║'')')
+  write (logo(13),'(''╚════════════════════════════════════════════════╝'')')
 
   do i = 1,13
-  write (*,'(a,a)') repeat(" ",pad_left),trim(logo(i))
+    write (*,'(a,a)') repeat(" ",pad_left),trim(logo(i))
   end do
   write (*,'(a,'' Version '',a,'', '',a)') repeat(" ",pad_left),trim(version),trim(date)
-  if(author(1:2).eq."'@")then
-   write (*,'(a," commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,"'usr"//author(2:)
+  if (author(1:2) .eq. "'@") then
+    write (*,'(a," commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,"'usr"//author(2:)
   else
-  write (*,'(a," commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,author
-  endif
+    write (*,'(a," commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,author
+  end if
 end subroutine box3
 
 subroutine disclaimer
@@ -160,7 +160,7 @@ subroutine confscript_morehelp(flag)
   character(len=*),intent(in) :: flag
 
   write (*,'(80("-"))')
-  write(*,*)
+  write (*,*)
   select case (flag)
   case default
     write (*,'(/,1x,''General, technical, and calculation options:'')')
@@ -322,22 +322,22 @@ subroutine confscript_morehelp(flag)
     write (*,'(5x,''-freqscal          : defines frequency scale factor. Only for outprint'')')
     write (*,'(5x,''-freqlvl [method]  : define a method for frequency computation. All gfn versions are supported'')')
     write (*,*)
- 
-  case('msreact')
+
+  case ('msreact')
     write (*,'(1x,'' mass spectral fragment generator (msreact)'')')
     write (*,'(1x,''General usage :'')')
     write (*,'(5x,''<input> -msreact [options]'')')
     write (*,'(1x,''options:'')')
-    write(*,'(5x,''-msnoattrh           : deactivate attractive potential between hydrogen and LMO centers)'')')
-    write(*,'(5x,''-msnshifts [int]     : perform n optimizations with randomly shifted atom postions (default 0) '')')
-    write(*,'(5x,''-msnshifts2 [int]    : perform n optimizations with randomly shifted atom postions and repulsive potential applied to bonds (default 0) '')')
-    write(*,'(5x ''-msnbonds [int]      : maximum number of bonds between atoms pairs for applying repulsive potential (default 3)'')')
-    write(*,'(5x,''-msmolbar            : sort out topological duplicates by molbar codes (requires  sourced "molbar")'')')
-    write(*,'(5x,''-msinchi             : sort out topological duplicates by inchi codes (requires  sourced "obabel")'')')
-    write(*,'(5x ''-msnfrag [int]       : number of fragments that are printed by msreact (random selection)'')')
-    write(*,'(5x,''-msiso               : print only non-dissociated structures (isomers)'')')
-    write(*,'(5x,''-msnoiso             : print only dissociated structures'')')
-    write(*,'(5x,''-mslargeprint        : do not remove temporary files and MSDIR do not remove temporary files and MSDIR with constrained optimizations'')')
+    write (*,'(5x,''-msnoattrh           : deactivate attractive potential between hydrogen and LMO centers)'')')
+    write (*,'(5x,''-msnshifts [int]     : perform n optimizations with randomly shifted atom postions (default 0) '')')
+    write (*,'(5x,''-msnshifts2 [int]    : perform n optimizations with randomly shifted atom postions and repulsive potential applied to bonds (default 0) '')')
+    write (*,'(5x ''-msnbonds [int]      : maximum number of bonds between atoms pairs for applying repulsive potential (default 3)'')')
+    write (*,'(5x,''-msmolbar            : sort out topological duplicates by molbar codes (requires  sourced "molbar")'')')
+    write (*,'(5x,''-msinchi             : sort out topological duplicates by inchi codes (requires  sourced "obabel")'')')
+    write (*,'(5x ''-msnfrag [int]       : number of fragments that are printed by msreact (random selection)'')')
+    write (*,'(5x,''-msiso               : print only non-dissociated structures (isomers)'')')
+    write (*,'(5x,''-msnoiso             : print only dissociated structures'')')
+    write (*,'(5x,''-mslargeprint        : do not remove temporary files and MSDIR do not remove temporary files and MSDIR with constrained optimizations'')')
     write (*,'(5x,''-chrg <int>         : set the molecules´ charge'')')
     write (*,'(5x,''-ewin <real>        : set energy window in for sorting out fragments kcal/mol,'')')
     write (*,'(5x,''                     [default: 200.0 kcal/mol] '')')
@@ -349,7 +349,7 @@ subroutine confscript_morehelp(flag)
     write (*,'(5x,'' fc_rep <real>       : force constant for repulsive potential between atom pairs (default 0.5) '')')
     write (*,'(5x,'' fc_attr <real>      : force constant for attractive potential between hydrogen and LMO centers (default -0.5) '')')
     write (*,'(5x,'' etemp <real>        : electronic temperature in xTB optimizations'')')
-    
+
   case ('other')
     write (*,'(1x,''Other tools for standalone use:'')')
     write (*,'(5x,''-zsort             : use only the zsort subroutine'')')
@@ -421,8 +421,8 @@ subroutine crestcite
   write (*,'( 5x,''  JCTC, 2022, 18 (5), 3174-3189.'')')
   write (*,'(/5x,''• P.Pracht, C.Bannwarth, JCTC, 2022, 18 (10), 6370-6385.'')')
   write (*,'(/3x,''• P.Pracht, S.Grimme, C.Bannwarth, F.Bohle, S.Ehlert,'')')
-  write (*,'( 3x,''  G.Feldmann, J.Gorges, M.Müller, T.Neudecker, C.Plett,'')') 
-  write (*,'( 3x,''  S.Spicher, P.Steinbach, P.Wesołowski, F.Zeller,'')') 
+  write (*,'( 3x,''  G.Feldmann, J.Gorges, M.Müller, T.Neudecker, C.Plett,'')')
+  write (*,'( 3x,''  S.Spicher, P.Steinbach, P.Wesołowski, F.Zeller,'')')
   write (*,'( 3x,''  J. Chem. Phys., 2024, 160, 114110.'')')
 
   write (*,'(/,/)')
@@ -560,23 +560,23 @@ end subroutine qcg_head
 !========================================================================================!
 
 subroutine msreact_head()
-    implicit none
-    write (*,*)
-    write (*,'(2x,''========================================'')')
-    write (*,'(2x,''|                                      |'')')
-    write (*,'(2x,''|               MSREACT                |'')')
-    write (*,'(2x,''| automated MS fragment generator      |'')')
-    write (*,'(2x,''|                                      |'')')
-    write (*,'(2x,''|       University of Bonn, MCTC       |'')')
-    write (*,'(2x,''========================================'')')
-    write (*,'(2x,'' S. Grimme, P. Pracht, J. Gorges.'')')
-    write (*,*)
-    write (*,'(3x,''Cite work conducted with this code as'')')
-    write (*,'(/,3x,''Philipp Pracht, Stefan Grimme, Christoph Bannwarth, Fabian Bohle, Sebastian Ehlert, Gereon Feldmann,'')')
-    write (*,'(3x,''Johannes Gorges, Marcel Müller, Tim Neudecker, Christoph Plett, Sebastian Spicher, Pit Steinbach,'')')
-    write (*,'(3x,''Patryk A. Wesolowski, and Felix Zeller J. Chem. Phys., 2024, submitted.'')')
-    write (*,*)
-  end subroutine msreact_head
+  implicit none
+  write (*,*)
+  write (*,'(2x,''========================================'')')
+  write (*,'(2x,''|                                      |'')')
+  write (*,'(2x,''|               MSREACT                |'')')
+  write (*,'(2x,''| automated MS fragment generator      |'')')
+  write (*,'(2x,''|                                      |'')')
+  write (*,'(2x,''|       University of Bonn, MCTC       |'')')
+  write (*,'(2x,''========================================'')')
+  write (*,'(2x,'' S. Grimme, P. Pracht, J. Gorges.'')')
+  write (*,*)
+  write (*,'(3x,''Cite work conducted with this code as'')')
+  write (*,'(/,3x,''Philipp Pracht, Stefan Grimme, Christoph Bannwarth, Fabian Bohle, Sebastian Ehlert, Gereon Feldmann,'')')
+  write (*,'(3x,''Johannes Gorges, Marcel Müller, Tim Neudecker, Christoph Plett, Sebastian Spicher, Pit Steinbach,'')')
+  write (*,'(3x,''Patryk A. Wesolowski, and Felix Zeller J. Chem. Phys., 2024, submitted.'')')
+  write (*,*)
+end subroutine msreact_head
 
 !========================================================================================!
 
@@ -738,12 +738,12 @@ subroutine print_crest_metadata()
   write (*,'(2x,a,1x,a)') 'CREST version    :',version
   write (*,'(2x,a,1x,a)') 'timestamp        :',date
   write (*,'(2x,a,1x,a)') 'commit           :',commit
-  if(author(1:2).eq."'@")then
-  l = len_trim(author)
-  write (*,'(2x,a,1x,a)') 'compiled by      :',"'usr"//author(2:l)
+  if (author(1:2) .eq. "'@") then
+    l = len_trim(author)
+    write (*,'(2x,a,1x,a)') 'compiled by      :',"'usr"//author(2:l)
   else
-  write (*,'(2x,a,1x,a)') 'compiled by      :',author
-  endif
+    write (*,'(2x,a,1x,a)') 'compiled by      :',author
+  end if
   write (*,'(2x,a,1x,a)') 'Fortran compiler :',fcompiler
   write (*,'(2x,a,1x,a)') 'C compiler       :',ccompiler
   write (*,'(2x,a,1x,a)') 'build system     :',bsystem
@@ -1229,46 +1229,64 @@ end subroutine print_frozen
 !========================================================================================!
 
 subroutine progbar(percent,bar)
-      use crest_parameters
-      implicit none
-      real(wp),intent(in) :: percent
-      character(len=52),intent(inout) :: bar
-      integer :: i
-      integer :: done,notdone
+  use crest_parameters
+  implicit none
+  real(wp),intent(in) :: percent
+  character(len=52),intent(inout) :: bar
+  integer :: i
+  integer :: done,notdone
 
-      bar='['
+  bar = '['
 
-      done=nint(percent/2)
-      notdone=50-done
+  done = nint(percent/2)
+  notdone = 50-done
 
-      do i=1,done
-         bar=trim(bar)//'#'
-      enddo
+  do i = 1,done
+    bar = trim(bar)//'#'
+  end do
 
+  do i = 1,notdone
+    bar = trim(bar)//'-'
+  end do
 
-      do i=1,notdone
-         bar=trim(bar)//'-'
-      enddo
-
-      bar=trim(bar)//']'
+  bar = trim(bar)//']'
 
 end subroutine progbar
 
 subroutine printprogbar(percent)
-      use crest_parameters
-      implicit none
-      real(wp),intent(in) :: percent
-      character(len=52) :: bar
+  use crest_parameters
+  implicit none
+  real(wp),intent(in) :: percent
+  character(len=52) :: bar
 
-      if(percent>0.0_wp)then
-        call progbar(percent,bar) 
-      else
-        call progbar(0.0_wp,bar) 
-      endif
-      write(0,FMT="(A1,A52,2x,F6.2,A)",ADVANCE="NO") achar(13), &
-      & bar, percent, '% finished.'
-      
-      flush(0)
+  if (percent > 0.0_wp) then
+    call progbar(percent,bar)
+  else
+    call progbar(0.0_wp,bar)
+  end if
+  write (0,FMT="(A1,A52,2x,F6.2,A)",ADVANCE="NO") achar(13), &
+  & bar,percent,'% finished.'
+
+  flush (0)
 end subroutine printprogbar
 !========================================================================================!
 !========================================================================================!
+
+subroutine gxtb_dev_warning
+  use crest_parameters
+  use crest_data, only: status_ioerr
+  write (stdout,*)
+  write (stdout,'(a)') "!!! WARNING !!!"
+  write (stdout,'(a)') "You have selected g-xTB for your calculations, but currently only the"
+  write (stdout,'(a)') "preliminary binary version is available."
+  write (stdout,'(a)') "This version does NOT HAVE ANALYTICAL GRADIENTS available and uses"
+  write (stdout,'(a)') "NUMERICAL gradients which are SLOW and NOISY."
+  write (stdout,*)
+  write (stdout,'(a)') 'The cmd argument "--gxtb" will be disabled until an implementation'
+  write(stdout,'(a)')  'with analytical gradients is available'
+  write(stdout,*)
+  write (stdout,'(a)') 'Please use "--gxtb_dev" in the mean time.'
+  write (stdout,'(a)') "Make sure you have the dev version gxtb installed (https://github.com/grimme-lab/g-xtb)"
+  write(stdout,*)
+  call creststop(status_ioerr)
+end subroutine gxtb_dev_warning

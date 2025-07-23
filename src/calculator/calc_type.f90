@@ -1180,7 +1180,7 @@ contains  !>--- Module routines start here
     end if
 
     if(gxtbwarn)then
-       write(iunit,fmt4) 'WARNING: This currently the development version of g-xTB.'
+       write(iunit,fmt4) 'WARNING: This currently is the development version of g-xTB.'
        write(iunit,fmt4) 'WARNING: Gradients are NUMERICAL (i.e., expensive and noisy!)' 
     endif
 
@@ -1220,7 +1220,8 @@ contains  !>--- Module routines start here
       self%binary = 'gxtb'
       self%rdwbo = .false.
       if(index(levelstring,'_dev').ne.0)then
-        self%numgrad = .true.
+        self%other = '-grad'
+        self%rdgrad=.true.
       endif  
     case ('orca')
       self%id = jobtype%orca

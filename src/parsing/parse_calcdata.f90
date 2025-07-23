@@ -243,8 +243,9 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%libpvol
       case ('gxtb_dev')  
         job%id = jobtype%turbomole 
-        job%rdgrad = .false.       
+        job%rdgrad = .true.       
         job%binary = 'gxtb' 
+        job%other ='-grad'
       case ('none')
         job%id = jobtype%unknown
       case ('lj','lennard-jones')
