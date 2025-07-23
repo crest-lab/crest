@@ -97,6 +97,8 @@ module calc_type
     character(len=:),allocatable :: shortflag   !> shorter job description
 
 !>--- gradient format specifications
+    logical :: numgrad = .false.      !> run numerical gradient (expensive!)
+    real(wp) :: gradstep = 0.0005_wp  !> displacement for numerical gradient
     logical :: rdgrad = .true.
     integer :: gradtype = 0
     integer :: gradfmt = 0
@@ -1091,6 +1093,9 @@ contains  !>--- Module routines start here
     character(len=*),parameter :: fmt3 = '(" :",2x,a20," : ",a)'
     character(len=*),parameter :: fmt4 = '(" :",1x,a)'
     character(len=20) :: atmp
+    logical :: gxtbwarn
+
+    gxtbwarn=.false.
 
     if (allocated(self%description)) then
       write (iunit,'(" :",1x,a)') trim(self%description)
@@ -1111,7 +1116,12 @@ contains  !>--- Module routines start here
     end if
     if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &
     &  jobtype%generic,jobtype%terachem/) == self%id)) then
-      write (iunit,'(" :",3x,a,a)') 'selected binary : ',trim(self%binary)
+      if(index(self%binary,'gxtb').ne.0)then
+        write(iunit,fmt4) 'g-xTB (development version)'
+        gxtbwarn = .true.
+      else  
+        write (iunit,'(" :",3x,a,a)') 'selected binary : ',trim(self%binary)
+      endif
     end if
     if (self%refine_lvl > 0) then
       write (atmp,*) 'refinement stage'
@@ -1169,6 +1179,11 @@ contains  !>--- Module routines start here
       endif
     end if
 
+    if(gxtbwarn)then
+       write(iunit,fmt4) 'WARNING: This currently the development version of g-xTB.'
+       write(iunit,fmt4) 'WARNING: Gradients are NUMERICAL (i.e., expensive and noisy!)' 
+    endif
+
   end subroutine calculation_settings_info
 
 !=========================================================================================!
@@ -1199,10 +1214,14 @@ contains  !>--- Module routines start here
       self%id = jobtype%turbomole
       self%rdgrad = .false.
       self%binary = 'gp3'
-    case ('gxtb')
+    case ('gxtb','gxtb_dev')
       self%id = jobtype%turbomole 
       self%rdgrad = .false.       
-      self%binary = 'gxtb'         
+      self%binary = 'gxtb'
+      self%rdwbo = .false.
+      if(index(levelstring,'_dev').ne.0)then
+        self%numgrad = .true.
+      endif  
     case ('orca')
       self%id = jobtype%orca
 

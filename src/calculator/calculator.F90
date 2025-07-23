@@ -179,6 +179,9 @@ contains  !> MODULE PROCEDURES START HERE
         !==========================================!
         call potential_core(molptr,calc,i,iostatus)
         !==========================================!
+        !> and numerical gradient, if selected
+        !==========================================!
+        call numgrad_core(molptr,calc,i,iostatus)
         !==========================================!
 
         if (iostatus /= 0) then
@@ -381,6 +384,68 @@ contains  !> MODULE PROCEDURES START HERE
     end select
 
   end subroutine potential_core
+
+  subroutine numgrad_core(molptr,calc,id,iostatus)
+!*******************************************************
+!* subroutine numgrad
+!* routine to perform a numerical gradient calculation
+!*******************************************************
+    implicit none
+    type(coord),intent(in)       :: molptr
+    type(calcdata),intent(inout) :: calc
+    integer,intent(in)           :: id
+    integer,intent(out)          :: iostatus
+
+    integer :: i,j,k,l,ich,och,io,pnat
+    type(coord),allocatable :: moltmp
+    real(wp) :: energy,el,er, step,step2
+    real(wp),allocatable :: ngrd(:,:)
+    !real(wp),parameter :: step = 0.0005_wp
+    !real(wp),parameter :: step2 = 0.5_wp/step
+
+    if (id > calc%ncalculations) return
+    if (.not.calc%calcs(id)%numgrad) return
+
+    pnat = molptr%nat
+    step = calc%calcs(id)%gradstep
+    step2 = 0.5_wp/step
+
+    !> back up energy 
+    energy = calc%etmp(id)
+
+    !> allocate temprorary gradient space
+    !$omp critical
+    allocate(ngrd(3,pnat), source=0.0_wp)
+    allocate(moltmp, source=molptr)
+    !$omp end critical
+
+    do i = 1,molptr%nat
+      do j = 1,3
+        moltmp%xyz(j,i) = moltmp%xyz(j,i)+step
+        call potential_core(moltmp,calc,id,iostatus)
+        er = calc%etmp(id)
+
+        moltmp%xyz(j,i) = moltmp%xyz(j,i)-2*step
+        call potential_core(moltmp,calc,id,iostatus)
+        el = calc%etmp(id)
+
+        moltmp%xyz(j,i) = moltmp%xyz(j,i)+step
+        ngrd(j,i) = step2*(er-el)
+      end do
+    end do
+
+    !> transfer tmp gradient to the calc object
+    calc%grdtmp(:,1:pnat,id) = ngrd(:,1:pnat)
+    !$omp critical
+    deallocate(moltmp)
+    deallocate(ngrd)
+    !$omp end critical
+
+    !> restore the energy
+    calc%etmp(id) = energy
+
+    return
+  end subroutine numgrad_core
 
 !========================================================================================!
 !========================================================================================!

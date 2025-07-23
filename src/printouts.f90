@@ -80,29 +80,44 @@ subroutine box3(version,date,commit,author)
   character(len=*) :: date
   character(len=*) :: commit
   character(len=*) :: author
-  character(len=200) :: logo(10)
+  character(len=200) :: logo(13)
   character(len=200) :: info(2)
   integer,parameter :: pad_left = 7
   integer :: i,lcount
   write (*,*)
-  write (logo(1),'(''╔════════════════════════════════════════════╗'')')
-  write (logo(2),'(''║            ___ ___ ___ ___ _____           ║'')')
-  write (logo(3),'(''║           / __| _ \ __/ __|_   _|          ║'')')
-  write (logo(4),'(''║          | (__|   / _|\__ \ | |            ║'')')
-  write (logo(5),'(''║           \___|_|_\___|___/ |_|            ║'')')
-  write (logo(6),'(''║                                            ║'')')
-  write (logo(7),'(''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
-  write (logo(8),'(''║          based on the xTB methods          ║'')')
-  write (logo(9),'(''║                                            ║'')')
-  write (logo(10),'("╚════════════════════════════════════════════╝")')
-  do i = 1,10
-    write (*,'(a,a)') repeat(" ",pad_left),trim(logo(i))
+  !write (logo(1),'(''╔════════════════════════════════════════════╗'')')
+  !write (logo(2),'(''║            ___ ___ ___ ___ _____           ║'')')
+  !write (logo(3),'(''║           / __| _ \ __/ __|_   _|          ║'')')
+  !write (logo(4),'(''║          | (__|   / _|\__ \ | |            ║'')')
+  !write (logo(5),'(''║           \___|_|_\___|___/ |_|            ║'')')
+  !write (logo(6),'(''║                                            ║'')')
+  !write (logo(7),'(''║  Conformer-Rotamer Ensemble Sampling Tool  ║'')')
+  !write (logo(8),'(''║          based on the xTB methods          ║'')')
+  !write (logo(9),'(''║                                            ║'')')
+  !write (logo(10),'("╚════════════════════════════════════════════╝")')
+ 
+  write (logo(1), '(''╔════════════════════════════════════════════════╗'')') 
+  write (logo(2), '(''║                                                ║'')') 
+  write (logo(3), '(''║     ██████╗██████╗ ███████╗███████╗████████╗   ║'')') 
+  write (logo(4), '(''║    ██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝   ║'')') 
+  write (logo(5), '(''║    ██║     ██████╔╝█████╗  ███████╗   ██║      ║'')') 
+  write (logo(6), '(''║    ██║     ██╔══██╗██╔══╝  ╚════██║   ██║      ║'')') 
+  write (logo(7), '(''║    ╚██████╗██║  ██║███████╗███████║   ██║      ║'')')
+  write (logo(8), '(''║     ╚═════╝╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝      ║'')')
+  write (logo(9), '(''║                                                ║'')') 
+  write (logo(10),'(''║    Conformer-Rotamer Ensemble Sampling Tool    ║'')') 
+  write (logo(11),'(''║            based on the xTB methods            ║'')') 
+  write (logo(12),'(''║                                                ║'')') 
+  write (logo(13),'(''╚════════════════════════════════════════════════╝'')')  
+
+  do i = 1,13
+  write (*,'(a,a)') repeat(" ",pad_left),trim(logo(i))
   end do
-  write (*,'(a,''Version '',a,'', '',a)') repeat(" ",pad_left),trim(version),trim(date)
+  write (*,'(a,'' Version '',a,'', '',a)') repeat(" ",pad_left),trim(version),trim(date)
   if(author(1:2).eq."'@")then
-   write (*,'(a,"commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,"'usr"//author(2:)
+   write (*,'(a," commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,"'usr"//author(2:)
   else
-  write (*,'(a,"commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,author
+  write (*,'(a," commit (",a,") compiled by ",a)') repeat(" ",pad_left),commit,author
   endif
 end subroutine box3
 
@@ -651,17 +666,17 @@ end subroutine mtdwarning
 subroutine printiter
   implicit none
   write (*,*)
-  write (*,'(90("*"))')
-  write (*,'("**",25x,"N E W   I T E R A T I O N  C Y C L E",25x,"**")')
-  write (*,'(90("*"))')
+  write (*,'(80("*"))')
+  write (*,'("**",20x,"N E W   I T E R A T I O N  C Y C L E",20x,"**")')
+  write (*,'(80("*"))')
 end subroutine printiter
 subroutine printiter2(i)
   implicit none
   integer :: i
   write (*,*)
-  write (*,'(90("*"))')
-  write (*,'("**",26x,"I T E R A T I O N    C Y C L E    ",i3,23x,"**")') i
-  write (*,'(90("*"))')
+  write (*,'(80("*"))')
+  write (*,'("**",21x,"I T E R A T I O N    C Y C L E    ",i3,18x,"**")') i
+  write (*,'(80("*"))')
 end subroutine printiter2
 
 !========================================================================================!
