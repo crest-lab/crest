@@ -52,7 +52,8 @@ subroutine env2calc(env,calc,molin)
   cal%rdwbo = .false.
   cal%rddip = .false.
   !> except for SP runtype (from command line!)
-  if (env%crestver == crest_sp) then
+  if (env%crestver == crest_sp.and. &
+  &   cal%id .ne. jobtype%turbomole) then
     cal%rdwbo = .true.
     cal%rddip = .true.
     cal%rdqat = .true.
@@ -406,13 +407,12 @@ subroutine tautomerize(env,tim)
   end if
 end subroutine tautomerize
 
-
 !========================================================================================!
 
 subroutine catchdiatomic(env)
 !****************************************
 !* subroutine catchdiatomic
-!* if we only have one or two atoms just 
+!* if we only have one or two atoms just
 !* write the "optimized" structure
 !****************************************
   use crest_data

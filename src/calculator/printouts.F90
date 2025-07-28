@@ -131,7 +131,8 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
 !>--- gradients
-    if (all(calc%calcs(:)%rdgrad.eqv..false.)) then
+    if (all(calc%calcs(:)%rdgrad.eqv..false.) .and. & 
+     & all(calc%calcs(:)%numgrad.eqv..false.) ) then
       write (iunit,*)
       write (iunit,'(a)') '> No gradients calculated'
     else if (present(grad)) then

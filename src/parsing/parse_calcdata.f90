@@ -239,8 +239,13 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%gfn0occ
       case ('gfnff','gff','gfn-ff')
         job%id = jobtype%gfnff
-      case ('pvol','libpvol', 'pv')
+      case ('pvol','libpvol','pv')
         job%id = jobtype%libpvol
+      case ('gxtb_dev')  
+        job%id = jobtype%turbomole 
+        job%rdgrad = .true.       
+        job%binary = 'gxtb' 
+        job%other ='-grad'
       case ('none')
         job%id = jobtype%unknown
       case ('lj','lennard-jones')
@@ -289,6 +294,11 @@ contains !> MODULE PROCEDURES START HERE
 
     case ('gradmt')
       job%gradfmt = conv2gradfmt(kv%value_c)
+
+    case ('numgrad')
+      job%numgrad = kv%value_b
+    case ('gradstep')
+      job%gradstep = kv%value_f
 
     case ('efile')
       job%efile = kv%value_c
@@ -822,7 +832,7 @@ contains !> MODULE PROCEDURES START HERE
         dum4 = kv%value_fa(6)
         call constr%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3,T=dum4)
       case default
-        write(stdout,'(a)') '**ERROR** wrong number of arguments in bondrange constraint'
+        write (stdout,'(a)') '**ERROR** wrong number of arguments in bondrange constraint'
         call creststop(status_config)
       end select
       success = .true.

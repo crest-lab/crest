@@ -176,7 +176,7 @@ contains  !>--- Module routines start here
     integer,intent(out) :: iostatus
     integer :: c,io,n,i,j
     character(len=128) :: atmp
-    character(len=20) :: btmp(8)
+    character(len=20) :: btmp(10)
     real(wp) :: dum
     logical :: readblock
 
@@ -184,7 +184,7 @@ contains  !>--- Module routines start here
     energy = 0.0_wp
     grad(:,:) = 0.0_wp
 
-    c = 0
+    c = 1
     readblock = .false.
     do
       read (iunit,'(a)',iostat=io) atmp
@@ -192,11 +192,14 @@ contains  !>--- Module routines start here
       atmp = adjustl(atmp)
       if (atmp(1:4) == '$end') readblock = .false.
       if( readblock ) then      
+
         if(index(atmp,'cycle').ne.0)then
-          read(atmp,*) btmp(1:2),j,btmp(3:6),energy,btmp(7:8),dum
+          read(atmp,*) btmp(1:8)
+          read(btmp(7),*) energy
         elseif(c < nat)then !> skip coords
           c = c + 1  
         else !> read grad
+          !backspace(iunit)
           call rd_grad_n3(iunit,nat,grad,iostatus)
           exit
         endif
@@ -270,7 +273,7 @@ contains  !>--- Module routines start here
     grad(:,:) = 0.0_wp
 
     c = 0
-    do i = 1,n
+    do i = 1,nat
       do j = 1,3
         read (iunit,*,iostat=io) dum
         if (io < 0) then
@@ -301,7 +304,7 @@ contains  !>--- Module routines start here
     grad(:,:) = 0.0_wp
 
     c = 0
-    do i = 1,n
+    do i = 1,nat
       read (iunit,*,iostat=io) dum(1:3)
       if (io < 0) then
         iostatus = 3

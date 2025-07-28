@@ -94,12 +94,12 @@ subroutine parseflags(env,arg,nra)
 !>--- check if help is requested or citations shall be diplayed
   do i = 1,nra
     if (any((/character(6)::'-h','-H','--h','--H','--help'/) == trim(arg(i)))) then
-      if(nra > i)then
-        ctmp=trim(arg(i+1))
-        if(ctmp(1:1).ne.'-')then
+      if (nra > i) then
+        ctmp = trim(arg(i+1))
+        if (ctmp(1:1) .ne. '-') then
           call confscript_morehelp(ctmp)
-        endif
-      endif 
+        end if
+      end if
       call confscript_help()
     end if
     if (any((/character(10)::'-cite','--cite','--citation'/) == trim(arg(i)))) then
@@ -262,7 +262,6 @@ subroutine parseflags(env,arg,nra)
     error stop
   end if
 
-
 !>--- options for constrained conformer sampling
   env%fixfile = 'none selected'
 
@@ -423,7 +422,6 @@ subroutine parseflags(env,arg,nra)
         env%inputcoords = env%ensemblename !> just for a printout
         exit
 
-
       case ('-pka','-pKa')  !> pKa calculation script
         env%crestver = crest_pka
         env%runver = 33
@@ -529,7 +527,7 @@ subroutine parseflags(env,arg,nra)
 
       case ('-solvtool','-qcg')
         !> Set solute file if present
-        if(i == 2) env%solu_file = trim(arg(i-1))
+        if (i == 2) env%solu_file = trim(arg(i-1))
         !> Set solvent file if prensent
         !> If it is another argument, it doesent matter as solvent file is checke in solvtool
         if (nra >= i+1) env%solv_file = trim(arg(i+1))
@@ -555,7 +553,7 @@ subroutine parseflags(env,arg,nra)
         env%autozsort = .false.
         exit
 
-    case ('-msreact')
+      case ('-msreact')
         env%crestver = crest_msreac
         env%preopt = .false.
         env%presp = .true.
@@ -643,7 +641,7 @@ subroutine parseflags(env,arg,nra)
       case ('-rmsd','-rmsdheavy','-hrmsd')
         ctmp = trim(arg(i+1))
         dtmp = trim(arg(i+2))
-        if ((argument == '-rmsdheavy').or.(argument=='-hrmsd')) then
+        if ((argument == '-rmsdheavy').or.(argument == '-hrmsd')) then
           call quick_rmsd_tool(ctmp,dtmp,.true.)
         else
           call quick_rmsd_tool(ctmp,dtmp,.false.)
@@ -715,7 +713,7 @@ subroutine parseflags(env,arg,nra)
         env%preopt = .false.
         env%crestver = crest_optimize
         env%legacy = .false.
-        if(argument.eq.'-ohess') env%crest_ohess=.true.
+        if (argument .eq. '-ohess') env%crest_ohess = .true.
         exit
 
       case ('-hess','-numhess') !> Numerical hessian
@@ -1039,40 +1037,40 @@ subroutine parseflags(env,arg,nra)
 !========================================================================================!
       if (env%crestver == crest_msreac) then
         select case (argument) !> msreact
-        case('-msei')
-          env%msei=.true.
-        case('-mscid')
-          env%mscid=.true.
-          env%msei=.false.
-        case('-msnoiso') !> filter out non fragmentated structures in msreact
-          env%msnoiso=.true.
-        case('-msiso') !> filter out fragmentated structures in msreact
-          env%msiso=.true.
-        case('-msnbonds') ! give number of bonds up to which bias potential is added between atoms default 3
-          call readl(arg(i + 1),xx,j)
+        case ('-msei')
+          env%msei = .true.
+        case ('-mscid')
+          env%mscid = .true.
+          env%msei = .false.
+        case ('-msnoiso') !> filter out non fragmentated structures in msreact
+          env%msnoiso = .true.
+        case ('-msiso') !> filter out fragmentated structures in msreact
+          env%msiso = .true.
+        case ('-msnbonds') ! give number of bonds up to which bias potential is added between atoms default 3
+          call readl(arg(i+1),xx,j)
           env%msnbonds = xx(1)
-        case('-msnshifts') ! give number of times atoms are randomly shifted before optimization
-          call readl(arg(i + 1),xx,j)
+        case ('-msnshifts') ! give number of times atoms are randomly shifted before optimization
+          call readl(arg(i+1),xx,j)
           env%msnshifts = xx(1)
-        case('-msnshifts2') ! give number of times atoms are randomly shifted before applying the constrained optimization default 0 
-          call readl(arg(i + 1),xx,j)
+        case ('-msnshifts2') ! give number of times atoms are randomly shifted before applying the constrained optimization default 0
+          call readl(arg(i+1),xx,j)
           env%msnshifts2 = xx(1)
-        case('-msnfrag') ! give number of structures that should be generated
-          call readl(arg(i + 1),xx,j)
+        case ('-msnfrag') ! give number of structures that should be generated
+          call readl(arg(i+1),xx,j)
           env%msnfrag = xx(1)
-        case('-msmolbar') !> filter out structures with same molbar code in msreact
-          env%msmolbar=.true.
-        case('-msinchi') !> filter out structures with same inchi code in msreact
-            env%msinchi=.true.
-        case('-msnoattrh') !> add attractive potential for H-atoms
-          env%msattrh=.false.
-        case('-mslargeprint') !> additional printouts and keep MSDIR
-          env%mslargeprint=.true.
-        case('-msinput') ! give number of times atoms are randomly shifted before applying the constrained optimization default 0 
-            ctmp = trim(arg(i+1))
-            if (ctmp(1:1) .ne. '-') then
-              env%msinput = trim(ctmp)
-            end if
+        case ('-msmolbar') !> filter out structures with same molbar code in msreact
+          env%msmolbar = .true.
+        case ('-msinchi') !> filter out structures with same inchi code in msreact
+          env%msinchi = .true.
+        case ('-msnoattrh') !> add attractive potential for H-atoms
+          env%msattrh = .false.
+        case ('-mslargeprint') !> additional printouts and keep MSDIR
+          env%mslargeprint = .true.
+        case ('-msinput') ! give number of times atoms are randomly shifted before applying the constrained optimization default 0
+          ctmp = trim(arg(i+1))
+          if (ctmp(1:1) .ne. '-') then
+            env%msinput = trim(ctmp)
+          end if
         end select !> msreact
       end if
 !========================================================================================!
@@ -1092,7 +1090,7 @@ subroutine parseflags(env,arg,nra)
         env%performCross = .true.     !> do the genetic crossing
         env%autozsort = .true.
       case ('-keepdir','-keeptmp')     !> Do not delete temporary directories at the end
-            env%keepModef = .true.
+        env%keepModef = .true.
       case ('-opt','-optlev')             !> settings for optimization level of GFN-xTB
         env%optlev = optlevnum(arg(i+1))
         write (*,'(2x,a,1x,a)') trim(arg(i)),optlevflag(env%optlev)
@@ -1111,7 +1109,7 @@ subroutine parseflags(env,arg,nra)
           write (*,'(2x,a,'' : Use of GFN1-xTB requested.'')') env%gfnver
         case ('-gfn2')
           env%gfnver = '--gfn2'
-          write (*,'(2x,a,'' : Use of GFN2-xTB requested.'')')  env%gfnver
+          write (*,'(2x,a,'' : Use of GFN2-xTB requested.'')') env%gfnver
         case ('-gfn0')
           env%gfnver = '--gfn0'
           write (*,'(2x,a,'' : Use of GFN0-xTB requested.'')') env%gfnver
@@ -1123,7 +1121,7 @@ subroutine parseflags(env,arg,nra)
           ctype = 5 !> bond constraint activated
           if (any((/crest_imtd,crest_imtd2/) == env%crestver)) then
             bondconst = .true.
-          endif
+          end if
           env%cts%cbonds_md = .true.
           env%checkiso = .true.
         case ('stereoisomers')
@@ -1131,6 +1129,12 @@ subroutine parseflags(env,arg,nra)
         case default
           env%gfnver = '--gfn2'
         end select !> GFN
+
+      case ('-gxtb')
+        call gxtb_dev_warning()
+      case ('-gxtb_dev')
+        env%gfnver = 'gxtb_dev'
+
       case ('-gfn2@gfn0','-gfn2@gfn1','-gfn2@gff','-gfn2@ff','-gfn2@gfnff')
         if (.not.env%legacy) then !TODO
           write (*,'("> ",a,1x,a)') argument,'option not yet available with new calculator'
@@ -1173,14 +1177,14 @@ subroutine parseflags(env,arg,nra)
           write (*,'(2x,a,a)') argument,' : energy reweighting'
         end if
 
-      case('-refine','-rsp','-ropt') !> add one refinement step (via cmd only one is possible)
+      case ('-refine','-rsp','-ropt') !> add one refinement step (via cmd only one is possible)
         env%legacy = .false. !> new calculators only!
-        if(nra >= i+1)then
+        if (nra >= i+1) then
           env%gfnver2 = trim(arg(i+1))
           write (*,'(2x,a,1x,a,a)') argument,trim(env%gfnver2), &
           & ' : adding refinement step (singlepoint on optimized structures)'
-        endif
-        
+        end if
+
       case ('-charges') !> read charges from file for GFN-FF calcs.
         ctmp = trim(arg(i+1))
         if ((len_trim(ctmp) < 1).or.(ctmp(1:1) == '-')) then
@@ -1209,8 +1213,8 @@ subroutine parseflags(env,arg,nra)
           if (io .eq. 0) env%cts%dscal = rdum
         end if
       case ('-mtd_kscal','-mtdkscal')
-         call readl(arg(i+1),xx,j)
-         env%mtd_kscal = xx(1)
+        call readl(arg(i+1),xx,j)
+        env%mtd_kscal = xx(1)
       case ('-norestart')
         env%allowrestart = .false.
       case ('-readbias')
@@ -1436,10 +1440,10 @@ subroutine parseflags(env,arg,nra)
         env%potpad = xx(1)
       case ('-watoms','-wat')
         ctmp = arg(i+1)
-        if(ctmp(1:1) .ne. '-')then
-           env%potatlist = trim(ctmp)
-           write(*,*) env%potatlist 
-        endif
+        if (ctmp(1:1) .ne. '-') then
+          env%potatlist = trim(ctmp)
+          write (*,*) env%potatlist
+        end if
       case ('-wall')
         env%wallsetup = .true.
         write (*,'(2x,a,1x,a)') '--wall:','requesting setup of wall potential'
@@ -1599,8 +1603,8 @@ subroutine parseflags(env,arg,nra)
         env%protb%threshsort = .true.
         ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
-           read(ctmp,*,iostat=io) idum
-           if(io.eq.0) env%protb%amount = idum
+          read (ctmp,*,iostat=io) idum
+          if (io .eq. 0) env%protb%amount = idum
         end if
       case ('-swel')                  !> switch out H+ to something else in protonation script
         if (env%properties .eq. -3) then
@@ -1612,8 +1616,8 @@ subroutine parseflags(env,arg,nra)
         env%protb%threshsort = .true.
         ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
-           read(ctmp,*,iostat=io) idum
-           if(io.eq.0) env%protb%amount = idum
+          read (ctmp,*,iostat=io) idum
+          if (io .eq. 0) env%protb%amount = idum
         end if
       case ('-tautomerize')           !> tautomerization tool
         env%properties = p_tautomerize
@@ -1811,7 +1815,7 @@ subroutine parseflags(env,arg,nra)
         env%final_gfn2_opt = .false.
       case ('-directed') !> specify the directed list
         env%qcg_flag = .true.
-        ctmp = trim(arg(i + 1))
+        ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
           env%directed_file = trim(ctmp)
           write (*,'(2x,a,1x,a)') trim(argument)//' :',trim(ctmp)
@@ -2067,7 +2071,7 @@ subroutine parseflags(env,arg,nra)
   end if
 
 !>--- automatic wall potential for the LEGACY version
-  if (env%NCI.or.env%wallsetup .and. env%legacy) then
+  if (env%NCI.or.env%wallsetup.and.env%legacy) then
     call wallpot(env)
     if (env%wallsetup) then
       write (*,'(2x,a)') 'Automatically generated ellipsoide potential:'
@@ -2139,21 +2143,21 @@ subroutine parseflags(env,arg,nra)
       env%lmover = env%gfnver
     end if
   end if
-  if (env%ensemble_opt == '--gfn2' .or. env%gfnver == '--gfn2') &
+  if (env%ensemble_opt == '--gfn2'.or.env%gfnver == '--gfn2') &
           & env%final_gfn2_opt = .false. !Prevent additional opt.
 
   if (env%useqmdff) then
     env%autozsort = .false.
   end if
 
-  if (.not.env%preopt .and. env%crestver.ne.crest_trialopt) then
+  if (.not.env%preopt.and.env%crestver .ne. crest_trialopt) then
     if (allocated(env%ref%topo)) deallocate (env%ref%topo)
   end if
 
 !>-- turn off niceprint if we are not writing to terminal
-  if(env%niceprint)then
+  if (env%niceprint) then
     env%niceprint = myisatty(output_unit)
-  endif
+  end if
 
 !>-- driver for optimization along trajectory, additional settings
   if (.not.any((/crest_mfmdgc,crest_imtd,crest_imtd2,crest_compr/) == env%crestver) &
@@ -2181,22 +2185,22 @@ subroutine parseflags(env,arg,nra)
   if (env%sdfformat) then
     env%autozsort = .false.
   end if
-  
+
 !>--- 2023/08/19 moved zsort to a standalone property tool
-  if(env%autozsort)then
+  if (env%autozsort) then
     env%properties = p_zsort
-  endif 
+  end if
 
 !>--- convert ProgName to absolute path (to make legacy routines more stable)
   ctmp = absolute_filepath(trim(env%ProgName))
   env%ProgName = ctmp
 
 !>--- for legacy runtypes, check if xtb is present
-  if(env%legacy.or.env%QCG)then
+  if (env%legacy.or.env%QCG) then
     call checkprog_silent(env%ProgName,.true.,iostat=io)
-    if(io /= 0 ) error stop
-    write(stdout,'(/,a,a)') 'Selected path to xtb binary: ',trim(env%Progname)
-  endif
+    if (io /= 0) error stop
+    write (stdout,'(/,a,a)') 'Selected path to xtb binary: ',trim(env%Progname)
+  end if
 
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
@@ -2207,25 +2211,25 @@ subroutine parseflags(env,arg,nra)
     write (stdout,'(/,a)',advance='no') '> Setting up backup calculator ...'
     flush (stdout)
     call env2calc_setup(env)
-    write(stdout,*) 'done.'
+    write (stdout,*) 'done.'
     call env%calc%info(stdout)
   end if
 !>--- pass on opt-level to new calculator
-  if(.not.env%legacy)then
-     env%calc%optlev = nint(env%optlev)
-  endif
+  if (.not.env%legacy) then
+    env%calc%optlev = nint(env%optlev)
+  end if
 
 !>--- ONIOM setup from toml file
-  if (allocated(env%ONIOM_toml))then
-    allocate(env%calc%ONIOM)
-    call ONIOM_read_toml(env%ONIOM_toml,env%nat,env%ref%at,env%ref%xyz,env%calc%ONIOM)     
+  if (allocated(env%ONIOM_toml)) then
+    allocate (env%calc%ONIOM)
+    call ONIOM_read_toml(env%ONIOM_toml,env%nat,env%ref%at,env%ref%xyz,env%calc%ONIOM)
     call env%calc%ONIOMexpand()
-  endif
+  end if
 
 !>--- important printouts
-  if( .not.env%legacy)then
+  if (.not.env%legacy) then
     call print_frozen(env)
-  endif
+  end if
 
   return
 end subroutine parseflags
@@ -2283,7 +2287,7 @@ subroutine parseRC2(env,bondconst)
   else
     env%cts%used = .false.
     return
-  end if 
+  end if
 
 !>--- read the data
   call read_constrainbuffer(env%constraints,env%cts)
@@ -2298,9 +2302,9 @@ subroutine parseRC2(env,bondconst)
       end if
     end do
   end if
-  if(.not.env%legacy)then
+  if (.not.env%legacy) then
     call parse_xtbinputfile(env,env%constraints)
-  endif
+  end if
 
 !>--- some settings
   create = .false.
@@ -2450,7 +2454,7 @@ subroutine inputcoords(env,arg)
   else
     inputfile = 'coord'
   end if
-  if(.not.allocated(env%inputcoords)) env%inputcoords = inputfile
+  if (.not.allocated(env%inputcoords)) env%inputcoords = inputfile
 
 !>-- if the input was a SDF file, special handling
   env%sdfformat = .false.
@@ -2464,16 +2468,16 @@ subroutine inputcoords(env,arg)
   if (.not.allocated(env%inputcoords)) env%inputcoords = 'coord'
   call mol%open('coord')
 !>-- shift to CMA and/or align according to rot.const. We have to be careful about this.
-  if (any((/ crest_sp, crest_optimize, crest_numhessian, crest_trialopt /) == env%crestver))then
+  if (any((/crest_sp,crest_optimize,crest_numhessian,crest_trialopt/) == env%crestver)) then
     !> some runtypes should only do a CMA translation, but no rotation
     call CMAtrf(mol%nat,mol%nat,mol%at,mol%xyz)
-  else if (env%crestver == crest_solv)then
+  else if (env%crestver == crest_solv) then
     !> runtypes like qcg must not modify input coordinates!
     continue
   else
     !> all other can align with rot. axis
     call axis(mol%nat,mol%at,mol%xyz)
-  endif
+  end if
 !>-- overwrite coord
   call mol%write('coord')
 
