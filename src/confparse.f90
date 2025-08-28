@@ -330,18 +330,23 @@ subroutine parseflags(env,arg,nra)
   env%properties2 = p_none  !> backup for env%properties
   env%iterativeV2 = .true.  !> iterative crest V2 version
   env%preopt = .true.
-!>--- check for input file
-  do i = 1,nra
-    argument = trim(arg(i))
-    if (argument == '--input'.or.argument == '-i') then
-      call parseinputfile(env,trim(arg(i+1)))
-      exit
-    end if
-    if (i == 1.and.index(argument,'.toml') .ne. 0) then
-      call parseinputfile(env,trim(arg(1)))
-      exit
-    end if
-  end do
+!>--- check for (TOML) input file
+! do i = 1,nra
+!    argument = trim(arg(i))
+!    if (argument == '--input'.or.argument == '-i') then
+!      call parseinputfile(env,trim(arg(i+1)))
+!      exit
+!    end if
+!    if (i == 1.and.index(argument,'.toml') .ne. 0) then
+!      call parseinputfile(env,trim(arg(1)))
+!      exit
+!    end if
+!  end do
+  call find_input_file(arg,nra,idum)
+  if(idum.ne.0)then
+    call parseinputfile(env,trim(arg(idum)))
+  endif
+
 !>--- first arg loop
   do i = 1,nra
     argument = trim(arg(i))

@@ -228,7 +228,7 @@ contains   !> MODULE PROCEDURES START HERE
     case ('ensemble_input','ensemble','input_ensemble')
       env%ensemblename = val
       env%inputcoords = val
-    case ('input','structure')
+    case ('input','structure','coord','coords')
       env%inputcoords = val
       call mol%open(val)
       call env%ref%load(mol)
