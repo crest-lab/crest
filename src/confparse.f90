@@ -1255,6 +1255,11 @@ subroutine parseflags(env,arg,nra)
         close (ich)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
 
+      case ('-grad')
+        env%gradsp = .true.
+      case ('-nograd')
+        env%gradsp = .false.
+
       case ('-len','-mdlen','-mdtime') !> set md length in ps
         atmp = arg(i+1)
         call to_lower(atmp)
