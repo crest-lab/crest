@@ -87,6 +87,7 @@ subroutine newcregen(env,quickset,infile)
 !>--- sorting arguments
   integer,allocatable :: gref(:),group(:)
   integer :: ng
+  integer :: i
   integer,allocatable :: degen(:,:)
 
 !>--- float data
@@ -241,6 +242,19 @@ subroutine newcregen(env,quickset,infile)
     ng = group(0)
     allocate (degen(3,ng))
     call cregen_groupinfo(nall,ng,group,degen)
+  else
+    ng = nall
+    if (ng > 0) then
+      allocate (degen(3,ng))
+      do i = 1, ng
+        degen(1,i) = 1
+        degen(2,i) = i
+        degen(3,i) = i
+      end do
+    else
+      allocate (degen(3,1))
+      degen = 0
+    end if
   end if
   if (sortRMSD2) then
     allocate (group(0:nall))
@@ -2194,6 +2208,7 @@ subroutine cregen_conffile(env,cname,nat,nall,at,xyz,comments,ng,degen)
   open (newunit=ich,file=trim(cname))
   do i = 1,ng
     k = degen(2,i)
+    if (k <= 0 .or. k > nall) cycle
     if (i .eq. 1.or.env%printscoords) then   !write a scoord.* for each conformer? scoord.1 is always written
       call getname1(i,newcomment)
       c0(:,:) = xyz(:,:,k)/bohr
