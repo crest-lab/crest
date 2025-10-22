@@ -168,7 +168,7 @@ contains   !> MODULE PROCEDURES START HERE
         env%preopt = .false.
         env%crestver = crest_scanning
       case ('search_1')
-        env%preopt = .false.
+        env%preopt = .true.
         env%crestver = crest_s1
         env%runver = crest_s1
       case ('mecp','mecp_search')
@@ -176,7 +176,7 @@ contains   !> MODULE PROCEDURES START HERE
         env%crestver = crest_mecp
         env%runver = crest_mecp
       case ('imtd-gc')
-        env%preopt = .false.
+        env%preopt = .true.
         env%crestver = crest_imtd
         env%runver = 1
       case ('nci-mtd','nci')
@@ -203,7 +203,7 @@ contains   !> MODULE PROCEDURES START HERE
         env%crestver = crest_numhessian
         env%runver = crest_numhessian
       case ('rigidconf')
-        env%preopt = .false.
+        env%preopt = .true.
         env%crestver = crest_rigcon
         env%runver = crest_rigcon
 
