@@ -230,6 +230,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true
 
       - name: Create SHA256 checksums
         run: |
