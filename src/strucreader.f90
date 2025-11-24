@@ -1506,10 +1506,10 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine coord_get_z
 
 !==================================================================!
-   
-   subroutine coord_cn_to_bond(self,cn,bond,cn_type,cn_thr)
-     implicit none
-         class(coord) :: self
+
+  subroutine coord_cn_to_bond(self,cn,bond,cn_type,cn_thr)
+    implicit none
+    class(coord) :: self
     real(wp),intent(out),allocatable :: cn(:)
     real(wp),intent(out),allocatable,optional :: bond(:,:)
     real(wp),intent(in),optional :: cn_thr
@@ -1519,8 +1519,7 @@ contains  !> MODULE PROCEDURES START HERE
     allocate (cn(self%nat),source=0.0_wp)
     call calculate_CN(self%nat,self%at,self%xyz,cn, &
     & cntype=cn_type,cnthr=cn_thr,bond=bond)
-   end subroutine coord_cn_to_bond 
-
+  end subroutine coord_cn_to_bond
 
 !=========================================================================================!
 !=========================================================================================!
@@ -1935,12 +1934,14 @@ contains  !> MODULE PROCEDURES START HERE
     implicit none
     class(coord) :: self
     character(len=*),intent(in) :: fname
+    character(len=80) :: comment
     if (.not.allocated(self%xyz)) then
       write (*,*) 'Cannot write ',trim(fname),'. not allocated'
     end if
     if (index(fname,'.xyz') .ne. 0) then
+      write (comment,'(a,G0.12)') '  energy= ',self%energy
       self%xyz = self%xyz*bohr !to Angström
-      call wrxyz(fname,self%nat,self%at,self%xyz)
+      call wrxyz(fname,self%nat,self%at,self%xyz,comment)
       self%xyz = self%xyz/bohr !back
     else
       call wrc0(fname,self%nat,self%at,self%xyz)
@@ -2230,14 +2231,14 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i,io,k
     atmp = trim(line)
     energy = 0.0_wp
-    if(index(atmp,'energy=').ne.0)then
-      k=index(atmp,'energy=')
-      atmp=atmp(k+7:)
+    if (index(atmp,'energy=') .ne. 0) then
+      k = index(atmp,'energy=')
+      atmp = atmp(k+7:)
       read (atmp,*,iostat=io) energy
-      if(io.ne.0) energy=0.0_wp
-    else if(index(atmp,'energy:').ne.0)then
-      k=index(atmp,'energy:')
-      atmp=atmp(k+7:)
+      if (io .ne. 0) energy = 0.0_wp
+    else if (index(atmp,'energy:') .ne. 0) then
+      k = index(atmp,'energy:')
+      atmp = atmp(k+7:)
       read (atmp,*,iostat=io) energy
       if (io .ne. 0) energy = 0.0_wp
     else

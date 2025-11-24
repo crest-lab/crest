@@ -1,0 +1,216 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  BUILD_DIR: _build
+  PIP_PACKAGES: >-
+    meson!=1.8.0
+    cmake
+    ninja
+  PIP_EXTRAS: >-
+    pkgconfig
+    numpy
+    ase
+    matplotlib
+  LINUX_INTEL_COMPONENTS: >-
+    intel-oneapi-compiler-fortran-2023.1.0
+    intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2023.1.0
+    intel-oneapi-mkl-2023.1.0
+    intel-oneapi-mkl-devel-2023.1.0
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        build-type: [debug]
+        toolchain:
+          - { compiler: gcc,   version: '11',       build: cmake }
+          - { compiler: gcc,   version: '12',       build: cmake }
+          - { compiler: gcc,   version: '14',       build: cmake }
+          - { compiler: intel, version: '2023.1.0', build: cmake }
+    
+        include:
+          # ---- Linux GCC CMake debugoptimized build ------------------------
+          - { os: ubuntu-latest, build-type: debugoptimized,
+              toolchain: { compiler: gcc, version: '14', build: cmake } }
+    
+          # ---- Linux static builds -----------------------------------------
+          - { os: ubuntu-latest, build-type: static,
+              toolchain: { compiler: gcc,   version: '12',       build: cmake } }
+          - { os: ubuntu-latest, build-type: static,
+              toolchain: { compiler: intel, version: '2023.1.0', build: meson } }
+    
+          # ---- macOS GCC CMake debug builds --------------------------------
+          - { os: macos-latest, build-type: debug,
+              toolchain: { compiler: gcc, version: '12', build: cmake } }
+          - { os: macos-latest, build-type: debug,
+              toolchain: { compiler: gcc, version: '14', build: cmake } }
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      # ----------------------------------------------------------------------
+      # Setup
+      # ----------------------------------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      # ----------------------------------------------------------------------
+      # Compiler setup (GCC via setup-fortran, Intel via oneAPI on Linux)
+      # ----------------------------------------------------------------------
+
+      - name: Install GCC using setup-fortran
+        if: ${{ contains(matrix.toolchain.compiler, 'gcc') }}
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}   # "gcc"
+          version:  ${{ matrix.toolchain.version }}    # e.g. "12"
+
+      - name: Install libopenblas (Linux GNU builds only)
+        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'gcc') }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenblas-dev
+
+      - name: Install OpenBLAS (macOS)
+        if: ${{ contains(matrix.os, 'macos') }}
+        run: |
+          brew update
+          brew install openblas
+          echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig:/opt/homebrew/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
+          echo "LDFLAGS=-L/usr/local/opt/openblas/lib -L/opt/homebrew/opt/openblas/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/usr/local/opt/openblas/include -I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
+
+      - name: Prepare for Intel cache restore
+        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') }}
+        run: |
+          sudo mkdir -p /opt/intel
+          sudo chown "$USER" /opt/intel
+
+      - name: Cache Intel oneAPI install
+        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') }}
+        id: cache-install
+        uses: actions/cache@v4
+        with:
+          path: /opt/intel/oneapi
+          key: install-${{ matrix.toolchain.compiler }}-${{ matrix.toolchain.version }}-${{ matrix.os }}
+
+      - name: Install Intel oneAPI (compiler + MKL)
+        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') && steps.cache-install.outputs.cache-hit != 'true' }}
+        run: |
+          KEY=GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+          wget https://apt.repos.intel.com/intel-gpg-keys/$KEY
+          sudo apt-key add $KEY
+          rm $KEY
+
+          echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
+          sudo apt-get update
+          sudo apt-get install -y $PKG
+        env:
+          PKG: ${{ env.LINUX_INTEL_COMPONENTS }}
+
+      - name: Setup Intel oneAPI environment
+        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') }}
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          printenv >> $GITHUB_ENV
+
+      - name: Set compiler environment variables
+        run: |
+          if [ "${{ matrix.toolchain.compiler }}" = "gcc" ]; then
+            echo "FC=gfortran" >> $GITHUB_ENV
+            echo "CC=gcc" >> $GITHUB_ENV
+          elif [ "${{ matrix.toolchain.compiler }}" = "intel" ]; then
+            # adjust to ifx/ifort if we want to change it in the future
+            echo "FC=ifort" >> $GITHUB_ENV
+            echo "CC=icx" >> $GITHUB_ENV
+          fi
+          echo "COMPILER_VERSION=${{ matrix.toolchain.version }}" >> $GITHUB_ENV
+
+      # ----------------------------------------------------------------------
+      # Dependencies & submodules
+      # ----------------------------------------------------------------------
+
+      - name: Git submodules checkout
+        run: git submodule update --init
+
+      - name: Install build and test dependencies
+        run: |
+          pip3 install ${{ env.PIP_PACKAGES }} ${{ env.PIP_EXTRAS }}
+
+      # ----------------------------------------------------------------------
+      # Configure
+      # ----------------------------------------------------------------------
+
+      - name: Configure build (Meson)
+        if: ${{ matrix.toolchain.build == 'meson' }}
+        run: >
+          meson setup ${{ env.BUILD_DIR }}
+          --buildtype=debugoptimized
+          --prefix=$PWD/_dist
+          --libdir=lib
+          --warnlevel=0
+
+      - name: Configure build (CMake, debug)
+        if: ${{ matrix.toolchain.build == 'cmake' && matrix.build-type == 'debug' }}
+        run: >
+          cmake -B${{ env.BUILD_DIR }}
+          -GNinja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_INSTALL_PREFIX=$PWD/_dist
+          -DCMAKE_INSTALL_LIBDIR=lib
+
+      - name: Configure build (CMake, debugoptimized)
+        if: ${{ matrix.toolchain.build == 'cmake' && matrix.build-type == 'debugoptimized' }}
+        run: >
+          cmake -B${{ env.BUILD_DIR }}
+          -GNinja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_INSTALL_PREFIX=$PWD/_dist
+          -DCMAKE_INSTALL_LIBDIR=lib
+
+      - name: Configure build (CMake, static)
+        if: ${{ matrix.toolchain.build == 'cmake' && matrix.build-type == 'static' }}
+        run: >
+          cmake -B${{ env.BUILD_DIR }}
+          -GNinja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_INSTALL_PREFIX=$PWD/_dist
+          -DCMAKE_INSTALL_LIBDIR=lib
+          -DWITH_TESTS=OFF
+          -DSTATICBUILD=ON
+
+      # ----------------------------------------------------------------------
+      # Build / test / install
+      # ----------------------------------------------------------------------
+
+      - name: Build project
+        run: ninja -C ${{ env.BUILD_DIR }}
+
+      - name: Run unit tests (ctest)
+        if: ${{ matrix.toolchain.build == 'cmake' && contains(matrix.toolchain.compiler, 'gcc') }}
+        run: |
+          ctest --output-on-failure --parallel 2 -R '^crest/'
+        working-directory: ${{ env.BUILD_DIR }}
+        env:
+          OMP_NUM_THREADS: 1,2,1
+
+      - name: Install project
+        run: |
+          ninja -C ${{ env.BUILD_DIR }} install
+          echo "CREST_PREFIX=$PWD/_dist" >> $GITHUB_ENV
+

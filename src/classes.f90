@@ -553,6 +553,7 @@ module crest_data
     logical :: fullcre = .false.     !> calculate exact rotamer degeneracies
     logical :: gbsa                  !> use gbsa
     logical :: gcmultiopt            !> 2 level optimization for GC in V2
+    logical :: gradsp = .true.       !> turn on/off gradient calculation in singlepoint
     logical :: heavyrmsd = .false.   !> use only heavy atoms for RMSD in CREGEN?
     logical :: inplaceMode = .true.  !> in-place mode: optimization dirs are created "on-the-fly"
     logical :: iterativeV2           !> iterative version of V2 (= V3)

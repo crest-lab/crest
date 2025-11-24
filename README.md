@@ -6,7 +6,7 @@
 [![Conda Version](https://img.shields.io/conda/vn/conda-forge/crest?color=khaki)](https://anaconda.org/conda-forge/crest)
 [![DOI](https://img.shields.io/badge/DOI-10.1039%2Fc9cp06869d%20-blue)](http://dx.doi.org/10.1039/c9cp06869d)
 [![DOI](https://img.shields.io/badge/DOI-10.1063%2F5.0197592-blue)](https://doi.org/10.1063/5.0197592)
-![CI workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
+[![CI workflow](https://github.com/crest-lab/crest/actions/workflows/build-CI.yml/badge.svg)](https://github.com/crest-lab/crest/actions/workflows/build-CI.yml)
 [![License: LGPL v3](https://img.shields.io/badge/license-LGPL_v3-coral.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![Documentation](https://img.shields.io/badge/documentation-crest--lab.github.io%2Fcrest--docs%2F-gold)](https://crest-lab.github.io/crest-docs/)
 

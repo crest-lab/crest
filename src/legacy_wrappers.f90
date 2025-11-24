@@ -52,11 +52,17 @@ subroutine env2calc(env,calc,molin)
   cal%rdwbo = .false.
   cal%rddip = .false.
   !> except for SP runtype (from command line!)
-  if (env%crestver == crest_sp.and. &
-  &   cal%id .ne. jobtype%turbomole) then
-    cal%rdwbo = .true.
-    cal%rddip = .true.
-    cal%rdqat = .true.
+  if (env%crestver == crest_sp) then
+    cal%rdgrad = env%gradsp
+    if (cal%id .ne. jobtype%turbomole) then
+      cal%rdwbo = .true.
+      cal%rddip = .true.
+      cal%rdqat = .true.
+    else
+      if (.not.env%gradsp) then
+        cal%other = ''
+      end if
+    end if
   end if
 
   !> implicit solvation

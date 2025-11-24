@@ -330,18 +330,12 @@ subroutine parseflags(env,arg,nra)
   env%properties2 = p_none  !> backup for env%properties
   env%iterativeV2 = .true.  !> iterative crest V2 version
   env%preopt = .true.
-!>--- check for input file
-  do i = 1,nra
-    argument = trim(arg(i))
-    if (argument == '--input'.or.argument == '-i') then
-      call parseinputfile(env,trim(arg(i+1)))
-      exit
-    end if
-    if (i == 1.and.index(argument,'.toml') .ne. 0) then
-      call parseinputfile(env,trim(arg(1)))
-      exit
-    end if
-  end do
+!>--- check for (TOML) input file
+  call find_input_file(arg,nra,idum)
+  if(idum.ne.0)then
+    call parseinputfile(env,trim(arg(idum)))
+  endif
+
 !>--- first arg loop
   do i = 1,nra
     argument = trim(arg(i))
@@ -1261,6 +1255,11 @@ subroutine parseflags(env,arg,nra)
         close (ich)
         write (*,'(2x,a,1x,a)') trim(arg(i)),trim(arg(i+1))
 
+      case ('-grad')
+        env%gradsp = .true.
+      case ('-nograd')
+        env%gradsp = .false.
+
       case ('-len','-mdlen','-mdtime') !> set md length in ps
         atmp = arg(i+1)
         call to_lower(atmp)
@@ -1362,11 +1361,11 @@ subroutine parseflags(env,arg,nra)
           env%cts%cbonds_md = .true.
           env%cts%cbonds_global = .false.
         end if
-      case ('-cfile','-cinp')                   !> specify the constrain file
+      case ('-cfile','-cinp','-C','-c')     !> specify the constrain file
         ctmp = trim(arg(i+1))
         if (ctmp(1:1) .ne. '-') then
           env%constraints = trim(ctmp)
-          write (*,'(2x,a,1x,a)') '--cinp :',trim(ctmp)
+          write (*,'(2x,a,1x,a)') argument//' :',trim(ctmp)
         end if
       case ('-fc','-forceconstant')
         ctmp = trim(arg(i+1))
