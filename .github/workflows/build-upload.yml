@@ -3,7 +3,7 @@ name: Continuous release (static Linux)
 on:
   push:
     branches:
-      - main    # ONLY upload on main branch
+      - master    # ONLY upload on master branch
 
 env:
   BUILD_DIR: _build
