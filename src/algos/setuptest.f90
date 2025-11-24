@@ -60,6 +60,7 @@ subroutine trialMD_calculator(env)
   type(timer) :: profiler
 
   type(calcdata) :: tmpcalc
+  type(calcdata) :: calcstart
   real(wp) :: energy
   real(wp),allocatable :: grd(:,:)
   integer :: T,Tn
@@ -104,6 +105,7 @@ subroutine trialMD_calculator(env)
   MTD%mtdtype = cv_rmsd
   MTD%cvdump_fs = 550.0_wp
   call MDSTART%add(MTD)
+  calcstart = env%calc !> Save clean state before loop
 
   pr = .false. !> supress stdout printout of MD
 
@@ -121,6 +123,8 @@ subroutine trialMD_calculator(env)
 
 !>--- Restore initial starting geometry
     mol = molstart
+!>--- Restore clean calculation state
+    env%calc = calcstart
 !>--- Modify MD output trajectory
     MD = MDSTART
     MD%tstep = tstep
