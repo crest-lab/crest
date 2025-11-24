@@ -28,35 +28,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
+        build-type: [debug]
+        toolchain:
+          - { compiler: gcc,   version: '11',       build: cmake }
+          - { compiler: gcc,   version: '12',       build: cmake }
+          - { compiler: gcc,   version: '14',       build: cmake }
+          - { compiler: intel, version: '2023.1.0', build: cmake }
+    
         include:
-          # ---- Linux debug builds ------------------------------------------
-          - os: ubuntu-latest
-            build-type: debug
-            toolchain: 
-              - { compiler: gcc, version: '11', build: cmake }
-              - { compiler: gcc, version: '12', build: cmake }
-              - { compiler: gcc, version: '14', build: cmake }
-              - { compiler: intel, version: '2023.1.0', build: cmake }
-
           # ---- Linux GCC CMake debugoptimized build ------------------------
-          - os: ubuntu-latest
-            build-type: debugoptimized
-            toolchain: 
-              - { compiler: gcc, version: '14', build: cmake }
-
+          - { os: ubuntu-latest, build-type: debugoptimized,
+              toolchain: { compiler: gcc, version: '14', build: cmake } }
+    
           # ---- Linux static builds -----------------------------------------
-          - os: ubuntu-latest
-            build-type: static
-            toolchain:
-              - { compiler: gcc, version: '12', build: cmake }
-              - { compiler: intel, version: '2023.1.0', build: meson }
-
-          # ---- macOS GCC CMake debug build ---------------------------------
-          - os: macos-latest
-            build-type: debug
-            toolchain: 
-              - { compiler: gcc, version: '12', build: cmake }
-              -  {compiler: gcc, version: '14', build: cmake } 
+          - { os: ubuntu-latest, build-type: static,
+              toolchain: { compiler: gcc,   version: '12',       build: cmake } }
+          - { os: ubuntu-latest, build-type: static,
+              toolchain: { compiler: intel, version: '2023.1.0', build: meson } }
+    
+          # ---- macOS GCC CMake debug builds --------------------------------
+          - { os: macos-latest, build-type: debug,
+              toolchain: { compiler: gcc, version: '12', build: cmake } }
+          - { os: macos-latest, build-type: debug,
+              toolchain: { compiler: gcc, version: '14', build: cmake } }
 
     defaults:
       run:
