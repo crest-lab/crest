@@ -146,8 +146,6 @@ jobs:
       - name: Build project
         run: ninja -C ${{ env.BUILD_DIR }}
 
-      # (You can add tests here if you want for the release builds)
-
       - name: Install project
         run: |
           ninja -C ${{ env.BUILD_DIR }} install
@@ -159,10 +157,16 @@ jobs:
           cp COPYING crest/LICENSE
           cp COPYING.LESSER crest/LICENSE.LESSER
           cp _dist/bin/crest crest/
-          OUTPUT="crest-${{ matrix.toolchain.compiler }}-${{ matrix.toolchain.version }}-${{ matrix.os }}.tar"
+          COMPILER_NAME="${{ matrix.toolchain.compiler }}"
+          # Map GCC → gnu for backwards-compatible file names
+          if [ "$COMPILER_NAME" = "gcc" ]; then
+            COMPILER_NAME="gnu"
+          fi
+          OUTPUT="crest-${COMPILER_NAME}-${{ matrix.toolchain.version }}-${{ matrix.os }}.tar"
           tar cvf "$OUTPUT" crest
           xz -T0 "$OUTPUT"
           echo "CREST_OUTPUT=${OUTPUT}.xz" >> $GITHUB_ENV
+
 
       - name: Upload package
         uses: actions/upload-artifact@v4
