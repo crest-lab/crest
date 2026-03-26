@@ -99,8 +99,8 @@ endif
 ## ======================================== ##
 ## Linear Algebra Libraries
 ## ======================================== ##
-la_backend = get_option('la_backend')
-message('Linear algebra backend: '+get_option('la_backend'))
+la_backend = get_option('lapack')
+message('Linear algebra backend: '+get_option('lapack'))
 if la_backend == 'mkl' or la_backend == 'mkl-static'
   add_project_arguments('-DWITH_MKL', language: 'fortran')
   if la_backend == 'mkl-static'
