@@ -79,7 +79,7 @@ crest_exe = executable(
   link_language: 'fortran',
 )
 
-
+meson.add_dist_script('config/dist_symlinks.sh')
 
 # add the testsuite separate meson.build 
 #subdir('testsuite') #has to be filled with tests, not availabel yet
