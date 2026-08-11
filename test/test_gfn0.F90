@@ -42,7 +42,7 @@ contains  !> Unit tests for using gfn0 in crest
   subroutine test_compiled_gfn0(error)
     type(error_type),allocatable,intent(out) :: error
 #ifndef WITH_GFN0
-    write (*,'("       ...")') 'gfn0 not compiled, expecting fail.'
+    write (*,'("       ... ",a)') 'gfn0 not compiled, expecting fail.'
     allocate (error)
 #endif
   end subroutine test_compiled_gfn0
