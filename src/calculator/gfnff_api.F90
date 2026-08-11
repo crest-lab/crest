@@ -162,6 +162,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: nat
     integer :: i
     real(wp) :: sumsasa
+#ifdef WITH_GFNFF
     if(allocated(ff_dat%solvation))then
       if(allocated(ff_dat%solvation%sasa))then
         sumsasa = 0.0_wp
@@ -171,6 +172,7 @@ contains  !> MODULE PROCEDURES START HERE
         write(5454,*) sumsasa
       endif
     endif
+#endif
   end subroutine gfnff_dump_sasa
 !========================================================================================!
 !========================================================================================!
