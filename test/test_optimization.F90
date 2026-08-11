@@ -42,7 +42,7 @@ contains  !> Unit tests for using geometry optimization routines in CREST
   subroutine test_compiled_gfnff(error)
     type(error_type),allocatable,intent(out) :: error
 #ifndef WITH_GFNFF
-    write(*,'("       ...")') 'gfnff not compiled, expecting fail.'
+    write(*,'("       ... ",a)') 'gfnff not compiled, expecting fail.'
     allocate (error)
 #endif
   end subroutine test_compiled_gfnff

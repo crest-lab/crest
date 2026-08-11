@@ -45,7 +45,7 @@ configure_file(
 
 
 # Documentation
-#subdir('docs')
+subdir('docs')
 
 # Collect source of the project
 prog = []
@@ -81,5 +81,5 @@ crest_exe = executable(
 
 
 
-# add the testsuite separate meson.build 
-#subdir('testsuite') #has to be filled with tests, not availabel yet
+# add the testsuite separate meson.build
+subdir('test')

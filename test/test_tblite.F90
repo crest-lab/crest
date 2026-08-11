@@ -44,7 +44,7 @@ contains  !> Unit tests for using tblite in crest
   subroutine test_compiled_tblite(error)
     type(error_type),allocatable,intent(out) :: error
 #ifndef WITH_TBLITE
-    write(*,'("       ...")') 'tblite not compiled, expecting fail.'
+    write(*,'("       ... ",a)') 'tblite not compiled, expecting fail.'
     allocate (error)
 #endif
   end subroutine test_compiled_tblite
