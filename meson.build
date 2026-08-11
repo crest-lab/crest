@@ -45,7 +45,7 @@ configure_file(
 
 
 # Documentation
-#subdir('docs')
+subdir('docs')
 
 # Collect source of the project
 prog = []
