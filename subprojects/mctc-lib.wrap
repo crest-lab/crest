@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/grimme-lab/mctc-lib
+revision = e9de066d89f250d1cfb6de3a33f0c27c0e2f855d
+clone-recursive = true
+
+[provide]
+mctc-lib = mctc_dep

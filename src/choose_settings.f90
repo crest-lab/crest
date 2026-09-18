@@ -30,17 +30,17 @@ subroutine md_length_setup(env)
   use crest_parameters
   use crest_data
   use strucrd
-  use zdata, only:readwbo
+  use zdata,only:readwbo
   implicit none
   !> IN/OUTPUT
   type(systemdata) :: env    !> MAIN STORAGE OS SYSTEM DATA
   !> LOCAL
   real(wp) :: total,minimum,lenthr
   real(wp) :: flex,av1,rfac,nciflex
-  type(coord) :: mol 
+  type(coord) :: mol
   logical :: ex
-!> get reference geometry  
-  call env%ref%to( mol ) 
+!> get reference geometry
+  call env%ref%to(mol)
 
 !> at least 5ps per MTD
   minimum = 5.0d0
@@ -50,19 +50,19 @@ subroutine md_length_setup(env)
   call smallhead('Generating MTD length from a flexibility measure')
 
   if ((env%crestver .ne. crest_solv).and..not.env%NCI) then
-    write(stdout,'(1x,a)',advance='no') 'Calculating GFN0-xTB WBOs   ...'
+    write (stdout,'(1x,a)',advance='no') 'Calculating GFN0-xTB WBOs   ...'
 !>-- xtb singlepoint to get WBOs (always GFN0)
     call xtbsp(env,0)
     write (stdout,'(1x,a)') 'done.'
 !>-- save those WBOs to the reference
-    inquire(file='wbo',exist = ex)
-    if(ex)then
-    if(.not.allocated(env%ref%wbo)) allocate(env%ref%wbo( mol%nat, mol%nat), source=0.0_wp)   
-    call readwbo('wbo',mol%nat, env%ref%wbo)
-    endif
+    inquire (file='wbo',exist=ex)
+    if (ex) then
+      if (.not.allocated(env%ref%wbo)) allocate (env%ref%wbo(mol%nat,mol%nat),source=0.0_wp)
+      call readwbo('wbo',mol%nat,env%ref%wbo)
+    end if
 
 !>-- covalent flexibility measure based on WBO and structure only
-    call flexi( mol, env%rednat, env%includeRMSD, flex)
+    call flexi(mol,env%rednat,env%includeRMSD,flex)
 !>-- NCI flexi based on E(HB)/Nat and E(disp)/Nat
     call nciflexi(env,nciflex)
     write (stdout,'(1x,''    covalent flexibility measure :'',f8.3)') flex
@@ -118,9 +118,9 @@ subroutine md_length_setup(env)
 
 !>-- ONLY use generated MD length if not already set by the user
   if (env%mdtime .le. 0.0d0) then
-    if(env%mddat%length_ps > 0.0_wp)then
+    if (env%mddat%length_ps > 0.0_wp) then
       total = env%mddat%length_ps
-      write(stdout,'(1x,"t(MTD) / ps set via calculator :",  f8.1)') total
+      write (stdout,'(1x,"t(MTD) / ps set via calculator :",  f8.1)') total
     else if (total .gt. lenthr) then
       total = lenthr
       call mtdwarning(lenthr*rfac)
@@ -135,9 +135,9 @@ subroutine md_length_setup(env)
   & env%mdtime*float(env%nmetadyn),env%nmetadyn
 
 !> A MTD Vbias snapshot is taken every 1 ps
-  if(allocated(env%metadlist))then
+  if (allocated(env%metadlist)) then
     env%metadlist(:) = ceiling(env%mdtime)
-  endif
+  end if
 
   return
 end subroutine md_length_setup
@@ -149,7 +149,7 @@ subroutine defaultGF(env)
 !* Setmetadynamics default Guiding Force Parameter
 !* There are different combinations depending on the runtype
 !************************************************************
-  use crest_parameters 
+  use crest_parameters
   use crest_data
   use filemod
   implicit none
@@ -200,7 +200,7 @@ subroutine defaultGF(env)
 !+++++++++++++++++++++++++++++++++++++++++++++++++++++++!
       select case (env%runver)
 !---------- "-quick","-squick"
-      case (2,5) 
+      case (2,5)
         na = 3
         nk = 2
         nmtdyn = na*nk
@@ -209,7 +209,7 @@ subroutine defaultGF(env)
         alpinc = 2.0 ! increment
         kinc = 2.0     ! increment
 !---------- "-mquick"
-      case (6) 
+      case (6)
         na = 3
         nk = 2
         nmtdyn = na*nk
@@ -218,7 +218,7 @@ subroutine defaultGF(env)
         alpinc = 2.0 ! increment
         kinc = 2.0     ! increment
 !---------- "-qcg"
-      case (3) 
+      case (3)
         na = 4
         nk = 3
         nmtdyn = na*nk
@@ -227,7 +227,7 @@ subroutine defaultGF(env)
         alpinc = (3./2.) ! increment
         kinc = (3./2.)   ! increment
 !---------- "-nci"
-      case (4) 
+      case (4)
         na = 3
         nk = 2
         nmtdyn = na*nk
@@ -236,7 +236,7 @@ subroutine defaultGF(env)
         alpinc = 2.0 ! increment
         kinc = 2.0     ! increment
 !---------- "-singlerun"
-      case (45) 
+      case (45)
         na = 1
         nk = 1
         nmtdyn = na*nk
@@ -254,7 +254,7 @@ subroutine defaultGF(env)
         alpinc = 2.0 ! increment
         kinc = 2.0     ! increment
 !---------- "-compress"
-      case (77) 
+      case (77)
         na = 3
         nk = 3
         nmtdyn = na*nk
@@ -263,7 +263,7 @@ subroutine defaultGF(env)
         alpinc = 1.61803 ! increment
         kinc = 2.0     ! increment
 !--------- "search_1"
-      case (crest_s1,crest_mecp) 
+      case (crest_s1,crest_mecp)
         na = 3
         nk = 3
         nmtdyn = (na*nk)
@@ -280,7 +280,7 @@ subroutine defaultGF(env)
         alpinc = (5./3.) ! increment
         kinc = 1.5d0     ! increment
 !---------- "-entropy"
-      case (111) 
+      case (111)
         na = 6
         nk = 4
         nmtdyn = (na*nk)
@@ -395,13 +395,13 @@ subroutine adjustnormmd(env)
 !>--- first the number of normMDs on low conformers
     if (env%nrotammds .le. 0) then !> if no user input was set
       !> multiple short MDs, which has a better parallel efficiency
-      !> default is 4 
-      env%nrotammds = max(1,nint(float(env%nmetadyn)/4.0d0)) 
+      !> default is 4
+      env%nrotammds = max(1,nint(float(env%nmetadyn)/4.0d0))
     end if
 
 !>--- then the temperature range
     if (env%temps .le. 0) then
-      !> at how many different temperatures? 
+      !> at how many different temperatures?
       !> starting at 400k and increasing 100K for each (200 K for -entropy mode)
       env%temps = 2
       if (env%entropic) then
@@ -414,7 +414,7 @@ subroutine adjustnormmd(env)
 !==============================================!
 !>--- settings for static MTDS in entropy mode
 !==============================================!
-  if (env%entropymd) then 
+  if (env%entropymd) then
     env%emtd%iter = 20    !> max number of iterations
     env%emtd%nbias = min(150,nint(env%tmtd/4)) !> max number of bias structures
     env%emtd%nbiasgrow = min(1.4d0,1.2d0+env%tmtd*1.d-3) !> increase of nBias in each cycle
@@ -476,55 +476,71 @@ subroutine env_to_mddat(env)
   implicit none
   type(systemdata) :: env
   real(wp) :: dum
+  integer :: i,j,nat
 !!>--- dont override user-defined settings
 !  if(env%mddat%requested) return
 !> we will check if any default settings were already set individually, instead
 !> the if-statements in the following take care of that
 
 !>--- necessary transfer global settings into mddat object
-   if(env%mddat%length_ps <= 0.0_wp)then
-   !> total runtime in ps
-     env%mddat%length_ps    = env%mdtime
-   else
-     env%mdtime = env%mddat%length_ps
-   endif
-   if(env%mddat%tstep <= 0.0_wp)then
-   !> time step in fs 
-     env%mddat%tstep        = env%mdstep
-   endif
-   !> simulation steps (would be recovered automatically later, but just to make sure)
-   env%mddat%length_steps = nint(env%mddat%length_ps*1000.0_wp / env%mddat%tstep)
-   if(env%mddat%tsoll <= 0.0_wp)then
-   !> target temperature
-     env%mddat%tsoll = env%mdtemp
-   endif
+  if (env%mddat%length_ps <= 0.0_wp) then
+    !> total runtime in ps
+    env%mddat%length_ps = env%mdtime
+  else
+    env%mdtime = env%mddat%length_ps
+  end if
+  if (env%mddat%tstep <= 0.0_wp) then
+    !> time step in fs
+    env%mddat%tstep = env%mdstep
+  end if
+  !> simulation steps (would be recovered automatically later, but just to make sure)
+  env%mddat%length_steps = nint(env%mddat%length_ps*1000.0_wp/env%mddat%tstep)
+  if (env%mddat%tsoll <= 0.0_wp) then
+    !> target temperature
+    env%mddat%tsoll = env%mdtemp
+  end if
 
-   if( env%mddat%dumpstep <= 0.0_wp ) then 
-   !> dump frequency in fs
-     env%mddat%dumpstep = float(env%mddumpxyz)
-   endif
-   if(env%mddat%sdump <= 0)then
-   !> trajectory structure dump every x steps 
-     dum = max(1.0_wp, (env%mddat%dumpstep / env%mddat%tstep))
-     env%mddat%sdump = nint(dum)
-   endif
+  if (env%mddat%dumpstep <= 0.0_wp) then
+    !> dump frequency in fs
+    env%mddat%dumpstep = real(env%mddumpxyz,wp)
+  end if
+  if (env%mddat%sdump <= 0) then
+    !> trajectory structure dump every x steps
+    dum = max(1.0_wp, (env%mddat%dumpstep/env%mddat%tstep))
+    env%mddat%sdump = nint(dum)
+  end if
 
-   !> The SHAKE setup (special condition referring to the default)
-   env%mddat%shake = env%mddat%shake .and.(env%shake > 0) !> SHAKE algorithm?
-   if( env%mddat%shake .and. env%mddat%shk%shake_mode == 0)then
-   env%mddat%shk%shake_mode = env%shake     !> H-only shake =1, all atom =2
-   endif 
+  !> The SHAKE setup (special condition referring to the default)
+  env%mddat%shake = env%mddat%shake.and.(env%shake > 0) !> SHAKE algorithm?
+  if (env%mddat%shake.and.env%mddat%shk%shake_mode == 0) then
+    env%mddat%shk%shake_mode = env%shake     !> H-only shake =1, all atom =2
+  end if
 
-   if(env%mddat%md_hmass <= 0.0_wp)then
-   !> hydrogen mass (to enable longer timesteps)
-     env%mddat%md_hmass = env%hmass 
-   endif
+  if (env%mddat%md_hmass <= 0.0_wp) then
+    !> hydrogen mass (to enable longer timesteps)
+    env%mddat%md_hmass = env%hmass
+  end if
 
-   ! TODO: WBO reader if shake is applied and wbo file is present
+  if (allocated(env%mddat%mtd)) then
+    nat = env%ref%nat
+    if (sum(env%includeRMSD) < nat) then
+      do i = 1,env%mddat%npot
+        if (.not.allocated(env%mddat%mtd(i)%atinclude)) then
+          allocate (env%mddat%mtd(i)%atinclude(nat),source=.false.)
+        else
+          env%mddat%mtd(i)%atinclude = .false.
+        end if
+        do j = 1,nat
+          if (env%includeRMSD(j) == 1) env%mddat%mtd(i)%atinclude(j) = .true.
+        end do
+      end do
+    end if
+  end if
+
+  ! TODO: WBO reader if shake is applied and wbo file is present
 
 !>--- set flag to signal present settings
   env%mddat%requested = .true.
 
 end subroutine env_to_mddat
-
 

@@ -1,0 +1,6 @@
+# Optimize every structure in an ensemble or trajectory file
+runtype  = "mdopt"
+ensemble = "xtb.trj"    # input trajectory or multi-structure XYZ file
+
+[[calculation.level]]
+method = "gfn2"         # GFN2-xTB for geometry optimization

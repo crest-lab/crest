@@ -1,0 +1,25 @@
+# Geometry optimisation of a small molecule using Meta FAIR's UMA foundation
+# model (fairchem-core v2), served through the fmlip-relay persistent backend.
+#
+# UMA is a single multi-task model; the active domain is chosen via the task
+# head. The "omol" task (organic/inorganic molecules) honours the total charge
+# and the spin multiplicity, which CREST forwards to the server per evaluation
+# from the 'chrg' and 'mult' keys below.
+#
+# Requirements: pip install "../../subprojects/fmlip_relay[uma]"
+# The UMA checkpoints are gated on the Hugging Face Hub — request access on the
+# model page and authenticate (huggingface-cli login or $HF_TOKEN) before use.
+runtype = "optimize"
+input   = "struc.xyz"   # input structure file (caffeine, C8H10N4O2)
+
+[calculation]
+optlev = "normal"       # convergence level: crude/loose/normal/tight/vtight
+
+[[calculation.level]]
+method         = "mlip"        # ML/classical potential via fmlip-relay socket server
+mlip_backend   = "uma"         # FairChem UMA foundation model
+mlip_uma_model = "uma-s-1p2"   # checkpoint: uma-s-1 | uma-s-1p1 | uma-s-1p2 (default) | uma-m-1
+mlip_uma_task  = "omol"        # task head: omol | omat | omc | oc20 | odac
+mlip_device    = "cpu"         # torch device: cpu | cuda | cuda:0  (UMA runs best on GPU)
+chrg           = 0             # total molecular charge   (forwarded to the omol task)
+mult           = 1             # spin multiplicity 2S+1   (forwarded to the omol task)

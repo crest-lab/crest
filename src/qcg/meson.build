@@ -15,7 +15,10 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 srcs += files(
-  'solvtool.f90',
-  'solvtool_misc.f90',
-  'volume.f90',
+'qcg_coord_type.f90',
+'qcg_main.f90',
+'qcg_misc.f90',
+'qcg_printouts.f90',
+'qcg_utils.f90',
+'volume.f90',
 )

@@ -739,7 +739,7 @@ end subroutine reactorreopt
 subroutine collectproducts(optdir,base,ndirs,oname,iso)
     use crest_parameters, only: wp, bohr
     use iomod
-    use strucrd, only: wrxyz,rdnat,rdcoord
+    use strucrd, only: wrxyz,rdnat,rdcoord,sumform
     implicit none
     character(len=*),intent(in) :: optdir
     character(len=*),intent(in) :: base
@@ -757,7 +757,6 @@ subroutine collectproducts(optdir,base,ndirs,oname,iso)
     real(wp),allocatable :: xyz(:,:)
     integer,allocatable :: at(:)
     character(len=40),allocatable :: sumformulas(:)
-    character(len=40) :: sumform
     real(wp),allocatable :: energies(:)
     integer,allocatable :: nats(:)
     logical,allocatable :: taken(:)

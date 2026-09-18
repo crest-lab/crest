@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2018-2025 Philipp Pracht
+! Copyright (C) 2018-2026 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -52,6 +52,20 @@ module iomod
       use iso_c_binding
       character(kind=c_char)   :: c_from(*)
       character(kind=c_char)   :: c_to(*)
+    end function
+  end interface
+
+  interface
+    integer(c_int) function c_isatty(fd) bind(c,name="isatty")
+      use iso_c_binding
+      integer(c_int),value :: fd
+    end function c_isatty
+  end interface
+
+  interface
+    function get_peak_rss_kb() bind(C,name="get_peak_rss_kb") result(kb)
+      import :: c_long_long
+      integer(c_long_long) :: kb
     end function
   end interface
 
@@ -748,6 +762,15 @@ contains !> MODULE PROCEDURES START HERE
     return
   end function filechecker
 
+  function file_exists(fin) result(have)
+    implicit none
+    logical :: have
+    character(len=*),intent(in) :: fin
+    have = .false.
+    inquire (file=fin,exist=have)
+    return
+  end function file_exists
+
 !=========================================================================================!
 !=========================================================================================!
 !=========================================================================================!
@@ -758,7 +781,7 @@ contains !> MODULE PROCEDURES START HERE
   function directory_exist(file) result(exist)
     character(len=*),intent(in) :: file
     logical :: exist
-#ifdef __INTEL_COMPILER
+#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
     !> Intel provides the directory extension to inquire to handle this case
     inquire (directory=file,exist=exist)
 #else
@@ -772,18 +795,221 @@ contains !> MODULE PROCEDURES START HERE
 !=========================================================================================!
 !=========================================================================================!
 
-!> a wrapper for the intrinsic isatty function.
-!> ifort only seems to work if isatty is declard as external
-!> while gfortran does not want that...
   function myisatty(channel) result(term)
+!************************************************************
+!* a wrapper for the intrinsic isatty function.
+!* ifort only seems to work if isatty is declard as external
+!* while gfortran does not want that...
+!************************************************************
     implicit none
     integer,intent(in) :: channel
     logical :: term
-#ifdef __INTEL_COMPILER
+#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
     logical,external :: isatty
 #endif
     term = isatty(channel)
   end function myisatty
+
+  logical function is_terminal()
+!*****************************************************************************
+!* Helper function to check if stdout (fd=1) is a TTY
+!* This version runs via the iso_c interface rather than the isatty function
+!* Also, it doesn't need an output channel
+!*****************************************************************************
+    use iso_c_binding
+    implicit none
+    is_terminal = (c_isatty(1_c_int) /= 0)
+  end function is_terminal
+
+!=========================================================================================!
+!=========================================================================================!
+!=========================================================================================!
+
+  function colorify(text,color) result(colored_text)
+!******************************************************************************
+!* colorify(text, color) returns a string that wraps `text` in
+!* ANSI color codes if stdout is a TTY, or returns `text` as-is otherwise.
+!******************************************************************************
+    implicit none
+    !> INPUT
+    character(len=*),intent(in) :: text
+    character(len=*),intent(in) :: color
+    !> We will build the returned string with a deferred-length character
+    character(len=:),allocatable :: colored_text
+    !> Escape sequence for ANSI codes
+    character(len=*),parameter :: ESC = char(27)//"["
+    !> Decide if we want color (only if stdout is a terminal)
+    if (is_terminal()) then
+      select case (trim(adjustl(color)))
+      case ("red")
+        colored_text = ESC//"31m"//trim(text)//ESC//"0m"
+      case ("green")
+        colored_text = ESC//"32m"//trim(text)//ESC//"0m"
+      case ("blue")
+        colored_text = ESC//"34m"//trim(text)//ESC//"0m"
+      case ("yellow")
+        colored_text = ESC//"33m"//trim(text)//ESC//"0m"
+      case ("gold")
+        !> 256-color code for a “gold-ish” color
+        colored_text = ESC//"38;5;214m"//trim(text)//ESC//"0m"
+      case default
+        !> If color not recognized (or empty), return text unmodified
+        colored_text = text
+      end select
+
+    else
+      ! Not a terminal => no color codes
+      colored_text = text
+    end if
+
+  end function colorify
+
+!=========================================================================================!
+
+  subroutine drawbox(prch,str,width,charset,padl,padr,ltab,procedual,color)
+  !***********************************************************************
+  !* Print a text string inside a drawn box to Fortran unit prch.
+  !*
+  !* Arguments:
+  !*   prch      - Fortran output unit (e.g. stdout)
+  !*   str       - text to display on the centre line
+  !*   charset   - border style (default 1):
+  !*                 1 → ******   2 → +-+|++   3 → === ==
+  !*                 4 → ┌─┐│└┘  5 → ┏━┓┃┗┛   6 → ╔═╗║╚╝
+  !*                 7 → ┍━┑│┕┙  (mixed: flat top/bottom, straight sides)
+  !*   width     - total box width including borders; if omitted, box is
+  !*               sized to str + padding
+  !*   padl/padr - inner padding spaces left/right of str (default 1 each);
+  !*               when width is given, padl is auto-centred and padr fills
+  !*   ltab      - leading spaces before the box (default 0)
+  !*   procedual - which lines to emit: -1=all three (default),
+  !*               0=top only, 1=centre line only, 2=bottom only,
+  !*               3=separator (T-intersection) line only
+  !*   color     - optional border colour name passed to colorify()
+  !***********************************************************************
+    implicit none
+    integer,intent(in) :: prch
+    character(len=*),intent(in) :: str
+    integer,intent(in),optional :: charset
+    integer,intent(in),optional :: width,padl,padr,ltab
+    integer,intent(in),optional :: procedual
+    character(len=*),intent(in),optional :: color
+
+    integer :: strlen,padd,wid,ltabb,procc,paddl,paddr
+    character(len=*),parameter :: set1 = '******'
+    character(len=*),parameter :: set2 = '+-+|++'
+    character(len=*),parameter :: set3 = '=== =='
+    character(len=*),parameter :: set4 = '┌─┐│└┘'
+    character(len=*),parameter :: set5 = '┏━┓┃┗┛'
+    character(len=*),parameter :: set6 = '╔═╗║╚╝'
+    character(len=*),parameter :: set7 = '┍━┑│┕┙'
+
+    integer :: ul,ho,ur,ve,ll,lr,d
+    character(len=:),allocatable :: boxchars,sepchars
+
+    ul = 1; ho = 2; ur = 3; ve = 4; ll = 5; lr = 6; d = 0
+    if (present(charset)) then
+      if (charset >= 4) then
+        !> technically, utf-8 chars are wider ...
+        ul = 1; ho = 4; ur = 7; ve = 10; ll = 13; lr = 16; d = 2
+      end if
+      select case (charset)
+      case (2)
+        boxchars = set2
+        sepchars = '++'
+      case (3)
+        boxchars = set3
+        sepchars = '=='
+      case (4)
+        boxchars = set4
+        sepchars = '├┤'
+      case (5)
+        boxchars = set5
+        sepchars = '┣┫'
+      case (6)
+        boxchars = set6
+        sepchars = '╠╣'
+      case (7)
+        boxchars = set7
+        sepchars = '┝┥'
+      case default
+        boxchars = set1
+        sepchars = '**'
+      end select
+    else
+      boxchars = set1
+      sepchars = '**'
+    end if
+
+    strlen = len(str)
+    if (present(padl)) then
+      paddl = max(padl,0)
+    else
+      paddl = 1
+    end if
+    if (present(padr)) then
+      paddr = max(padr,0)
+    else
+      paddr = 1
+    end if
+    if (present(width)) then
+      wid = width-2
+      if (.not.present(padl)) then
+        paddl = (wid-strlen)/2
+      end if
+      paddr = wid-strlen-paddl
+    else
+      wid = (strlen+paddl+paddr)
+    end if
+
+    if (present(ltab)) then
+      ltabb = ltab
+    else
+      ltabb = 0
+    end if
+
+    procc = -1
+    if (present(procedual)) procc = procedual
+
+    if (procc == -1.or.procc == 0) then
+      write (prch,'(a)',advance='no') repeat(' ',ltabb)
+      if (present(color)) then
+        write (prch,'(a)') colorify(boxchars(ul:ul+d)//repeat(boxchars(ho:ho+d),wid)//boxchars(ur:ur+d),color)
+      else
+        write (prch,'(a)') boxchars(ul:ul+d)//repeat(boxchars(ho:ho+d),wid)//boxchars(ur:ur+d)
+      end if
+    end if
+
+    if (procc == -1.or.procc == 1) then
+      write (prch,'(a)',advance="no") repeat(' ',ltabb)
+      if (present(color)) then
+        write (prch,'(a)') colorify(boxchars(ve:ve+d),color)// &
+          & repeat(' ',paddl)//str//repeat(' ',paddr)// &
+          & colorify(boxchars(ve:ve+d),color)
+      else
+        write (prch,'(a)') boxchars(ve:ve+d)//repeat(' ',paddl)//str//repeat(' ',paddr)//boxchars(ve:ve+d)
+      end if
+    end if
+
+    if (procc == -1.or.procc == 2) then
+      write (prch,'(a)',advance='no') repeat(' ',ltabb)
+      if (present(color)) then
+        write (prch,'(a)') colorify(boxchars(ll:ll+d)//repeat(boxchars(ho:ho+d),wid)//boxchars(lr:lr+d),color)
+      else
+        write (prch,'(a)') boxchars(ll:ll+d)//repeat(boxchars(ho:ho+d),wid)//boxchars(lr:lr+d)
+      end if
+    end if
+
+    if (procc == 3) then
+      write (prch,'(a)',advance='no') repeat(' ',ltabb)
+      if (present(color)) then
+        write (prch,'(a)') colorify(sepchars(1:1+d)//repeat(boxchars(ho:ho+d),wid)//sepchars(2+d:2*(1+d)),color)
+      else
+        write (prch,'(a)') sepchars(1:1+d)//repeat(boxchars(ho:ho+d),wid)//sepchars(2+d:2*(1+d))
+      end if
+    end if
+
+  end subroutine drawbox
 
 !=========================================================================================!
 !=========================================================================================!
@@ -931,9 +1157,8 @@ contains !> MODULE PROCEDURES START HERE
     end if
   end function truncate_zeros
 
-!========================================================================================!
-!========================================================================================!
-!========================================================================================!
+! ══════════════════════════════════════════════════════════════════════════════
+! ══════════════════════════════════════════════════════════════════════════════
 
   subroutine getpath(fname,path)
     implicit none
@@ -1161,9 +1386,49 @@ contains !> MODULE PROCEDURES START HERE
 
   end subroutine split_path
 
-!========================================================================================!
-!========================================================================================!
-!========================================================================================!
+!=========================================================================================!
+
+  function random_tmp_name() result(fname)
+    implicit none
+    character(len=20) :: fname
+    character(len=16) :: core
+    integer :: i,idx
+    real(wp) :: idxr
+    character(len=*),parameter :: letters = &
+    & "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    integer,parameter :: lenletters = len(letters)
+
+    do i = 1,len(core)
+      call random_number(idxr)
+      idx = int(idxr*lenletters)+1
+      core(i:i) = letters(idx:idx)
+    end do
+
+    fname = trim(core)//".tmp"
+  end function random_tmp_name
+
+!==========================================================================================!
+!
+  function dump_array_to_tmp(arr) result(fname)
+    implicit none
+    real(wp),intent(in) :: arr(:)
+    character(len=:),allocatable :: fname
+    integer :: unit,i
+
+    fname = trim(random_tmp_name())
+
+    open (newunit=unit,file=fname,status="replace",action="write",iostat=i)
+    if (i /= 0) stop "Could not open temp file."
+
+    do i = 1,size(arr)
+      write (unit,'(f25.15)') arr(i)
+    end do
+
+    close (unit)
+  end function dump_array_to_tmp
+
+! ══════════════════════════════════════════════════════════════════════════════
+! ══════════════════════════════════════════════════════════════════════════════
 
 !> For some reason the behaviour of "call system"  and "call execute_command_line"
 !> differs slightly beteen Intel and GNU versions of the program that I have build.
@@ -1187,5 +1452,53 @@ contains !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 !========================================================================================!
+!> subroutine readl
+!> Parse a line of text and extract all real(wp) numbers from it.
+!> Numbers may be separated by whitespace (spaces or tabs).
+!> Handles integers, reals, signed values, and scientific notation (E/D exponent).
+!> This is a modern replacement for the legacy standalone readl subroutine.
+  subroutine readl(a1,x,n)
+    implicit none
+    character(len=*),intent(in) :: a1
+    real(wp),intent(out) :: x(:)
+    integer,intent(out) :: n
+    integer :: pos,next_pos,slen,io
+    real(wp) :: val
+    character(len=:),allocatable :: token
+
+    n = 0
+    slen = len_trim(a1)
+    if (slen == 0) return
+
+    pos = 1
+    do
+      !> skip whitespace (spaces and tabs)
+      do while (pos <= slen)
+        if (a1(pos:pos) /= ' ' .and. a1(pos:pos) /= char(9)) exit
+        pos = pos+1
+      end do
+      if (pos > slen) exit
+
+      !> find end of token
+      next_pos = pos
+      do while (next_pos <= slen)
+        if (a1(next_pos:next_pos) == ' ' .or. a1(next_pos:next_pos) == char(9)) exit
+        next_pos = next_pos+1
+      end do
+
+      !> try to parse token as a real number
+      token = a1(pos:next_pos-1)
+      read (token,*,iostat=io) val
+      if (io == 0) then
+        n = n+1
+        if (n <= size(x)) x(n) = val
+      end if
+
+      pos = next_pos
+    end do
+  end subroutine readl
+
+! ══════════════════════════════════════════════════════════════════════════════
+! ══════════════════════════════════════════════════════════════════════════════
 end module iomod
 

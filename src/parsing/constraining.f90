@@ -326,7 +326,7 @@ end subroutine rdcoord_reduced
 subroutine sort_constraints(cts)
   use crest_data
   implicit none
-  type(constra) :: cts
+  type(legacy_constraints) :: cts
 
   character(len=128) :: atmp,btmp
   integer :: i,j
@@ -376,7 +376,7 @@ end subroutine sort_constraints
 subroutine read_constrainbuffer(fname,cts)
   use crest_data
   implicit none
-  type(constra) :: cts
+  type(legacy_constraints) :: cts
   character(len=*) :: fname
 
   character(len=128) :: atmp
@@ -418,7 +418,7 @@ end subroutine read_constrainbuffer
 subroutine write_cts(ich,cts)
   use crest_data
   implicit none
-  type(constra) :: cts
+  type(legacy_constraints) :: cts
   integer :: ich
   integer :: i
 !--- not really a "constraint", but convenient for the implementation:
@@ -455,7 +455,7 @@ end subroutine write_cts
 subroutine write_cts_NCI(ich,cts)
   use crest_data
   implicit none
-  type(constra) :: cts
+  type(legacy_constraints) :: cts
   integer :: ich
   integer :: i
 !---- do it only if constaints are given
@@ -476,7 +476,7 @@ end subroutine write_cts_NCI
 subroutine write_cts_NCI_pr(ich,cts)
   use crest_data
   implicit none
-  type(constra) :: cts
+  type(legacy_constraints) :: cts
   integer :: ich
   integer :: i
 !---- do it only if constaints are given
@@ -497,7 +497,7 @@ subroutine write_cts_biasext(ich,cts)
   use crest_data
   use iomod
   implicit none
-  type(constra) :: cts
+  type(legacy_constraints) :: cts
   integer :: ich
 !---- do it only if constaints are given
   if (cts%usermsdpot) then
@@ -758,7 +758,7 @@ end subroutine rdrcontrol
 subroutine write_cts_rcontrol(ich,cts)
   use crest_data
   implicit none
-  type(constra) :: cts
+  type(legacy_constraints) :: cts
   integer :: ich,i
   if (cts%ureactor) then
     do i = 1,cts%nrctrl
@@ -806,7 +806,7 @@ end subroutine rd_cbonds
 subroutine write_cts_CBONDS(ich,cts)
   use crest_data
   implicit none
-  type(constra) :: cts
+  type(legacy_constraints) :: cts
   integer :: ich
   integer :: i
 !---- do it only if constaints are given
@@ -826,7 +826,7 @@ end subroutine write_cts_CBONDS
 subroutine write_cts_DISP(ich,cts)
   use crest_data
   implicit none
-  type(constra) :: cts
+  type(legacy_constraints) :: cts
   integer :: ich
   character(len=40) :: dum
 !---- apply dispersion scaling factor (> xtb 6.4.0)

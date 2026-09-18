@@ -1,21 +1,15 @@
 #!/bin/bash
+# iMTD-GC conformer search of 1-propanol with GFN2-xTB and ALPB implicit solvation (water).
+# Conformers in solution differ in relative energy from the gas phase.
+# Uses 4 CPU threads.  Output: crest_conformers.xyz
 
-xtbin='xtb'
-crst='crest'
+command -v crest >/dev/null 2>&1 || {
+  echo >&2 "Cannot find crest binary."
+  exit 1
+}
 
-command -v $xtbin >/dev/null 2>&1 || { echo >&2 "Cannot find xtb binary. Exit."; exit 1; }
-command -v $crst >/dev/null 2>&1 || { echo >&2 "Cannot find crest binary. Exit."; exit 1; }
+# --- CLI run ---
+crest struc.xyz -gfn2 -alpb h2o -T 4 -ewin 2.0 -imtdgc
 
-if [ $xtbin == 'xtb' ]
- then
-    $crst struc.xyz -protonate
- else
-    $crst struc.xyz -protonate -xnam $xtbin
- fi
-
-
-# This command will create protomers of the uracil molecule.
-# The default energy window for this application is 30 kcal/mol
-# Only 3 structures should remain in the gas phase at the
-# default GFN2-xTB level.
-# The structures can be found in the file 'protonated.xyz'
+# --- TOML run (equivalent settings) ---
+# crest input.toml

@@ -29,7 +29,7 @@ subroutine discretize_trj(env)
   use zdata,only:readwbo
   use adjacency
   use INTERNALS_mod
-  use rigidconf_analyze
+  use molbuilder_rigidconf_analyze
   use discretize_module
   implicit none
   !> INPUT/OUTPUT
@@ -105,7 +105,8 @@ subroutine discretize_trj(env)
   if (.true.) then
     zmax = mol%nat
     allocate (ztod(zmax),source=0)
-    call rigidconf_count_fallback(mol%nat,na,nb,nc,wbo,ndieder,ztod)
+    Amat(:,:) = nint(wbo(:,:))
+    call rigidconf_count_fallback(mol%nat,na,nb,nc,Amat,ndieder,ztod)
     if (ndieder < 1) stop 'no dihedral angles detected!'
 
     allocate (drep(ndieder),source=0)

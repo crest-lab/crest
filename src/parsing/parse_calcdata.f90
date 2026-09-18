@@ -28,8 +28,9 @@ module parse_calcdata
   use crest_data
   use crest_calculator,only:calcdata,calculation_settings,jobtype,constraint,scantype
   use dynamics_module
+  use bh_module
   use gradreader_module,only:gradtype,conv2gradfmt
-  use tblite_api,only:xtblvl
+  use tblite_api,only:xtblvl,have_gxtb
   use strucrd,only:get_atlist,coord
   use axis_module
 
@@ -62,6 +63,7 @@ module parse_calcdata
 
   public :: parse_calculation_data
   public :: parse_dynamics_data
+  public :: parse_basinhopping_data
 
   character(len=*),parameter,private :: fmturk = '("unrecognized KEYWORD in ",a," : ",a)'
   character(len=*),parameter,private :: fmtura = '("unrecognized ARGUMENT : ",a)'
@@ -164,8 +166,34 @@ contains !> MODULE PROCEDURES START HERE
         write (stdout,fmturk) '[['//blk%header//']]-block',blk%kv_list(i)%key
       end if
     end do
+
+!>-- method-specific defaults, applied only after the entire block was read
+!>   so that they do not depend on the order of the key/value pairs
+    call parse_level_defaults(job)
     return
   end subroutine parse_leveldata
+
+!========================================================================================!
+
+  subroutine parse_level_defaults(job)
+!************************************************************
+!* Apply defaults that depend on the selected method but must
+!* not overwrite anything the user specified explicitly.
+!* Currently only the electronic temperature: g-xTB works with
+!* integer occupations, i.e. Tel = 0 K, whereas the GFNn-xTB
+!* Hamiltonians default to 300 K.
+!************************************************************
+    implicit none
+    type(calculation_settings),intent(inout) :: job
+
+    if (job%tblitelvl == xtblvl%gxtb.and..not.job%etemp_user_set) then
+      job%etemp = 0.0_wp
+    end if
+
+  end subroutine parse_level_defaults
+
+!========================================================================================!
+
   subroutine parse_setting_auto(env,job,kv,rd)
     implicit none
     type(systemdata),intent(inout) :: env
@@ -173,12 +201,14 @@ contains !> MODULE PROCEDURES START HERE
     type(keyvalue) :: kv
     logical,intent(out) :: rd
     logical :: ex
+    integer :: n
     rd = .true.
     select case (kv%key)
 
 !>--- floats
     case ('etemp')
       job%etemp = kv%value_f
+      job%etemp_user_set = .true.
     case ('accuracy')
       job%accuracy = kv%value_f
     case ('weight')
@@ -189,10 +219,22 @@ contains !> MODULE PROCEDURES START HERE
       job%proberad = kv%value_f
     case ('radscal','pvol_radscal')
       job%pvradscal = kv%value_f
+    case ('efield')
+      n = size(kv%value_fa,1)
+      if (n .ne. 3) then
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) trim(kv%rawvalue)
+        call creststop(status_config)
+      end if
+      allocate (job%efield(3),source=0.0_wp)
+      job%efield(:) = kv%value_fa(:)
 
 !>--- integers
-    case ('uhf','multiplicity')
+    case ('uhf')
       job%uhf = kv%value_i
+      call job%sync_multiplicity()
+    case ('multiplicity','mult')
+      call job%set_multiplicity(kv%value_i)
     case ('chrg','charge')
       job%chrg = kv%value_i
     case ('id')
@@ -203,6 +245,10 @@ contains !> MODULE PROCEDURES START HERE
       job%ngrid = kv%value_i
     case ('vdwset','pvol_vdwset')
       job%vdwset = kv%value_i
+    case ('mlip_port','mlip_base_port')
+      job%MPAR%BASE_PORT = kv%value_i
+    case ('mlip_timeout','mlip_timeout_sec')
+      job%MPAR%TIMEOUT_SEC = kv%value_i
     case ('config')
       call job%addconfig(kv%value_ia)
 
@@ -241,15 +287,39 @@ contains !> MODULE PROCEDURES START HERE
         job%id = jobtype%gfnff
       case ('pvol','libpvol','pv')
         job%id = jobtype%libpvol
-      case ('gxtb_dev')  
-        job%id = jobtype%turbomole 
-        job%rdgrad = .true.       
-        job%binary = 'gxtb' 
-        job%other ='-grad'
+      case ('gxtb','g-xtb','gxtb-xtb')
+        if (have_gxtb) then
+          job%id = jobtype%tblite
+          job%tblitelvl = xtblvl%gxtb
+        else
+          job%id = jobtype%xtbsys
+          job%other = '--gxtb'
+        end if
+      case ('gxtb_dev')
+        if (have_gxtb) then
+          call gxtb_dev_warning()
+        else
+          job%id = jobtype%xtbsys
+          job%other = '--gxtb'
+        end if
       case ('none')
         job%id = jobtype%unknown
       case ('lj','lennard-jones')
         job%id = jobtype%lj
+      case ('modh')
+        job%id = jobtype%approxg
+      case ('rmsdbias','penalty')
+        job%id = jobtype%penalty
+        nullify (job%penalty%biaslist)
+      case ('mlip','fmlip_relay')
+        job%id = jobtype%mlip
+      case ('solvation','solvator')
+        job%id = jobtype%solvation
+        if (.not.allocated(job%solv)) allocate (job%solv)
+      case ('eeq','eeqbc','electrostatic')
+        job%id = jobtype%electrostatic
+        if (.not.allocated(job%eeq)) allocate (job%eeq)
+        if (kv%value_c /= 'electrostatic') job%eeq%charge_model = kv%value_c
       case default
         job%id = jobtype%unknown
         !>--- keyword was recognized, but invalid argument supplied
@@ -269,6 +339,9 @@ contains !> MODULE PROCEDURES START HERE
 
     case ('calcspace','dir')
       job%calcspace = kv%value_c
+
+    case ('threads','ncores')
+      job%threads = kv%value_i
 
     case ('gradfile')
       job%gradfile = kv%value_c
@@ -317,16 +390,36 @@ contains !> MODULE PROCEDURES START HERE
       case ('eeq','d4eeq')
         job%tblitelvl = xtblvl%eeq
         job%rdgrad = .false.
+      case ('gxtb','g-xtb')
+        job%tblitelvl = xtblvl%gxtb
       case default
         job%tblitelvl = xtblvl%unknown
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) kv%value_c
         call creststop(status_config)
-
       end select
+
     case ('tblite_param')
       job%tbliteparam = kv%value_c
       job%tblitelvl = xtblvl%param
+
+    case ('mlip_backend')
+      job%MPAR%backend = kv%value_c
+
+    case ('mlip_modelpath')
+      job%MPAR%modelpath = kv%value_c
+
+    case ('mlip_modelsize','mlip_modelname')
+      job%MPAR%modelsize = kv%value_c
+
+    case ('mlip_device')
+      job%MPAR%device = kv%value_c
+
+    case ('mlip_uma_model','mlip_umamodel')
+      job%MPAR%umamodel = kv%value_c
+
+    case ('mlip_uma_task','mlip_umatask')
+      job%MPAR%umatask = kv%value_c
 
     case ('orca_cmd')
       job%id = jobtype%orca
@@ -334,11 +427,44 @@ contains !> MODULE PROCEDURES START HERE
       job%binary = kv%value_c
     case ('orca_template')
       job%id = jobtype%orca
+      if (job%ORCA%srckind == 2) then
+        write (stdout,'(a)') '**ERROR** orca_template and orca_input are mutually exclusive!'
+        call creststop(status_config)
+      end if
       call job%ORCA%read(kv%value_c)
+    case ('orca_input')
+      job%id = jobtype%orca
+      if (job%ORCA%srckind == 1) then
+        write (stdout,'(a)') '**ERROR** orca_template and orca_input are mutually exclusive!'
+        call creststop(status_config)
+      end if
+      call job%ORCA%build(kv%value_c)
+    case ('orca_memory','orca_maxcore')
+      job%id = jobtype%orca
+      job%ORCA%maxcore = kv%value_i
 
-    case ('gbsa','alpb','cpcm')
+    case ('gbsa','alpb','cpcm','cosmo','pcm')
       job%solvmodel = kv%key
       job%solvent = kv%value_c
+
+!>--- composite solvation calculator (method = "solvation") settings
+    case ('solvent')
+      if (.not.allocated(job%solv)) allocate (job%solv)
+      job%solv%solvent = kv%value_c
+    case ('solv_model')
+      if (.not.allocated(job%solv)) allocate (job%solv)
+      job%solv%smodel = kv%value_c
+    case ('solv_charges')
+      if (.not.allocated(job%solv)) allocate (job%solv)
+      job%solv%charge_model = kv%value_c
+    case ('solv_hbond')
+      if (.not.allocated(job%solv)) allocate (job%solv)
+      job%solv%do_hbond = kv%value_b
+
+!>--- charge-equilibration electrostatics calculator settings
+    case ('eeq_model','charge_model')
+      if (.not.allocated(job%eeq)) allocate (job%eeq)
+      job%eeq%charge_model = kv%value_c
 
     case ('refine','refinement')
       select case (kv%value_c)
@@ -348,6 +474,8 @@ contains !> MODULE PROCEDURES START HERE
         job%refine_lvl = refine%correction
       case ('opt','optimization')
         job%refine_lvl = refine%geoopt
+      case ('freq','frequencies','deltag')
+        job%refine_lvl = refine%deltaG
       case default
         job%refine_lvl = refine%non
         !>--- keyword was recognized, but invalid argument supplied
@@ -375,6 +503,21 @@ contains !> MODULE PROCEDURES START HERE
         call creststop(status_input)
       end if
 
+    case ('biasfile')
+      inquire (file=kv%value_c,exist=ex)
+      if (ex) then
+        job%penalty%biasfile = kv%value_c
+      else
+        write (stderr,'(a,a,a)') 'specified bias file ',kv%value_c,' does not exist'
+        call creststop(status_input)
+      end if
+
+    case ('penalty_kpush')
+      job%penalty%kpush = kv%value_f
+
+    case ('penalty_alpha')
+      job%penalty%alpha = kv%value_f
+
     case ('parametrisation')
       inquire (file=kv%value_c,exist=ex)
       if (ex) then
@@ -390,6 +533,20 @@ contains !> MODULE PROCEDURES START HERE
         job%refcharges = kv%value_c
       else
         write (stderr,'(a,a,a)') 'specified reference charge file ',kv%value_c,' does not exist'
+        call creststop(status_config)
+      end if
+
+    case ('fragment','fragments')
+      !>--- user-defined fragmentation, e.g. fragments = ["1-432","433-458"]
+      !>    each entry is an atom-range string defining one fragment.
+      !>    A single string (one fragment) is also accepted.
+      if (allocated(kv%value_ca)) then
+        job%gff_fragments = kv%value_ca
+      else if (allocated(kv%value_c)) then
+        allocate (character(len=len(kv%value_c)) :: job%gff_fragments(1))
+        job%gff_fragments(1) = kv%value_c
+      else
+        write (stderr,'(a)') 'could not read fragment definition'
         call creststop(status_config)
       end if
 
@@ -450,6 +607,10 @@ contains !> MODULE PROCEDURES START HERE
       job%apiclean = kv%value_b
     case ('lmo','lmocent')
       job%getlmocent = kv%value_b
+    case ('ceh_guess')
+      job%ceh_guess = kv%value_b
+    case ('spin_polarized')
+      job%spin_polarized = kv%value_b
 
     case default
       !>--- keyword not correctly read/found
@@ -510,9 +671,30 @@ contains !> MODULE PROCEDURES START HERE
     case ('hguess')
       calc%hguess = kv%value_f  !> guess for the initial hessian
 
+    case ('opt_lval')
+      calc%L = kv%value_f !> Parameters for smooth function for stepsize control within optimizer
+
+    case ('opt_k')
+      calc%k = kv%value_f
+
+    case ('opt_shift')
+      calc%shift = kv%value_f
+
+    case ('scaling')
+      calc%scaling = kv%value_f
+
+    case ('doh_stepsize')
+      calc%doh_stepsize = kv%value_f
+
+    case ('chess_id_guess')
+      calc%chess_id_guess = kv%value_f
+
 !>--- integers
     case ('maxcycle')
       calc%maxcycle = kv%value_i  !> optimization max cycles
+
+    case ('chess_steps')
+      calc%hu_steps = kv%value_i
 
 !>--- strings
     case ('id','type')
@@ -559,8 +741,102 @@ contains !> MODULE PROCEDURES START HERE
         calc%opt_engine = 1
       case ('rfo','rfo-cart')
         calc%opt_engine = 2
+      case ('newton','nr')
+        calc%opt_engine = 3
       case ('gd','gradient descent')
         calc%opt_engine = -1
+      case default
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        call creststop(status_config)
+      end select
+
+    case ('hr_init','hr_initialization') !> here we set how the matrix for hessian reconstruction is initialized
+      select case (kv%value_c)
+      case ('identity')
+        calc%initialize_hr_type = 0
+      case ('gfnff','gfn-ff')
+        calc%initialize_hr_type = 1
+      case ('gfn0')
+        calc%initialize_hr_type = 2
+      case ('gfn1')
+        calc%initialize_hr_type = 3
+      case ('gfn2')
+        calc%initialize_hr_type = 4
+      case ('modhess')
+        calc%initialize_hr_type = 5
+      case default
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        call creststop(status_config)
+      end select
+
+    case ('gs_hess_type')
+      select case (kv%value_c)
+      case ('gfnff','gfn-ff')
+        calc%gs_hess_type = 1
+      case ('gfn0')
+        calc%gs_hess_type = 2
+      case ('gfn1')
+        calc%gs_hess_type = 3
+      case ('gfn2')
+        calc%gs_hess_type = 4
+      case ('modhess')
+        calc%gs_hess_type = 5
+      case default
+        !>--- keyword was recognized, but
+        write (stdout,fmtura) kv%value_c
+        call creststop(status_config)
+      end select
+
+    case ('modhess_type','mh_type') !> here we set how the matrix for hessian reconstruction is initialized
+      select case (kv%value_c)      !>maybe need to add another keywort for crosstesting hr and geopt -> No,
+      case ('lindh95')
+        calc%mh_type = 0
+      case ('lindh')
+        calc%mh_type = 1
+      case ('lindh07')
+        calc%mh_type = 2
+      case ('swart')
+        calc%mh_type = 3
+      case default
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        call creststop(status_config)
+      end select
+
+    case ('hess_init','hess_initialization') !> here we set how the hessian for optimization
+      select case (kv%value_c)
+      case ('identity')
+        calc%hess_init = 0
+      case ('gfnff','gfn-ff')
+        calc%hess_init = 1
+      case ('gfn0')
+        calc%hess_init = 2
+      case ('gfn1')
+        calc%hess_init = 3
+      case ('gfn2')
+        calc%hess_init = 4
+      case ('modhess')
+        calc%hess_init = 5
+      case default
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%value_c
+        call creststop(status_config)
+      end select
+
+    case ('hr_hess_update','hr_hu_update')
+      select case (kv%value_c) !> Hessian updates in hessian reconstruction
+      case ('bfgs')
+        calc%hr_hu_type = 0
+      case ('powell')
+        calc%hr_hu_type = 1
+      case ('sr1')
+        calc%hr_hu_type = 2
+      case ('bofill')
+        calc%hr_hu_type = 3
+      case ('schlegel')
+        calc%hr_hu_type = 4
       case default
         !>--- keyword was recognized, but invalid argument supplied
         write (stdout,fmtura) kv%value_c
@@ -578,6 +854,18 @@ contains !> MODULE PROCEDURES START HERE
 
     case ('exact_rf')
       calc%exact_rf = kv%value_b
+
+    case ('chess')
+      calc%do_HR = kv%value_b
+
+    case ('full_chess') !> Do Hessian Reconstruct with all optimization steps
+      calc%full_HR = kv%value_b
+
+    case ('deform_opt_hess')
+      calc%deform_opt_hess = kv%value_b
+
+    case ("g_sampling") !> Do sampling on free energy surface as approximated by lindh95 hessian
+      calc%g_sampling = kv%value_b
 
     case default
       rd = .false.
@@ -983,7 +1271,7 @@ contains !> MODULE PROCEDURES START HERE
         included = .true.
         call parse_mddat(env,blk,mddat,istat)
       else if (blk%header == 'dynamics.meta') then
-        call parse_metadyn(blk,mddat,istat)
+        call parse_metadyn(env,blk,mddat,istat)
         included = .true.
       end if
     end do
@@ -1031,13 +1319,15 @@ contains !> MODULE PROCEDURES START HERE
       mddat%active_potentials = kv%value_ia
 
     case ('includermsd','atlist+')
+      nat = env%ref%nat
       call get_atlist(nat,atlist,kv%rawvalue,env%ref%at)
-      if (.not.allocated(env%includeRMSD)) allocate (env%includeRMSD(nat),source=1)
+      if (.not.allocated(env%includeRMSD)) allocate (env%includeRMSD(nat),source=0)
       do j = 1,nat
         if (atlist(j)) env%includeRMSD(j) = 1
       end do
 
     case ('excludermsd','atlist-')
+      nat = env%ref%nat
       call get_atlist(nat,atlist,kv%rawvalue,env%ref%at)
       if (.not.allocated(env%includeRMSD)) allocate (env%includeRMSD(nat),source=1)
       do j = 1,nat
@@ -1046,6 +1336,7 @@ contains !> MODULE PROCEDURES START HERE
 
     case ('length','length_ps')
       mddat%length_ps = kv%value_f
+      env%user_mdtime = .true.
     case ('dump')
       mddat%dumpstep = kv%value_f
     case ('hmass')
@@ -1054,6 +1345,20 @@ contains !> MODULE PROCEDURES START HERE
       mddat%tstep = kv%value_f
     case ('t','temp','temperature')
       mddat%tsoll = kv%value_f
+      mddat%thermostat = .true.
+
+    case ('thermostat')
+      select case (kv%value_c)
+      case ('off','nve')
+        mddat%thermotype = 'none'
+      case ('berendsen','langevin','bbk')
+        mddat%thermotype = trim(kv%value_c)
+      case ('bussi','bussi-donaido-parinello','bussi-parinello','csvr')
+        mddat%thermotype = 'bussi'
+      case default
+        write (stdout,fmtura) kv%value_c
+        call creststop(status_config)
+      end select
       mddat%thermostat = .true.
 
     case ('shake')
@@ -1090,13 +1395,14 @@ contains !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine parse_metadyn(blk,mddat,istat)
+  subroutine parse_metadyn(env,blk,mddat,istat)
 !**************************************************
 !* The following routines are used to
 !* read information into the "metadynamics" object
 !* and add it to a mol.dynamics data object
 !***************************************************
     implicit none
+    type(systemdata),intent(inout) :: env
     type(datablock),intent(in) :: blk
     type(mddata),intent(inout) :: mddat
     integer,intent(inout) :: istat
@@ -1108,7 +1414,7 @@ contains !> MODULE PROCEDURES START HERE
     success = .false.
     if (blk%header .ne. 'dynamics.meta') return
     do i = 1,blk%nkv
-      call parse_metadyn_auto(mtd,blk%kv_list(i),success,rd)
+      call parse_metadyn_auto(env,mtd,blk%kv_list(i),success,rd)
       if (.not.rd) then
         istat = istat+1
         write (stdout,fmturk) '[['//blk%header//']]-block',blk%kv_list(i)%key
@@ -1117,12 +1423,15 @@ contains !> MODULE PROCEDURES START HERE
     if (success) call mddat%add(mtd)
     return
   end subroutine parse_metadyn
-  subroutine parse_metadyn_auto(mtd,kv,success,rd)
+  subroutine parse_metadyn_auto(env,mtd,kv,success,rd)
     implicit none
+    type(systemdata),intent(inout) :: env
     type(keyvalue) :: kv
     type(mtdpot) :: mtd
     logical,intent(inout) :: success
     logical,intent(out) :: rd
+    integer :: j,nat
+    logical,allocatable :: atlist(:)
     rd = .true.
 
     select case (kv%key)
@@ -1156,12 +1465,145 @@ contains !> MODULE PROCEDURES START HERE
       mtd%mtdtype = cv_rmsd_static
       mtd%biasfile = kv%value_c
 
+    case ('includermsd','atlist+')
+      nat = env%ref%nat
+      call get_atlist(nat,atlist,kv%rawvalue,env%ref%at)
+      if (.not.allocated(mtd%atinclude)) allocate (mtd%atinclude(nat),source=.false.)
+      do j = 1,nat
+        if (atlist(j)) mtd%atinclude(j) = .true.
+      end do
+
+    case ('excludermsd','atlist-')
+      nat = env%ref%nat
+      call get_atlist(nat,atlist,kv%rawvalue,env%ref%at)
+      if (.not.allocated(mtd%atinclude)) allocate (mtd%atinclude(nat),source=.true.)
+      do j = 1,nat
+        if (atlist(j)) mtd%atinclude(j) = .false.
+      end do
+
     case default
       rd = .false.
       return
     end select
 
   end subroutine parse_metadyn_auto
+
+!========================================================================================!
+
+  subroutine parse_basinhopping_data(env,bh,dict,included,istat)
+!**********************************************
+!* The following routines are used to
+!* read information into the "bh_class" object
+!**********************************************
+    implicit none
+    type(systemdata) :: env
+    type(bh_class) :: bh
+    type(root_object) :: dict
+    type(datablock) :: blk
+    type(calculation_settings) :: newjob
+    type(constraint) :: newcstr
+    integer :: i,j,k,l
+    logical,intent(out) :: included
+    integer,intent(inout) :: istat
+
+    included = .false.
+
+    do i = 1,dict%nblk
+      call blk%deallocate()
+      blk = dict%blk_list(i)
+      if (blk%header == 'basinhopping') then
+        included = .true.
+        call parse_bh_class(env,blk,bh,istat)
+      end if
+    end do
+    return
+  end subroutine parse_basinhopping_data
+  subroutine parse_bh_class(env,blk,bh,istat)
+    implicit none
+    type(systemdata),intent(inout) :: env
+    type(datablock),intent(in) :: blk
+    type(bh_class),intent(inout) :: bh
+    integer,intent(inout) :: istat
+    integer :: i,j,nat
+    logical :: rd
+    if (blk%header .ne. 'basinhopping') return
+
+    do i = 1,blk%nkv
+      call parse_bh_auto(env,bh,blk%kv_list(i),rd)
+      if (.not.rd) then
+        istat = istat+1
+        write (stdout,fmturk) '['//blk%header//']-block',blk%kv_list(i)%key
+      end if
+    end do
+    return
+  end subroutine parse_bh_class
+  subroutine parse_bh_auto(env,bh,kv,rd)
+    implicit none
+    type(systemdata),intent(inout) :: env
+    type(bh_class) :: bh
+    type(keyvalue) :: kv
+    logical,intent(out) :: rd
+    logical,allocatable :: atlist(:)
+    integer :: n,j
+    logical :: ex
+    rd = .true.
+
+    select case (kv%key)
+    case ('maxiter') !> these are NOT the BH steps!
+      bh%maxiter = max(1,kv%value_i)
+
+    case ('maxsave')
+      bh%maxsave = kv%value_i
+
+    case ('seed')
+      if (.not.allocated(bh%seed)) allocate (bh%seed)
+      bh%seed = kv%value_i
+
+    case ('step','stepsize')
+      select case (kv%id)
+      case (valuetypes%int)
+        bh%stepsize(1) = real(kv%value_i)
+      case (valuetypes%float)
+        bh%stepsize(1) = kv%value_f
+      case (valuetypes%float_array)
+        n = min(size(kv%value_fa,1),3)
+        bh%stepsize(1:n) = kv%value_fa(1:n)
+      case default
+        !>--- keyword was recognized, but invalid argument supplied
+        write (stdout,fmtura) kv%rawvalue
+        call creststop(status_config)
+      end select
+
+    case ('steps','maxsteps')  !> these are the BH steps
+      bh%maxsteps = kv%value_i
+
+    case ('steptype')
+      select case (kv%value_c)
+      case ('cartesian')
+        bh%steptype = 0
+      case ('internal')
+        bh%steptype = 1
+      case ('dihedral')
+        bh%steptype = 2
+      case ('intermol')
+        bh%steptype = 3
+      case default
+        write (stdout,fmtura) trim(kv%value_c)
+        call creststop(status_config)
+      end select
+
+    case ('temp','T')
+      bh%temp = kv%value_f
+
+    case ('parallel')
+      bh%parallel = kv%value_b
+
+    case default
+      rd = .false.
+      return
+    end select
+
+  end subroutine parse_bh_auto
 
 !========================================================================================!
 !========================================================================================!

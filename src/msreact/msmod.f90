@@ -774,7 +774,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=80) :: comment
     logical :: ex
     logical :: lprint
-    character(len=40) :: sumform,sumformula
+    character(len=40) :: sumformula
     real(wp) :: mass,erel
 
     nat = mso%pl%mol(1)%nat

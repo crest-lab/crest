@@ -1,4 +1,13 @@
 [wrap-git]
-directory = tblite
-url = https://github.com/ppracht/tblite
-revision = xtb_solvation
+url = https://github.com/tblite/tblite
+revision = b244a0f2f9f254781f09711d05573f3225df4eb2
+clone-recursive = true
+
+[provide]
+tblite = tblite_dep
+
+[default_options]
+api = false
+ddx = true
+hdf5 = disabled
+trexio = disabled

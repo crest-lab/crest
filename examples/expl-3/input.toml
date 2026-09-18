@@ -1,0 +1,9 @@
+# Geometry optimization followed by Hessian (vibrational frequency) calculation
+runtype = "ohess"
+input   = "struc.xyz"   # input structure file (1-propanol)
+
+[calculation]
+optlev = "tight"        # tighter convergence before frequency calculation
+
+[[calculation.level]]
+method = "gfn2"         # GFN2-xTB semi-empirical Hamiltonian

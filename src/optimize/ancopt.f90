@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 - 2022 Philipp Pracht
+! Copyright (C) 2021 - 2026 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -23,18 +23,19 @@
 !> This module implements the ANCOPT algorithm
 
 module ancopt_module
-  use iso_fortran_env, only: wp=>real64, sp=>real32
+  use iso_fortran_env,only:wp => real64,sp => real32
   !use crest_parameters
   use crest_calculator
   use axis_module
   use strucrd
-  use ls_rmsd
+  use irmsd_module,only:rmsd,rmsd_core_cache
 
   use optimize_type
   use optimize_maths
   use modelhessian_module
   use hessupdate_module
   use optimize_utils
+  use hessian_reconstruct
   implicit none
   private
 
@@ -46,7 +47,7 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
-  subroutine ancopt(mol,calc,etot,grd,pr,wr,iostatus)
+  subroutine ancopt(mol,calc,etot,grd,pr,wr,iostatus,logfile)
 !*************************************************************************
 !> subroutine ancopt
 !> Implementation of the Aproximate Normal Coordinate (ANC) optimizer
@@ -61,9 +62,10 @@ contains  !> MODULE PROCEDURES START HERE
 !>             on output final energy
 !>      grd  - Cartesian gradient
 !>       pr  - printout bool
-!>       wr  - logfile (crestopt.log) bool
+!>       wr  - logfile bool (name given by logfile, default crestopt.log.xyz)
 !>  iostatus - return status of the routine
 !>             (success=0, error<0, not converged>0)
+!>   logfile - name of the trajectory logfile to write when wr is set
 !!***********************************************************************
     implicit none
     !> INPUT/OUTPUT
@@ -74,6 +76,7 @@ contains  !> MODULE PROCEDURES START HERE
     logical,intent(in) :: pr
     logical,intent(in) :: wr
     integer,intent(out) :: iostatus
+    character(len=*),intent(in) :: logfile
     !> LOCAL
     integer  :: tight
     real(wp) :: eel
@@ -82,13 +85,15 @@ contains  !> MODULE PROCEDURES START HERE
     logical :: fail
     !> Local objects
     type(coord)   :: molopt
+    type(coord)   :: molref   !> pre-relax reference geometry for the RMSD probe
     type(optimizer)  :: OPT
     type(mhparam) :: mhset
+    type(rmsd_core_cache) :: rcache
 
     real(wp) :: step,amu2au,au2cm,dumi,dumj,damp,hlow,edum,s6,thr
     real(wp) :: maxdispl,gthr,ethr,hmax,energy,rij(3),t1,t0,w1,w0
     real(wp) :: rot(3),gnorm
-    integer :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,nat3
+    integer :: n3,i,j,k,l,jjj,ic,jc,ia,ja,ii,jj,info,nat3,info2
     integer :: nvar,iter,nread,maxcycle,maxmicro,itry,maxopt,iupdat,iii
     integer :: id,ihess,error
     integer :: ilog
@@ -101,9 +106,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer,allocatable :: iwork(:)
     integer,allocatable :: totsym(:)
     real(wp),allocatable :: pmode(:,:)
-    real(wp),allocatable :: grmsd(:,:)
     type(convergence_log),allocatable :: avconv
-    real(wp) :: U(3,3),x_center(3),y_center(3),rmsdval
+    real(wp) :: rmsdval
     integer :: modef
     logical :: ex,converged,linear
     real(wp) :: estart,esave
@@ -119,8 +123,9 @@ contains  !> MODULE PROCEDURES START HERE
     iupdat = calc%iupdat
     hlow = calc%hlow_opt !> 0.01 in ancopt, 0.002 too small
     hmax = calc%hmax_opt
-    maxdispl = calc%maxdispl_opt 
+    maxdispl = calc%maxdispl_opt
     s6 = mhset%s6 !> slightly better than 30 for various proteins
+    mhset%model = calc%mh_type
 
 !> initial number of steps in relax() routine before
 !> new ANC are made by model Hessian
@@ -145,7 +150,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
     !$omp critical
-    allocate (pmode(nat3,1),grmsd(3,mol%nat)) ! dummy allocated
+    allocate (pmode(nat3,1)) ! dummy allocated
     !$omp end critical
 
 !>--- print a summary of settings, if desired
@@ -153,7 +158,6 @@ contains  !> MODULE PROCEDURES START HERE
       call print_optsummary(calc,tight,nvar,maxcycle,maxmicro, &
       &                       ethr,gthr,linear,wr)
     end if
-
 
 !>--- initialize OPT object
     !$omp critical
@@ -166,12 +170,19 @@ contains  !> MODULE PROCEDURES START HERE
     molopt%nat = mol%nat
     molopt%at = mol%at
     molopt%xyz = mol%xyz
+    molopt%wrextxyz = calc%logextxyz
+    !> lightweight reference coord + RMSD scratch cache reused for the
+    !> per-iteration RMSD probe (local -> thread-safe under parallel opt)
+    molref%nat = mol%nat
+    molref%at = mol%at
+    allocate (molref%xyz(3,mol%nat),source=mol%xyz)
+    call rcache%allocate(mol%nat)
     estart = etot
 
 !>--- initialize .log file, if desired
     ilog = 942
     if (wr) then
-      open (newunit=ilog,file='crestopt.log')
+      open (newunit=ilog,file=logfile)
     end if
 
 !>--- The ANCOPT iteration loop. "iter" is updated in relax() subroutine
@@ -184,7 +195,7 @@ contains  !> MODULE PROCEDURES START HERE
       write (*,'(5x,"change ΔE",e18.7,1x,"Eh")') 0.0_wp
       write (*,'(3x,"gradient norm :",f14.7,1x,"Eh/a0")',advance='no') gnorm
       write (*,'(2x,"predicted",e18.7)',advance='no') 0.0_wp
-      write (*,'(1x,"("f7.2"%)")')-0.0_wp
+      write (*,'(1x,"(",f7.2,"%)")')-0.0_wp
     end if
 
 !>======================================================================
@@ -221,7 +232,7 @@ contains  !> MODULE PROCEDURES START HERE
       esave = etot !> save energy before relaxation
 !>--- call the actual relaxation routine
 !>    this routine will perform [maxmicro] relaxation steps
-      if(iter+maxmicro >= maxcycle) maxmicro = maxcycle - iter
+      if (iter+maxmicro >= maxcycle) maxmicro = maxcycle-iter
 !>    [maxmicro] need to be adapted to not overshoot maxcycle
       call relax(molopt,calc,OPT,iter,maxmicro,etot,grd,  &
             &      ethr,gthr,converged,                  &
@@ -234,8 +245,9 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- update max. iterations for next relax() call
       maxmicro = min(int(float(maxmicro)*1.1_wp),2*calc%micro_opt)
 
-!>--- check structural change by RMSD
-      call rmsd(molopt%nat,OPT%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
+!>--- check structural change by RMSD (pre-relax OPT%xyz vs. relaxed molopt)
+      molref%xyz = OPT%xyz
+      rmsdval = rmsd(molref,molopt,ccache=rcache)
       if (.not.converged.and.pr) then
         write (*,'(" * RMSD in coord.:",f14.7,1x,"α")',advance='no') rmsdval
         write (*,'(6x,"energy gain",e16.7,1x,"Eh")') etot-esave
@@ -253,7 +265,7 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- if the relaxation converged properly do this
       iostatus = 0
       if (pr) then
-        call rmsd(mol%nat,mol%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
+        rmsdval = rmsd(mol,molopt,ccache=rcache)
         write (*,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
           "GEOMETRY OPTIMIZATION CONVERGED AFTER",iter,"ITERATIONS"
         write (*,'(72("-"))')
@@ -286,7 +298,6 @@ contains  !> MODULE PROCEDURES START HERE
 
 !> deallocate data
     !$omp critical
-    if (allocated(grmsd)) deallocate (grmsd)
     if (allocated(pmode)) deallocate (pmode)
     if (allocated(h)) deallocate (h)
     if (allocated(hess)) deallocate (hess)
@@ -343,22 +354,26 @@ contains  !> MODULE PROCEDURES START HERE
     logical :: lowered
     integer :: i,j,ii,jj,jjj,iii,k,lwork,info,m,idum,imax(3)
     real(wp) :: energy,dsnrm,maxdispl,t0,w0,t1,w1
-    real(wp) :: lambda,gnorm,dnorm,ddot,eold,xdum,estart,acc,e_in
-    real(wp) :: depred,echng,dummy,maxd,alp,gchng,gnold
+    real(wp) :: lambda,gnorm,dnorm,eold,xdum,estart,acc,e_in
+    real(wp) :: depred,echng,dummy,maxd,alp,alpold,gchng,gnold
     real(wp),allocatable :: gold(:)
-    real(wp),allocatable :: displ(:),gint(:)
-    real(sp),allocatable :: eaug(:)
-    real(sp),allocatable :: Uaug(:,:)
-    real(sp),allocatable :: Aaug(:)
-    real(sp),parameter :: r4dum = 1.e-8
+    real(wp),allocatable :: displ(:),gint(:),dxold(:)
+    real(wp),allocatable :: eaug(:)
+    real(wp),allocatable :: Uaug(:,:)
+    real(wp),allocatable :: Aaug(:)
+    real(wp),parameter :: r4dum = 1.e-8
+    real(wp),allocatable :: test_hess(:,:)
     !> LAPACK & BLAS
     external :: dgemv
-    real(sp),external :: sdot
+    real(wp),external :: ddot
+    integer :: q,r,s,nat3 !> ONLY for testing!
+    nat3 = 3*mol%nat
+    allocate (test_hess(nat3,nat3))
 
     iostatus = 0
 
     !$omp critical
-    allocate (gold(OPT%nvar),displ(OPT%nvar),gint(OPT%nvar),source=0.0_wp)
+    allocate (gold(OPT%nvar),displ(OPT%nvar),gint(OPT%nvar),dxold(OPT%nvar),source=0.0_wp)
 
     gnorm = 0.0_wp
     depred = 0.0_wp
@@ -368,6 +383,7 @@ contains  !> MODULE PROCEDURES START HERE
     energy = etot
     e_in = etot
     alp = 1.0_wp
+    alpold = 1.0_wp
     converged = .false.
     exact = calc%exact_rf
     iupdat = calc%iupdat
@@ -375,7 +391,7 @@ contains  !> MODULE PROCEDURES START HERE
     nvar1 = OPT%nvar+1             !> dimension of RF calculation
     npvar = OPT%nvar*(nvar1)/2   !> packed size of Hessian (note the abuse of nvar1!)
     npvar1 = nvar1*(nvar1+1)/2 !> packed size of augmented Hessian
-    allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1), source=0.0_sp)
+    allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1),source=0.0_wp)
     !$omp end critical
 
 !! ========================================================================
@@ -387,8 +403,11 @@ contains  !> MODULE PROCEDURES START HERE
       gnold = gnorm
       eold = energy
 !>--- calc predicted energy change based on E = E0 + delta * G + delta^2 * H
+      alpold = alp
+      dxold = displ*alpold
+
       if (ii > 1) then
-        call prdechng(OPT%nvar,gold,displ,OPT%hess,depred)
+        call prdechng(OPT%nvar,gold,dxold,OPT%hess,depred)
       end if
 
 !>------------------------------------------------------------------------
@@ -420,18 +439,6 @@ contains  !> MODULE PROCEDURES START HERE
         exit main_loop
       end if
 
-      !if (present(avconv)) then
-      !  call avconv%set_eg_log(energy,gnorm)
-      !  energy = avconv%get_averaged_energy()
-      !  gnorm = avconv%get_averaged_gradient()
-      !  if (pr) then
-      !    write (*,'("av. E:",1x,f14.7,1x,"->",1x,f14.7)') &
-      !      avconv%elog(avconv%nlog),energy
-      !    write (*,'("av. G:",1x,f14.7,1x,"->",1x,f14.7)') &
-      !      avconv%glog(avconv%nlog),gnorm
-      !  end if
-      !end if
-
 !>--- check for convergence
       gchng = gnorm-gnold
       echng = energy-eold
@@ -448,25 +455,28 @@ contains  !> MODULE PROCEDURES START HERE
         if (ii > 1) then
           dummy = (depred-echng)/echng*100.0_wp
           if (abs(dummy) < 1000.0_wp) then
-            write (*,'(1x,"("f7.2"%)")') dummy
+            write (*,'(1x,"("f7.2,"%)")') dummy
           else
             write (*,'(1x,"(*******%)")')
           end if
         else
-          write (*,'(1x,"("f7.2"%)")')-100.0_wp
+          write (*,'(1x,"(",f7.2,"%)")')-100.0_wp
         end if
       end if
 
-      alp = 1.0d0 
-      if (gnorm .lt. 0.002) then ! 0.002
-        alp = 1.5d0 ! 1.5
-      endif
-      if (gnorm .lt. 0.0006) then
-        alp = 2.0d0 ! 2
-      endif
-      if (gnorm .lt. 0.0003) then
-        alp = 3.0d0 ! 3
-      end if
+      alp = 1.0d0
+      !if (gnorm .lt. 0.002) then ! 0.002
+      !  alp = 1.5d0 ! 1.5
+      !end if
+      !if (gnorm .lt. 0.0006) then
+      !  alp = 2.0d0 ! 2
+      !end if
+      !if (gnorm .lt. 0.0003) then
+      !  alp = 3.0d0 ! 3
+      !end if
+
+      !alp = alp_generate(gnorm)
+      !write(stdout,*) alp
 
 !>------------------------------------------------------------------------
 !> Update the Hessian
@@ -475,15 +485,15 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- Hessian update, but only after first iteration (ii > 1)
         select case (iupdat)
         case (0)
-          call bfgs(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
+          call bfgs(OPT%nvar,gnorm,gint,gold,dxold,OPT%hess)
         case (1)
-          call powell(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
+          call powell(OPT%nvar,gnorm,gint,gold,dxold,OPT%hess)
         case (2)
-          call sr1(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
+          call sr1(OPT%nvar,gnorm,gint,gold,dxold,OPT%hess)
         case (3)
-          call bofill(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
+          call bofill(OPT%nvar,gnorm,gint,gold,dxold,OPT%hess)
         case (4)
-          call schlegel(OPT%nvar,gnorm,gint,gold,displ,OPT%hess)
+          call schlegel(OPT%nvar,gnorm,gint,gold,dxold,OPT%hess)
         case default
           write (*,*) 'invalid hessian update selection'
           stop
@@ -501,24 +511,24 @@ contains  !> MODULE PROCEDURES START HERE
 !>     Aaug    Uaug       Uaug
 
 !>--- first, augment Hessian by gradient, everything packed, no blowup
-      Aaug(1:npvar) = real(OPT%hess(1:npvar),sp)
-      Aaug(npvar+1:npvar1-1) = real(gint(1:OPT%nvar),sp)
-      Aaug(npvar1) = 0.0_sp
+      Aaug(1:npvar) = OPT%hess(1:npvar)
+      Aaug(npvar+1:npvar1-1) = gint(1:OPT%nvar)
+      Aaug(npvar1) = 0.0_wp
 
-!>--- choose solver
+!>--- choose solver for the RF eigenvalue problem
       if (exact.or.nvar1 .lt. 50) then
-        call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
+        call solver_dspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
       else
         !>--- steepest decent guess for displacement
         if (ii .eq. 1) then
-          Uaug(:,1) = [-real(gint(1:OPT%nvar),sp),1.0_sp]
-          dsnrm = sqrt(sdot(nvar1,Uaug,1,Uaug,1))
-          Uaug = Uaug/real(dsnrm,sp)
+          Uaug(:,1) = [-gint(1:OPT%nvar),1.0_wp]
+          dsnrm = sqrt(ddot(nvar1,Uaug,1,Uaug,1))
+          Uaug = Uaug/dsnrm
         end if
-        call solver_sdavidson(nvar1,r4dum,Aaug,Uaug,eaug,fail,.false.)
+        call solver_ddavidson(nvar1,r4dum,Aaug,Uaug,eaug,fail,.false.)
         !>--- if that failed, retry with better solver
         if (fail) then
-          call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
+          call solver_dspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
         end if
       end if
 
@@ -553,7 +563,7 @@ contains  !> MODULE PROCEDURES START HERE
         write (*,'(6x,"in ANC''s ",3("#",i0,", "),"...")') imax
         !call prdispl(OPT%nvar,displ)
       end if
-!>------------------------------------------------------------------------
+!>---------------------------------------------------------------------------
 
 !>--- 2nd: exit and redo hessian (internal restart)
       if (ii .gt. 2.and.dsnrm .gt. 2.0) then
@@ -628,5 +638,21 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine trfp2xyz
 
 !========================================================================================!
+
+  function alp_generate(gnorm) result(alp)
+!****************************************************
+!* Computes stepsize scaling factor
+!****************************************************
+    real(wp),intent(in) :: gnorm
+    real(wp) :: alp,shift,l,k
+
+    l = 2.0_wp
+    k = 2000.0
+    shift = 0.0005
+
+    alp = L/(1+euler**(k*(gnorm-shift)))+1
+
+  end function alp_generate
+
 !========================================================================================!
 end module ancopt_module

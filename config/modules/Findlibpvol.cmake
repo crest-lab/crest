@@ -16,7 +16,8 @@
 
 set(_lib "pvol")
 set(_pkg "PVOL")
-set(_url "https://github.com/neudecker-group/libpvol.git")
+set(_url "https://github.com/pprcht/libpvol.git")
+set(_branch "010bddaa8766a03e023a977aeebaa6454629c947")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
   set("${_pkg}_FIND_METHOD" "subproject" "cmake" "fetch" "pkgconf" )
@@ -24,7 +25,7 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/crest-utils.cmake")
 
-crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
+crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}" "${_branch}")
 
 set(found FALSE)
 if(TARGET "pvol::pvol")

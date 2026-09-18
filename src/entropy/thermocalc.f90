@@ -17,272 +17,6 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!=========================================================================================!
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
-!=========================================================================================!
-
-subroutine prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,symnum,symchar)
-!***********************************************************************
-!* Prepare the calculation of thermodynamic properties of a structure
-!* In particular, determine rotational constants and check the symmetry
-!***********************************************************************
-  use crest_parameters,only:wp,bohr,stdout
-  use atmasses,only:molweight
-  use iomod,only:to_lower
-  use axis_module
-  implicit none
-  integer,intent(in)     :: nat
-  integer,intent(in)     :: at(nat)
-  real(wp),intent(inout) :: xyz(3,nat) !> in Angstroem
-  logical,intent(in)     :: pr
-  real(wp),intent(out)   :: molmass
-  real(wp),intent(inout) :: rabc(3)
-  real(wp),intent(out)   :: avmom
-  real(wp),intent(out)   :: symnum
-
-  real(wp) :: a,b,c
-  character(len=4) :: sfsym
-  character(len=3) :: sym,symchar
-  real(wp),parameter :: desy = 0.1_wp
-  integer,parameter  :: maxat = 200
-
-  !>--- molecular mass in amu
-  molmass = molweight(nat,at)
-
-  if (pr) then
-    write (stdout,'(1x,a,f15.2)') 'Mol. weight /amu  : ',molmass
-  end if
-
-  !>--- rotational constants in cm-1
-  rabc = 0.0d0
-  call axis(nat,at,xyz,rabc(1:3),avmom)
-  a = rabc(3)
-  b = rabc(2)
-  c = rabc(1)
-  rabc(1) = a
-  rabc(3) = c
-  if (pr) then
-    write (stdout,'(1x,a,3f15.2)') 'Rot. const. /MHz  : ',rabc(1:3)
-  end if
-  rabc = rabc/2.99792458d+4   ! MHz to cm-1
-  if (pr) then
-    write (stdout,'(1x,a,3f15.2)') 'Rot. const. /cm-1 : ',rabc(1:3)
-  end if
-
-  !>--- symmetry number from rotational symmetry
-  xyz = xyz/bohr
-  call getsymmetry2(.false.,6,nat,at,xyz,desy,maxat,sfsym)
-  xyz = xyz*bohr
-  sym = sfsym(1:3)
-  symchar = sym
-  symnum = 1.0d0
-  if (a .lt. 1.d-9.or.b .lt. 1.d-9.or.c .lt. 1.d-9) then
-    if (index(sym,'d') .ne. 0) symnum = 2.0d0
-  else
-    call to_lower(sym)
-    if (index(sym,'c2') .ne. 0) symnum = 2.0d0
-    if (index(sym,'s4') .ne. 0) symnum = 2.0d0
-    if (index(sym,'c3') .ne. 0) symnum = 3.0d0
-    if (index(sym,'s6') .ne. 0) symnum = 3.0d0
-    if (index(sym,'c4') .ne. 0) symnum = 4.0d0
-    if (index(sym,'s8') .ne. 0) symnum = 4.0d0
-    if (index(sym,'c5') .ne. 0) symnum = 5.0d0
-    if (index(sym,'c6') .ne. 0) symnum = 6.0d0
-    if (index(sym,'c7') .ne. 0) symnum = 7.0d0
-    if (index(sym,'c8') .ne. 0) symnum = 8.0d0
-    if (index(sym,'c9') .ne. 0) symnum = 9.0d0
-    if (index(sym,'d2') .ne. 0) symnum = 4.0d0
-    if (index(sym,'d3') .ne. 0) symnum = 6.0d0
-    if (index(sym,'d4') .ne. 0) symnum = 8.0d0
-    if (index(sym,'d5') .ne. 0) symnum = 10.0d0
-    if (index(sym,'d6') .ne. 0) symnum = 12.0d0
-    if (index(sym,'d7') .ne. 0) symnum = 14.0d0
-    if (index(sym,'d8') .ne. 0) symnum = 16.0d0
-    if (index(sym,'d9') .ne. 0) symnum = 18.0d0
-    if (index(sym,'t') .ne. 0) symnum = 12.0d0
-    if (index(sym,'td') .ne. 0) symnum = 12.0d0
-    if (index(sym,'th') .ne. 0) symnum = 12.0d0
-    if (index(sym,'o') .ne. 0) symnum = 24.0d0
-    if (index(sym,'oh') .ne. 0) symnum = 24.0d0
-    if (index(sym,'ih') .ne. 0) symnum = 60.0d0
-  end if
-
-  if (pr) then
-    write (stdout,'(1x,a,4x,a)') 'Symmetry:',sym
-  end if
-  return
-end subroutine prepthermo
-
-!=========================================================================================!
-subroutine calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr,nt,temps, &
-    &      et,ht,gt,stot)
-!**************************************************************
-!* Calculate thermodynamic contributions for a given structure
-!* from it's frequencies (from second derivatives/the Hessian)
-!* Based on xtb's "print_thermo" routine
-!**************************************************************
-  use crest_parameters,only:wp,bohr,stdout
-  use crest_thermo
-  use atmasses,only:molweight
-  use iomod,only:to_lower
-  implicit none
-  integer,intent(in)     :: nat
-  integer,intent(in)     :: at(nat)
-  real(wp),intent(inout) :: xyz(3,nat)  !in Angstroem
-  real(wp),intent(inout) :: freq(3*nat) !in cm-1
-  logical,intent(in)     :: pr
-  real(wp),intent(in) :: ithr     !imag. inv. in cm-1
-  real(wp),intent(in) :: fscal    !freq scaling
-  real(wp),intent(in) :: sthr     !rotor cut
-  integer,intent(in)  :: nt
-  real(wp),intent(in) :: temps(nt)
-  real(wp) :: et(nt)          !< enthalpy in Eh
-  real(wp) :: ht(nt)          !< enthalpy in Eh
-  real(wp) :: gt(nt)          !< free energy in Eh
-  real(wp) :: stot(nt)        !< entropy in cal/molK
-  real(wp) :: ts(nt)          !< entropy*T in Eh
-  real(wp) :: rabc(3),a,b,c
-  real(wp) :: avmom
-  real(wp) :: molmass
-  real(wp) :: sym
-  real(wp) :: zp
-  character(len=3) :: symchar
-  logical :: pr2
-  logical :: linear = .false.
-  logical :: atom = .false.
-  integer :: nvib_theo
-  integer :: nvib,nimag
-  real(wp) :: vibthr
-  real(wp),allocatable :: vibs(:)
-
-  integer :: i,j
-  integer :: n3,rt
-  real(wp) :: adum(nt)
-  character(len=64) :: atmp
-
-  character(len=*),parameter :: outfmt = &
-  &  '(9x,"::",1x,a,f24.12,1x,a,1x,"::")'
-  character(len=*),parameter :: dblfmt = &
-  &  '(10x,":",2x,a,f24.7,1x,a,1x,":")'
-  character(len=*),parameter :: intfmt = &
-  &  '(10x,":",2x,a,i24,       6x,":")'
-  character(len=*),parameter :: chrfmt = &
-  &  '(10x,":",2x,a,a24,       6x,":")'
-
-  real(wp),parameter :: autorcm = 219474.63067_wp
-  real(wp),parameter :: rcmtoau = 1.0_wp/autorcm
-  real(wp),parameter :: autocal = 627.50947428_wp*1000.0_wp
-
-  call prepthermo(nat,at,xyz,pr,molmass,rabc,avmom,sym,symchar)
-
-  n3 = 3*nat
-  allocate (vibs(n3))
-  vibthr = 1.0
-  a = rabc(1)
-  b = rabc(2)
-  c = rabc(3)
-
-  nvib_theo = 3*nat-6
-  if (c .lt. 1.d-10 .or. (symchar=='din')) linear = .true.
-  if (linear) nvib_theo = 3*nat-5
-
-  if (a+b+c .lt. 1.d-6) then
-    atom = .true.
-    nvib = 0
-    nvib_theo = 0
-  end if
-
-  nvib = 0
-  vibs = 0.0
-  do i = 1,n3
-    if (abs(freq(i)) .gt. vibthr) then
-      nvib = nvib+1
-      vibs(nvib) = freq(i)
-    end if
-  end do
-  !> scale
-  vibs(1:nvib) = vibs(1:nvib)*fscal
-
-  !> invert imaginary modes
-  nimag = 0
-  do i = 1,nvib
-    if (vibs(i) .lt. 0.and.vibs(i) .gt. ithr) then
-      vibs(i) = -vibs(i)
-      if (pr) write (stdout,'(a,i5," :",f10.2)') 'Inverting frequency',i,vibs(i)
-    end if
-    if (vibs(i) < 0.0) then
-      nimag = nimag+1
-    end if
-  end do
-
-  if (pr) then
-    write (stdout,'(a)')
-    write (stdout,'(10x,51("."))')
-    write (stdout,'(10x,":",22x,a,22x,":")') "SETUP"
-    write (stdout,'(10x,":",49("."),":")')
-    write (stdout,intfmt) "# frequencies    ",nvib
-    write (stdout,intfmt) "# imaginary freq.",nimag
-    write (atmp,*) linear
-    write (stdout,chrfmt) "linear?          ",trim(atmp)
-    write (stdout,chrfmt) "symmetry         ",adjustr(symchar)
-    write (stdout,intfmt) "rotational number",nint(sym)
-    write (stdout,dblfmt) "scaling factor   ",fscal,"    "
-    write (stdout,dblfmt) "rotor cutoff     ",sthr,"cm⁻¹"
-    write (stdout,dblfmt) "imag. cutoff     ",ithr,"cm⁻¹"
-    write (stdout,'(10x,":",49("."),":")')
-  end if
-
-  vibs = vibs*rcmtoau   ! thermodyn needs vibs and zp in Eh
-
-  zp = 0.5_wp*sum(vibs(1:nvib))
-  adum = abs(temps-298.15d0)
-  rt = minloc(adum,1)  !temperature closest to 298.15 is the ref.
-  do j = 1,nt
-    if ((j == rt).and.pr) then
-      pr2 = .true.
-    else
-      pr2 = .false.
-    end if
-    if (pr2) then
-      call print_thermo_sthr_ts(stdout,nvib,vibs,avmom,sthr,temps(j))
-    end if
-    call thermodyn(stdout,a,b,c,avmom,linear,atom,sym,molmass,vibs,nvib, &
-    & temps(j),sthr,et(j),ht(j),gt(j),ts(j),zp,pr2)
-    stot(j) = (ts(j)/temps(j))*autocal
-  end do
-
-  if ((nt > 1).and.pr) then
-    write (stdout,'(a)')
-    write (stdout,'(a10)',advance='no') "T/K"
-    write (stdout,'(a16)',advance='no') "H(0)-H(T)+PV"
-    write (stdout,'(a16)',advance='no') "H(T)/Eh"
-    write (stdout,'(a16)',advance='no') "T*S/Eh"
-    write (stdout,'(a16)',advance='no') "G(T)/Eh"
-    write (stdout,'(a)')
-    write (stdout,'(3x,72("-"))')
-    do i = 1,nt
-      write (stdout,'(3f10.2)',advance='no') temps(i)
-      write (stdout,'(3e16.6)',advance='no') ht(i)
-      write (stdout,'(3e16.6)',advance='no') et(i)
-      write (stdout,'(3e16.6)',advance='no') ts(i)
-      write (stdout,'(3e16.6)',advance='no') gt(i)
-      if (i == rt) then
-        write (stdout,'(1x,"(used)")')
-      else
-        write (stdout,'(a)')
-      end if
-    end do
-    write (stdout,'(3x,72("-"))')
-  end if
-
-  deallocate (vibs)
-  return
-end subroutine calcthermo
-
-!=========================================================================================!
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC!
-!=========================================================================================!
-
 subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
         &  nt,temps,et,ht,gt,stot,bhess)
 !**********************************************
@@ -295,6 +29,7 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
   use crest_data
   use iomod
   use strucrd
+  use thermochem_module
   implicit none
   !> INPUT
   type(systemdata) :: env
@@ -325,7 +60,7 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
   integer :: nfreq
   real(wp),allocatable :: freq(:)
   real(wp) :: ithr,fscal,sthr
-
+  type(coord) :: mol
   integer :: TID,OMP_GET_THREAD_NUM
 
 !!$OMP PARALLEL PRIVATE(TID)
@@ -387,9 +122,9 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
 
   if (subdir) then
     jobcall2 = 'cd '//trim(dirname)//' && '//trim(jobcall)
-    call command( jobcall2, io )
+    call command(jobcall2,io)
   else
-    call command( jobcall, io )
+    call command(jobcall,io)
   end if
 
   et = 0.0_wp
@@ -402,18 +137,19 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
   end if
 
 !$omp critical
-  call rdxmol(trim(optpath)//'xtbopt.xyz',nat,at,xyz,atmp)
+  !call rdxmol(trim(optpath)//'xtbopt.xyz',nat,at,xyz,atmp)
+  call mol%open(trim(optpath)//'xtbopt.xyz')
   etot = grepenergy(atmp)
-  nfreq = 3*nat
+  nfreq = 3*mol%nat
 
   allocate (freq(nfreq))
-  call rdfreq(trim(optpath)//'vibspectrum',nfreq,freq)
+  call rdfreq(mol,trim(optpath)//'vibspectrum',nfreq,freq)
 
   ithr = env%thermo%ithr
   fscal = env%thermo%fscal
   sthr = env%thermo%sthr
-  call calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr, &
-  &    nt,temps,et,ht,gt,stot)
+  call calcthermo(mol%nat,mol%at,mol%xyz,freq,pr,ithr,fscal,sthr, &
+  &    nt,temps,et,ht,gt,stot,stdout,emodel=env%thermo%emodel)
   deallocate (freq)
 !$omp end critical
   call initsignal()
@@ -421,7 +157,49 @@ subroutine thermo_wrap_legacy(env,pr,nat,at,xyz,dirname, &
 end subroutine thermo_wrap_legacy
 
 !=========================================================================================!
-subroutine rdfreq(fname,nmodes,freq)
+
+subroutine rdfreq(mol,fname,nmodes,freq)
+!**************************************
+!* read vibspectrum file in TM format
+!**************************************
+  use crest_parameters,only:wp
+  use crest_data
+  use iomod
+  use strucrd
+  implicit none
+  type(coord),intent(in) :: mol
+  character(len=*),intent(in) :: fname
+  integer,intent(in)   :: nmodes
+  real(wp),intent(out) :: freq(nmodes)    !frequencies
+
+  logical :: ex,ex2,ex3
+  type(coord) :: moltmp
+  freq(:) = 0.0_wp
+
+  inquire (file=fname,exist=ex)
+  if (.not.ex) return
+
+  call minigrep(fname,'$vibrational spectrum',ex)
+  if (ex) then
+    !> TURBOMOLE "vibspectrum"-style file
+    call rdfreq_vibspectrum_file(fname,nmodes,freq)
+  end if
+  call minigrep(fname,'$orca_hessian_file',ex)
+  call minigrep(fname,'$hessian',ex2)
+  call minigrep(fname,'$ir_spectrum',ex3)
+  !if (ex.and.ex3) then
+  !  !> ORCA ".hess" file --> frequencies directly
+  !  call rdfreq_orca_ir_spectrum(fname,nmodes,freq)
+  !else if (ex.and.ex2) then
+  if(ex.and.ex2)then
+    !> ORCA ".hess" file --> from Hessian
+    moltmp = mol
+    call rdfreq_orca_hess(moltmp,fname,nmodes,freq)
+  end if
+
+end subroutine rdfreq
+
+subroutine rdfreq_vibspectrum_file(fname,nmodes,freq)
 !**************************************
 !* read vibspectrum file in TM format
 !**************************************
@@ -437,12 +215,6 @@ subroutine rdfreq(fname,nmodes,freq)
   real(wp) :: floats(10)
   logical :: ex
   integer :: TID,OMP_GET_THREAD_NUM
-
-!!$OMP PARALLEL PRIVATE(TID)
-  TID = OMP_GET_THREAD_NUM()
-!      write(*,*) '---->',TID
-!!$OMP END PARALLEL
-  ich = (TID+1)*1000   ! generate CPU dependent file channel number
 
   freq = 0.0_wp
   inquire (file=fname,exist=ex)
@@ -466,7 +238,141 @@ subroutine rdfreq(fname,nmodes,freq)
   end do rdfile
   close (ich)
   return
-end subroutine rdfreq
+end subroutine rdfreq_vibspectrum_file
+
+subroutine rdfreq_orca_ir_spectrum(fname,nmodes,freq)
+!**************************************
+!* read vibspectrum file in TM format
+!**************************************
+  use crest_parameters,only:wp,stdout
+  use crest_data
+  use iomod
+  implicit none
+  character(len=*),intent(in) :: fname
+  integer,intent(in)   :: nmodes
+  real(wp),intent(out) :: freq(nmodes)    !frequencies
+  integer :: k,ich,io,n,nref
+  character(len=256) :: atmp
+  real(wp) :: floats(10)
+  logical :: ex
+
+  freq = 0.0_wp
+  k = 1 !modes
+  open (file=fname,unit=ich)
+  rdfile: do
+    read (ich,'(a)',iostat=io) atmp
+    if (io < 0) exit
+    if (index(atmp,'$ir_spectrum') .ne. 0) then
+      read (ich,'(a)',iostat=io) atmp
+      if (io < 0) exit rdfile
+      read (atmp,*,iostat=io) nref
+      if (io .ne. 0) exit rdfile
+      if (nref .ne. nmodes) exit rdfile
+      rdblock: do
+        read (ich,'(a)',iostat=io) atmp
+        if (io < 0) exit rdfile
+        if (index(atmp,'$end') .ne. 0) exit rdfile
+        if (index(atmp,'#') .ne. 0) cycle rdblock !skip comment lines
+        call readl(atmp,floats,n)
+        freq(k) = floats(1)
+        if (k == nref) exit rdfile
+        k = k+1
+      end do rdblock
+    end if
+  end do rdfile
+  if (k .ne. nmodes) then
+    write (stdout,*) '** WARNING ** error while reading '//trim(fname)
+  end if
+  close (ich)
+  return
+end subroutine rdfreq_orca_ir_spectrum
+
+subroutine rdfreq_orca_hess(mol,fname,nmodes,freq)
+!**************************************
+!* read vibspectrum file in TM format
+!**************************************
+  use crest_parameters,only:wp,stdout
+  use crest_data
+  use iomod
+  use strucrd
+  use thermochem_module
+  implicit none
+  type(coord),intent(inout) :: mol
+  character(len=*),intent(in) :: fname
+  integer,intent(in)   :: nmodes
+  real(wp),intent(out) :: freq(nmodes)    !frequencies
+  integer :: k,ich,io,n,nref
+  integer :: ii,jj,kk,iblocks,jblocks,ll
+  character(len=256) :: atmp
+  real(wp) :: floats(10)
+  logical :: ex
+  real(wp),allocatable :: hess(:,:)
+
+  freq = 0.0_wp
+  allocate (hess(nmodes,nmodes),source=0.0_wp)
+  k = 1 !modes
+  open (file=fname,unit=ich)
+  rdfile: do
+    read (ich,'(a)',iostat=io) atmp
+    if (io < 0) exit
+    if (index(atmp,'$hessian') .ne. 0) then
+      read (ich,'(a)',iostat=io) atmp
+      if (io < 0) exit rdfile
+      read (atmp,*,iostat=io) nref
+      if (io .ne. 0) exit rdfile
+      if (nref .ne. nmodes) exit rdfile
+      iblocks = (floor(real(nref,wp)/5.0_wp))
+      jblocks = nref-(iblocks*5)
+      rdblock1: do ii = 1,iblocks
+        do jj = 0,nref
+          read (ich,'(a)',iostat=io) atmp
+          if (io < 0) exit rdfile
+          if (index(atmp,'$end') .ne. 0) exit rdfile
+          if (index(atmp,'#') .ne. 0) cycle rdblock1 !skip comment lines
+          call readl(atmp,floats,n)
+          if (jj > 0) then
+            kk = (ii-1)*5
+            do ll = 1,5
+              hess(kk+ll,jj) = floats(1+ll)
+            end do
+          end if
+        end do
+      end do rdblock1
+      if (jblocks > 0) then
+        do jj = 0,nref
+          read (ich,'(a)',iostat=io) atmp
+          if (io < 0) exit rdfile
+          if (index(atmp,'$end') .ne. 0) exit rdfile
+          if (index(atmp,'#') .ne. 0) cycle
+          call readl(atmp,floats,n)
+          if (jj > 0) then
+            kk = (ii-1)*5
+            do ll = 1,jblocks
+              hess(kk+ll,jj) = floats(1+ll)
+            end do
+          end if
+        end do
+      end if
+    end if
+  end do rdfile
+  if (nref .ne. nmodes) then
+    write (stdout,*) '** WARNING ** error while reading '//trim(fname)
+  end if
+  close (ich)
+
+  write(stdout,'(a)',advance='no') ' Processing (raw) Hessian read from ORCA '//trim(fname)//' ... '
+  flush(stdout)
+  !!$omp critical
+  !>-- Projects and mass-weights the Hessian
+  call prj_mw_hess(mol%nat,mol%at,nmodes,mol%xyz,hess)
+  !>-- Computes the Frequencies
+  call frequencies(mol%nat,mol%at,mol%xyz,nmodes,hess,freq,io)
+  !!$omp end critical
+  write(stdout,'(a)') 'done.'
+
+  deallocate (hess)
+  return
+end subroutine rdfreq_orca_hess
 
 !=========================================================================================!
 
@@ -484,7 +390,7 @@ subroutine thermo_wrap_new(env,pr,nat,at,xyz,dirname, &
   use crest_calculator
   use iomod
   use strucrd
-  use hessian_tools
+  use thermochem_module
   implicit none
   !> INPUT
   type(systemdata) :: env
@@ -527,7 +433,6 @@ subroutine thermo_wrap_new(env,pr,nat,at,xyz,dirname, &
   if (len_trim(dirname) > 0) subdir = .true.
 
 !>-- create a calculation object locally, modify calc dir
-!$omp critical
   calctmp = env%calc
   calctmp%pr_energies = .false. !> never do that!
   mol%nat = nat
@@ -546,7 +451,6 @@ subroutine thermo_wrap_new(env,pr,nat,at,xyz,dirname, &
   nfreq = 3*nat
   allocate (freq(nfreq),source=0.0_wp)
   allocate (hess(nfreq,nfreq),source=0.0_wp)
-!$omp end critical
 
 !>-- numerical Hessian
 
@@ -563,27 +467,20 @@ subroutine thermo_wrap_new(env,pr,nat,at,xyz,dirname, &
   end if
 
 !>-- project and get frequencies
-!$omp critical
-  !>-- Projects and mass-weights the Hessian
   call prj_mw_hess(mol%nat,mol%at,nfreq,mol%xyz,hess)
-  !>-- Computes the Frequencies
-  call frequencies(mol%nat,mol%at,mol%xyz,nfreq,calctmp,hess,freq,io)
-!$omp end critical
+  call frequencies(mol%nat,mol%at,mol%xyz,nfreq,hess,freq,io)
 
 !>--- get thermodynamics
-!$omp critical
   et = 0.0_wp
   ht = 0.0_wp
   gt = 0.0_wp
   stot = 0.0_wp
-
   ithr = env%thermo%ithr
   fscal = env%thermo%fscal
   sthr = env%thermo%sthr
-  call calcthermo(nat,at,xyz,freq,pr,ithr,fscal,sthr, &
-  &    nt,temps,et,ht,gt,stot)
+  call calcthermo(mol%nat,mol%at,mol%xyz,freq,pr,ithr,fscal,sthr, &
+  &    nt,temps,et,ht,gt,stot,stdout,emodel=env%thermo%emodel)
   deallocate (hess,freq)
-!$omp end critical
   call initsignal()
   return
 end subroutine thermo_wrap_new
@@ -595,10 +492,11 @@ subroutine calcSrrhoav(env,ensname)
 !*******************************************************
 !* Calculate S_RRHO averages for a given ensemlbe
 !*******************************************************
-  use crest_parameters
+  use crest_parameters,only:wp,stdout,autokcal,aatoau
   use crest_data
   use strucrd
   use iomod
+  use parallel_interface
   implicit none
   !> INPUT
   type(systemdata) :: env
@@ -624,24 +522,17 @@ subroutine calcSrrhoav(env,ensname)
   real(wp) :: psum,emin,sdum
   real(wp) :: quick_rmsd,rmsdval
   integer :: eloc,ploc
-  logical :: avbhess
-
   integer :: nt
   real(wp),allocatable :: temps(:)
   real(wp),allocatable :: et(:)
   real(wp),allocatable :: ht(:)
   real(wp),allocatable :: gt(:)
-  real(wp),allocatable :: stot(:)
-  real(wp),allocatable :: c0(:,:)
   real(wp),allocatable :: sref(:)
   character(len=64) :: atmp
-  integer :: i,j,k,ich,io,popf,ii,T,Tn
+  integer :: i,j,k,ich,io,popf,ii
   logical :: ex
-  logical :: niceprint
-  real(wp) :: percent
-  character(len=52) :: bar
-  integer :: ncalc,vz,nlimit,nav
-  character(len=512) :: thispath,tmppath
+  integer :: ncalc,nlimit,nav
+  character(len=512) :: tmppath
 
   real(wp),parameter :: Tref = 298.15  !> room temperature is reference
   real(wp),parameter :: kcal = autokcal
@@ -736,70 +627,24 @@ subroutine calcSrrhoav(env,ensname)
 !>--- calculate Hessians for ncalc lowest structures
   allocate (gatt(nall,nt),satt(nall,nt),source=0.0_wp)
 
-  io = makedir('HESSIANS')
-  call getcwd(thispath)
-  inquire (file='gfnff_topo',exist=ex)
-
-  call chdir('HESSIANS')
-  if (env%legacy) then
-    if (env%gfnver == '--gff'.and.ex) then
-      call getcwd(tmppath)
-      io = sylnk(trim(thispath)//'/'//'gfnff_topo',trim(tmppath)//'/'//'gfnff_topo')
-    end if
-    if (index(env%fixfile,'none selected') .eq. 0) then
-      io = sylnk(trim(thispath)//'/'//env%fixfile,trim(tmppath)//'/'//env%fixfile)
-    end if
-  end if
-
-  k = 0
-  niceprint = env%niceprint
-
-!>--- OMP stuff
-  call new_ompautoset(env,'auto',ncalc,T,Tn)
-
-!>--- the parallel loop
-  avbhess = env%thermo%avbhess
-  write (stdout,'(1x,a,i0,a)') 'Running ',ncalc,' calculations ...'
-  call crest_oloop_pr_progress(env,ncalc,0)
-!$omp parallel &
-!$omp shared( vz,tmppath,ncalc,percent,k,bar,niceprint) &
-!$omp shared( env,nat,at,xyz,c0,et,ht,gt,stot,temps,nt,gatt,satt,avbhess,pindex )
-!$omp single
-  allocate (et(nt),ht(nt),gt(nt),stot(nt))
-  allocate (c0(3,nat))
-  do i = 1,ncalc
-    call initsignal()
-    vz = pindex(i) !> restore index
-    !$omp task firstprivate( vz ) private( tmppath,et,ht,gt,stot,c0 )
-    call initsignal()
-    !$omp critical
-    write (tmppath,'(''hess'',i0)') vz
-    c0(1:3,1:nat) = xyz(1:3,1:nat,vz)
-    !$omp end critical
-
-    call thermo_wrap(env,.false.,nat,at,c0,tmppath, &
-    &    nt,temps,et,ht,gt,stot,avbhess)
-
-    !$omp critical
-    gatt(vz,1:nt) = gt(1:nt)
-    satt(vz,1:nt) = stot(1:nt)
-    !$omp end critical
-    if (.not.env%keepModef) call rmrf(trim(tmppath))
-
-    !$omp critical
-    k = k+1
-    call crest_oloop_pr_progress(env,ncalc,k)
-    !$omp end critical
-    !$omp end task
-  end do
-  deallocate (c0)
-  deallocate (stot,gt,ht,et)
-!$omp taskwait
-!$omp end single
-!$omp end parallel
-  call crest_oloop_pr_progress(env,ncalc,-1)
-  call chdir(thispath)
-  if (.not.env%keepModef) call rmrf('HESSIANS')
+! ── build coordinate subset and call parallel Hessian loop ───────
+  block
+    integer :: ii
+    real(wp),allocatable :: xyz_calc(:,:,:),er_calc(:)
+    real(wp),allocatable :: gt_out(:,:),stot_out(:,:)
+    allocate (xyz_calc(3,nat,ncalc),er_calc(ncalc))
+    allocate (gt_out(ncalc,nt),stot_out(ncalc,nt))
+    do ii = 1,ncalc
+      xyz_calc(:,:,ii) = xyz(:,:,pindex(ii))*aatoau  !> Å → Bohr
+    end do
+    write (stdout,'(1x,a,i0,a)') 'Running ',ncalc,' calculations ...'
+    call crest_hessloop(env,nat,ncalc,at,xyz_calc,er_calc,gt_out,stot_out)
+    do ii = 1,ncalc
+      gatt(pindex(ii),1:nt) = gt_out(ii,1:nt)
+      satt(pindex(ii),1:nt) = stot_out(ii,1:nt)
+    end do
+    deallocate (xyz_calc,er_calc,gt_out,stot_out)
+  end block
 
 !========================================================================================!
 !>--- process the calculated free energies and entropies into accurate populations

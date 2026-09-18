@@ -1,0 +1,9 @@
+# Standalone CREGEN ensemble sorting
+runtype  = "cregen"
+ensemble = "xtb.trj"    # ensemble/trajectory file to sort
+
+[cregen]
+ewin  = 100.0           # energy window for conformer selection (kcal/mol)
+rthr  = 0.125           # RMSD threshold for duplicate detection (Å)
+ethr  = 0.05            # energy threshold for duplicate detection (kcal/mol)
+bthr  = 15.0            # rotational constant threshold (MHz)

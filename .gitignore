@@ -2,7 +2,10 @@
 *.mod
 *.tgz
 *.i90
+*.bak
 *__genmod.f90
+.s*
+.c*
 github_bin/
 build_majestix
 build_commands
@@ -10,3 +13,7 @@ _build*
 _dist*
 src/crest
 bin/
+subprojects/.wraplock
+meson_build/
+meson_build_*
+utils/

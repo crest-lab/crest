@@ -1,4 +1,7 @@
 [wrap-git]
-directory = gfnff
 url = https://github.com/pprcht/gfnff
-revision = head
+revision = 272ed91b9ff71ad955f5996d3e08a7ee1b8b8c6d
+clone-recursive = true
+
+[provide]
+gfnff = gfnff_dep

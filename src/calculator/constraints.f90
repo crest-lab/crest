@@ -82,6 +82,7 @@ module constraints
   contains
     procedure :: print => print_constraint
     procedure :: deallocate => constraint_deallocate
+    procedure :: copy => constraint_copy
     procedure :: bondconstraint => create_bond_constraint
     generic,public :: sphereconstraint => create_sphere_constraint,create_sphere_constraint_all
     procedure,private :: create_sphere_constraint,create_sphere_constraint_all
@@ -154,7 +155,7 @@ contains  !>--- Module routines start here
       if (self%n .ne. 2) error stop '*** ERROR *** wrong number of atoms for bondrange constraint'
       if (.not.allocated(self%fc)) then
         allocate (self%fc(2))
-        self%fc(1) = fcdefault/kB !> bondrange doesn't use 300K default! 
+        self%fc(1) = fcdefault/kB !> bondrange doesn't use 300K default!
         self%fc(2) = betadefault
       else
         if (size(self%fc) < 2) error stop '*** ERROR *** wrong number of parameters for bondrange constraint'
@@ -165,7 +166,7 @@ contains  !>--- Module routines start here
         self%ref(2) = self%ref(1)-1.0_wp
       else
         dummy = minval(self%ref(:))
-        self%ref(1) =  maxval(self%ref(:))
+        self%ref(1) = maxval(self%ref(:))
         self%ref(2) = dummy
       end if
 
@@ -288,7 +289,7 @@ contains  !>--- Module routines start here
     energy = 0.0_wp
     grd = 0.0_wp
 
-    if(.not.constr%active) return
+    if (.not.constr%active) return
 
     select case (constr%type)
     case (bond)
@@ -324,7 +325,7 @@ contains  !>--- Module routines start here
     character(len=10) :: atm
     integer :: chnl
     logical :: pr
-    character(len=*),parameter :: headfmt ='("> constraint: ",a,a)'
+    character(len=*),parameter :: headfmt = '("> constraint: ",a,a)'
     if (self%type == 0) return
     pr = .true.
     select case (self%type)
@@ -468,6 +469,27 @@ contains  !>--- Module routines start here
     self%wscal = 1.0_wp
     return
   end subroutine constraint_deallocate
+
+  subroutine constraint_copy(self,src)
+    implicit none
+    class(constraint) :: self
+    type(constraint) :: src
+!&>
+    if (allocated(src%atms ))  self%atms = src%atms
+    if (allocated(src%ref  ))  self%ref  = src%ref
+    if (allocated(src%fc   ))  self%fc   = src%fc
+    self%active     = src%active
+    self%type       = src%type
+    self%n          = src%n
+    self%frozenatms = src%frozenatms
+    if(src%frozenatms)then
+      call self%addfreeze(src%freezeptr)
+    endif
+    self%wscal      = src%wscal
+    self%subtype    = src%subtype
+!&<
+    return
+  end subroutine constraint_copy
 
 !========================================================================================!
 !> subroutine constraint_freezeassoc
@@ -1082,10 +1104,10 @@ contains  !>--- Module routines start here
     allocate (self%ref(3),source=r)
     ii = 0
     do i = 1,n
-      if (atms(i))then 
-        ii = ii +1
+      if (atms(i)) then
+        ii = ii+1
         self%atms(ii) = i
-      endif
+      end if
     end do
     self%ref(:) = r
     self%fc(1) = k
@@ -1116,10 +1138,10 @@ contains  !>--- Module routines start here
     allocate (self%ref(3),source=r)
     ii = 0
     do i = 1,n
-      if (atms(i))then
-        ii = ii +1 
+      if (atms(i)) then
+        ii = ii+1
         self%atms(ii) = i
-      endif
+      end if
     end do
     self%ref(:) = r(:)
     self%fc(1) = k

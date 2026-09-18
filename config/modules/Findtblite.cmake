@@ -17,7 +17,7 @@
 set(_lib "tblite")
 set(_pkg "TBLITE")
 set(_url "https://github.com/tblite/tblite")
-set(_branch "xtb_solvation")
+set(_branch "b244a0f2f9f254781f09711d05573f3225df4eb2")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
   set("${_pkg}_FIND_METHOD" "subproject" "cmake" "fetch" "pkgconf")
@@ -28,6 +28,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/crest-utils.cmake")
 set(temp_with_tests ${WITH_TESTS}) # Save the current value of WITH_TESTS
 set(WITH_TESTS FALSE CACHE BOOL "Temporarily disable tests for the tblite subproject" FORCE)
 set(WITH_API FALSE)
+set(WITH_DDX TRUE)
 crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}" "${_branch}")
 
 set(found FALSE)

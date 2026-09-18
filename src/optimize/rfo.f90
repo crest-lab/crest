@@ -23,17 +23,19 @@
 !> This module implements a standard RFO algorithm (in Cart. coords)
 
 module rfo_module
-  use iso_fortran_env, only: wp=>real64, sp=>real32
+  use iso_fortran_env,only:wp => real64,sp => real32
   use crest_calculator
   use axis_module
   use strucrd
-  use ls_rmsd
+  use irmsd_module,only:rmsd,rmsd_core_cache
 
   use optimize_type
   use optimize_maths
   use modelhessian_module
   use hessupdate_module
   use optimize_utils
+  use hessian_reconstruct
+  use hr_utils
   implicit none
   private
 
@@ -45,7 +47,7 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
-  subroutine rfopt(mol,calc,etot,grd,pr,wr,iostatus)
+  subroutine rfopt(mol,calc,etot,grd,pr,wr,iostatus,logfile)
 !*************************************************************************
 !> subroutine rfopt
 !> Implementation of the standard rational function optimizer (RFO)
@@ -60,19 +62,21 @@ contains  !> MODULE PROCEDURES START HERE
 !>             on output final energy
 !>      grd  - Cartesian gradient
 !>       pr  - printout bool
-!>       wr  - logfile (crestopt.log) bool
+!>       wr  - logfile bool (name given by logfile, default crestopt.log.xyz)
 !>  iostatus - return status of the routine
 !>             (success=0, error<0, not converged>0)
+!>   logfile - name of the trajectory logfile to write when wr is set
 !!***********************************************************************
     implicit none
     !> INPUT/OUTPUT
     type(coord),intent(inout) :: mol
-    type(calcdata),intent(in) :: calc
+    type(calcdata),intent(inout) :: calc
     real(wp),intent(inout) :: etot
     real(wp),intent(inout) :: grd(3,mol%nat)
     logical,intent(in) :: pr
     logical,intent(in) :: wr
     integer,intent(out) :: iostatus
+    character(len=*),intent(in) :: logfile
     !> LOCAL
     integer  :: tight
     real(wp) :: eel
@@ -91,7 +95,7 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: nvar,iter,nread,maxcycle,maxmicro,itry,maxopt,iupdat,iii
     integer :: id,ihess,error
     integer :: ilog,imax(3)
-    real(wp) :: depred,echng,alp,gnold,eold,gchng,dummy,dsnrm,maxd
+    real(wp) :: depred,echng,alp,alpold,gnold,eold,gchng,dummy,dsnrm,maxd
     real(wp),allocatable :: h(:,:)
     real(wp),allocatable :: b(:,:)
     real(wp),allocatable :: fc(:)
@@ -101,26 +105,35 @@ contains  !> MODULE PROCEDURES START HERE
     integer,allocatable :: iwork(:)
     integer,allocatable :: totsym(:)
     real(wp),allocatable :: pmode(:,:)
-    real(wp),allocatable :: grmsd(:,:)
     real(wp),allocatable :: grd1(:)
     real(wp),allocatable :: gold(:)
     real(wp),allocatable :: displ(:)
     integer :: nvar1,npvar,npvar1
-    real(sp),allocatable :: eaug(:)
-    real(sp),allocatable :: Uaug(:,:)
-    real(sp),allocatable :: Aaug(:)
+    real(wp),allocatable :: eaug(:)
+    real(wp),allocatable :: Uaug(:,:)
+    real(wp),allocatable :: Aaug(:)
     type(convergence_log),allocatable :: avconv
-    real(wp) :: U(3,3),x_center(3),y_center(3),rmsdval
+    real(wp) :: rmsdval
+    type(rmsd_core_cache) :: rcache
     integer :: modef
     logical :: ex,converged,linear,exact
     logical :: econverged,gconverged,lowered
     real(wp) :: estart,esave
-    real(sp),parameter :: r4dum = 1.e-8
+    real(wp),parameter :: r4dum = 1.e-8
+    integer :: unit
+    real(wp), allocatable :: dx_test(:)
     !> LAPACK & BLAS
     external :: dgemv
     real(wp),external :: ddot
-    real(sp),external :: sdot
-
+    !real(sp),external :: sdot
+    real(wp),allocatable :: test_hess(:) !> only for testing
+    integer :: q,r,s !>only for testing
+    !>These are for spectral projection
+    real(wp), allocatable :: eigvec(:,:), eigval(:)
+    real(wp), allocatable :: work(:)
+    integer, allocatable :: iwork_spec(:)
+    integer :: lwork, liwork, info_spec
+    real(wp) :: elow, damp_spec, scale
 
     iostatus = 0
     fail = .false.
@@ -133,12 +146,13 @@ contains  !> MODULE PROCEDURES START HERE
     iupdat = calc%iupdat
     hlow = calc%hlow_opt !> 0.01 in ancopt, 0.002 too small
     hmax = calc%hmax_opt
-    maxdispl = calc%maxdispl_opt 
+    maxdispl = calc%maxdispl_opt
     gnorm = 0.0_wp
     depred = 0.0_wp
     echng = 0.0_wp
     alp = 1.0_wp
-    exact = calc%exact_rf
+    alpold = 1.0_wp
+    exact = calc%exact_rf .or. tight>0
 
 !> initial number of steps in relax() routine before
 !> new ANC are made by model Hessian
@@ -163,7 +177,7 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
     !$omp critical
-    allocate (pmode(nat3,1),grmsd(3,mol%nat)) ! dummy allocated
+    allocate (pmode(nat3,1)) ! dummy allocated
     !$omp end critical
 
 !>--- print a summary of settings, if desired
@@ -181,34 +195,38 @@ contains  !> MODULE PROCEDURES START HERE
     npvar = OPT%nvar*(nvar1)/2 !> packed size of Hessian (note the abuse of nvar1!)
     npvar1 = nvar1*(nvar1+1)/2 !> packed size of augmented Hessian
     allocate (Uaug(nvar1,1),eaug(nvar1),Aaug(npvar1))
-    allocate ( gold(OPT%nvar),displ(OPT%nvar),grd1(OPT%nvar),source=0.0_wp)
+    allocate (gold(OPT%nvar),displ(OPT%nvar),grd1(OPT%nvar),source=0.0_wp)
     !$omp end critical
 
 !>------------------------------------------------------------------------
 !>--- put the Hessian guess into the type
 !>------------------------------------------------------------------------
-   k = 0
-   do i = 1,nat3
-     do j = 1,i
-       k = k+1
-       if( i /= j )then
-         OPT%hess(k) = 0.0_wp
-       else
-         OPT%hess(k) = calc%hguess
-       endif
-     end do
-   end do
+    !k = 0
+    !do i = 1,nat3
+    !  do j = 1,i
+    !    k = k+1
+    !    if (i /= j) then
+    !      OPT%hess(k) = 0.0_wp
+    !    else
+    !      OPT%hess(k) = calc%hguess
+    !    end if
+    !  end do
+    !end do
+
+    call initialize_hessian(calc,calc%hess_init,mol%xyz,mol%nat,mol%at,OPT%hess(:),calc%hguess,pr) !>Need to add printout about how hessian is initialized!
 
 !>--- backup coordinates, and starting energy
     molopt%nat = mol%nat
     molopt%at = mol%at
     molopt%xyz = mol%xyz
+    molopt%wrextxyz = calc%logextxyz
     estart = etot
+    energy = etot
 
 !>--- initialize .log file, if desired
     ilog = 942
     if (wr) then
-      open (newunit=ilog,file='crestopt.log')
+      open (newunit=ilog,file=logfile)
     end if
 
 !>--- The ANCOPT iteration loop. "iter" is updated in relax() subroutine
@@ -299,16 +317,24 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- dynamic scaling in dependence of grad norm
 !>--- if we are close to convergence we can take larger steps
-      alp = 1.0d-1
-      if (gnorm .lt. 0.002) then ! 0.002
-        alp = 1.5d-1 ! 1.5
-      endif
-      if (gnorm .lt. 0.0006) then
-        alp = 2.0d-1 ! 2
-      endif
-      if (gnorm .lt. 0.0003) then
-        alp = 3.0d-1 ! 3
-      endif
+      alpold = alp
+
+      !alp = 1.0d0
+      !if (gnorm .lt. 0.002) then ! 0.002
+      !  alp = 1.5d0 ! 1.5
+      !end if
+      !if (gnorm .lt. 0.0006) then
+      !  alp = 2.0d0 ! 2
+      !end if
+      !if (gnorm .lt. 0.0003) then
+      !  alp = 3.0d0 ! 3
+      !end if
+
+      
+      !alp = alp_generate(gnorm, calc%optlev,calc%opt_engine, calc%hess_init)
+      !write(stdout,*) alp
+      alp = 1.0_wp !The whole thing should be removed before merging!! Same for NR!
+      
 
 !>------------------------------------------------------------------------
 !> Update the Hessian
@@ -317,21 +343,28 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- Hessian update, but only after first iteration (iter > 1)
         select case (iupdat)
         case (0)
-          call bfgs(OPT%nvar,gnorm,grd1,gold,displ,OPT%hess)
+          call bfgs(OPT%nvar,gnorm,grd1,gold,displ*alpold,OPT%hess)
         case (1)
-          call powell(OPT%nvar,gnorm,grd1,gold,displ,OPT%hess)
+          call powell(OPT%nvar,gnorm,grd1,gold,displ*alpold,OPT%hess)
         case (2)
-          call sr1(OPT%nvar,gnorm,grd1,gold,displ,OPT%hess)
+          call sr1(OPT%nvar,gnorm,grd1,gold,displ*alpold,OPT%hess)
         case (3)
-          call bofill(OPT%nvar,gnorm,grd1,gold,displ,OPT%hess)
+          call bofill(OPT%nvar,gnorm,grd1,gold,displ*alpold,OPT%hess)
         case (4)
-          call schlegel(OPT%nvar,gnorm,grd1,gold,displ,OPT%hess)
+          call schlegel(OPT%nvar,gnorm,grd1,gold,displ*alpold,OPT%hess)
         case default
           write (*,*) 'invalid hessian update selection'
           stop
         end select
       end if
 
+      !allocate(dx_test(size(displ)))
+      dx_test = displ*alpold
+
+      !allocate(calc%chess%H(nat3,nat3))
+      if (calc%full_HR) then
+        call dhtosq(nat3,calc%chess%H(:,:),OPT%hess(:))
+      end if
 !>------------------------------------------------------------------------
 !>  rational function (RF) method
 !>------------------------------------------------------------------------
@@ -343,24 +376,30 @@ contains  !> MODULE PROCEDURES START HERE
 !>     Aaug    Uaug       Uaug
 
 !>--- first, augment Hessian by gradient, everything packed, no blowup
-      Aaug(1:npvar) = real(OPT%hess(1:npvar),sp)
-      Aaug(npvar+1:npvar1-1) = real(grd1(1:OPT%nvar),sp)
-      Aaug(npvar1) = 0.0_sp
+      Aaug(1:npvar) = OPT%hess(1:npvar)
+      Aaug(npvar+1:npvar1-1) = grd1(1:OPT%nvar)
+      Aaug(npvar1) = 0.0_wp
 
 !>--- choose solver for the RF eigenvalue problem
       if (exact.or.nvar1 .lt. 50) then
-        call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
+        !if (iter .eq. 1) Uaug(:,1) = 0.0_wp
+        !  Uaug(:,1) = [-grd1(1:OPT%nvar),1.0_wp]
+        !  dsnrm = sqrt(ddot(nvar1,Uaug,1,Uaug,1))
+        !  Uaug = Uaug/dsnrm
+        !else
+          call solver_dspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
+        !endif
       else
         !>--- steepest decent guess for displacement
         if (iter .eq. 1) then
-          Uaug(:,1) = [-real(grd1(1:OPT%nvar),sp),1.0_sp]
-          dsnrm = sqrt(sdot(nvar1,Uaug,1,Uaug,1))
-          Uaug = Uaug/real(dsnrm,sp)
+          Uaug(:,1) = [-grd1(1:OPT%nvar),1.0_wp]
+          dsnrm = sqrt(ddot(nvar1,Uaug,1,Uaug,1))
+          Uaug = Uaug/dsnrm
         end if
-        call solver_sdavidson(nvar1,r4dum,Aaug,Uaug,eaug,fail,.false.)
+        call solver_ddavidson(nvar1,r4dum,Aaug,Uaug,eaug,fail,.false.)
         !>--- if that failed, retry with better solver
         if (fail) then
-          call solver_sspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
+          call solver_dspevx(nvar1,r4dum,Aaug,Uaug,eaug,fail)
         end if
       end if
 
@@ -372,7 +411,7 @@ contains  !> MODULE PROCEDURES START HERE
       end if
       displ(1:OPT%nvar) = Uaug(1:OPT%nvar,1)/Uaug(nvar1,1)
 
-!>--- rescale displacementaif necessary
+!>--- rescale displacement if necessary
       maxd = alp*sqrt(ddot(OPT%nvar,displ,1,displ,1))
       if (maxd > maxdispl) then
         if (pr) write (*,'(" * rescaling step by",f14.7)') maxdispl/maxd
@@ -427,7 +466,8 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- if the relaxation converged properly do this
       iostatus = 0
       if (pr) then
-        call rmsd(mol%nat,mol%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
+        call rcache%allocate(mol%nat)
+        rmsdval = rmsd(mol,molopt,ccache=rcache)
         write (*,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
           "GEOMETRY OPTIMIZATION CONVERGED AFTER",iter,"ITERATIONS"
         write (*,'(72("-"))')
@@ -460,13 +500,12 @@ contains  !> MODULE PROCEDURES START HERE
 
 !> deallocate data
     !$omp critical
-    if (allocated(gold)) deallocate(gold)
-    if (allocated(displ)) deallocate(displ)
-    if (allocated(grd1)) deallocate(grd1)
+    if (allocated(gold)) deallocate (gold)
+    if (allocated(displ)) deallocate (displ)
+    if (allocated(grd1)) deallocate (grd1)
     if (allocated(Uaug)) deallocate (Uaug)
     if (allocated(eaug)) deallocate (eaug)
     if (allocated(Aaug)) deallocate (Aaug)
-    if (allocated(grmsd)) deallocate (grmsd)
     if (allocated(pmode)) deallocate (pmode)
     if (allocated(h)) deallocate (h)
     if (allocated(hess)) deallocate (hess)

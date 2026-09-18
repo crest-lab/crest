@@ -20,6 +20,7 @@
 module crest_calculator
 !>--- types and readers
   use iso_fortran_env,only:wp => real64,int64
+  use crest_external_engrad  !> host-supplied potential interface
   use strucrd
   use calc_type
   use crest_calculator_printout
@@ -41,6 +42,7 @@ module crest_calculator
   public :: calcdata              !> calculator main object
   public :: calculation_settings  !> different calculation objects (levels) within calcdata
   public :: jobtype               !> calculation type ID's
+  public :: engrad_interface      !> abstract interface for host-supplied potentials
   public :: get_dipoles
 !>--- RE-EXPORT of constraints
   public :: constraint
@@ -51,11 +53,25 @@ module crest_calculator
 !=========================================================================================!
 
 !>--- global engrad call counter
-  integer(int64),public :: engrad_total = 0
+  real(wp),public :: engrad_total = 0.0_wp
+
+#ifdef WITH_LWONIOM
+!>--- adapter connecting lwONIOM's abstract calculator class to potential_core.
+!>    All persistent state (calculation_settings incl. topologies, restart data,
+!>    the ONIOMmols coord buffers and the job->calculator map ONIOMmap) lives in
+!>    the wrapped calcdata object; the adapter itself is stateless routing glue.
+  type,extends(lwoniom_calculator) :: crest_oniom_calc
+    type(calcdata),pointer :: calc => null()
+  contains
+    procedure :: engrad => crest_oniom_engrad
+  end type crest_oniom_calc
+  public :: crest_oniom_calc
+#endif
 
 !>--- public module routines
   public :: potential_core
   public :: engrad
+  public :: preinit_mlip_parallel
   interface engrad
     module procedure :: engrad_mol
   end interface engrad
@@ -87,7 +103,7 @@ contains  !> MODULE PROCEDURES START HERE
 !***************************************************************
     implicit none
     type(coord),target :: mol
-    type(calcdata) :: calc
+    type(calcdata),target :: calc
     real(wp),intent(inout) :: energy
     real(wp),intent(inout) :: gradient(3,mol%nat)
     integer,intent(out) :: iostatus
@@ -97,6 +113,9 @@ contains  !> MODULE PROCEDURES START HERE
     type(coord),pointer :: molptr
     integer :: pnat
     logical :: useONIOM
+#ifdef WITH_LWONIOM
+    type(crest_oniom_calc) :: OCLC
+#endif
 
 !>--- reset
     call initsignal()
@@ -126,16 +145,15 @@ contains  !> MODULE PROCEDURES START HERE
         end do
       end if
       !>--- count the engrad call
-      engrad_total = engrad_total+1
+      engrad_total = engrad_total+1.0_wp
     end if
 
-!>--- update ONIOM geometries
+!>--- ONIOM persistent fragment buffers (refreshed by the adapter callback)
     useONIOM = allocated(calc%ONIOM)
     if (useONIOM) then
       if (.not.allocated(calc%ONIOMmols)) then
         allocate (calc%ONIOMmols(calc%ONIOM%ncalcs))
       end if
-      call ONIOM_update_geo(calc%ONIOM,mol,calc%ONIOMmols,calc%ONIOMmap)
     end if
 
     iostatus = 0
@@ -160,14 +178,10 @@ contains  !> MODULE PROCEDURES START HERE
         !> skip through calculations we do not want
         if (calc%calcs(i)%refine_lvl /= calc%refine_stage) cycle
 
-        !> Assign the molecule (necessary for ONIOM stuff)
-        if (calc%calcs(i)%ONIOM_id /= 0) then
-          !j = calc%calcs(i)%ONIOM_id
-          j = calc%ONIOMrevmap(i)
-          call ONIOM_associate_mol(calc%ONIOMmols(j),molptr)
-        else
-          molptr => mol
-        end if
+        !> ONIOM fragment calculations are executed via the lwONIOM
+        !> driver (below), not in this loop
+        if (calc%calcs(i)%ONIOM_id /= 0) cycle
+        molptr => mol
         pnat = molptr%nat
 
         !> also skip through if only one level was requested
@@ -193,14 +207,6 @@ contains  !> MODULE PROCEDURES START HERE
 !***************************************************
 !>--- Select energy and gradient construction
 !***************************************************
-      !>--- for ONIOM calculations, copy gradients to right positions
-      !>--- and project with Jacobian
-      !$omp critical
-      if (useONIOM) then
-        call calc_ONIOM_projection(calc)
-      end if
-      !$omp end critical
-
       select case (calc%id)
       case (0) !> the DEFAULT
         !>--- an option to add multiple energies and gradients accodring to weights
@@ -208,11 +214,20 @@ contains  !> MODULE PROCEDURES START HERE
         call calc_add_weighted_egrd(n,calc%eweight,calc%etmp,calc%grdtmp, &
         &                energy,gradient)
 
-        !$omp critical
+        !>--- run all ONIOM fragment calculations via the lwONIOM driver:
+        !>--- it updates the fragments, calls back into potential_core
+        !>--- (see crest_oniom_engrad), projects the fragment gradients and
+        !>--- ADDS the reconstructed ONIOM energy+gradient to energy/gradient
         if (useONIOM) then
-          call ONIOM_engrad(calc%ONIOM,mol,energy,gradient)
+#ifdef WITH_LWONIOM
+          OCLC%calc => calc
+          call lwoniom_engrad_driver(calc%ONIOM,OCLC,mol%nat,mol%xyz, &
+          &                          energy,gradient,iostatus)
+          if (iostatus /= 0) return
+#else
+          call ONIOM_compile_error()
+#endif
         end if
-        !$omp end critical
 
       case (1:)
         !>--- if calc%id is a positive integer, take e+grd from
@@ -220,9 +235,22 @@ contains  !> MODULE PROCEDURES START HERE
         j = calc%id
         if (j <= calc%ncalculations) then
           if (useONIOM.and.calc%calcs(j)%ONIOM_id /= 0) then
+#ifdef WITH_LWONIOM
+            !>--- the requested calculation is an ONIOM fragment: run the
+            !>--- full ONIOM machinery first (fills the projected fragment
+            !>--- gradients), then pick out the requested one
+            OCLC%calc => calc
+            energy = 0.0_wp
+            gradient(:,:) = 0.0_wp
+            call lwoniom_engrad_driver(calc%ONIOM,OCLC,mol%nat,mol%xyz, &
+            &                          energy,gradient,iostatus)
+            if (iostatus /= 0) return
             k = calc%calcs(j)%ONIOM_id
             l = calc%calcs(j)%ONIOM_highlowroot
             call ONIOM_get_fraggrad(calc%ONIOM,k,gradient,l,energy)
+#else
+            call ONIOM_compile_error()
+#endif
           else
             energy = calc%etmp(j)
             gradient = calc%grdtmp(:,:,j)
@@ -296,6 +324,27 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- Frozen atoms
 !**********************************************
     call calc%freezegrad(gradient)
+
+!**********************************************
+!>--- Hessian Reconstruct
+!**********************************************
+
+    if ((calc%do_HR.or.calc%deform_opt_hess).and.allocated(calc%chess)) then
+      if (calc%chess%track_step) then
+        call calc%chess%update(gradient,energy,mol%xyz)
+        !write(stdout,*) "HESSIAN CASH UPDATED"
+      end if
+    end if
+
+!*********************************************
+!>--- store some outptut data to mol itself?
+!*********************************************
+    mol%energy = energy
+    if (allocated(mol%gradient).or.mol%wrextxyz) then
+      !$omp critical
+      mol%gradient = gradient
+      !$omp end critical
+    end if
 
     return
   end subroutine engrad_mol
@@ -378,12 +427,49 @@ contains  !> MODULE PROCEDURES START HERE
       &              calc%etmp(id),calc%grdtmp(:,1:pnat,id))
       calc%grdtmp(:,:,id) = calc%grdtmp(:,:,id)*autoaa
 
+    case (jobtype%approxg)
+      call modelhessian_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%penalty)
+      call rmsd_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%mlip)
+      call mlip_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%solvation)
+      call solvation_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%electrostatic)
+      call electrostatic_engrad(molptr,calc%calcs(id),calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+
+    case (jobtype%external)
+      !> externally supplied potential (host-program callback)
+      if (associated(calc%calcs(id)%ext_engrad)) then
+        if (associated(calc%calcs(id)%ext_userdata)) then
+          call calc%calcs(id)%ext_engrad(molptr%nat,molptr%at,molptr%xyz, &
+          &    calc%calcs(id)%chrg,calc%calcs(id)%uhf, &
+          &    calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus, &
+          &    calc%calcs(id)%ext_userdata)
+        else
+          call calc%calcs(id)%ext_engrad(molptr%nat,molptr%at,molptr%xyz, &
+          &    calc%calcs(id)%chrg,calc%calcs(id)%uhf, &
+          &    calc%etmp(id),calc%grdtmp(:,1:pnat,id),iostatus)
+        end if
+      else
+        write (stdout,'(a)') '**ERROR** jobtype%external selected but no callback registered!'
+        calc%etmp(id) = 0.0_wp
+        calc%grdtmp(:,:,id) = 0.0_wp
+        iostatus = 1
+      end if
+
     case default
       calc%etmp(id) = 0.0_wp
       calc%grdtmp(:,:,id) = 0.0_wp
     end select
 
   end subroutine potential_core
+
+!========================================================================================!
 
   subroutine numgrad_core(molptr,calc,id,iostatus)
 !*******************************************************
@@ -398,7 +484,7 @@ contains  !> MODULE PROCEDURES START HERE
 
     integer :: i,j,k,l,ich,och,io,pnat
     type(coord),allocatable :: moltmp
-    real(wp) :: energy,el,er, step,step2
+    real(wp) :: energy,el,er,step,step2
     real(wp),allocatable :: ngrd(:,:)
     !real(wp),parameter :: step = 0.0005_wp
     !real(wp),parameter :: step2 = 0.5_wp/step
@@ -410,13 +496,13 @@ contains  !> MODULE PROCEDURES START HERE
     step = calc%calcs(id)%gradstep
     step2 = 0.5_wp/step
 
-    !> back up energy 
+    !> back up energy
     energy = calc%etmp(id)
 
     !> allocate temprorary gradient space
     !$omp critical
-    allocate(ngrd(3,pnat), source=0.0_wp)
-    allocate(moltmp, source=molptr)
+    allocate (ngrd(3,pnat),source=0.0_wp)
+    allocate (moltmp,source=molptr)
     !$omp end critical
 
     do i = 1,molptr%nat
@@ -437,8 +523,8 @@ contains  !> MODULE PROCEDURES START HERE
     !> transfer tmp gradient to the calc object
     calc%grdtmp(:,1:pnat,id) = ngrd(:,1:pnat)
     !$omp critical
-    deallocate(moltmp)
-    deallocate(ngrd)
+    deallocate (moltmp)
+    deallocate (ngrd)
     !$omp end critical
 
     !> restore the energy
@@ -543,6 +629,8 @@ contains  !> MODULE PROCEDURES START HERE
     allocate (gradr(3,mol%nat),source=0.0_wp) !dummy
     allocate (gradl(3,mol%nat),source=0.0_wp) !dummy
 
+    if (allocated(calc%chess)) calc%chess%track_step = .false.
+
     do i = 1,mol%nat
       do j = 1,3
         ii = (i-1)*3+j
@@ -576,6 +664,8 @@ contains  !> MODULE PROCEDURES START HERE
     end do
 
     call engrad(mol,calc,el,gradl,io) !>- to get the gradient of the non-displaced structure
+
+    if (allocated(calc%chess)) calc%chess%track_step = .true.
 
     deallocate (gradl,gradr)
     call mol%deallocate()
@@ -817,31 +907,52 @@ contains  !> MODULE PROCEDURES START HERE
 
 !==========================================================================================!
 
-  subroutine calc_ONIOM_projection(calc)
-!*******************************************
-!* Iterate through the ONIOM data and
-!* place the correct energies and gradients
-!*******************************************
-    implicit none
-    type(calcdata),intent(inout) :: calc
-    integer :: n,i,j,k,l,l1,l2
-    integer :: natp,trunat
 #ifdef WITH_LWONIOM
-    if (allocated(calc%ONIOM).and.calc%ncalculations > 0) then
-      trunat = maxval(calc%ONIOMmols(:)%nat)
-      do i = 1,calc%ONIOM%nfrag
-        l1 = calc%ONIOM%calcids(1,i)
-        l2 = calc%ONIOM%calcids(2,i)
-        natp = calc%ONIOMmols(l1)%nat
+  subroutine crest_oniom_engrad(self,job,nat,at,xyz,energy,gradient,iostat)
+!**********************************************************************
+!* Implementation of the deferred engrad binding of lwONIOM's
+!* abstract lwoniom_calculator class: computes energy and gradient
+!* of one ONIOM model system (fragment + link atoms) by routing the
+!* request to the PERSISTENT calculation_settings object assigned
+!* to this job during ONIOMexpand (via calc%ONIOMmap), so topologies,
+!* restart data etc. are set up once and reused for every call.
+!* Geometry is received in Bohr and only copied into the persistent
+!* ONIOMmols buffer of the job - no reinitialization happens here.
+!**********************************************************************
+    implicit none
+    class(crest_oniom_calc),intent(inout) :: self
+    type(lwoniom_job),intent(in) :: job
+    integer,intent(in) :: nat
+    integer,intent(in) :: at(nat)
+    real(wp),intent(in) :: xyz(3,nat)
+    real(wp),intent(out) :: energy
+    real(wp),intent(out) :: gradient(3,nat)
+    integer,intent(out) :: iostat
+    integer :: i
 
-        call calc%ONIOM%fragment(i)%gradient_distribution(  &
-        &    calc%etmp(l1),calc%grdtmp(1:3,1:natp,l1), &
-        &    calc%etmp(l2),calc%grdtmp(1:3,1:natp,l2))
-        call calc%ONIOM%fragment(i)%jacobian(trunat)
-      end do
+    iostat = 0
+    if (.not.associated(self%calc)) then
+      iostat = 1
+      return
     end if
+
+    !> the crest calculation index assigned to this job
+    i = self%calc%ONIOMmap(job%id)
+
+    !> refresh the persistent fragment molecule buffer (same molecule
+    !> every call, only the coordinates change)
+    associate (m => self%calc%ONIOMmols(job%id))
+      m%nat = nat
+      m%at = at
+      m%xyz = xyz
+    end associate
+
+    call potential_core(self%calc%ONIOMmols(job%id),self%calc,i,iostat)
+
+    energy = self%calc%etmp(i)
+    gradient(:,:) = self%calc%grdtmp(:,1:nat,i)
+  end subroutine crest_oniom_engrad
 #endif
-  end subroutine calc_ONIOM_projection
 
 !==========================================================================================!
 !==========================================================================================!

@@ -1,27 +1,19 @@
 #!/bin/bash
+# Two-level iMTD-GC conformer search of 1-propanol using the A//B scheme:
+# GFN-FF handles the fast MD/MTD sampling phase; GFN2 single-points
+# re-rank the final ensemble.  This gives good accuracy at reduced cost.
+# Output: crest_conformers.xyz
 
-xtbin='xtb'
-crst='crest'
+command -v crest >/dev/null 2>&1 || {
+  echo >&2 "Cannot find crest binary."
+  exit 1
+}
 
-command -v $xtbin >/dev/null 2>&1 || { echo >&2 "Cannot find xtb binary. Exit."; exit 1; }
-command -v $crst >/dev/null 2>&1 || { echo >&2 "Cannot find crest binary. Exit."; exit 1; }
+# --- CLI run (A//B: B for sampling, A for single-point re-ranking) ---
+crest struc.xyz -imtdgc --gfn2//gfnff -ewin 6.0
 
-if [ $xtbin == 'xtb' ]
- then
-    $crst struc.xyz -nci
- else
-    $crst struc.xyz -nci -xnam $xtbin
- fi
+# Alternative: GFN-FF sampling + GFN2 geometry refinement of each conformer:
+# crest struc.xyz -imtdgc --gfnff/opt/gfn2 -ewin 6.0
 
-
-# This will execute the NCI sampling mode of CREST of the
-# water trimer with default settings.
-# A wall-potential is automatically generated and added to
-# the calculation to prevent dissociation.
-# The NCI mode is a special case of the constrained sampling.
-# Just like the regular conformational search unique conformers
-# can be found in the file 'crest_conformers.xyz'.
-# All degenerate conformers (rotamers, pseudo-enantiomers)
-# can be found in the file 'crest_rotamers.xyz'
-
-
+# --- TOML run (equivalent settings) ---
+# crest input.toml

@@ -1,299 +1,264 @@
 # This file is part of crest.
 # SPDX-Identifier: LGPL-3.0-or-later
 #
-# crest is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# Included from the root meson.build via subdir('config').
+# Runs in the same variable scope as the root — all variables set here
+# are visible in the root after this file returns.
 #
-# crest is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with crest.  If not, see <https://www.gnu.org/licenses/>.
+# Responsibilities:
+#   - Compiler identification and friendly display names
+#   - Per-compiler build flags (release and debug)
+#   - Static-binary link arguments
+#   - Metadata header generation (crest_metadata.fh)
+#   - inc_dirs (build include path carrying the generated header)
 
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Compiler identification
+# ═══════════════════════════════════════════════════════════════════════════════
 fc = meson.get_compiler('fortran')
 cc = meson.get_compiler('c')
-fc_id = fc.get_id()
+
+fc_id = fc.get_id()   # 'gcc' | 'intel' | 'intel-llvm' | ...
 cc_id = cc.get_id()
 
-if fc.get_id() != cc.get_id()
-  warning('FC and CC are not from the same vendor')
+_fc_name_map = {
+  'gcc'        : 'GNU Fortran',
+  'intel'      : 'Intel Fortran (Classic)',
+  'intel-llvm' : 'Intel Fortran (LLVM/ifx)',
+  'flang'      : 'Flang',
+  'flang-new'  : 'Flang-new',
+}
+_cc_name_map = {
+  'gcc'        : 'GNU C',
+  'intel'      : 'Intel C (Classic)',
+  'intel-llvm' : 'Intel C (LLVM/icx)',
+  'clang'      : 'Clang',
+}
+
+fcid_str = _fc_name_map.get(fc_id, fc_id)
+ccid_str = _cc_name_map.get(cc_id, cc_id)
+
+if fc_id not in ['gcc', 'intel', 'intel-llvm']
+  warning(
+    'Unsupported Fortran compiler "@0@". Proceeding, but results may be wrong.'
+      .format(fc_id),
+  )
 endif
 
-## ========================================= ##
-## Compiler specific default arguments
-## ========================================= ##  
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Compiler flags
+# ═══════════════════════════════════════════════════════════════════════════════
+_is_debug = get_option('buildtype') in ['debug', 'debugoptimized']
+
+# --- GNU (gfortran / gcc) -----------------------------------------------------
 if fc_id == 'gcc'
   add_project_arguments(
     '-ffree-line-length-none',
     '-fbacktrace',
-    '-Wno-maybe-uninitialized',
-    '-Wno-uninitialized',
-    '-Wno-unused-variable',
-    '-Wno-unused-dummy-argument',
-    '-Wno-unused-function',
-    language: 'fortran',
+    language : 'fortran',
   )
-elif fc_id == 'intel'
-  add_project_link_arguments(
-    '-Wl,--allow-multiple-definition',
-    language: 'fortran',
-  )
-  add_global_link_arguments(
-    '-Wl,--allow-multiple-definition',
-    language: 'fortran',
-  )
-  add_project_arguments(
-    '-traceback',
-    language: 'fortran',
-  )
-  add_project_arguments(
-    '-DLINUX',
-    language: 'c',
-  )
-elif fc_id == 'pgi' or fc_id == 'nvidia_hpc'
-  add_project_arguments(
-    '-Mbackslash',
-    '-Mallocatable=03',
-    '-traceback',
-    language: 'fortran',
-  )
-elif fc_id == 'flang'
-  add_project_arguments(
-    '-Mbackslash',
-    '-Mallocatable=03',
-    language: 'fortran',
-  )
-endif
-
-add_project_arguments('-D_Float128=__float128', language: 'c')
-
-
-## ========================================= ##
-## build type option arguments
-## ========================================= ## 
-if ( get_option('default_library') == 'static')
-  message('Static linking selected')
-  add_project_link_arguments('-static', language: 'fortran')
-  add_project_link_arguments('-static', language: 'c') # icc will do linking
-endif
-
-
-## ========================================= ##
-## OpenMP
-## ========================================= ##
-if get_option('openmp')
-  omp_dep = dependency('openmp', required: fc.get_id() != 'intel')
-  if not omp_dep.found()
-    omp_dep = declare_dependency(
-      compile_args: '-qopenmp',
-      link_args: '-fopenmp',
+  if _is_debug
+    add_project_arguments(
+      '-fcheck=all',
+      '-ffpe-trap=invalid,zero,overflow',
+      '-fbounds-check',
+      '-finit-real=snan',
+      '-finit-integer=-999',
+      '-Wall',
+      '-Wextra',
+      language : 'fortran',
     )
   endif
-  exe_deps += omp_dep
 endif
 
-## ======================================== ##
-## Linear Algebra Libraries
-## ======================================== ##
-la_backend = get_option('la_backend')
-message('Linear algebra backend: '+get_option('la_backend'))
-if la_backend == 'mkl' or la_backend == 'mkl-static'
-  add_project_arguments('-DWITH_MKL', language: 'fortran')
-  if la_backend == 'mkl-static'
-    add_project_link_arguments('-static', language: 'fortran')
-    add_project_link_arguments('-static', language: 'c') # icc will do linking
-  endif
-
-  if get_option('default_library') == 'shared'
-    mkl_rt_dep = cc.find_library('mkl_rt', required: true)
-    exe_deps += mkl_rt_dep
-  else
-    if fc.get_id() == 'gcc'
-      libmkl_exe = [cc.find_library('mkl_gf_lp64')]
-      if get_option('openmp')
-        libmkl_exe += cc.find_library('mkl_gnu_thread')
-      endif
-    elif fc.get_id() == 'intel' or fc.get_id() == 'intel-cl'
-      libmkl_exe = [cc.find_library('mkl_intel_lp64')]
-      if get_option('openmp')
-        libmkl_exe += cc.find_library('mkl_intel_thread')
-      endif
-    elif fc.get_id() == 'pgi' or fc.get_id() == 'nvidia_hpc'
-      libmkl_exe = [cc.find_library('mkl_intel_lp64')]
-      if get_option('openmp')
-        libmkl_exe += cc.find_library('mkl_pgi_thread')
-      endif
-    endif
-    if not get_option('openmp')
-      libmkl_exe += cc.find_library('mkl_sequential')
-    endif
-    libmkl_exe += cc.find_library('mkl_core')
-    exe_deps += libmkl_exe
-  endif
-
-elif la_backend == 'mkl-rt'
-  add_project_arguments('-DWITH_MKL', language: 'fortran')
-
-  mkl_rt_dep = fc.find_library('mkl_rt', required: true)
-  if fc.get_id() == 'intel'
-    exe_deps += fc.find_library('ifcore')
-  endif
-
-  exe_deps += mkl_rt_dep
-
-elif la_backend == 'openblas'
-  # search for OpenBLAS
-  blas_dep = dependency('openblas', required: false)
-  if not blas_dep.found()
-    blas_dep = fc.find_library('openblas', required: true)
-  endif
-  exe_deps += blas_dep
-  # some OpenBLAS versions can provide lapack, check if we can find dsygvd
-  openblas_provides_lapack = fc.links(
-    'external dsygvd; call dsygvd(); end',
-    dependencies: blas_dep,
+# --- Intel classic (ifort / icc) -----------------------------------------------
+if fc_id == 'intel'
+  add_project_arguments(
+    '-r8',                    # treat all REAL as REAL(8)
+    '-align', 'array64byte',
+    '-traceback',
+    language : 'fortran',
   )
-  # otherwise we fall back to LAPACK
-  if not openblas_provides_lapack
-    lapack_dep = dependency('lapack', required: false)
-    if not lapack_dep.found()
-      lapack_dep = fc.find_library('lapack', required: true)
-    endif
-    exe_deps += lapack_dep
-  endif
-
-elif la_backend == 'custom'
-  foreach lib: get_option('custom_libraries')
-    exe_deps += fc.find_library(lib)
-  endforeach
-
-else
-  # Find BLAS (usually netlib, but in conda also OpenBLAS/MKL)
-  blas_dep = dependency('blas', required: false)
-  if not blas_dep.found()
-    blas_dep = fc.find_library('blas', required: true)
-  endif
-  exe_deps += blas_dep
-  # Find LAPACK (usually netlib, but in conda also MKL)
-  lapack_dep = dependency('lapack', required: false)
-  if not lapack_dep.found()
-    lapack_dep = fc.find_library('lapack', required: true)
-  endif
-  exe_deps += lapack_dep
-endif
-
-
-## ========================================= ##
-## External subprojects
-## ========================================= ##  
-
-# GFN1-xTB and GFN2-xTB via TBLITE
-if get_option('WITH_TBLITE')
- add_project_arguments('-DWITH_TBLITE', language: 'fortran')
- tblite_dep = dependency(
-   'tblite',
-   version: '>=0.2',
-   fallback: ['tblite', 'tblite_dep'],
-   default_options: ['default_library=static', 'api=false'],
- )
- exe_deps += tblite_dep
-endif
-
-# TOML-F
-if get_option('WITH_TOMLF')
- add_project_arguments('-DWITH_TOMLF', language: 'fortran')
- tomlf_dep = dependency(
-   'toml-f',
-   version: '>=0.2.0',
-   fallback: ['toml-f', 'tomlf_dep'],
-   default_options: ['default_library=static'],
- )
- exe_deps += tomlf_dep
-endif
-
-# GFN0-xTB
-if get_option('WITH_GFN0')
- add_project_arguments('-DWITH_GFN0', language: 'fortran')
- gfn0_dep = dependency(
-   'gfn0',
-#   version: '>=0.2',
-   fallback: ['gfn0', 'gfn0_dep'],
-   default_options: ['default_library=static','with_gbsa=true'],
- )
- exe_deps += gfn0_dep
-endif
-
-# GFN-FF
-if get_option('WITH_GFNFF')
- add_project_arguments('-DWITH_GFNFF', language: 'fortran')
- gfnff_dep = dependency(
-   'gfnff',
-   fallback: ['gfnff', 'gfnff_dep'],
-   default_options: ['default_library=static','with_gbsa=true'],
- )
- exe_deps += gfnff_dep
-endif
-
-
-# LIBPVOL
-if get_option('WITH_LIBPVOL')
- add_project_arguments('-DWITH_LIBPVOL', language: 'fortran')
- libpvol_dep = dependency(
-   'libpvol',
-   fallback: ['libpvol', 'libpvol_dep'],
-   default_options: ['default_library=static'],
- )
- exe_deps += libpvol_dep
-endif
-
-
-# lwONIOM
-if get_option('WITH_LWONIOM')
- add_project_arguments('-DWITH_LWONIOM', language: 'fortran')
- lwoniom_dep = dependency(
-   'lwoniom',
-   fallback: ['lwoniom', 'lwoniom_dep'],
-   default_options: ['default_library=static'],
- )
- exe_deps += lwoniom_dep
-endif
-
-
-## ========================================= ##
-## populate the data for crest_metadata.fh
-## ========================================= ##  
-commit = 'unknown commit'
-git = find_program('git', required: false)
-if git.found()
-  git_commit = run_command(git, 'show', '-s', '--format=%h',check:true)
-  if git_commit.returncode() == 0
-    commit = git_commit.stdout().strip()
+  if _is_debug
+    add_project_arguments(
+      '-check', 'all',
+      '-fpe0',
+      language : 'fortran',
+    )
   endif
 endif
-# create configuration data
-config = configuration_data({
-  'name': meson.project_name(),
-  'version': meson.project_version(),
-  'description': 'Conformer Rotamer Ensemble Sampling Tool',
-  'commit': commit,
-  'date': run_command('date',check:true).stdout().     strip(),
-  'author': run_command('id','-u','-n', check:true).stdout().strip(),
-  'origin': run_command('hostname', check:true).stdout().strip(),
-  'fcid': fc.get_id(),
-  'fcver': fc.version(),
-  'ccid': cc.get_id(),
-  'ccver': cc.version(),
-  'bsystem': 'meson '+meson.version(),
-  'tomlfvar': get_option('WITH_TOMLF'),
-  'gfn0var': get_option('WITH_GFN0'),
-  'gfnffvar': get_option('WITH_GFNFF'), 
-  'tblitevar': get_option('WITH_TBLITE'),
-  'libpvolvar': get_option('WITH_LIBPVOL'),
-  'lwoniomvar': get_option('WITH_LWONIOM'),
-})
+
+# --- Intel LLVM (ifx / icx) ----------------------------------------------------
+if fc_id == 'intel-llvm'
+  add_project_arguments(
+    '-r8',
+    '-align', 'array64byte',
+    language : 'fortran',
+  )
+  if _is_debug
+    add_project_arguments(
+      '-traceback',
+      '-check', 'all',
+      '-fpe0',
+      language : 'fortran',
+    )
+  endif
+endif
+
+static_build = get_option('static')
+
+# Static subproject linking: selects static archives for subproject deps
+# (tblite, gfn0, toml-f, …) without the fully-static `-static` syslib linking.
+# A fully static build (-Dstatic) implies it.
+link_deps_static = static_build or get_option('static-deps')
+
+# Keyword set for dependency() lookups of subprojects/external libraries.
+# Passed via kwargs: so that a disabled static-deps adds no 'static' keyword at
+# all.  An explicit dependency(static : false) would force
+# default_library=shared onto every fallback subproject, overriding a global
+# -Ddefault_library=static (needed e.g. by package builds that link the
+# bundled subprojects statically but take system libraries as shared objects).
+static_dep_kw = link_deps_static ? {'static' : true} : {}
+
+if fc_id == 'intel-llvm'
+  ## -lifport  : POSIX intrinsics (getcwd, chdir, …) not auto-linked by ifx.
+  ##             In static builds -static-intel already bundles libifport.a, so
+  ##             adding a bare -lifport here would cause the linker to resolve it
+  ##             to the shared library (before -static-intel takes effect).
+  ## libgcc_s  : was previously added to supply _Unwind_* symbols for libifcore's
+  ##             signal handler. No longer needed since signal registration was
+  ##             moved to crest_install_signal() via ISO_C_BINDING, bypassing
+  ##             libifcore's handler entirely.
+  _libgcc_s = run_command('gcc', '-print-file-name=libgcc_s.so',
+                           check : false).stdout().strip()
+  _gcc_s_link = (_libgcc_s != 'libgcc_s.so') ? [_libgcc_s] : []
+  if _gcc_s_link.length() == 0
+    warning('intel-llvm: libgcc_s.so not found — _Unwind_* symbols will be NULL, ' +
+            'Intel Fortran runtime will SIGSEGV at startup.')
+  endif
+  # For static builds libgcc_s.so is not needed (signal handler uses ISO_C_BINDING
+  # and no longer goes through libifcore's _Unwind_* path), and adding an explicit
+  # .so path would defeat -static.  Only add it for dynamic builds.
+  _lifport_arg = static_build ? [] : ['-lifport']
+  _gcc_s_arg   = static_build ? [] : _gcc_s_link
+  add_project_link_arguments(_lifport_arg + _gcc_s_arg, language : 'fortran')
+endif
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Static-binary link arguments
+# ═══════════════════════════════════════════════════════════════════════════════
+# Injected globally so they propagate to every link step (library + executable).
+# See BUILD.md for notes on required system .a archives.
+
+if static_build
+  if fc_id == 'gcc'
+    # Full static: bundles glibc, libgfortran, libgomp, libopenblas/lapack.
+    # Requires libgfortran-static and glibc-static system packages.
+    add_project_link_arguments('-static', language : 'fortran')
+    add_project_link_arguments('-static', language : 'c')
+
+  elif fc_id == 'intel'
+    # -static-intel  : statically links Intel runtime (ifcore, imf, svml)
+    # -qopenmp-link=static : statically links Intel OpenMP (libiomp5)
+    # -static        : forces all -l flags (including MKL) to resolve to .a
+    add_project_link_arguments(
+      '-static-intel',
+      '-qopenmp-link=static',
+      '-static',
+      language : 'fortran',
+    )
+
+  elif fc_id == 'intel-llvm'
+    # -static only: with LIBRARY_PATH including the Intel compiler lib dir,
+    # the linker finds libifcore.a/libimf.a/libiomp5.a directly.
+    # -static-intel + -qopenmp-link=static are NOT used because combined with
+    # -fopenmp link args from non-Intel subprojects they cause libifcore.a vs
+    # libifcoremt.a duplicate-symbol errors (ifx 2025.3).  Allow-multiple-
+    # definition suppresses the remaining conflict (same pattern as ifort above).
+    add_project_link_arguments(
+      '-static',
+      '-Wl,--allow-multiple-definition',
+      language : 'fortran',
+    )
+  endif
+endif
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Metadata: fill assets/template/metadata.f90 → <builddir>/crest_metadata.fh
+# ═══════════════════════════════════════════════════════════════════════════════
+_git = find_program('git', required : false)
+_commit = 'unknown-commit'
+if _git.found()
+  _r = run_command(_git, 'show', '-s', '--format=%h', check : false)
+  if _r.returncode() == 0
+    _commit = _r.stdout().strip()
+  endif
+endif
+
+_py = find_program('python3', 'python', required : false)
+_date = 'unknown-date'
+if _py.found()
+  _r = run_command(
+    _py, '-c',
+    'import datetime; print(datetime.datetime.now().strftime("%a, %d %B %H:%M:%S, %m/%d/%Y"))',
+    check : false,
+  )
+  if _r.returncode() == 0
+    _date = _r.stdout().strip()
+  endif
+endif
+
+_hostname = 'unknown-host'
+_hostname_prog = find_program('hostname', required : false)
+if _hostname_prog.found()
+  _r = run_command(_hostname_prog, check : false)
+  if _r.returncode() == 0
+    _hostname = _r.stdout().strip()
+  endif
+endif
+
+_sh = find_program('sh', required : false)
+_user = 'unknown'
+if _sh.found()
+  _r = run_command(
+    _sh, '-c', 'printf "%s" "${USER:-${USERNAME:-unknown}}"',
+    check : false,
+  )
+  if _r.returncode() == 0 and _r.stdout().strip() != ''
+    _user = _r.stdout().strip()
+  endif
+endif
+
+_conf = configuration_data()
+_conf.set('version',    meson.project_version())
+_conf.set('commit',     _commit)
+_conf.set('date',       _date)
+_conf.set('author',     _user)
+_conf.set('origin',     _hostname)
+_conf.set('fcid',       fcid_str)
+_conf.set('fcver',      fc.version())
+_conf.set('ccid',       ccid_str)
+_conf.set('ccver',      cc.version())
+_conf.set('bsystem',    'meson ' + meson.version())
+# The with_* booleans are set in the root after optional deps are resolved;
+# use string placeholders here and let the root patch them in if needed.
+# In practice configure_file runs at configure-time so these are all known
+# by the time the root calls subdir('config') — see note below.
+#
+# NOTE: the with_* variables (with_tomlf, with_tblite, …) are set in the root
+# meson.build AFTER this file runs, so they are not yet available here.
+# The root therefore calls configure_file() itself using this _conf object
+# after appending the feature flags.  We expose _conf so the root can do that.
+_conf.set('tomlfvar',   'false')
+_conf.set('gfn0var',    'false')
+_conf.set('gfnffvar',   'false')
+_conf.set('tblitevar',  'false')
+_conf.set('libpvolvar', 'false')
+_conf.set('lwoniomvar', 'false')
+_conf.set('fmliprelayvar', 'false')
+
+# Expose _conf to the root so it can set the with_* keys and then call
+# configure_file().  The root owns the final configure_file() call.
+metadata_conf = _conf
 
 

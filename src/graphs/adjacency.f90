@@ -90,10 +90,12 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: V
     integer,intent(in) :: A(V,V)
     !> OUTPUT
-    integer,intent(out) :: frag(V)
+    integer,allocatable,intent(out) :: frag(:)
     !> LOCAL
     integer :: i,j,k,nfrag
     integer,allocatable :: tmp(:)
+    if(allocated(frag)) deallocate(frag)
+    allocate(frag(V))
     frag = 0
     nfrag = 0
     allocate (tmp(V),source=0)
@@ -147,11 +149,12 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: V
     integer,intent(in) :: A(V,V)
     !> OUTPUT
-    logical,intent(out) :: rings(V,V)
+    logical,allocatable,intent(out) :: rings(:,:)
     !> LOCAL
     integer,allocatable  :: Adum(:,:)
     integer,allocatable  :: tmp(:)
     integer :: i,j
+    if(.not.allocated(rings)) allocate(rings(V,V))
     rings = .false.
     allocate(Adum(V,V), source = 0)
     allocate(tmp(V), source = 0)
@@ -196,7 +199,7 @@ contains  !> MODULE PROCEDURES START HERE
 
     path  = 0
     nring = 0
-    allocate(Atmp(V,V), source=0)
+    allocate(Atmp(V,V), source=A)
     Atmp(:,:) = A(:,:)
     Atmp(M,N) = 0
     Atmp(N,M) = 0

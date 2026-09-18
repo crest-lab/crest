@@ -23,4 +23,28 @@
   branch = main
 [submodule "subprojects/pvol"]
 	path = subprojects/pvol
-	url = https://github.com/neudecker-group/libpvol.git
+  url = https://github.com/pprcht/libpvol.git
+  branch = build-update
+[submodule "subprojects/fmlip_relay"]
+	path = subprojects/fmlip_relay
+	url = https://github.com/pprcht/fmlip-relay.git
+[submodule "subprojects/dftd4"]
+	path = subprojects/dftd4
+	url = https://github.com/dftd4/dftd4
+	branch = main
+[submodule "subprojects/mctc-lib"]
+	path = subprojects/mctc-lib
+	url = https://github.com/grimme-lab/mctc-lib.git
+[submodule "subprojects/mstore"]
+	path = subprojects/mstore
+	url = https://github.com/grimme-lab/mstore
+[submodule "subprojects/multicharge"]
+	path = subprojects/multicharge
+	url = https://github.com/grimme-lab/multicharge
+[submodule "subprojects/s-dftd3"]
+	path = subprojects/s-dftd3
+	url = https://github.com/dftd3/simple-dftd3
+[submodule "subprojects/ddx"]
+	path = subprojects/ddx
+	url = https://github.com/ddsolvation/ddX.git
+	branch = main

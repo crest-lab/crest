@@ -7,6 +7,15 @@ set(
   "gfn0occ"
   "CN"
   "optimization"
+  "molecular_dynamics"
+  "metadynamics"
+  "pbc_cregen"
+  "getsym"
+  "irmsd"
+  "graphs"
+  "ddx"
+  "external"
+  "oniom"
 )
 set(
   test-srcs

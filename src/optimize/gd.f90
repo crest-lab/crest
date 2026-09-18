@@ -24,7 +24,7 @@ module gradientdescent_module
   use crest_calculator
   use axis_module
   use strucrd
-  use ls_rmsd
+  use irmsd_module,only:rmsd,rmsd_core_cache
 
   use optimize_type
   use optimize_maths
@@ -42,7 +42,7 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
-  subroutine gradientdescent(mol,calc,etot,grd,pr,wr,iostatus)
+  subroutine gradientdescent(mol,calc,etot,grd,pr,wr,iostatus,logfile)
 !*************************************************************************
 !> subroutine gradientdescent
 !> Implementation of a simple gradient descent algorithm
@@ -57,9 +57,10 @@ contains  !> MODULE PROCEDURES START HERE
 !>             on output final energy
 !>      grd  - Cartesian gradient
 !>       pr  - printout bool
-!>       wr  - logfile (crestopt.log) bool
+!>       wr  - logfile bool (name given by logfile, default crestopt.log.xyz)
 !>  iostatus - return status of the routine
 !>             (success=0, error<0, not converged>0)
+!>   logfile - name of the trajectory logfile to write when wr is set
 !!***********************************************************************
     implicit none
     !> INPUT/OUTPUT
@@ -70,6 +71,7 @@ contains  !> MODULE PROCEDURES START HERE
     logical,intent(in) :: pr
     logical,intent(in) :: wr
     integer,intent(out) :: iostatus
+    character(len=*),intent(in) :: logfile
     !> LOCAL
     integer  :: tight
     real(wp) :: eel
@@ -92,9 +94,10 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: depred,echng,dummy,maxd,alp,gchng,gnold
 
     real(wp),allocatable :: displ(:,:),grdold(:,:),ddispl(:,:)
-    real(wp),allocatable :: grmsd(:,:),gdiff(:,:)
+    real(wp),allocatable :: gdiff(:,:)
     type(convergence_log),allocatable :: avconv
-    real(wp) :: U(3,3),x_center(3),y_center(3),rmsdval
+    real(wp) :: rmsdval
+    type(rmsd_core_cache) :: rcache
     integer :: modef
     logical :: ex,converged,linear,econverged,gconverged,lowered
     real(wp) :: esave
@@ -131,10 +134,6 @@ contains  !> MODULE PROCEDURES START HERE
       if (nvar .le. 0) nvar = 1
     end if
 
-    !$omp critical
-    allocate (grmsd(3,mol%nat))
-    !$omp end critical
-
 !>--- print a summary of settings, if desired
     if (pr) then
       call print_optsummary(calc,tight,nvar,maxcycle,maxmicro, &
@@ -153,6 +152,7 @@ contains  !> MODULE PROCEDURES START HERE
     molopt%nat = mol%nat
     molopt%at = mol%at
     molopt%xyz = mol%xyz
+    molopt%wrextxyz = calc%logextxyz
     estart = etot
     gnorm = 0.0_wp
     depred = 0.0_wp
@@ -164,7 +164,7 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- initialize .log file, if desired
     ilog = 942
     if (wr) then
-      open (newunit=ilog,file='crestopt.log')
+      open (newunit=ilog,file=logfile)
     end if
 
 !>--- The gradient descent iteration loop. "iter"
@@ -288,7 +288,8 @@ contains  !> MODULE PROCEDURES START HERE
 !>--- if the relaxation converged properly do this
       iostatus = 0
       if (pr) then
-        call rmsd(mol%nat,mol%xyz,molopt%xyz,1,U,x_center,y_center,rmsdval,.false.,grmsd)
+        call rcache%allocate(mol%nat)
+        rmsdval = rmsd(mol,molopt,ccache=rcache)
         write (*,'(/,3x,"***",1x,a,1x,i0,1x,a,1x,"***",/)') &
           "GEOMETRY OPTIMIZATION CONVERGED AFTER",iter,"ITERATIONS"
         write (*,'(72("-"))')
@@ -325,7 +326,6 @@ contains  !> MODULE PROCEDURES START HERE
     if (allocated(grdold)) deallocate (grdold)
     if (allocated(ddispl)) deallocate (ddispl)
     if (allocated(displ)) deallocate (displ)
-    if (allocated(grmsd)) deallocate (grmsd)
     if (allocated(molopt%at)) deallocate (molopt%at)
     if (allocated(molopt%xyz)) deallocate (molopt%xyz)
     !$omp end critical

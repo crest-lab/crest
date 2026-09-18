@@ -1,0 +1,204 @@
+name: Static builds (experimental branch)
+
+on:
+  workflow_dispatch:
+
+env:
+  BUILD_DIR: _build
+  PIP_PACKAGES: >-
+    meson!=1.8.0
+    cmake
+    ninja
+  PIP_EXTRAS: >-
+    pkgconfig
+    numpy
+    ase
+    matplotlib
+
+jobs:
+  build-static:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64 — GNU static (CMake)
+          - { os: ubuntu-latest,   build-type: static,
+              toolchain: { compiler: gcc,   version: '14',       build: cmake } }
+
+          # Linux x86_64 — Intel LLVM static (Meson; better ifx static support)
+          - { os: ubuntu-latest,   build-type: static,
+              toolchain: { compiler: intel, version: '2025.3', mkl_version: '2025.3', build: meson } }
+
+          # Linux aarch64 — GNU static (CMake; Intel oneAPI is x86-only)
+          - { os: ubuntu-24.04-arm, build-type: static,
+              toolchain: { compiler: gcc,   version: '14',       build: cmake } }
+
+          # macOS arm64 — dynamic release (CMake)
+          # macOS has no static libpthread/libSystem, so fully-static builds are
+          # not possible. This produces a dynamic binary; users need Homebrew GCC
+          # and OpenBLAS (see release notes).
+          - { os: macos-latest,    build-type: release,
+              toolchain: { compiler: gcc,   version: '14',       build: cmake } }
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # --- Compiler setup ----------------------------------------------------
+
+      - name: Install GCC using setup-fortran
+        if: ${{ contains(matrix.toolchain.compiler, 'gcc') }}
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}
+          version:  ${{ matrix.toolchain.version }}
+
+      - name: Install libopenblas (Linux GCC builds)
+        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'gcc') }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenblas-dev
+
+      - name: Install OpenBLAS (macOS)
+        if: ${{ contains(matrix.os, 'macos') }}
+        run: |
+          brew update
+          brew install openblas
+          echo "PKG_CONFIG_PATH=/usr/local/opt/openblas/lib/pkgconfig:/opt/homebrew/opt/openblas/lib/pkgconfig" >> $GITHUB_ENV
+          echo "LDFLAGS=-L/usr/local/opt/openblas/lib -L/opt/homebrew/opt/openblas/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I/usr/local/opt/openblas/include -I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
+
+      - name: Prepare for Intel cache restore
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') }}
+        run: |
+          sudo mkdir -p /opt/intel
+          sudo chown $USER /opt/intel
+
+      - name: Cache Intel installation
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') }}
+        id: cache-install
+        uses: actions/cache@v4
+        with:
+          path: /opt/intel/oneapi
+          key: install-${{ matrix.toolchain.compiler }}-${{ matrix.toolchain.version }}-${{ matrix.toolchain.mkl_version }}-${{ matrix.os }}
+
+      - name: Install Intel Compiler
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') && steps.cache-install.outputs.cache-hit != 'true' }}
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}
+          version:  ${{ matrix.toolchain.version }}
+
+      - name: Install Intel MKL
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') && steps.cache-install.outputs.cache-hit != 'true' }}
+        run: |
+          sudo apt-get install -y \
+            intel-oneapi-mkl-${{ matrix.toolchain.mkl_version }} \
+            intel-oneapi-mkl-devel-${{ matrix.toolchain.mkl_version }}
+
+      - name: Setup Intel oneAPI environment
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') }}
+        run: |
+          source /opt/intel/oneapi/setvars.sh --force
+          printenv >> $GITHUB_ENV
+
+      - name: Set compiler environment variables
+        run: |
+          if [ ! -n "$FC" ]; then
+            if [ "${{ matrix.toolchain.compiler }}" = "gcc" ]; then
+              echo "FC=gfortran" >> $GITHUB_ENV
+              echo "CC=gcc"      >> $GITHUB_ENV
+            elif [ "${{ matrix.toolchain.compiler }}" = "intel" ]; then
+              echo "FC=ifx" >> $GITHUB_ENV
+              echo "CC=icx" >> $GITHUB_ENV
+            fi
+          fi
+          echo "COMPILER_VERSION=${{ matrix.toolchain.version }}" >> $GITHUB_ENV
+
+      # --- Dependencies & submodules -----------------------------------------
+
+      - name: Git submodules checkout
+        run: git submodule update --init
+
+      - name: Install build dependencies
+        run: |
+          pip3 install ${{ env.PIP_PACKAGES }} ${{ env.PIP_EXTRAS }}
+
+      # --- Configure ---------------------------------------------------------
+
+      - name: Configure build (CMake, static)
+        if: ${{ matrix.toolchain.build == 'cmake' && matrix.build-type == 'static' }}
+        run: >
+          cmake -B${{ env.BUILD_DIR }}
+          -GNinja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_INSTALL_PREFIX=$PWD/_dist
+          -DCMAKE_INSTALL_LIBDIR=lib
+          -DWITH_TESTS=OFF
+          -DSTATICBUILD=ON
+
+      - name: Configure build (CMake, macOS dynamic release)
+        if: ${{ matrix.toolchain.build == 'cmake' && matrix.build-type == 'release' }}
+        run: >
+          cmake -B${{ env.BUILD_DIR }}
+          -GNinja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX=$PWD/_dist
+          -DCMAKE_INSTALL_LIBDIR=lib
+          -DWITH_TESTS=OFF
+
+      - name: Configure build (Meson, Intel static)
+        if: ${{ matrix.toolchain.build == 'meson' && matrix.build-type == 'static' }}
+        run: >
+          meson setup ${{ env.BUILD_DIR }}
+          --buildtype=release
+          --prefix=$PWD/_dist
+          --libdir=lib
+          --warnlevel=0
+          --native-file=config/intel-llvm.ini
+          -Dstatic=true
+          -Dlapack=mkl
+          -Dtests=false
+
+      # --- Build / install ---------------------------------------------------
+
+      - name: Build project
+        run: ninja -C ${{ env.BUILD_DIR }}
+
+      - name: Install project
+        run: |
+          ninja -C ${{ env.BUILD_DIR }} install
+          echo "CREST_PREFIX=$PWD/_dist" >> $GITHUB_ENV
+
+      - name: Create package
+        run: |
+          mkdir crest
+          cp COPYING crest/LICENSE
+          cp COPYING.LESSER crest/LICENSE.LESSER
+          cp _dist/bin/crest crest/
+          ARCH=$(uname -m)
+          UNAME_OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          COMPILER_NAME="${{ matrix.toolchain.compiler }}"
+          [ "$COMPILER_NAME" = "gcc"   ] && COMPILER_NAME="gnu"
+          [ "$COMPILER_NAME" = "intel" ] && COMPILER_NAME="intel"
+          OUTPUT="crest-${COMPILER_NAME}-${{ matrix.toolchain.version }}-${UNAME_OS}-${ARCH}.tar"
+          tar cvf "$OUTPUT" crest
+          xz -T0 "$OUTPUT"
+          echo "CREST_OUTPUT=${OUTPUT}.xz" >> $GITHUB_ENV
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.CREST_OUTPUT }}
+          path: ${{ env.CREST_OUTPUT }}

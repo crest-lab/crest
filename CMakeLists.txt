@@ -26,10 +26,14 @@ endif()
 # Setup the crest Project
 project(
   crest
-  LANGUAGES "C" "Fortran"
-  VERSION  3.0.2
+  LANGUAGES "C" "CXX" "Fortran"
+  VERSION  3.1.0
   DESCRIPTION "A tool for the exploration of low-energy chemical space"
 )
+
+# Apply debug flags when building in Debug mode
+set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} \
+    -g -O0 -fcheck=all -fbacktrace -finit-real=snan -finit-integer=-999")
 
 # Follow GNU conventions for installing directories
 include(GNUInstallDirs)
@@ -60,21 +64,34 @@ if(NOT TARGET "OpenMP::OpenMP_Fortran" AND WITH_OpenMP)
   message(STATUS "OpenMP::OpenMP_Fortran is linking the following libraries:")
   foreach(lib ${OpenMP_Fortran_LIBRARIES})
     message(STATUS "${lib}")
-  endforeach() 
+  endforeach()
+endif()
+# Propagate OpenMP link flags globally so subproject executables (e.g. pvol tests)
+# that bypass CMake target dependencies still link the OpenMP runtime correctly.
+if(WITH_OpenMP AND OpenMP_Fortran_FOUND)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_Fortran_FLAGS}")
 endif()
 
 # Check if we are using OpenBLAS (need a precompiler definition if yes)
-if(LAPACK_LIBRARIES)
-  string(FIND "${LAPACK_LIBRARIES}" "openblas" _openblas_in_lapack)
+# Match "libopenblas" specifically to avoid false positives from conda env
+# path names that contain "openblas" (e.g. crest-gnu-openblas/lib/libgomp.so).
+if(LAPACK_LIBRARIES OR BLAS_LIBRARIES)
+  set(_all_blas_libs "${LAPACK_LIBRARIES};${BLAS_LIBRARIES}")
+  string(FIND "${_all_blas_libs}" "libopenblas" _openblas_in_lapack)
 
   if(NOT _openblas_in_lapack EQUAL -1)
-    message(STATUS "libopenblas was found as part of LAPACK")
+    message(STATUS "libopenblas was found as part of LAPACK/BLAS")
     add_compile_definitions(WITH_OPENBLAS)
   endif()
 endif()
 
-# Fortran unit test interface (also used by other subprojects)
-if(NOT TARGET "test-drive::test-drive" AND WITH_TESTS)
+# Fortran unit test interface.  Imported unconditionally (not gated on
+# WITH_TESTS): several subprojects build their test suites without a guard and
+# pull in test-drive themselves.  By resolving the bundled subprojects/test-drive
+# here first, the `test-drive::test-drive` target already exists when those
+# subprojects look for it, so they reuse the local copy instead of falling back
+# to fetching/downloading it.
+if(NOT TARGET "test-drive::test-drive")
    find_package("test-drive" REQUIRED)
 endif()
 
@@ -86,8 +103,25 @@ endif()
 
 # tblite
 if(NOT TARGET "tblite::tblite" AND WITH_TBLITE)
-   find_package("tblite" REQUIRED)
+   find_package("mctc-lib"    REQUIRED)
+   find_package("mstore"      REQUIRED)
+   find_package("multicharge" REQUIRED)
+   find_package("dftd4"       REQUIRED)
+   find_package("s-dftd3"     REQUIRED)
+   find_package("ddx"         REQUIRED)
+   find_package("tblite"      REQUIRED)
    add_compile_definitions(WITH_TBLITE)
+   # ddX is a hard requirement of this block, so its modules are available to
+   # crest sources here; WITH_DDX guards the standalone solvation components.
+   add_compile_definitions(WITH_DDX)
+endif()
+
+# g-xTB via tblite
+if(WITH_GXTB)
+   if(NOT WITH_TBLITE)
+      message(FATAL_ERROR "WITH_GXTB requires WITH_TBLITE to be enabled")
+   endif()
+   add_compile_definitions(WITH_GXTB)
 endif()
 
 # GFN-FF
@@ -112,6 +146,11 @@ endif()
 if(NOT TARGET "lwoniom::lwoniom" AND WITH_LWONIOM)
    find_package("lwoniom" REQUIRED)
    add_compile_definitions(WITH_LWONIOM)
+endif()
+
+if(NOT TARGET "fmlip_relay:fmlip_relay" AND WITH_FMLIP_RELAY)
+  find_package("fmlip_relay" REQUIRED)
+  add_compile_definitions(WITH_FMLIP_RELAY)
 endif()
 
 # Sources: initialize program sources (prog) and library sources (srcs) empty
@@ -153,6 +192,7 @@ if(WITH_OBJECT AND NOT STATICBUILD)
       $<$<BOOL:${WITH_LIBPVOL}>:pvol::pvol>
       $<$<BOOL:${WITH_TOMLF}>:toml-f::toml-f>
       $<$<BOOL:${WITH_LWONIOM}>:lwoniom::lwoniom>
+      $<$<BOOL:${WITH_FMLIP_RELAY}>:fmlip_relay::fmlip_relay> 
       $<$<BOOL:${WITH_OpenMP}>:OpenMP::OpenMP_Fortran>
    )
 
@@ -204,6 +244,7 @@ target_link_libraries(
    $<$<BOOL:${WITH_LIBPVOL}>:pvol::pvol>
    $<$<BOOL:${WITH_TOMLF}>:toml-f::toml-f>
    $<$<BOOL:${WITH_LWONIOM}>:lwoniom::lwoniom>
+   $<$<BOOL:${WITH_FMLIP_RELAY}>:fmlip_relay::fmlip_relay> 
    $<$<BOOL:${STATICBUILD}>:-static>
 )
 
@@ -249,6 +290,7 @@ if (WITH_OBJECT AND NOT STATICBUILD)
       $<$<BOOL:${WITH_LIBPVOL}>:pvol::pvol>
       $<$<BOOL:${WITH_TOMLF}>:toml-f::toml-f>
       $<$<BOOL:${WITH_LWONIOM}>:lwoniom::lwoniom>
+      $<$<BOOL:${WITH_FMLIP_RELAY}>:fmlip_relay::fmlip_relay> 
    )
 
    set_target_properties(

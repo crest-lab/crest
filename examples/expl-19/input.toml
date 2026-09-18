@@ -1,0 +1,25 @@
+# Single-point energy with a method-independent implicit-solvation add-on.
+#
+# The total energy is stitched from two calculation levels that CREST sums:
+#   1) a GFN2-xTB gas-phase parent potential
+#   2) an implicit-solvation contribution built from EEQ-BC atomic charges,
+#      the ddX continuum model (CPCM), and a GFN2/ALPB-parametrized nonpolar
+#      term (surface tension + charge-dependent hydrogen bonding).
+#
+# Because the solvation level only needs the geometry (it generates its own
+# charges), it can be stacked on top of *any* parent method the same way --
+# semi-empirical, force field or an ML potential.
+runtype = "singlepoint"
+input   = "struc.xyz"        # input structure file (1-propanol)
+
+[calculation]
+
+[[calculation.level]]
+method = "gfn2"              # gas-phase parent Hamiltonian
+
+[[calculation.level]]
+method       = "solvation"   # composite implicit-solvation contribution
+solvent      = "water"       # solvent name (tblite solvent database)
+solv_model   = "cpcm"        # continuum model: cosmo | cpcm | pcm
+solv_charges = "eeqbc"       # charge model:    eeq   | eeqbc
+solv_hbond   = true          # include the charge-dependent H-bond term

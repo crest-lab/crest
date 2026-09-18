@@ -24,10 +24,11 @@ program CREST
 !  use iso_fortran_env,wp => real64
   use crest_parameters !> Datatypes and constants
   use crest_data !> module for the main data storage (imports systemdata and timer)
-  use crest_restartlog 
-    USE, INTRINSIC :: IEEE_EXCEPTIONS
+  use crest_calculator
+  USE,INTRINSIC :: IEEE_EXCEPTIONS
   implicit none
   type(systemdata) :: env  !> MAIN STORAGE OF SYSTEM DATA
+  type(calcdata),target :: calc_origin
   type(timer)   :: tim     !> timer object
 
   integer :: i,j,l,args,io
@@ -36,10 +37,10 @@ program CREST
   character(len=512) :: thisdir
   character(len=1024) :: cmd
   real(wp) :: dumfloat,dumfloat2,d3,d4,d5,d6,d7,d8
-  logical :: ex,ex1,ex2
+  logical :: ex,ex1,ex2,iterate
 
   intrinsic :: iargc,getarg
-    LOGICAL :: overflow, division_by_zero, invalid_operation
+  LOGICAL :: overflow,division_by_zero,invalid_operation
 
   call initsignal() !SIGTERM catcher
 
@@ -47,17 +48,23 @@ program CREST
 !>  Initialize system clock time
   call tim%init(20)
 
+  env%calc => calc_origin
 !=========================================================================================!
 !> set defaults and pars flags
   args = iargc()
-  l = len_trim(cmd)
-  allocate (arg(args),source=repeat(' ',l))
+  allocate (arg(args),source=repeat(' ',1024))
   do i = 1,args
     call getarg(i,arg(i))
   end do
   call parseflags(env,arg,args)
   deallocate (arg)
-  call restart_save_env(env)
+
+!=========================================================================================!
+!> post-parsing sanity checks on the assembled env%calc object
+!=========================================================================================!
+!>--- g-xTB (05/2026) has no implicit solvation; stop safely if requested
+  call gxtb_solvation_guard(env)
+
 !=========================================================================================!
 !> scratch dir handling
 
@@ -82,14 +89,14 @@ program CREST
 !>   DRY run stop
 !=========================================================================================!
   if (env%dryrun) then
-    call crest_dry(env)
+    call crest_dry_run(env,tim)
   end if
 
 !=========================================================================================!
 !> SOME I/O STUFF
 !=========================================================================================!
 !>--- check for the coord file in the working directory
-  if (env%crestver /= crest_solv) then
+  if (env%crestver /= crest_solv.and.env%crestver /= crest_sorting) then
     inquire (file='coord',exist=ex)
     if (.not.ex) then
       error stop 'No coord file found. Exit.'
@@ -100,36 +107,8 @@ program CREST
 !>        PRE-CONFSEARCH PROPERTY CALCS
 !=========================================================================================!
   select case (env%properties)
-!>--- only CREGEN routine
-  case (p_cregen)
-    call tim%start(1,'CREGEN')
-    write (*,*) 'Using only the cregen sorting routine.'
-    env%cgf(6) = .true.   !write confg output to file <tmp>
-    if (env%doNMR) then
-      env%cgf(3) = .true.
-      if (.not.env%fullcre) then
-        env%cgf(2) = .false.
-      end if
-    end if
-    if (env%newcregen) then
-      block
-      use cregen_interface
-      call newcregen(env,0)
-      end block
-    else
-      call cregen2(env)
-    end if
-    if (env%doNMR.and.env%fullcre) then
-      call entropic(env,.true.,.false.,.false.,env%ensemblename, &
-      &    env%tboltz,dumfloat,dumfloat2)
-    end if
-    if (env%cluster) then
-      call ccegen(env,.true.,ensemblefile)
-    end if
-    call tim%stop(1)
-    call propquit(tim)
 !>--- zsort routine
-  case(p_zsort) 
+  case (p_zsort)
     call zsort
     write (*,*)
     write (*,*) 'The z-matrix of the input coord file has been sorted.'
@@ -138,26 +117,11 @@ program CREST
     write (*,*) 'exit.'
     call propquit(tim)
 
-!>--- only ensemble comparison
-  case (p_compare)
-    call compare_ensembles(env)     
-    call propquit(tim)
-! !>--- protonation tool
-!  case (p_protonate)
-!    call protonate(env,tim)
-!    call propquit(tim)
-!>--- deprotonation
-!  case (p_deprotonate)
-!    call deprotonate(env,tim)
-!    call propquit(tim)
-!>--- tautomerization
-!  case (p_tautomerize)
-!    call tautomerize(env,tim)
-!    call propquit(tim)
 !>--- extended tautomerization
   case (p_tautomerize2)
     call tautomerize_ext(env%ensemblename,env,tim)
     call propquit(tim)
+
 !>--- stereoisomerization
   case (p_isomerize)
     call stereoisomerize(env,tim)
@@ -166,8 +130,8 @@ program CREST
 !>--- reactor setup
   case (p_reactorset)
     call reactor_setup(env)
-
     stop
+
 !>--- enhanched ensemble entropy
   case (p_CREentropy)
     call entropic(env,.true.,.true.,.false.,env%ensemblename, &
@@ -178,10 +142,6 @@ program CREST
     call tim%start(4,'freq+thermo')
     call calcSrrhoav(env,env%ensemblename)
     call tim%stop(4)
-    call propquit(tim)
-!>--- to PCA and k-Means clustering for given file
-  case (p_cluster)
-    call ccegen(env,.true.,env%ensemblename)
     call propquit(tim)
 !>--- properties for enesemble file
   case (p_propcalc)
@@ -222,100 +182,135 @@ program CREST
   case default
     continue
   end select
+
+!>--- alkylation prep
+  if (env%alkylize) then
+    call crest_setup_alkylize(env)
+  end if
+
 !=========================================================================================!
 !>         PRE-OPTIMIZATION OF THE GEOMETRY
 !=========================================================================================!
-  if (env%preopt) then
-    call trialOPT(env)
-  else if (env%presp) then
-    call xtbsp(env)
-  end if
-!=========================================================================================!
-!>         MAIN WORKFLOW CALLS START HERE
-!=========================================================================================!
-!> many of these routine calls take a detour through legacy_wrappers.f90 !
-  select case (env%crestver)
-  case (crest_mfmdgc)           !> MF-MD-GC algo (deprecated)
-    call confscript1(env,tim)
-
-  case (crest_imtd,crest_imtd2) !> MTD-GC algo
-    call confscript2i(env,tim)
-
-  case (crest_mdopt, crest_mdopt2)
-    call mdopt(env,tim)        !> MDOPT
-
-  case (crest_screen)
-    call screen(env,tim)       !> SCREEN
-
-  case (crest_nano)
-    call reactor(env,tim)      !> NANO-REACTOR
-
-  case (crest_compr)
-    call compress(env,tim)     !> MTD COMPRESS mode
-
-  case (crest_msreac)
-    call msreact_handler(env,tim) !> MSREACT sub-program
-
-  case (crest_pka)
-    call pkaquick(env,tim)
-
-  case (crest_solv)             !> microsolvation tools
-    call crest_solvtool(env,tim)
-
-  case (crest_sp)
-    call crest_singlepoint(env,tim)
-
-  case (crest_optimize)
-    call crest_optimization(env,tim)
-
-  case (crest_moldyn)
-    call crest_moleculardynamics(env,tim)
-
-  case (crest_s1)
-    call crest_search_1(env,tim)
-
-  case (crest_mecp)
-    call crest_search_mecp(env,tim)
-
-  case (crest_numhessian)
-    call crest_numhess(env,tim)
-
-  case (crest_scanning)
-    call crest_scan(env,tim)
-
-  case (crest_rigcon) !> rule-based conformer generation
-    call crest_rigidconf(env,tim)
-
-  case (crest_trialopt) !> test optimization standalone
-    call trialOPT(env)
-
-  case (crest_ensemblesp) !> singlepoints along ensemble
-    call crest_ensemble_singlepoints(env,tim)    
-
-  case(crest_protonate)
-    call protonate(env,tim)
- 
-  case(crest_deprotonate)
-    call deprotonate(env,tim)
-
-  case(crest_tautomerize)
-    call tautomerize(env,tim) 
-
-  case (crest_test)
-    call crest_playground(env,tim)
-
-  case default
-    continue
-  end select
-
-  if (env%outputsdf.or.env%sdfformat) then
-    if (any((/crest_mfmdgc,crest_imtd,crest_imtd2/) == env%crestver)) then
-      call new_wrsdfens(env,conformerfile,conformerfilebase//'.sdf',.false.)
-    end if
-    if (any((/crest_screen,crest_mdopt/) == env%crestver)) then
-      call new_wrsdfens(env,'crest_ensemble.xyz','crest_ensemble.sdf',.false.)
+  if (env%crestver /= crest_none) then
+    if (env%preopt) then
+      call trialOPT(env)
+    else if (env%presp) then
+      call xtbsp(env)
     end if
   end if
+!=========================================================================================!
+!>         SET UP QUEUES, IF REQUIRED
+!=========================================================================================!
+  call crest_queue_setup(env,iterate)
+!=========================================================================================!
+!>         MAIN WORKFLOW CALLS START HERE (including iterator)
+!=========================================================================================!
+
+  ITERATOR: do while (iterate)
+    call crest_queue_iter(env,iterate)
+
+!> NOTE: many of these routine calls take a detour through legacy_wrappers.f90 !
+    select case (env%crestver)
+    case (crest_mfmdgc)           !> MF-MD-GC algo (deprecated)
+      call confscript1(env,tim)
+
+    case (crest_imtd,crest_imtd2) !> MTD-GC algo
+      call confscript2i(env,tim)
+
+    case (crest_mdopt,crest_mdopt2)
+      call mdopt(env,tim)        !> MDOPT
+
+    case (crest_screen)
+      call screen(env,tim)       !> SCREEN
+
+    case (crest_nano)
+      call reactor(env,tim)      !> NANO-REACTOR
+
+    case (crest_compr)
+      call compress(env,tim)     !> MTD COMPRESS mode
+
+    case (crest_msreac)
+      call msreact_handler(env,tim) !> MSREACT sub-program
+
+    case (crest_pka)
+      call pkaquick(env,tim)
+
+    case (crest_solv)             !> microsolvation tools
+      call crest_solvtool(env,tim)
+
+    case (crest_sp)
+      call crest_singlepoint(env,tim)
+
+    case (crest_optimize)
+      call crest_optimization(env,tim)
+
+    case (crest_moldyn)
+      call crest_moleculardynamics(env,tim)
+
+    case (crest_s1)
+      call crest_search_1(env,tim)
+
+    case (crest_mecp)
+      call crest_search_mecp(env,tim)
+
+    case (crest_numhessian)
+      call crest_numhess(env,tim)
+
+    case (crest_scanning)
+      call crest_scan(env,tim)
+
+    case (crest_rigcon) !> rule-based conformer generation
+      call crest_rigidconf(env,tim)
+
+    case (crest_ttc) !> tensor-train (light) conformer search
+      call crest_ttconf(env,tim)
+
+    case (crest_trialopt) !> test optimization standalone
+      call trialOPT(env)
+
+    case (crest_ensemblesp) !> singlepoints along ensemble
+      call crest_ensemble_singlepoints(env,tim)
+
+    case (crest_ensemblehess) !> Hessians + thermochemistry along ensemble
+      call crest_ensemble_hessians(env,tim)
+
+    case (crest_protonate)
+      call protonate(env,tim)
+
+    case (crest_deprotonate)
+      call deprotonate(env,tim)
+
+    case (crest_tautomerize)
+      call tautomerize(env,tim)
+
+    case (crest_sorting) !> interface to standalone ensemble sorting
+      call crest_sort(env,tim)
+
+    case (crest_bh) !> Standard basin-hopping
+      call crest_basinhopping(env,tim)
+
+    case (crest_test)
+      call crest_playground(env,tim)
+
+    case (crest_none)
+      call crest_no_runtype_selected()
+
+    case default
+      continue
+    end select
+
+    !> additional processing
+    call crest_queue_iter_resort(env,iterate)
+
+  end do ITERATOR
+
+  env%calc => calc_origin
+  call crest_queue_reconstruct(env,tim)
+
+!=========================================================================================!
+!>        ADDITIONAL OUTPUT FORMATTING
+!=========================================================================================!
+  call crest_ensemble_reformat(env)
 
 !=========================================================================================!
 !>        POST-CONFSEARCH PROPERTY CALCS
@@ -325,19 +320,23 @@ program CREST
     do i = 1,env%npq
       j = env%pqueue(i)
       select case (j)
-      case (1:8,10,20,100,998)
+      case (p_prop_hess,p_prop_autoir,p_prop_ohess,p_prop_reopt,p_prop_dipole,p_prop_finalhess)
         call propcalc(conformerfile,j,env,tim)
-      case (45)
+
+      case (abs(p_CREentropy))
         call tim%start(15,'Conf. entropy evaluation')
         call newentropyextrapol(env)
         call tim%stop(15)
-      case (50:59)  !hybrid reoptimization (e.g. gfn2@gff)
+
+      case (p_prop_multilevel:p_prop_multilevel+9)  !hybrid reoptimization (e.g. gfn2@gff)
         call propcalc(infile,j,env,tim)
-        infile = 'crest_reopt.xyz'
-      case (70) !PCA and clustering
+
+      case (abs(p_cluster)) !PCA and clustering
         call ccegen(env,.true.,conformerfile)
-      case (555)
+
+      case (abs(p_tautomerize2))
         call tautomerize_ext(infile,env,tim)
+
       case default
         continue
       end select
@@ -352,15 +351,16 @@ program CREST
   end if
 
 !=========================================================================================!
-!> shout down hosted subprocesses
-  block
-  use ConfSolv_module
-  call cs_shutdown(io)
-  end block
-
-!=========================================================================================!
 !> one final cleanup
   call custom_cleanup(env)
+
+!=========================================================================================!
+!> Print a summary of output files written in this run
+  call crest_output_summary(env)
+
+!=========================================================================================!
+!> Repeat the g-xTB syscall note (non-WITH_GXTB path) if g-xTB was requested
+  if (env%gfnver == '--gxtb') call gxtb_syscall_warning()
 
 !=========================================================================================!
 !> Evaluate and print timings, then stop the program

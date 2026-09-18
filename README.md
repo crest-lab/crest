@@ -88,14 +88,17 @@ The conda-forge distribution is based on a *dynamically linked* CMake/GNU build.
 
 ![CI workflow](https://github.com/crest-lab/crest/actions/workflows/build.yml/badge.svg)
 
-Working and tested builds of CREST (mostly on Ubuntu 20.04 LTS):
+Working and tested builds of CREST:
 
-| Build System | Compiler | Linear Algebra Backend | Build type     | Status     | Note |
-|--------------|----------|------------------------|:--------------:|:----------:|:----:|
-| CMake 3.30.2 | GNU (gcc 14.1.0)  | [libopenblas 0.3.27](https://anaconda.org/conda-forge/libopenblas) | dynamic | ✅ ||
-| CMake 3.30.2 | GNU (gcc 12.3.0)  | [libopenblas-dev](https://packages.debian.org/stable/libdevel/libopenblas-dev) | static  | ✅ | [![Download (GNU)](https://img.shields.io/badge/download-GNU_build_binary-green)](https://github.com/crest-lab/crest/releases/download/latest/crest-gnu-12-ubuntu-latest.tar.xz)|
-| CMake 3.28.3 | [Intel (`ifort`/`icc` 2021.9.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | ⚠️  | OpenMP/MKL problem ([#285](https://github.com/crest-lab/crest/issues/285)) |
-| Meson 1.2.0 | [Intel (`ifort`/`icx` 2023.1.0)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html)   | [MKL static (oneAPI 2023.1)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static  | ✅ | [![Download (ifort)](https://img.shields.io/badge/download-ifort_build_binary-blue.svg)](https://github.com/crest-lab/crest/releases/download/latest/crest-intel-2023.1.0-ubuntu-latest.tar.xz) |
+| Build System | Compiler | Linear Algebra Backend | Build type | Note |
+|--------------|----------|------------------------|:----------:|:----:|
+| CMake 3.31.6 | GNU (gcc 14.3.0, conda-forge) | [libopenblas 0.3.31](https://anaconda.org/conda-forge/libopenblas) (conda-forge) | dynamic | [![Download (GNU)](https://img.shields.io/badge/download-GNU_build_binary-green)](https://github.com/crest-lab/crest/releases/download/latest/crest-gnu-12-ubuntu-latest.tar.xz) |
+| CMake 3.31.6 | GNU (gcc 14.3.0, conda-forge) | [libopenblas 0.3.31](https://anaconda.org/conda-forge/libopenblas) (conda-forge) | static |  |
+| CMake 3.31.6 | [Intel (`ifx`/`icx` 2025.3)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html) | [MKL (oneAPI 2025.3)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static | |
+| Meson 1.10.1 | GNU (gcc 14.3.0, conda-forge) | [libopenblas 0.3.31](https://anaconda.org/conda-forge/libopenblas) (conda-forge) | dynamic | |
+| Meson 1.10.1 | GNU (gcc 14.3.0, conda-forge) | [libopenblas 0.3.31](https://anaconda.org/conda-forge/libopenblas) (conda-forge) | static | |
+| Meson 1.10.1 | [Intel (`ifx`/`icx` 2025.3)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html) | [MKL (oneAPI 2025.3)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | dynamic | |
+| Meson 1.10.1 | [Intel (`ifx`/`icx` 2025.3)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html) | [MKL (oneAPI 2025.3)](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) | static | [![Download (ifx)](https://img.shields.io/badge/download-ifort_build_binary-blue.svg)](https://github.com/crest-lab/crest/releases/download/latest/crest-intel-2023.1.0-ubuntu-latest.tar.xz) |
 
 
 Generally, subprojects should be initialized for the *default* build options, which can be done by 
@@ -107,8 +110,8 @@ For more information about builds including subprojects see [here](./subprojects
 
 Some basic build instructions can be found in the following dropdown tabs:
 
-
-
+<table>
+<tr><td>
 <details open>
 <summary><h4><code>CMake</code> build</h4></summary>
 <!-- blank line to recover markdown format-->
@@ -126,29 +129,34 @@ make -C _build
 ```bash
 make test -C _build
 ```
-The `CMake` build typically requires access to shared libraries of LAPACK and OpenMP. They must be present in the library paths at compile and runtime.
-Alternatively, a static build can be selected by using `-DSTATICBUILD=true` in the CMake setup step. The current static build with GNU compilers is available from the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest). 
+The `CMake` build requires shared libraries of LAPACK/BLAS (e.g. OpenBLAS) and OpenMP at compile and runtime.
+Alternatively, a static build can be selected by using `-DSTATICBUILD=true` in the CMake setup step. The current static build with GNU compilers is available from the [**continous release page**](https://github.com/crest-lab/crest/releases/tag/latest).
 </details>
-
+</td></tr>
+<tr><td>
 <details>
 <summary><h4><code>meson</code> build</h4></summary>
 <!-- blank line to recover markdown format-->
 
-For the setup an configuration of meson see also the [meson setup](https://github.com/grimme-lab/xtb/blob/master/meson/README.adoc) page hosted at the `xtb` repository.
-The chain of commands to build CREST with meson is:
+For the setup and configuration of meson see also the [meson setup](https://github.com/grimme-lab/xtb/blob/master/meson/README.adoc) page hosted at the `xtb` repository.
 
+**Intel (`ifx`/`icx`) + MKL** (recommended for static release binaries):
 ```bash
-export FC=ifort CC=icc
-meson setup _build --prefix=$PWD/_dist
+source /opt/intel/oneapi/setvars.sh
+meson setup _build -Dlapack=mkl --prefix=$PWD/_dist
 meson install -C _build
 ```
 
-The `meson` build of CREST is mainly focused on and tested with the Intel `ifort`/`icc` compilers.
-When using newer versions of Intel's oneAPI, replacing `icc` with `icx` should work. Please refrain from using `ifx` instead of `ifort`, however.
-When attempting to build with `gfortran` and `gcc`, add `-Dla_backend=mkl` to the meson setup command. Compatibility with the GNU compilers might be limited. We recommend the CMake build (see the corresponding section) in this instance.
+**GNU (`gfortran`/`gcc`) + OpenBLAS**:
+```bash
+export FC=gfortran CC=gcc
+meson setup _build -Dlapack=openblas --prefix=$PWD/_dist
+meson install -C _build
+```
 
-By default the `meson` build will create a **statically** linked binary.
 </details>
+</td></tr>
+</table>
 
 
 ---

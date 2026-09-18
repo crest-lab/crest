@@ -1,0 +1,9 @@
+# Protonation site sampling: generates protomers by adding H+ to basic sites
+runtype = "protonate"
+input   = "struc.xyz"   # input structure file (uracil)
+
+[[calculation.level]]
+method = "gfn2"         # GFN2-xTB for protonation site ranking
+
+[protonation]
+ewin = 30.0             # energy window for protomer selection (kcal/mol)

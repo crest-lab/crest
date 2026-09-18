@@ -20,4 +20,5 @@ srcs += files(
    'mie.f90',
    'entropic.f90',
    'entropy.f90',
+   'thermochem_module.f90',
 )

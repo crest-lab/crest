@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with crest.  If not, see <https://www.gnu.org/licenses/>.
 = crest(1)
-P.Pracht; S.Grimme; Universitaet Bonn, MCTC
+P.Pracht; S.Grimme; C.Bannwarth; F.Bohle; S.Ehlert; G.Feldmann; J.Gorges; C.Plett; S.Spicher; P.Steinbach; P.Wesolowski; F.Zeller
 :doctype: manpage
 // This attribute should be set from the build system:
-:release-version: 
+:release-version:
 :man manual: User Commands
 :man source: Crest {release-version}
 :page-layout: base
@@ -28,352 +28,584 @@ crest - Conformer-Rotamer Ensemble Sampling Tool based on the GFN methods
 
 == SYNOPSIS
 
-*crest* [_INPUT_] [_OPTION_]...
+*crest* [_INPUT_] [_OPTIONS_]...
+
+*crest* *--input* _file.toml_
 
 == DESCRIPTION
 
-Conformer-Rotamer Ensemble Sampling Tool based on the GFN methods.
+CREST is a conformer/rotamer ensemble sampling tool that interfaces with
+various quantum chemistry backends to explore molecular potential energy
+surfaces.
+It supports conformational searches, protonation/tautomer workflows, solvation
+cluster growth, mass-spectral fragmentation, and various standalone utility
+tasks.
 
-Using the xTB program. Compatible with xTB version 6.4.0.
+The _INPUT_ argument can be a coordinate file in TM (*coord*, Bohr) or
+Xmol (*\*.xyz*, Angstrom) format.
+If omitted, CREST searches the working directory for a file named *coord*.
+Versions 3.0 and later also accept a TOML input file either as the first
+positional argument or via *--input*.
 
 .Cite work conducted with this code as
 [quote]
 ----
  P. Pracht, F. Bohle, S. Grimme, PCCP, 2020, 22, 7169-7192.
- 
- and  S. Grimme, JCTC, 2019, 15, 2847-2862.
- 
- with help from:
- F.Bohle, S.Ehlert, S.Grimme, P.Pracht
+ S. Grimme, JCTC, 2019, 15, 2847-2862.
+ P. Pracht et al., J. Chem. Phys., 2024, 160, 114110.
 ----
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+For QCG calculations additionally cite:
+
+[quote]
+----
+ S. Spicher, C. Plett, P. Pracht, A. Hansen, S. Grimme,
+   JCTC, 2022, 18 (5), 3174-3189.
+ C. Plett, S. Grimme,
+   Angew. Chem. Int. Ed. 2023, 62, e202214477.
+----
 
 == OPTIONS
 
-The FIRST argument CAN be a coordinate file in the TM **(coord, Bohr)** or Xmol **(*.xyz, Ang.)** format.
-If no such file is present as the first argument **crest** will automatically search for a file called "`**coord**`" in the TM format.
+=== Run modes
 
-=== General and technical options
+*--sp*::
+  Single-point energy calculation.
 
-*-v1*::
-  Use the MF-MD-GC workflow.
-  (_OUTDATED_)
+*--opt*, *--optimize*::
+  Geometry optimization.
 
-*-v2*::
-  Use the MTD-GC workflow.
-  (_OUTDATED_)
+*--hess*, *--numhess*::
+  Numerical Hessian / vibrational frequencies.
 
-*-v3* (or *-v2i*)::
-  Use the iMTD-GC workflow.
-  [_default_]
+*--md*, *--dynamics*::
+  Stand-alone molecular dynamics simulation.
 
-*-v4*::
-  Use the iMTD-sMTD workflow.
+*--v3*, *--v2i*::
+  iMTD-GC iterative conformational search.
+  [_default_ conformer search]
 
-*-entropy*::
-  The same workflow as with "`**-v4**`", specialized for the calculation of conformational entropy.
+*--v4*, *--entropy*::
+  iMTD-sMTD entropy-focused conformational search.
 
-*-xnam* _bin_::
-  Specify name of the **xtb**(1) binary that should be used.
+*--mdopt* [_file_]::
+  Optimize every structure in an ensemble file.
 
-*-niceprint*::
-  Progress bar printout for optimizations.
+*--screen* [_file_]::
+  Multi-level energy screening of an ensemble.
 
-*-dry*::
-  Perform a "`dry run`".
-  Only prints the settings that would be applied with the CMD input and stops the run before any calculations
+*--protonate*::
+  Automated protonation site search.
 
-*-T* _int_::
-  Set total number of CPUs (threads) to be used.
-  Parallel settings are then determined automatically for each step.
-  If not set by "`**-T**`", this number is read from the **OMP_NUM_THREADS** global variable.
+*--deprotonate*::
+  Automated deprotonation site search.
 
-=== Calculation options
+*--tautomerize*::
+  Automated tautomer search.
 
-*-g* _string_::
-  Use GBSA implicit solvent for solvent _string_.
+*--qcg* [_solvent_]::
+  Quantum Cluster Growth solvation workflows.
 
-*-alpb* _string_::
-  Use ALPB implicit solvent for solvent _string_.
+*--msreact*::
+  Mass-spectral fragment generator.
 
-*-chrg* _int_::
-  Set the molecules`' charge.
+*--bh*, *--GMIN*::
+  Basin-hopping global optimization.
 
-*-uhf* _int_::
-  Set _int_=**N alpha - N beta** electrons
+*--sort*::
+  Ensemble sorting via CREGEN.
 
-*-nozs*::
-  Do not perform z-mat sorting.
-  [_default_]
-
-*-opt* _lev_::
-  Set optimization level for **ALL** GFN-xTB optimizations.
-  [_default_: **vtight**]
-
-  * _lev_ = **vloose**, **loose**, **normal**, **tight**, **vtight**
-
-*-gfn1*::
-  Use GFN1-xTB.
+=== Method selection
 
 *-gfn2*::
   Use GFN2-xTB.
   [_default_]
 
+*-gfn1*::
+  Use GFN1-xTB.
+
+*-gfn0*::
+  Use GFN0-xTB.
+
 *-gff*, *-gfnff*::
-  Use GFN-FF (requires **xtb**(1) 6.3 or newer).
-  (For GFN-FF searches bond constraints are applied automatically.)
+  Use GFN-FF.
+  Bond constraints are applied automatically for GFN-FF searches.
+
+*-gxtb*::
+  Use g-xTB (requires a special build).
 
 *-gfn2//gfnff*::
-  GFN2-xTB//GFN-FF composite mode.
+  GFN-FF trajectories with GFN2-xTB energy reweighting.
 
-*Adding additional constraints to the calculations:*
+*-refine* _method_::
+  Post-process conformers at a higher level of theory.
 
-The user is able to include additional constraints to **ALL** xtb**(1)** calculations that are conducted by CREST.
+*-optlev* _level_::
+  Optimization convergence level for all semiempirical calculations.
+  _level_ = *crude*, *vloose*, *loose*, *normal*, *tight*, *vtight*, *extreme*.
+
+*-dscal* [_factor_]::
+  Scale the dispersion energy in MD/MTD simulations.
+
+=== Molecular system
+
+*-T* _int_::
+  Number of CPU threads.
+  If not set, read from *OMP_NUM_THREADS*.
+
+*-chrg* _int_::
+  Molecular charge.
+
+*-uhf* _int_::
+  Number of unpaired electrons (N_alpha - N_beta).
+
+*-g* _solvent_, *-gbsa* _solvent_::
+  GBSA implicit solvation.
+
+*-alpb* _solvent_::
+  ALPB implicit solvation.
+
+*-efield* _Ex_ _Ey_ _Ez_::
+  Apply a homogeneous external electric field in V/Ang along x, y, z.
+
+*-charges* [_file_]::
+  Read atomic partial charges from _file_ (default: *charges*).
+
+=== Technical options
+
+*--input* _file_::
+  Specify a TOML input file with detailed settings.
+
+*-xnam* _bin_::
+  Path to the xtb executable (when using xtb as the backend).
+
+*-noopt*::
+  Skip pre-optimization of the input structure.
+
+*-niceprint*::
+  Show an animated progress bar during long runs.
+
+*-dry*::
+  Parse all arguments, print the resolved settings, then exit without
+  running any calculation.
+
+*-legacy*::
+  Force CREST < 3.0 behaviour.
+
+=== Constraints
+
+The following flags apply constraints to *all* calculations made by CREST.
 
 *-cinp* _file_::
-  Read in a file containing the constraints.
-  Constraints have to be in the same format as in xtb**(1)**.
-  (This was done previously via the "`**.constrains**`" file.)
+  Read constraints from _file_ (same format as in *xtb*(1);
+  formerly passed via *.constrains*).
 
-*-cbonds*::
-  Define automatic bond constraints (set up from topology).
+*-cbonds* [_fc_]::
+  Constrain all bonds globally (derived from topology).
+  Optional force constant _fc_ in Eh.
+
+*-cbonds_md* [_fc_]::
+  Constrain all bonds during MDs/MTDs only, not optimizations.
 
 *-nocbonds*::
-  Turn off **-cbonds**. (For GFN-FF, mainly. See above.)
+  Disable automatic bond constraints.
 
 *-fc* _float_::
-  Define force constant for defined constraints (**-cbonds**).
+  Global force constant for bond constraints.
 
-=== Options for ensemble comparisons
+=== Ensemble comparison and sorting (CREGEN)
 
-*-cregen* _file_::
-  Use **ONLY** the CREGEN subroutine to sort a given ensemble file.
+*-cregen* [_file_]::
+  Run CREGEN standalone to sort and deduplicate an ensemble file.
 
 *-ewin* _real_::
-  Set energy window in kcal/mol.
-  [_default_: **6.0** kcal/mol]
+  Energy window in kcal/mol.
+  [_default_: *6.0* kcal/mol]
 
 *-rthr* _real_::
-  Set RMSD threshold in Ang.
-  [_default_: **0.125** Ang]
+  RMSD threshold in Ang.
+  [_default_: *0.125* Ang]
 
 *-ethr* _real_::
-  Set E threshold in kcal/mol.
-  [_default_: **0.05** kcal/mol]
+  Energy threshold in kcal/mol.
+  [_default_: *0.05* kcal/mol]
 
 *-bthr* _real_::
-  Set Rot. const. threshold.
-  [_default_: **0.01** (= 1%)]
+  Rotational constant threshold.
+  [_default_: *0.01* (= 1%)]
 
 *-pthr* _real_::
-  Boltzmann population threshold.
-  [_default_: **0.05** (= 5%)]
+  Boltzmann population threshold (0-1).
+  [_default_: *0.05*]
 
 *-temp* _real_::
-  Set temperature in **CREGEN**.
-  [_default_: **298.15** K]
+  Temperature for Boltzmann weighting in K.
+  [_default_: *298.15* K]
 
-*-prsc*::
-  Create a **scoord.*** file for each conformer.
+*-topo*, *-notopo*::
+  Enable or disable the topology change check.
 
-*-nowr*::
-  Don't write new ensemble files.
+*-ezcheck*::
+  Enable E/Z double-bond isomer check.
 
-*-eqv*,*-nmr*,*-entropy*::
-  Compare nuclear equivalences (requires rotamers).
+*-heavy*::
+  Use heavy-atom-only RMSD.
+
+*-allrot*::
+  Use all three rotational constants (A, B, C) for duplicate detection.
+
+*-eqv*, *-nmr*::
+  NMR nuclear equivalence analysis (requires rotamers).
 
 *-cluster* _int_::
-  PCA and k-Means clustering of sorted ensemble.
-  Works as extenstion to the **CREGEN** sorting.
-  _int_ is the number of clusters to be formed.
+  PCA + k-Means clustering of the sorted ensemble.
+  _int_ is the number of clusters.
 
-*-notopo*::
-  Turn off any topology checks in **CREGEN**.
+*-prsc*::
+  Write *scoord.** files for each conformer.
 
-=== Options for the iMTD-GC workflows
+*-nowr*::
+  Skip writing the sorted ensemble file.
 
-*-cross*::
-  Do the GC part.
+*-osdf*::
+  Write the output ensemble in SDF format in addition to XYZ.
+
+=== Conformer search / sampling
+
+*-v3*, *-v2i*::
+  iMTD-GC (iterative MTD-GC).
   [_default_]
 
-*-nocross*::
-  Don't do the GC part.
+*-v4*, *-entropy*::
+  iMTD-sMTD, specialized for entropy/free-energy sampling.
+
+*-len* _t_[*x*], *-mdlen* _t_[*x*]::
+  MD/MTD simulation length in ps.
+  Append *x* to scale the default length by a factor instead.
+
+*-tstep* _float_::
+  MD integration timestep in fs.
+  [_default_: *5* fs]
 
 *-shake* _int_::
-  Set SHAKE mode for MD.
-  (**0**=off, **1**=H-only, **2**=all bonds)
-  [_default_: **2**]
+  SHAKE constraint mode: *0* = off, *1* = X-H bonds only, *2* = all bonds.
+  [_default_: *1*]
 
-*-tstep* _int_::
-  Set MD time step in fs.
-  [_default_: **5** fs]
+*-mdtemp* _float_::
+  Temperature for MTD simulations in K.
 
-*-mdlen/-len* _real_::
-  Set MD length (all MTDs) in ps.
-  Also possible are multiplicative factors for the default MD length with "`**x**_real_`".
+*-tnmd* _float_::
+  Temperature for additional normal (unbiased) MDs in K.
 
 *-mddump* _int_::
-  xyz dumpstep to Trajectory in fs.
-  [_default_: **100** fs]
+  Trajectory structure dump interval in fs.
+  [_default_: *100* fs]
 
 *-vbdump* _real_::
-  Set Vbias dump frequency in ps.
-  [_default_: 1.0 ps]
+  Vbias (MTD bias) dump frequency in ps.
+  [_default_: *1.0* ps]
 
-*-tnmd* _real_::
-  Set temperature for additional normal MDs.
-  [_default_: 400 K]
+*-nmtd* _int_::
+  Number of MTD simulations per search cycle.
 
-*-norotmd*::
-  Don't do the regular MDs after the second multilevel optimization step.
+*-cross*, *-nocross*::
+  Enable or disable the genetic structure crossing step.
+  [_default_: *-cross*]
 
-*-quick*::
-  Perform a search with reduced settings for a crude ensemble.
+*-gcmax* _int_::
+  Maximum number of structures fed into the genetic crossing.
 
-*-squick*::
-  Perform a even further reduced search.
+*-nozs*::
+  Disable z-matrix sorting.
 
-*-mquick*::
-  Perform a search with maximum reduced settings.
-  (Do not reduce the settings more than that.)
+*-normmd* [_n_ [_T_]]::
+  Run additional unbiased MDs on the lowest-energy conformers.
+
+*-quick*, *-squick*, *-mquick*::
+  Progressively reduced search settings for fast, approximate ensembles.
 
 *-origin*::
-  Track the step of generation for each conformer/rotamer.
+  Track the MTD step of origin for each conformer.
   [_default_]
 
 *-keepdir*::
-  Keep sub-directories of the conformer generation step.
+  Keep temporary working directories after the run.
 
-*-nci*::
-  Generate an ellipsoide potential around the input structure and add it to the MTD simulation.
-  This can be used to find aggregates of NCI complexes.
+*-NCI*::
+  NCI cluster mode: flat-bottom wall potential and specialised MTD settings
+  suited for weakly-bound complexes.
 
-*-wscal* _real_::
-  Scale the ellipsoide potential axes by factor _real_.
+*-wscal* _float_::
+  Scale the wall potential sphere radius.
 
-=== Thermostatistical options (used in entropy mode)
+*-hflip*, *-noflip*::
+  Enable or disable OH proton flipping after MTD.
+  [_default_: *-noflip*]
 
-*-trange* _lower_ _upper_ _step_::
-  Entropies are calculated for different temperatures.
-  These are calculated in a temperature range from _lower_ to _upper_ with _step_ in between.
-  [_default_: **280**K-**380**K in **10**K steps]
+*-maxflip* _int_::
+  Maximum number of OH flip attempts.
+  [_default_: *1000*]
+
+=== Thermostatistical options
+
+*-trange* _Tmin_ _Tmax_ _Tstep_::
+  Compute entropies over a temperature range.
+  [_default_: *280*-*380* K in *10* K steps]
+
+*-tread* _file_::
+  Read a list of temperatures (one per line) from _file_.
 
 *-fscal* _float_::
-  Frequency scaling factor.
-  [_default_: 1.0]
+  Vibrational frequency scaling factor.
+  [_default_: *1.0*]
 
-*-sthr* _float_::
-  Vibrational/rotational entropy interpolation threshold (tau).
-  [_default_: **25.0** cm^-1]
+*-sthr* _float_, *-rotorcut* _float_::
+  Rotor cutoff in cm^-1: modes below this are treated as free rotors.
+  [_default_: *25.0* cm^-1]
 
 *-ithr* _float_::
   Imaginary mode inversion cutoff.
-  [_default_: **-50.0** cm^-1]
+  [_default_: *-50.0* cm^-1]
 
 *-ptot* _float_::
-  Sum of population for structures considered in msRRHO average.
-  [_default_: **0.9** (= 90%)]
+  Cumulative Boltzmann population threshold for msRRHO averaging.
+  [_default_: *0.9*]
 
-=== options for MSREACT automated mass spectra fragment generator
+*-pcap* _int_::
+  Maximum number of structures used in property (Hessian) calculations.
 
-    *-msreact*::
-      start the msreact mode
+*-printpop*::
+  Print Boltzmann populations at every temperature in the range.
 
-    *-msnoattrh*::
-      deactivate attractive potential between hydrogen and LMO centers
+*-avbhess*::
+  Use a Boltzmann-averaged Hessian in the rrhoav property calculation.
 
-    *-msnshifts* _int_::  
-      perform n optimizations with randomly shifted atom postions (default 0)
+=== Quantum Cluster Growth (QCG)
 
-    *-msnshifts* _int_::  
-      perform n optimizations with randomly shifted atom postions and repulsive potential applied to bonds (default 0)
+General usage: *crest* _solute_ *-qcg* _solvent_ [_options_]
 
-    *-msnbonds* _int_::  
-      maximum number of bonds between atoms pairs for applying repulsive potential (default 3) 
+*-grow*::
+  Cluster generation run type.
 
-    *-msmolbar*::
-      sort out topological duplicates by molbar codes (requires  sourced "molbar")
+*-nsolv* _int_::
+  Number of solvent molecules to add.
 
-    *-msinchi*::
-      sort out topological duplicates by inchi codes (requires  sourced "obabel")
+*-fixsolute*::
+  Fix the solute during cluster growth (recommended for rigid molecules;
+  applied automatically for water).
 
-    *-msnfrag* _int_:: 
-        number of fragments that are printed by msreact (random selection)
-    
-    *-msiso*::
-      print only non-dissociated structures (isomers)
+*-nofix*::
+  Do not fix the solute during growth (override for water).
 
-    *-msnoiso*::
-      print only dissociated structures
+*-nopreopt*::
+  Skip pre-optimization.
 
-    *-mslargeprint*::
-        do not remove temporary files and MSDIR with constrained optimizations
+*-xtbiff*::
+  Use the xTB-IFF standalone program for solvent docking.
 
-    *-chrg* _int_:: 
-      set the molecules´ charge
-    
-    *-ewin* _float_::       
-      set energy window in for sorting out fragments kcal/mol, [default: 200.0 kcal/mol] 
-  
-=== Other tools for standalone use
+*-normdock*::
+  Perform a more extensive docking step during growth.
 
-*-zsort*::
-  Use only the **zsort** subroutine to sort the z-matrix of the input coordinate file.
+*-maxsolv*::
+  Set the convergence limit when *-nsolv* is not given.
+  [_default_: *150*]
 
-*-mdopt* _file_::
-  Optimize along trajectory or ensemble file in the XYZ format.
-  Each point on the file is optimized.
+*-wscal* _float_::
+  Scaling factor for the outer wall potential.
 
-*-screen* _file_::
-  Optimize along ensemble file in the XYZ format.
-  A multilevel optimization is performed with continiously increasing thresholds.
-  After each step the ensemble file is sorted.
+*-samerand*::
+  Use the same random seed for every xTB-IFF run.
 
-*-protonate*::
-  Find a molecule's protomes by using a LMO pi- or LP-center approach.
+*-directed* _file_::
+  Directed solvation: place solvent at positions defined in _file_.
 
-*-deprotonate*::
-  Find a molecule's deprotomers.
+*-fin_opt_gfn2*::
+  Perform final GFN2-xTB optimization of grow and ensemble structures.
 
-*-tautomerize*::
-  Combine the protonation and deprotonation to find prototropic tautomers.
+*-ensemble*::
+  Ensemble generation run type.
 
-  *-trev*:::
-    Do first the deprotonation and then the protonation in the *-tautomerize* mode, i.e., reverse of the default procedure.
+*-qcgmtd*, *-ncimtd*::
+  NCI-MTD CREST ensemble generation.
+  [_default_]
 
-  *-iter* _int_:::
-    Set number of protonation/deprotonation cycles in the tautomerization script.
-    [_default_: 2]
+*-mtd*::
+  MTD for QCG ensemble generation.
 
-*-compare* _f1_ _f2_::
-  Compare two ensembles _f1_ and _f2_.
-  Both ensembles must have the same order of atoms of the molecule and should contain rotamers.
+*-md*::
+  Normal MD for QCG ensemble search.
 
-  *-maxcomp* _int_:::
-    Select the lowest _int_ conformers out of each ensemble to be compared with "`*-compare*`".
-    [_default_: 10]
+*-enslvl* [_method_]::
+  Method for ensemble search (all GFN methods supported).
 
-*-testtopo* _file_::
-  Analyze some stuctural info (topology) for a given file.
+*-clustering*::
+  Enable clustering for ensemble search (qcgmtd/ncimtd only).
 
-*-constrain* _atoms_::
-  Write example file "`*.xcontrol.sample*`" for constraints in crest.
-  (See *-cinp* option above.)
+*-esolv*::
+  Reference cluster generation and solvation energy calculation.
+
+*-gsolv*::
+  Reference cluster generation and solvation free energy calculation.
+
+*-nclus*::
+  Number of clusters for reference generation.
+  [_default_: *4*]
+
+*-nocff*::
+  Disable the CFF algorithm.
+
+*-freqscal*::
+  Frequency scale factor (output only).
+
+*-freqlvl* [_method_]::
+  Method for frequency computation.
+
+=== Mass spectral fragment generator (MSReact)
+
+General usage: *crest* _input_ *-msreact* [_options_]
+
+*-msnoattrh*::
+  Deactivate attractive potential between H atoms and LMO centers.
+
+*-msnshifts* _int_::
+  Number of optimizations with randomly shifted atom positions.
+  [_default_: *0*]
+
+*-msnshifts2* _int_::
+  Same as *-msnshifts* but with bond-repulsive potential applied.
+  [_default_: *0*]
+
+*-msnbonds* _int_::
+  Maximum bond distance for the repulsive potential.
+  [_default_: *3*]
+
+*-msmolbar*::
+  Deduplicate fragments by molbar codes (requires *molbar* in PATH).
+
+*-msinchi*::
+  Deduplicate fragments by InChI codes (requires *obabel*(1) in PATH).
+
+*-msnfrag* _int_::
+  Number of fragments to print (random selection).
+
+*-msiso*::
+  Print only non-dissociated structures (isomers).
+
+*-msnoiso*::
+  Print only dissociated structures.
+
+*-mslargeprint*::
+  Keep all temporary files and the MSDIR directory.
+
+*-ewin* _real_::
+  Energy window for fragment sorting in kcal/mol.
+  [_default_: *200.0* kcal/mol]
+
+*-msinput* _file_::
+  Read special MSReact settings from _file_.
+
+=== Other standalone tools
 
 *-thermo* _file_::
-  Calculate thermo data for given structure.
-  Also requires vibrational frequencies in the TM format, saved as file called "`*vibspectrum*`".
+  Compute thermochemistry from existing Hessian data.
+  Requires a *vibspectrum* file in TM format in the working directory.
 
-*-rmsd*,*-rmsdheavy* _file1_ _file2_::
-  Calculate RMSD or heavy atom RMSD between two structures.
-  Input coords are automatically transformed to Angstroem.
+*-entropy* [_T_]::
+  Compute conformational entropy from an ensemble.
+  Optional temperature _T_ in K.
 
-*-splitfile* _file_ [*from*] [*to*]::
-  Split an ensemble from _file_ into seperate directories for each structure.
-  *from* and *to* can be used to select specific structures from the file.
-  The new directories are collected in the *SPLIT* directory.
+*-sort*::
+  Sort ensemble structures by energy (CREGEN).
+
+*-symmetries*::
+  Symmetry analysis of all structures in an ensemble.
+
+*-printboltz*::
+  Print Boltzmann population weights for each structure.
+
+*-compare* _f1_ _f2_::
+  Compare two ensembles _f1_ and _f2_ for structural overlap.
+  Both files must share the same atom ordering.
+
+  *-maxcomp* _int_:::
+    Maximum number of conformers taken from each ensemble for comparison.
+    [_default_: *10*]
+
+*-splitfile* _file_ [_i_] [_j_]::
+  Split an ensemble into per-structure directories under *SPLIT/*.
+  _i_ and _j_ optionally select a range of structures.
+
+*-rmsd* _f1_ _f2_::
+  RMSD between two structures (coordinates auto-converted to Angstrom).
+
+*-rmsdheavy* _f1_ _f2_::
+  Heavy-atom RMSD between two structures.
+
+*-protonate*::
+  Automated protonation site search via LMO pi/LP-center approach.
+
+*-deprotonate*::
+  Automated deprotonation site search.
+
+*-tautomerize*::
+  Find prototropic tautomers (protonation + deprotonation).
+
+  *-trev*:::
+    Deprotonate first, then protonate (reverse order).
+
+  *-iter* _int_:::
+    Number of protonation/deprotonation cycles.
+    [_default_: *2*]
+
+*-cregen* [_file_]::
+  CREGEN ensemble sorting (see also _Ensemble comparison_ above).
+
+*-zsort*::
+  Z-matrix sorting of the input coordinate file.
+
+*-testtopo* _file_::
+  Topology / bond connectivity analysis for a given file.
+
+*-constrain* _atoms_::
+  Write an example constraint file *.xcontrol.sample*.
+
+=== TOML input files
+
+CREST 3.0+ accepts a TOML file as a flexible alternative to CLI flags.
+
+  crest structure.xyz --input settings.toml
+  crest settings.toml   # structure path given inside the file
+
+A minimal TOML input file:
+
+----
+input   = "struc.xyz"
+runtype = "iMTD-GC"
+threads = 4
+
+[calculation]
+  [[calculation.level]]
+    method = "gfn2"
+    chrg   = 0
+    gbsa   = "h2o"
+----
+
+Key root-level settings: *input*/*structure* (coordinate file),
+*runtype* (workflow), *threads* (CPU count), *preopt* (bool),
+*constraints* (constraint file path).
+
+Main blocks: *[calculation]* / *[[calculation.level]]* /
+*[[calculation.constraint]]* — method, charge, solvent, geometric
+constraints; *[dynamics]* / *[[dynamics.meta]]* — MD and metadynamics
+settings; *[cregen]* — sorting thresholds; *[thermo]* — thermochemistry.
 
 == NOTES
 
-View literature references with **--cite**.
+View full literature references with *--cite*.
+
+For the full option reference and TOML keyword documentation see:
+https://crest-lab.github.io/crest-docs/
+
+== SEE ALSO
+
+https://crest-lab.github.io/crest-docs/

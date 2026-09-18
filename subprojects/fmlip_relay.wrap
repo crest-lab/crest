@@ -1,0 +1,10 @@
+# fmlip_relay: adjust the URL to your actual repository location.
+# If it lives as a git submodule, you can delete this file and instead ensure
+# the submodule is checked out under subprojects/fmlip_relay/.
+[wrap-git]
+url = https://github.com/pprcht/fmlip-relay
+revision = 1f297071f28ae6725aa693cac93ff8b3c84f6020
+clone-recursive = true
+
+[provide]
+fmlip_relay = fmlip_relay_dep

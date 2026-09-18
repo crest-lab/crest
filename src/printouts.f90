@@ -54,14 +54,16 @@ subroutine confscript_head(vers)
   write (*,'(  3x,''  Angew. Chem. Int. Ed. 2023, 62, e202214477.'')')
   write (*,'(/,3x,''for works involving MECP screening cite'')')
   write (*,'(/,3x,''• P.Pracht, C.Bannwarth, JCTC, 2022, 18 (10), 6370-6385.'')')
+  write (*,'(/,3x,''for works involving the TTConf reimplementaiton cite'')')
+  write (*,'(/,3x,''• C.Zurek, et al., JCTC, 2025, 21, 1459-1475.'')')
   write (*,*)
 
   write (*,'(3x,a)') 'Original code'
   write (*,'(4x,a)') ' P.Pracht, S.Grimme, Universität Bonn, MCTC'
   write (*,'(3x,a)') 'with help from (alphabetical order):'
   write (*,'(4x,a)') ' C.Bannwarth, F.Bohle, S.Ehlert, G.Feldmann, J.Gorges,'
-  write (*,'(4x,a)') ' S.Grimme, C.Plett, P.Pracht, S.Spicher, P.Steinbach,'
-  write (*,'(4x,a)') ' P.Wesolowski, F.Zeller'
+  write (*,'(4x,a)') ' S.Grimme, C.Plett, P.Pracht, L.Rindt, S.Spicher,'
+  write (*,'(4x,a)') ' P.Steinbach, P.Wesolowski, F.Zeller'
   write (*,*)
 
   write (*,'(3x,a)') 'Online documentation is available at'
@@ -132,266 +134,414 @@ end subroutine disclaimer
 
 !=========================================================================================!
 
+subroutine help_section(title)
+  !*************************************
+  !* Print a colored section header.   *
+  !*************************************
+  use iomod,only:colorify
+  use crest_parameters,only:stdout
+  implicit none
+  character(len=*),intent(in) :: title
+  integer :: n
+  n = len_trim(title)
+  write (stdout,'(/,1x,a)') colorify(trim(title),'yellow')
+  write (stdout,'(1x,a)') colorify(repeat('─',n),'yellow')
+end subroutine help_section
+
+subroutine help_opt(flag,fw,desc)
+  !*********************************************************************
+  !* Print one colored flag + description, padding the flag column to  *
+  !* fw characters wide so descriptions align.                         *
+  !*********************************************************************
+  use iomod,only:colorify
+  use crest_parameters,only:stdout
+  implicit none
+  character(len=*),intent(in) :: flag,desc
+  integer,intent(in) :: fw
+  integer :: fl,pad
+  fl = len_trim(flag)
+  pad = max(fw-fl,1)
+  write (stdout,'(a,a,a,a,a)') '   ',colorify(trim(flag),'green'), &
+    & repeat(' ',pad),' : ',trim(desc)
+end subroutine help_opt
+
+!=========================================================================================!
+
 subroutine confscript_help()
-  use crest_data
+  use iomod,only:colorify
+  use crest_parameters,only:stdout
   implicit none
 
-  write (*,'(80("-"))')
-  write (*,*)
-  write (*,'(1x, ''Usage :'')')
-  write (*,'(1x, '' crest [input] [options]'')')
-  write (*,*)
-  write (*,'(1x, ''The [input] argument CAN be a coordinate file in the'')')
-  write (*,'(1x, ''TM (coord, Bohr) or Xmol (*.xyz, Ang.) format.'')')
-  write (*,'(1x, ''If no such file is present as the first argument crest will'')')
-  write (*,'(1x, ''automatically search for a file called "coord" in the TM format.'')')
-  write (*,*)
-  write (*,'(1x, ''Versions >3.0 allow specifying detailed input instructions via'')')
-  write (*,'(1x, ''input files in the TOML format.'')')
-  write (*,'(1x, ''*.toml files can be [input] or specified via "--input <file>"'')')
-  write (*,*)
+  write (stdout,'(/,1x,a)') colorify(repeat('─',76),'gold')
+  write (stdout,'(1x,a,a)') colorify('Usage:','yellow'),'  crest [INPUT] [OPTIONS]'
+  write (stdout,'(1x,a)') colorify(repeat('─',76),'gold')
+  write (stdout,*)
+  write (stdout,'(1x,a)') 'The '//colorify('[INPUT]','blue')//' argument CAN be a coordinate file in the'
+  write (stdout,'(1x,a)') 'TM (coord, Bohr) or Xmol (*.xyz, Ang.) format.'
+  write (stdout,'(1x,a)') 'If no such file is present as the first argument, crest will'
+  write (stdout,'(1x,a)') 'automatically search for a file called "coord" in the TM format.'
+  write (stdout,*)
+  write (stdout,'(1x,a)') colorify('Versions >3.0 allow specifying detailed input instructions via','green')
+  write (stdout,'(1x,a)') colorify('input files in the TOML format.','green')
+  write (stdout,'(1x,a)') colorify('*.toml files can be ','green')//colorify(' [INPUT]','blue')// &
+    colorify(' or specified via "--input <file>"','green')
+  write (stdout,*)
   call confscript_morehelp2()
   stop '   [-h] displayed. exit.'
 end subroutine confscript_help
 
 subroutine confscript_morehelp(flag)
-  use crest_data
+  use iomod,only:colorify
+  use crest_parameters,only:stdout
   implicit none
   character(len=*),intent(in) :: flag
+  integer :: fw
 
-  write (*,'(80("-"))')
-  write (*,*)
+  write (stdout,'(/,1x,a)') colorify(repeat('─',76),'gold')
+  write (stdout,*)
   select case (flag)
+
+    ! ── General / technical ──────────────────────────────────────────────
   case default
-    write (*,'(/,1x,''General, technical, and calculation options:'')')
-    write (*,'(5x,''--input <file>     : Specify TOML file with detailed input instructions'')')
-    write (*,'(5x,''-T <int>           : Set total number of CPUs(threads)'')')
-    write (*,'(5x,''                     to be used. Parallel settings are then'')')
-    write (*,'(5x,''                     determined automatically for each step.'')')
-    write (*,'(5x,''                     If not set by "-T", this number is read'')')
-    write (*,'(5x,''                     from the OMP_NUM_THREADS global variable.'')')
-    write (*,'(5x,''-g <string>        : use GBSA implicit solvent'')')
-    write (*,'(5x,''                     for solvent <string>'')')
-    write (*,'(5x,''-alpb <string>     : use ALPB implicit solvent'')')
-    write (*,'(5x,''                     for solvent <string>'')')
-    write (*,'(5x,''-chrg <int>        : set the molecules´ charge'')')
-    write (*,'(5x,''-uhf <int>         : set <int>=Nα-Nβ electrons'')')
-    write (*,'(5x,''-charges <file>    : copy a existing atomic charges file for'')')
-    write (*,'(5x,''                     all optimizations (can be used by GFN-FF)'')')
-    write (*,'(5x,''-opt <"lev">       : set opt. level for ALL GFN-xTB'')')
-    write (*,'(5x,''                     optimizations.'')')
-    write (*,'(5x,''                     <lev>=vloose,loose,normal,tight,vtight'')')
-    write (*,'(5x,''                     [default: vtight]'')')
-    write (*,'(5x,''-gfn1              : use GFN1-xTB'')')
-    write (*,'(5x,''-gfn2              : use GFN2-xTB [default]'')')
-    write (*,'(5x,''-gfn0              : use GFN0-xTB'')')
-    write (*,'(5x,''-gff, -gfnff       : use GFN-FF (requires xtb 6.3 or newer)'')')
-    write (*,'(5x,''                     (for GFN-FF searches bond constraints are applied automatically)'')')
-    write (*,'(5x,''-gfn2//gfnff       : GFN2-xTB//GFN-FF composite mode)'')')
-    write (*,'(3x,''Adding additional constraints to the calculations:'')')
-    write (*,'(3x,''The user is able to include additional constraints to ALL'')')
-    write (*,'(3x,''xtb calculations that are conducted by CREST.'')')
-    write (*,'(5x,''-cinp <file>       : read in a file containing the constraints.'')')
-    write (*,'(5x,''                     constraints have to be in the same format as in xtb.'')')
-    write (*,'(5x,''                     (this was done previously via the ".constrains" file)'')')
-    write (*,'(5x,''-cbonds            : define automatic bond constraints (set up from topology)'')')
-    write (*,'(5x,''-nocbonds          : turn off -cbonds (for GFN-FF, mainly. see above)'')')
-    write (*,'(5x,''-fc <float>        : define force constant for defined constraints (-cbonds)'')')
-    write (*,'(5x,''-xnam <"bin">      : specify name of the xtb binary'')')
-    write (*,'(5x,''                     that should be used.'')')
-    write (*,'(5x,''-niceprint         : progress bar printout for optimizations'')')
-    write (*,'(5x,''-dry               : perform a "dry run". Only prints the settings'')')
-    write (*,'(5x,''                     that would be applied with the CMD input'')')
-    write (*,'(5x,''                     and stops the run before any calculations'')')
-    write (*,*)
+    fw = 16
+    call help_section('Run modes:')
+    call help_opt('-sp',fw,'Single-point energy calculation')
+    call help_opt('-opt/-optimize',fw,'Geometry optimization')
+    call help_opt('-hess/-numhess',fw,'Numerical Hessian / vibrational frequencies')
+    call help_opt('-md/-dynamics',fw,'Molecular dynamics simulation')
+    call help_opt('-v3/-imtdgc',fw,'iMTD-GC conformational search  (see '//colorify('--help conf','gold')//')')
+    call help_opt('-v4/-entropy',fw,'Entropy/free-energy sampling  (see '//colorify('--help conf','gold')//')')
+    call help_opt('-mdopt',fw,'Ensemble optimization (no sorting)')
+    call help_opt('-screen',fw,'Ensemble screening')
+    call help_opt('-protonate',fw,'Protonation site search')
+    call help_opt('-deprotonate',fw,'Deprotonation site search')
+    call help_opt('-tautomerize',fw,'Tautomer generation')
+    call help_opt('-qcg',fw,'Quantum Cluster Growth workflows  (see '//colorify('--help qcg','gold')//')')
+    call help_opt('-msreact',fw,'MS fragment generator  (see '//colorify('--help msreact','gold')//')')
+    !call help_opt('-bh/-GMIN',fw,'Basin-hopping global optimization')
+    call help_opt('-sort/-cregen',fw,'Ensemble sorting, comparison, clustering  (see '//colorify('--help compare','gold')//')')
+    call help_opt('-ttcon',fw,'TTConf conformational sampling (see '//colorify('--help conf','gold')//')')
+    write (stdout,*)
+    fw = 22
+    call help_section('Method selection:')
+    call help_opt('-gfn2',fw,'Use GFN2-xTB  [default]')
+    call help_opt('-gfn1',fw,'Use GFN1-xTB')
+    call help_opt('-gfn0',fw,'Use GFN0-xTB')
+    call help_opt('-gff/-gfnff',fw,'Use GFN-FF  (bond constraints applied automatically)')
+    call help_opt('-gxtb',fw,'Use g-xTB  (requires special build)')
+    call help_opt('-orca <tmpl> <exe>',fw, &
+    & 'Use an ORCA driver: <tmpl> is an ORCA input template (EnGrad jobs only), <exe> the ORCA executable')
+    call help_opt('-mlip <backend>',fw, &
+    & 'Use an fmlip-relay ML potential: <backend> is uma (omol task) or maceoff (MACE-OFF23 medium)')
+    call help_opt('-A//B  -A/sp/B',fw,'sampling at B; inline SP re-ranking at A  (e.g. -gfn2//gfnff)')
+    call help_opt('-A/opt/B',fw,'sampling at B; inline geometry refinement at A')
+    call help_opt('-A@B',fw,'sampling at B; post-search re-optimization of ensemble at A')
+    write (stdout,'(9x,a)') 'A, B in: gfn0, gfn1, gfn2, gxtb, gfnff'
+    call help_opt('-rerank <method>',fw,'Post-search SP re-ranking of conformer ensemble at <method>')
+    call help_opt('-reopt <method>',fw,'Post-search geometry optimization of conformer ensemble at <method>')
+    call help_opt('-finalhess',fw,'Post-search Hessians on final ensemble, re-sort by Gibbs free energy')
+    call help_opt('-refine <method>',fw,'Post-process conformers at a higher level (single step)')
+    call help_opt('-optlev <level>',fw,'Optimization convergence level for ALL semiempirical calculations')
+    write (stdout,'(9x,a)') '<level> = crude, vloose, loose, normal, tight, vtight, extreme'
+    call help_opt('-dscal [<factor>]',fw,'Scale dispersion energy in MD/MTD simulations')
+    write (stdout,*)
+    fw = 22
+    call help_section('Molecular system:')
+    call help_opt('-T <int>',fw,'Number of CPU threads (or read from OMP_NUM_THREADS)')
+    call help_opt('-chrg <int>',fw,"Molecular charge")
+    call help_opt('-uhf <int>',fw,'Unpaired electrons (N_alpha - N_beta)')
+    call help_opt('-mult <int>',fw,'Spin multiplicity (2S+1 = uhf+1)')
+    call help_opt('-spin-polarized',fw,'Spin-polarized treatment (open-shell, tblite only)')
+    call help_opt('-g/-gbsa <solvent>',fw,'GBSA implicit solvation')
+    call help_opt('-alpb <solvent>',fw,'ALPB implicit solvation')
+    call help_opt('-efield <x> <y> <z>',fw,'External electric field in V/Ang along x, y, z')
+    call help_opt('-charges [<file>]',fw,'Read atomic partial charges from file  [default: "charges"]')
+    write (stdout,*)
+    fw = 22
+    call help_section('Technical:')
+    call help_opt('--input <file>',fw,'Specify TOML input file with detailed settings')
+    call help_opt('-xnam <bin>',fw,'Path to the xtb executable (when using xtb as backend)')
+    call help_opt('-noopt',fw,'Skip pre-optimization of the input structure')
+    call help_opt('-niceprint',fw,'Show progress bar during optimizations')
+    call help_opt('-dry',fw,'Parse args, print resolved settings, then exit')
+    call help_opt('-legacy',fw,'Force CREST < 3.0 behavior')
+    write (stdout,*)
+    fw = 22
+    call help_section('Constraints (applied to ALL calculations):')
+    call help_opt('-cinp <file>',fw,'Read constraints file  (xtb format; formerly ".constrains")')
+    call help_opt('-freeze <atoms>',fw,'Freeze atoms in optimizations/MD  (indices, ranges, or element symbols)')
+    call help_opt('-cbonds [<fc>]',fw,'Constrain all bonds globally  (set up from topology)')
+    call help_opt('-cbonds_md [<fc>]',fw,'Constrain all bonds during MDs/MTDs only')
+    call help_opt('-nocbonds',fw,'Disable automatic bond constraints')
+    call help_opt('-fc <float>',fw,'Global force constant for bond constraints')
+    write (stdout,*)
 
+    ! ── Ensemble comparison / CREGEN ─────────────────────────────────────
   case ('compare','cregen')
-    write (*,'(1x,''Options for ensemble comparisons:'')')
-    write (*,'(5x,''-cregen [file]     : use ONLY the CREGEN subroutine'')')
-    write (*,'(5x,''                     to sort a given ensemble file.'')')
-    write (*,'(5x,''-ewin <real>       : set energy window in kcal/mol,'')')
-    write (*,'(5x,''                     [default: 6.0 kcal/mol]'')')
-    write (*,'(5x,''-rthr <real>       : set RMSD threshold in Ang,'')')
-    write (*,'(5x,''                     [default: 0.125 Ang]'')')
-    write (*,'(5x,''-ethr <real>       : set E threshold in kcal/mol,'')')
-    write (*,'(5x,''                     [default: 0.05 kcal/mol]'')')
-    write (*,'(5x,''-bthr <real>       : set Rot. const. threshold ,'')')
-    write (*,'(5x,''                     [default: 0.01 (= 1%)]'')')
-    write (*,'(5x,''-pthr <real>       : Boltzmann population threshold'')')
-    write (*,'(5x,''                     [default: 0.05 (= 5%)]'')')
-    write (*,'(5x,''-temp <real>       : set temperature in cregen, [default: 298.15 K]'')')
-    write (*,'(5x,''-prsc              : create a scoord.* file for each conformer'')')
-    write (*,'(5x,''-nowr              : don´t write new ensemble files'')')
-    write (*,'(5x,''-eqv,-nmr,-entropy : compare nuclear equivalences (requires rotamers)'')')
-    write (*,'(5x,''-cluster <int>     : PCA and k-Means clustering of sorted ensemble.'')')
-    write (*,'(5x,''                     Works as extenstion to the CREGEN sorting.'')')
-    write (*,'(5x,''                     <int> is the number of clusters to be formed.'')')
-    write (*,'(5x,''-notopo            : turn off any topology checks in CREGEN.'')')
-    write (*,*)
+    fw = 22
+    call help_section('Ensemble sorting (CREGEN):')
+    call help_opt('-cregen [file]',fw,'Run CREGEN standalone to sort an ensemble file')
+    call help_opt('-sort <file>',fw,'Ensemble sorting (default: iRMSD-based conformer assignment)')
+    call help_opt('-sort <file> cregen',fw,'CREGEN sorting via --sort')
+    write (stdout,*)
+    call help_section('CREGEN thresholds:')
+    call help_opt('-ewin <real>',fw,'Energy window in kcal/mol  [default: 6.0]')
+    call help_opt('-rthr <real>',fw,'RMSD threshold in Ang  [default: 0.125]')
+    call help_opt('-ethr <real>',fw,'Energy threshold in kcal/mol  [default: 0.05]')
+    call help_opt('-bthr <real>',fw,'Rotational constant threshold  [default: 0.01 = 1%]')
+    call help_opt('-pthr <real>',fw,'Boltzmann population threshold (0-1)  [default: 0.05]')
+    call help_opt('-temp <real>',fw,'Boltzmann temperature in K  [default: 298.15]')
+    write (stdout,*)
+    call help_section('CREGEN algorithm options:')
+    call help_opt('-topo/-notopo',fw,'Enable/disable topology change check')
+    call help_opt('-ezcheck',fw,'Enable E/Z double-bond isomer check')
+    call help_opt('-heavy',fw,'Use heavy-atom-only RMSD')
+    call help_opt('-allrot',fw,'Use all three rotational constants (A, B, C)')
+    call help_opt('-eqv/-nmr',fw,'NMR nuclear equivalence analysis (requires rotamers)')
+    write (stdout,*)
+    call help_section('CREGEN output:')
+    call help_opt('-prsc',fw,'Write scoord.* file for each conformer')
+    call help_opt('-nowr',fw,"Skip writing the sorted ensemble file")
+    call help_opt('-osdf',fw,'Also write output ensemble in SDF format')
+    write (stdout,*)
+    call help_section('Structural comparison tools:')
+    call help_opt('-rmsd <f1> <f2>',fw,'RMSD between two structures')
+    call help_opt('-rmsdheavy <f1> <f2>',fw,'Heavy-atom RMSD between two structures')
+    call help_opt('-irmsd <f1> <f2>',fw,'iRMSD (iterative RMSD with atom permutation)')
+    call help_opt('-compare <f1> <f2>',fw,'Compare two ensembles for structural overlap')
+    write (stdout,'(11x,a)') colorify('-maxcomp <int>','green')//' : max structures per ensemble  [default: 100]'
+    write (stdout,*)
+    call help_section('PCA / k-Means clustering (CCEGEN):')
+    call help_opt('-sort <file> --cluster',fw,'Standalone PCA clustering of an ensemble')
+    call help_opt('-cluster [<N>]',fw,'PCA + k-Means clustering, optionally fix the cluster count')
+    call help_opt('-cluster <level>',fw,'Clustering level: loose, normal, tight, vtight')
+    call help_opt('-cluster incremental',fw,'Test cluster sizes incrementally (large ensembles)')
+    call help_opt('-pctype <type>',fw,'PCA descriptor: dihedral (default), zmat, cartesian, cma')
+    call help_opt('-pccap <int>',fw,'Cap the number of principal components  [default: 100]')
+    call help_opt('-nopcmin',fw,'Include all PCs (disable minimum eigenvalue cutoff)')
+    call help_opt('-pcaexclude <atoms>',fw,'Exclude specified atoms from the PCA')
+    write (stdout,*)
 
+    ! ── Conformer search / sampling ──────────────────────────────────────
   case ('conf','sampling')
-    write (*,'(1x,''Options for sampling workflows:'')')
-    write (*,'(5x,''-v1                : use the MF-MD-GC workflow. (OUTDATED)'')')
-    write (*,'(5x,''-v2                : use the MTD-GC workflow. (OUTDATED)'')')
-    write (*,'(5x,''-v3 (or -v2i)      : use the iMTD-GC workflow. [default]'')')
-    write (*,'(5x,''-v4                : use the iMTD-sMTD workflow.'')')
-    write (*,'(5x,''-entropy           : the same workflow as with "-v4", specialized'')')
-    write (*,'(5x,''                     for the calculation of conformational entropy.'')')
-    write (*,'(5x,''-nozs              : do not perform z-mat sorting [default]'')')
-    write (*,'(5x,''-cross             : do the GC part [default]'')')
-    write (*,'(5x,''-nocross           : don´t do the GC part'')')
-    write (*,'(5x,''-shake <int>       : set SHAKE mode for MD'')')
-    write (*,'(5x,''                     (0=off,1=H-only,2=all bonds) [default: 2]'')')
-    write (*,'(5x,''-tstep <int>       : set MD time step in fs'')')
-    write (*,'(5x,''                     [default: 5 fs]'')')
-    write (*,'(5x,''-mdlen/-len <real> : set MD length (all MTDs) in ps.'')')
-    write (*,'(5x,''                     Also possible are multiplicative factors'')')
-    write (*,'(5x,''                     for the default MD length with "x<real>"'')')
-    write (*,'(5x,''-mddump <int>      : xyz dumpstep to Trajectory in fs'')')
-    write (*,'(5x,''                     [default: 100 fs]'')')
-    write (*,'(5x,''-vbdump <real>     : set Vbias dump frequency in ps'')')
-    write (*,'(5x,''                     [default: 1.0 ps]'')')
-    write (*,'(5x,''-tnmd <real>       : set temperature for additional normal MDs'')')
-    write (*,'(5x,''                     [default: 400 K]'')')
-    write (*,'(5x,''-norotmd           : don´t do the regular MDs after the '')')
-    write (*,'(5x,''                     second multilevel optimization step'')')
-    write (*,'(5x,''-hflip/-noflip     : turn on/off a small enhancement routine to'')')
-    write (*,'(5x,''                     rotate OH groups after MTD. [default: OFF]'')')
-    write (*,'(5x,''-maxflip <int>     : max. number of new structures by the above'')')
-    write (*,'(5x,''                     enhancement routine. [default: 1000]'')')
-    write (*,'(5x,''-quick             : perform a search with reduced settings'')')
-    write (*,'(5x,''                     for a crude ensemble.'')')
-    write (*,'(5x,''-squick            : perform a even further reduced search'')')
-    write (*,'(5x,''-mquick            : perform a search with maximum reduced settings'')')
-    write (*,'(5x,''                     (do not reduce the settings more than that)'')')
-    write (*,'(5x,''-origin            : track the step of generation for'')')
-    write (*,'(5x,''                     each conformer/rotamer. [default]'')')
-    write (*,'(5x,''-keepdir           : keep sub-directories of the conformer'')')
-    write (*,'(5x,''                     generation step.'')')
-    write (*,'(5x,''-nci               : generate an ellipsoide potential around the'')')
-    write (*,'(5x,''                     input structure and add it to the MTD simulation.'')')
-    write (*,'(5x,''                     This can be used to find aggregates of NCI complexes.'')')
-    write (*,'(5x,''-wscal <real>      : scale the ellipsoide potential axes by factor <real>.'')')
-    write (*,*)
+    fw = 20
+    call help_section('Conformer search algorithms:')
+    call help_opt('-v3/-imtdgc',fw,'iMTD-GC (iterative MTD-GC)  [default]')
+    call help_opt('-v4',fw,'iMTD-sMTD (entropy-focused search)')
+    call help_opt('-entropy',fw,'Same as -v4, specialized for conformational entropy')
+    call help_opt('-ttconf [<preset>]',fw,'TTConf conformational sampling, where <preset> is one of [fast,normal,accurate] or [bruteforce]')
 
+    write (stdout,*)
+    call help_section('TTConf-light parameters:')
+    call help_opt('-ttrank <int>',fw,'TT rank r  [default: 3]')
+    call help_opt('-ttsweeps <int>',fw,'Number of TT-cross sweeps s  [default: 8]')
+    call help_opt('-ttgrid <int>',fw,'Dihedral grid points (360/n degree steps)  [default: 6]')
+    call help_opt('-ttninit <int>',fw,'Number of random initial tail seeds  [default: 3]')
+    call help_opt('-ttewin <float>',fw,'Conformer energy window in kcal/mol  [default: 6.0]')
+    call help_opt('-ttkt <float>',fw,'Maxvol weight temperature in kcal/mol  [default: 6.0]')
+    call help_opt('-ttseed <int>',fw,'Fix the RNG seed (reproducible run)')
+    call help_opt('-ttsp',fw,'Evaluate singlepoints only (no geometry optimization)')
+    call help_opt('-ttnocache',fw,'Disable the TTConf energy cache')
+    call help_opt('-ttringbonds',fw,'Treat in-ring bonds as TT variables')
+    call help_opt('-ttrings',fw,'Sample ring conformations as TT sites')
+    call help_opt('-ttringmethod <str>',fw,'Ring-conformation generator  [default: mtd]')
+
+    write (stdout,*)
+    call help_section('MD / MTD parameters:')
+    call help_opt('-len/-mdlen <t>[x]',fw,'MD/MTD length in ps; append "x" for a scaling factor')
+    call help_opt('-tstep <float>',fw,'MD timestep in fs  [default: 5 fs]')
+    call help_opt('-shake <int>',fw,'SHAKE mode: 0=off, 1=X-H only, 2=all bonds  [default: 1]')
+    call help_opt('-mdtemp <float>',fw,'Temperature for MTD runs in K')
+    call help_opt('-tnmd <float>',fw,'Temperature for extra normal MDs in K')
+    call help_opt('-mddump <int>',fw,'Trajectory dump interval in fs  [default: 100]')
+    call help_opt('-vbdump <real>',fw,'Vbias dump frequency in ps  [default: 1.0]')
+    call help_opt('-nmtd <int>',fw,'Number of MTD simulations per cycle')
+    write (stdout,*)
+    call help_section('Search control:')
+    call help_opt('-cross/-nocross',fw,'Enable/disable genetic structure crossing  [cross=default]')
+    call help_opt('-gcmax <int>',fw,'Max structures fed into genetic crossing')
+    call help_opt('-nozs',fw,'Disable z-matrix sorting')
+    call help_opt('-normmd [<n> [<T>]]',fw,'Run additional unbiased MDs on lowest conformers')
+    call help_opt('-quick/-squick/-mquick',fw,'Progressively reduced search settings')
+    call help_opt('-origin',fw,'Track conformer origin step  [default]')
+    call help_opt('-keepdir',fw,'Keep temporary working directories')
+    call help_opt('-NCI',fw,'NCI cluster mode (flat-bottom wall + specialised MTD settings)')
+    call help_opt('-wscal <float>',fw,'Scale wall potential sphere radius')
+    call help_opt('-hflip/-noflip',fw,'OH proton flip after MTD  [default: OFF]')
+    call help_opt('-maxflip <int>',fw,'Max OH flip attempts  [default: 1000]')
+    write (stdout,*)
+
+    ! ── Thermochemistry / entropy ─────────────────────────────────────────
   case ('thermo','entropy')
-    write (*,'(1x,''Thermostatistical options (used in entropy mode):'')')
-    write (*,'(5x,''-trange <lower> <upper> <step>   : entropies are calculated for different temperatures.'')')
-    write (*,'(5x,''                                   these are calculated in a temperature range from'')')
-    write (*,'(5x,''                                   <lower> to <upper> with <step> in between.'')')
-    write (*,'(5x,''                                   [default: 280K-380K in 10K steps]'')')
-    write (*,'(5x,''-fscal <float>     : frequency scaling factor. [default: 1.0]'')')
-    write (*,'(5x,''-sthr <float>      : vibrational/rotational entropy interpolation threshold (τ)'')')
-    write (*,'(5x,''                     [default: 25.0 cm^-1]'')')
-    write (*,'(5x,''-ithr <float>      : imaginary mode inversion cutoff [default: -50.0 cm^-1]'')')
-    write (*,'(5x,''-ptot <float>      : sum of population for structures considered in msRRHO average.'')')
-    write (*,'(5x,''                     [default: 0.9 (=90%)]'')')
-    write (*,*)
+    fw = 28
+    call help_section('Thermostatistical options:')
+    call help_opt('-trange <Tmin> <Tmax> <Tstep>',fw,'Temperature range in K for entropy output')
+    write (stdout,'(9x,a)') '[default: 280-380 K in 10 K steps]'
+    call help_opt('-tread <file>',fw,'Read temperatures (one per line) from file')
+    call help_opt('-fscal <float>',fw,'Frequency scaling factor  [default: 1.0]')
+    call help_opt('-sthr/-rotorcut <float>',fw,'Rotor cutoff in cm^-1 (free-rotor interpolation)  [default: 25.0]')
+    call help_opt('-ithr <float>',fw,'Imaginary mode inversion cutoff  [default: -50.0 cm^-1]')
+    call help_opt('-ptot <float>',fw,'Cumulative population threshold for msRRHO  [default: 0.9]')
+    call help_opt('-pcap <int>',fw,'Max structures used in property calculations')
+    call help_opt('-printpop',fw,'Print Boltzmann populations at every temperature')
+    call help_opt('-avbhess',fw,'Use Boltzmann-averaged Hessian in rrhoav')
+    write (stdout,*)
 
+    ! ── QCG ──────────────────────────────────────────────────────────────
   case ('qcg')
-    write (*,'(1x,''Quantum Cluster Growth (QCG)'')')
-    write (*,'(1x,''General usage :'')')
-    write (*,'(5x,''<solute> -qcg <solvent> [options]'')')
-    write (*,'(1x,''options (additionally to the iMTD-GC options above):'')')
-    write (*,'(5x,''-keepdir           : keep the tmp folder'')')
-    write (*,'(5x,''-nopreopt          : do not perform preoptimization (only for qcg).'')')
-    write (*,'(5x,''-xtbiff            : use the xTB-IFF standalone for docking of solvent'')')
-    write (*,'(5x,''-grow              : cluster generation'')')
-    write (*,'(5x,''-fixsolute         : fix the solute during the growth (recommended for rigid ones)'')')
-    write (*,'(5x,''                   : done automatically for water'')')
-    write (*,'(5x,''-nofix             : fix the solute not during the growth (needed only for water)'')')
-    write (*,'(5x,''-nsolv <INT>       : number of solvent molecules to add'')')
-    write (*,'(5x,''-normdock          : Perform a more extensive docking during grow'')')
-    write (*,'(5x,''-maxsolv           : set limit of convergence, if no number of solutes was given. Default 150 '')')
-    write (*,'(5x,''-wscal <FLOAT>     : Scaling factor for outer wall potential'')')
-    write (*,'(5x,''-samerand          : use same random number for every xtbiff run'')')
-    write (*,'(5x,''-fin_opt_gfn2      : perform GFN2-xTB optimizations for final grow and ensemble structures'')')
-    write (*,'(5x,''-directed <FILE>   : Perform directed solvation at positions defined in <FILE>'')')
-    write (*,'(5x,''-ensemble          : ensemble generation'')')
-    write (*,'(5x,''-qcgmtd            : NCI-MTD CREST ensemble generation (Default)'')')
-    write (*,'(5x,''-ncimtd            : NCI-MTD CREST ensemble generation'')')
-    write (*,'(5x,''-mtd               : MTD for QCG ensemble generation'')')
-    write (*,'(5x,''-md                : normal MD for QCG ensemble search'')')
-    write (*,'(5x,''-enslvl [method]   : define a method for ensemble search. All gfn methods are supported'')')
-    write (*,'(5x,''-clustering        : Turn on clustering for the ensemble search (only for qcgmtd and ncimtd'')')
-    write (*,'(5x,''-esolv             : reference cluster generation and comp. of solvation energy'')')
-    write (*,'(5x,''-gsolv             : reference cluster generation and comp. of solvation free energy'')')
-    write (*,'(5x,''-nclus             : defines how many clusters are taken for reference cluster generation'')')
-    write (*,'(5x,''                   : default 4'')')
-    write (*,'(5x,''-nocff             : switches off the CFF algorithm'')')
-    write (*,'(5x,''-freqscal          : defines frequency scale factor. Only for outprint'')')
-    write (*,'(5x,''-freqlvl [method]  : define a method for frequency computation. All gfn versions are supported'')')
-    write (*,*)
+    fw = 20
+    call help_section('Quantum Cluster Growth (QCG)')
+    write (stdout,'(1x,a)') 'General usage:  crest <solute> -qcg <solvent> [options]'
+    write (stdout,'(1x,a)') 'Options (in addition to general / iMTD-GC options):'
+    write (stdout,*)
+    call help_section('Cluster growth:')
+    call help_opt('-grow',fw,'Cluster generation run type')
+    call help_opt('-nsolv <int>',fw,'Number of solvent molecules to add')
+    call help_opt('-fixsolute',fw,'Fix the solute during growth  (auto for water)')
+    call help_opt('-nofix',fw,'Do not fix the solute  (override for water)')
+    call help_opt('-nopreopt',fw,'Skip pre-optimization')
+    call help_opt('-xtbiff',fw,'Use xTB-IFF standalone for solvent docking')
+    call help_opt('-normdock',fw,'More extensive docking during growth')
+    call help_opt('-maxsolv',fw,'Convergence limit if -nsolv not given  [default: 150]')
+    call help_opt('-wscal <float>',fw,'Scaling factor for outer wall potential')
+    call help_opt('-samerand',fw,'Use same random seed for every xtbiff run')
+    call help_opt('-directed <file>',fw,'Directed solvation at positions in <file>')
+    call help_opt('-fin_opt_gfn2',fw,'Final GFN2-xTB optimization for grow and ensemble  [default]')
+    call help_opt('-no_fin_opt_gfn2',fw,'Skip it, energies at the -enslvl level instead')
+    write (stdout,*)
+    call help_section('Ensemble generation:')
+    call help_opt('-ensemble',fw,'Ensemble generation run type')
+    call help_opt('-qcgmtd',fw,'NCI-MTD CREST ensemble generation  [default]')
+    call help_opt('-ncimtd',fw,'NCI-MTD CREST ensemble generation  (alias)')
+    call help_opt('-mtd',fw,'MTD for QCG ensemble generation')
+    call help_opt('-md',fw,'Normal MD for QCG ensemble search')
+    call help_opt('-enslvl [method]',fw,'Method for ensemble search (all GFN methods supported)')
+    call help_opt('-clustering',fw,'Clustering for ensemble search  (qcgmtd/ncimtd only)')
+    write (stdout,*)
+    call help_section('Solvation free energy:')
+    call help_opt('-esolv',fw,'Solvation energy  (reference cluster generation)')
+    call help_opt('-gsolv',fw,'Solvation free energy  (reference cluster generation)')
+    call help_opt('-nclus',fw,'Clusters for reference generation  [default: 4]')
+    call help_opt('-nocff',fw,'Switch off the CFF algorithm')
+    call help_opt('-freqscal',fw,'Frequency scale factor  (output only)')
+    call help_opt('-freqlvl [method]',fw,'Method for frequency computation')
+    call help_opt('-keepdir',fw,'Keep temporary directories')
+    write (stdout,*)
 
+    ! ── MSReact ──────────────────────────────────────────────────────────
   case ('msreact')
-    write (*,'(1x,'' mass spectral fragment generator (msreact)'')')
-    write (*,'(1x,''General usage :'')')
-    write (*,'(5x,''<input> -msreact [options]'')')
-    write (*,'(1x,''options:'')')
-    write (*,'(5x,''-msnoattrh           : deactivate attractive potential between hydrogen and LMO centers)'')')
-    write (*,'(5x,''-msnshifts [int]     : perform n optimizations with randomly shifted atom postions (default 0) '')')
-    write (*,'(5x,''-msnshifts2 [int]    : perform n optimizations with randomly shifted atom postions and repulsive potential applied to bonds (default 0) '')')
-    write (*,'(5x ''-msnbonds [int]      : maximum number of bonds between atoms pairs for applying repulsive potential (default 3)'')')
-    write (*,'(5x,''-msmolbar            : sort out topological duplicates by molbar codes (requires  sourced "molbar")'')')
-    write (*,'(5x,''-msinchi             : sort out topological duplicates by inchi codes (requires  sourced "obabel")'')')
-    write (*,'(5x ''-msnfrag [int]       : number of fragments that are printed by msreact (random selection)'')')
-    write (*,'(5x,''-msiso               : print only non-dissociated structures (isomers)'')')
-    write (*,'(5x,''-msnoiso             : print only dissociated structures'')')
-    write (*,'(5x,''-mslargeprint        : do not remove temporary files and MSDIR do not remove temporary files and MSDIR with constrained optimizations'')')
-    write (*,'(5x,''-chrg <int>         : set the molecules´ charge'')')
-    write (*,'(5x,''-ewin <real>        : set energy window in for sorting out fragments kcal/mol,'')')
-    write (*,'(5x,''                     [default: 200.0 kcal/mol] '')')
-    write (*,'(5x,''-msinput <file>     : read in an input file with special settings for msreact'')')
-    write (*,'(5x,''keywords for inputfile:'')')
-    write (*,'(5x,'' fragdist <real>     : increase distance between fragments xyz structures (default 0 Angstrom) '')')
-    write (*,'(5x,'' atomshift <real>    :  shift of atoms in random atom displacement (default 0.75 Angstrom)'')')
-    write (*,'(5x,'' distthr_attr <real> : distance threshold in Angstrom for H-LMO attraction (default 4.0 Angstrom) '')')
-    write (*,'(5x,'' fc_rep <real>       : force constant for repulsive potential between atom pairs (default 0.5) '')')
-    write (*,'(5x,'' fc_attr <real>      : force constant for attractive potential between hydrogen and LMO centers (default -0.5) '')')
-    write (*,'(5x,'' etemp <real>        : electronic temperature in xTB optimizations'')')
+    fw = 22
+    call help_section('Mass spectral fragment generator (msreact)')
+    write (stdout,'(1x,a)') 'General usage:  crest <input> -msreact [options]'
+    write (stdout,*)
+    call help_opt('-msnoattrh',fw,'Deactivate H–LMO attractive potential')
+    call help_opt('-msnshifts <int>',fw,'n optimizations with randomly shifted atoms  [default: 0]')
+    call help_opt('-msnshifts2 <int>',fw,'Same but with bond-repulsive potential  [default: 0]')
+    call help_opt('-msnbonds <int>',fw,'Max bond distance for repulsive potential  [default: 3]')
+    call help_opt('-msmolbar',fw,'Deduplicate by molbar codes  (requires "molbar")')
+    call help_opt('-msinchi',fw,'Deduplicate by InChI codes  (requires "obabel")')
+    call help_opt('-msnfrag <int>',fw,'Number of fragments to print  (random selection)')
+    call help_opt('-msiso',fw,'Print only non-dissociated structures (isomers)')
+    call help_opt('-msnoiso',fw,'Print only dissociated structures')
+    call help_opt('-mslargeprint',fw,'Keep all temporary files and MSDIR')
+    call help_opt('-chrg <int>',fw,"Molecular charge")
+    call help_opt('-ewin <real>',fw,'Energy window for fragment sorting in kcal/mol  [default: 200.0]')
+    call help_opt('-msinput <file>',fw,'Read special settings from input file')
+    write (stdout,*)
+    fw = 22
+    call help_section('msreact input file keywords:')
+    call help_opt('fragdist <real>',fw,'Inter-fragment distance increase  [default: 0.0 Ang]')
+    call help_opt('atomshift <real>',fw,'Random atom displacement  [default: 0.75 Ang]')
+    call help_opt('distthr_attr <real>',fw,'H–LMO attraction distance cutoff  [default: 4.0 Ang]')
+    call help_opt('fc_rep <real>',fw,'Repulsive potential force constant  [default: 0.5]')
+    call help_opt('fc_attr <real>',fw,'H–LMO attractive force constant  [default: -0.5]')
+    call help_opt('etemp <real>',fw,'Electronic temperature in xTB optimizations')
+    write (stdout,*)
 
+    ! ── Standalone tools ─────────────────────────────────────────────────
   case ('other')
-    write (*,'(1x,''Other tools for standalone use:'')')
-    write (*,'(5x,''-zsort             : use only the zsort subroutine'')')
-    write (*,'(5x,''                     to sort the z-matrix of the input'')')
-    write (*,'(5x,''                     coord file.'')')
-    write (*,'(5x,''-mdopt <file>      : optimize along trajectory or'')')
-    write (*,'(5x,''                     ensemble file in the XYZ format.'')')
-    write (*,'(5x,''                     Each point on the file is optimized.'')')
-    write (*,'(5x,''-screen <file>     : optimize along ensemble file'')')
-    write (*,'(5x,''                     in the XYZ format. A multilevel'')')
-    write (*,'(5x,''                     optimization is performed with continiously'')')
-    write (*,'(5x,''                     increasing thresholds. After each step'')')
-    write (*,'(5x,''                     the ensemble file is sorted.'')')
-    write (*,'(5x,''-protonate         : find a molecules protomes by using a'')')
-    write (*,'(5x,''                     LMO π- or LP-center approach.'')')
-    write (*,'(5x,''-deprotonate       : find a molecules deprotomers.'')')
-    write (*,'(5x,''-tautomerize       : combine the protonation and deprotonation'')')
-    write (*,'(5x,''                     to find prototropic tautomers.'')')
-    write (*,'(6x,''↳ -trev           : do first the deprotonation and then the'')')
-    write (*,'(8x,''                  protonation in the -tautomerize mode, i.e.,'')')
-    write (*,'(8x,''                  reverse of the default procedure.'')')
-    write (*,'(6x,''↳ -iter <int>     : set number of protonation/deprotonation cycles'')')
-    write (*,'(8x,''                  in the tautomerization script. [default: 2]'')')
-    write (*,'(5x,''-compare <f1> <f2> : compare two ensembles <f1> and <f2>.'')')
-    write (*,'(5x,''                     Both ensembles must have the same'')')
-    write (*,'(5x,''                     order of atoms of the molecule and'')')
-    write (*,'(5x,''                     should contain rotamers.'')')
-    write (*,'(6x,''↳ -maxcomp <int>  : Selcect the lowest <int> conformers'')')
-    write (*,'(8x,''                  out of each ensemble to be compared'')')
-    write (*,'(8x,''                  with "-compare". [default: 10]'')')
-    write (*,'(5x,''-testtopo <file>   : Analyze some stuctural info (topology) for a given file.'')')
-    write (*,'(5x,''-constrain <atoms> : write example file ".xcontrol.sample" for constraints'')')
-    write (*,'(5x,''                     in crest. (see -cinp option above)'')')
-    write (*,'(5x,''-thermo <file>     : Calculate thermo data for given structure. Also requires vibrational'')')
-    write (*,'(5x,''                     frequencies in the TM format, saved as file called "vibspectrum"'')')
-    write (*,'(5x,''-rmsd,-rmsdheavy <file1> <file2>  : Calculate RMSD or heavy atom RMSD between two structures.'')')
-    write (*,'(5x,''                                    Input coords are automatically transformed to Angstroem.'')')
-    write (*,'(5x,''-splitfile <file> [from] [to]     : Split an ensemble from <file> into seperate directories'')')
-    write (*,'(5x,''                                    for each structure. [from] and [to] can be used to select'')')
-    write (*,'(5x,''                                    specific structures from the file.'')')
-    write (*,'(5x,''                                    The new directories are collected in the SPLIT directory.'')')
-    write (*,*)
+    fw = 26
+    call help_section('Single-structure calculations:')
+    call help_opt('-sp',fw,'Single-point energy')
+    call help_opt('-opt/-optimize',fw,'Geometry optimization')
+    call help_opt('-hess/-numhess',fw,'Numerical Hessian / vibrational frequencies')
+    call help_opt('-dynamics/-dyn',fw,'Stand-alone MD run')
+    call help_opt('-thermo <file>',fw,'Thermochemistry from existing Hessian data')
+    write (stdout,'(9x,a)') '(also requires "vibspectrum" in TM format)'
+    write (stdout,*)
+    call help_section('Ensemble tools:')
+    call help_opt('-mdopt <file>',fw,'Optimize every structure in an ensemble (XYZ)')
+    call help_opt('-mdsp <file>',fw,'Singlepoints for every structure in an ensemble (XYZ)')
+    call help_opt('-mdhess <file>',fw,'Hessians + thermochemistry for every structure in an ensemble (XYZ)')
+    call help_opt('-screen <file>',fw,'Multi-level energy screening of an ensemble')
+    call help_opt('-entropy [<T>]',fw,'Conformational entropy from ensemble')
+    call help_opt('-symmetries',fw,'Symmetry analysis of all structures in an ensemble')
+    call help_opt('-printboltz',fw,'Print Boltzmann population weights')
+    call help_opt('-splitfile <f> [i] [j]',fw,'Split ensemble into per-structure directories (SPLIT/)')
+    write (stdout,'(9x,a)') 'For sorting, clustering, RMSD, and ensemble comparison tools'
+    write (stdout,'(9x,a)') 'see '//colorify('--help compare','gold')
+    write (stdout,*)
+    call help_section('Protonation / tautomerization:')
+    call help_opt('-protonate',fw,"Find a molecule's protomers  (LMO π/LP-center approach)")
+    call help_opt('-deprotonate',fw,"Find a molecule's deprotomers")
+    call help_opt('-tautomerize',fw,'Find prototropic tautomers  (protonation + deprotonation)')
+    write (stdout,'(9x,a)') colorify('-trev','green')//'         : deprotonate first, then protonate  (reverse order)'
+    write (stdout,'(9x,a)') colorify('-iter <int>','green')//'    : number of prot/deprot cycles  [default: 2]'
+    write (stdout,*)
+    call help_section('Miscellaneous:')
+    call help_opt('-zsort',fw,'Z-matrix sorting of the input coord file')
+    call help_opt('-testtopo <file>',fw,'Topology / bond connectivity analysis')
+    call help_opt('-constrain <atoms>',fw,'Write example constraint file ".xcontrol.sample"')
+    write (stdout,*)
+
+    ! ── TOML input files ─────────────────────────────────────────────────
+  case ('toml')
+    call help_section('TOML input files')
+    write (stdout,'(1x,a)') 'CREST (v3+) accepts a TOML file as a flexible alternative to CLI flags.'
+    write (stdout,'(1x,a)') 'Pass it as the first argument or explicitly with --input:'
+    write (stdout,*)
+    write (stdout,'(3x,a)') colorify('crest structure.xyz --input settings.toml','green')
+    write (stdout,'(3x,a)') colorify('crest settings.toml','green')//'  (structure path given inside the file)'
+    write (stdout,*)
+    call help_section('Minimal example:')
+    write (stdout,'(3x,a)') colorify('input','yellow')//'   = "struc.xyz"'
+    write (stdout,'(3x,a)') colorify('runtype','yellow')//' = "iMTD-GC"'
+    write (stdout,'(3x,a)') colorify('threads','yellow')//' = 4'
+    write (stdout,*)
+    write (stdout,'(3x,a)') colorify('[calculation]','yellow')
+    write (stdout,'(5x,a)') colorify('[[calculation.level]]','yellow')
+    write (stdout,'(7x,a)') 'method = "gfn2"'
+    write (stdout,'(7x,a)') 'chrg   = 0'
+    write (stdout,'(7x,a)') 'gbsa   = "h2o"'
+    write (stdout,*)
+    call help_section('Key root-level settings:')
+    fw = 20
+    call help_opt('input / structure',fw,'Input coordinate file')
+    call help_opt('runtype',fw,'Workflow to run  (e.g. "iMTD-GC", "optimize", "md", "singlepoint")')
+    call help_opt('threads',fw,'Number of CPU threads')
+    call help_opt('preopt',fw,'Pre-optimize input structure  (true/false)')
+    call help_opt('constraints',fw,'Path to an xtb-format constraint file')
+    write (stdout,*)
+    call help_section('Main blocks:')
+    ! ── padding = 30 - visible_len, so ' — ' aligns at column 30 ──
+    write (stdout,'(3x,a,a)') colorify('[calculation]','yellow'), &
+      & repeat(' ',17)//' — method, charge, solvent, …'
+    write (stdout,'(3x,a,a)') colorify('  [[calculation.level]]','yellow'), &
+      & repeat(' ',7)//' — one or more calculation levels'
+    write (stdout,'(3x,a,a)') colorify('  [[calculation.constraint]]','yellow'), &
+      & repeat(' ',2)//' — geometric constraints'
+    write (stdout,'(3x,a,a)') colorify('[dynamics]','yellow'), &
+      & repeat(' ',20)//' — MD length, timestep, temperature, …'
+    write (stdout,'(3x,a,a)') colorify('  [[dynamics.meta]]','yellow'), &
+      & repeat(' ',11)//' — metadynamics bias settings'
+    write (stdout,'(3x,a,a)') colorify('[cregen]','yellow'), &
+      & repeat(' ',22)//' — ensemble sorting thresholds'
+    write (stdout,'(3x,a,a)') colorify('[thermo]','yellow'), &
+      & repeat(' ',22)//' — thermochemistry settings'
+    write (stdout,*)
+    write (stdout,'(1x,a)') 'Full TOML keyword reference:'
+    write (stdout,'(3x,a)') colorify('https://crest-lab.github.io/crest-docs/','blue')
+    write (stdout,*)
 
   end select
   call confscript_morehelp2()
@@ -399,13 +549,21 @@ subroutine confscript_morehelp(flag)
 end subroutine confscript_morehelp
 
 subroutine confscript_morehelp2
-  write (*,'(1x, ''Some [options] command line flags can be shown with this help menu via:'')')
-  write (*,'(1x, '' --help [general/compare/conf/thermo/qcg/other]'')')
-  write (*,*)
-  write (*,*) 'View literature references with [--cite]'
-  write (*,*) 'For detailed documentation refer to:'
-  write (*,*) ' https://crest-lab.github.io/crest-docs/'
-  write (*,*)
+  use iomod,only:colorify
+  use crest_parameters,only:stdout
+  implicit none
+  write (stdout,'(/,1x,a)') 'For detailed help on option groups, use:'
+  write (stdout,'(3x,a)') colorify('--help general','gold')//'    '// &
+    & colorify('--help compare','gold')//'    '//colorify('--help conf','gold')
+  write (stdout,'(3x,a)') colorify('--help thermo','gold')//'     '// &
+    & colorify('--help qcg','gold')//'        '//colorify('--help msreact','gold')
+  write (stdout,'(3x,a)') colorify('--help other','gold')//'      '// &
+    & colorify('--help toml','gold')
+  write (stdout,*)
+  write (stdout,'(1x,a,a)') 'View literature references with ',colorify('--cite','green')
+  write (stdout,'(1x,a)') 'For detailed documentation refer to:'
+  write (stdout,'(3x,a)') colorify('https://crest-lab.github.io/crest-docs/','blue')
+  write (stdout,*)
 end subroutine confscript_morehelp2
 
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -452,6 +610,8 @@ subroutine crestcite
   write (*,'(/5x,''• P.Pracht, S.Grimme, JPCA, 2021, 125, 5681-5692'')')
   write (*,'(/5x,''• J.Gorges, S.Grimme, A.Hansen, P.Pracht,'')')
   write (*,'(5x, ''  PCCP, 2022,24, 12249-12259.'')')
+  write (*,'(/5x,''• C.Zurek, R.A.Malleav, A.C.Paul, N.van Staalduinen, et al.,'')')
+  write (*,'(5x, ''  J. Chem. Theory Comput. 2025, 21, 3, 1459-1475.'')')
 
   write (*,'(/,/)')
   write (*,'(3x,''Please cite work conducted with this code appropriately.'')')
@@ -537,25 +697,6 @@ subroutine zsortwarning2(env)
     env%autozsort = .false.
   end if
 end subroutine zsortwarning2
-
-!========================================================================================!
-
-subroutine qcg_head()
-  implicit none
-  write (*,*)
-  write (*,'(2x,''========================================'')')
-  write (*,'(2x,''|           ----------------           |'')')
-  write (*,'(2x,''|                 Q C G                |'')')
-  write (*,'(2x,''|           ----------------           |'')')
-  write (*,'(2x,''|        Quantum Cluster Growth        |'')')
-  write (*,'(2x,''|       University of Bonn, MCTC       |'')')
-  write (*,'(2x,''========================================'')')
-  write (*,'(2x,'' S. Grimme, S. Spicher, C. Plett.'')')
-  write (*,*)
-  write (*,'(3x,''Cite work conducted with this code as'')')
-  write (*,'(/,3x,''S. Spicher, C. Plett, P. Pracht, A. Hansen, S. Grimme, JCTC, 2022, 18, 3174-3189.'')')
-  write (*,*)
-end subroutine qcg_head
 
 !========================================================================================!
 
@@ -678,6 +819,15 @@ subroutine printiter2(i)
   write (*,'("**",21x,"I T E R A T I O N    C Y C L E    ",i3,18x,"**")') i
   write (*,'(80("*"))')
 end subroutine printiter2
+subroutine printiter3(text,i)
+  implicit none
+  character(len=*),intent(in) :: text
+  integer,intent(in) :: i
+  character(len=128) :: atmp
+  write (atmp,'(a,1x,i0)') trim(text),i
+  !call largehead(trim(atmp))
+  call construct_boxed_headline(trim(atmp),80,.true.)
+end subroutine printiter3
 
 !========================================================================================!
 
@@ -706,7 +856,7 @@ subroutine construct_large_headline(symb,str)
   character(len=128) :: str2
   character(len=128) :: str3
   strlen = len_trim(str)
-  str2 = repeat(symb,90)
+  str2 = repeat(symb,80)
   strlen2 = len_trim(str2)
   if (strlen .ge. strlen2) then
     str2 = ''
@@ -726,6 +876,38 @@ subroutine construct_large_headline(symb,str)
   write (*,'(a)') trim(str2)
   return
 end subroutine construct_large_headline
+subroutine construct_boxed_headline(str,width,bold)
+  use crest_parameters,only:stdout
+  implicit none
+  character(len=*),intent(in) :: str
+  integer,intent(in) :: width
+  logical,intent(in) :: bold
+  integer :: strlen,strlen2
+  integer :: k,i,j,jj
+  integer :: wid
+  wid = max(width,len_trim(str)+4)-2
+  wid = width-2
+  strlen = len_trim(str)
+  if (strlen > wid) wid = strlen
+  write (stdout,*)
+  if (bold) then
+    write (stdout,'(a)') "┏"//repeat("━",wid)//"┓"
+  else
+    write (stdout,'(a)') "┌"//repeat("─",wid)//"┐"
+  end if
+  strlen2 = wid+2
+  k = strlen2-strlen
+  j = k/2
+  jj = k-j-2
+  if (bold) then
+    write (stdout,'(a)') "┃"//repeat(" ",j)//trim(str)//repeat(" ",jj)//"┃"
+    write (stdout,'(a)') "┗"//repeat("━",wid)//"┛"
+  else
+    write (stdout,'(a)') "│"//repeat(" ",j)//trim(str)//repeat(" ",jj)//"│"
+    write (stdout,'(a)') "└"//repeat("─",wid)//"┘"
+  end if
+  return
+end subroutine construct_boxed_headline
 
 !========================================================================================!
 
@@ -735,233 +917,27 @@ subroutine print_crest_metadata()
 !********************************
   include 'crest_metadata.fh'
   integer :: l
-  write (*,'(2x,a,1x,a)') 'CREST version    :',version
-  write (*,'(2x,a,1x,a)') 'timestamp        :',date
-  write (*,'(2x,a,1x,a)') 'commit           :',commit
+  write (*,'(2x,a,t22,":   ",a)') 'CREST version    ',version
+  write (*,'(2x,a,t22,":   ",a)') 'timestamp        ',date
+  write (*,'(2x,a,t22,":   ",a)') 'commit           ',commit
+  l = len_trim(author)
   if (author(1:2) .eq. "'@") then
-    l = len_trim(author)
-    write (*,'(2x,a,1x,a)') 'compiled by      :',"'usr"//author(2:l)
+    write (*,'(2x,a,t22,":   ",a)') 'compiled by      ',"usr"//author(2:l-1)
   else
-    write (*,'(2x,a,1x,a)') 'compiled by      :',author
+    write (*,'(2x,a,t22,":   ",a)') 'compiled by      ',author(2:l-1)
   end if
-  write (*,'(2x,a,1x,a)') 'Fortran compiler :',fcompiler
-  write (*,'(2x,a,1x,a)') 'C compiler       :',ccompiler
-  write (*,'(2x,a,1x,a)') 'build system     :',bsystem
-  write (*,'(2x,a,1x,a)') '-DWITH_TOMLF     :',tomlfvar
-  write (*,'(2x,a,1x,a)') '-DWITH_GFN0      :',gfn0var
-  write (*,'(2x,a,1x,a)') '-DWITH_GFNFF     :',gfnffvar
-  write (*,'(2x,a,1x,a)') '-DWITH_TBLITE    :',tblitevar
-  write (*,'(2x,a,1x,a)') '-DWITH_LIBPVOL   :',libpvolvar
-  write (*,'(2x,a,1x,a)') '-DWITH_LWONIOM   :',lwoniomvar
+  write (*,'(2x,a,t22,":   ",a)') 'Fortran compiler ',fcompiler
+  write (*,'(2x,a,t22,":   ",a)') 'C compiler       ',ccompiler
+  write (*,'(2x,a,t22,":   ",a)') 'build system     ',bsystem
+  write (*,'(2x,a,t22,":   ",a)') '-DWITH_TOMLF     ',tomlfvar
+  write (*,'(2x,a,t22,":   ",a)') '-DWITH_GFN0      ',gfn0var
+  write (*,'(2x,a,t22,":   ",a)') '-DWITH_GFNFF     ',gfnffvar
+  write (*,'(2x,a,t22,":   ",a)') '-DWITH_TBLITE    ',tblitevar
+  write (*,'(2x,a,t22,":   ",a)') '-DWITH_DDX       ',ddxvar
+  write (*,'(2x,a,t22,":   ",a)') '-DWITH_LIBPVOL   ',libpvolvar
+  write (*,'(2x,a,t22,":   ",a)') '-DWITH_LWONIOM   ',lwoniomvar
+  write (*,'(2x,a,t22,":   ",a)') '-DWITH_FMLIP_RELAY',fmliprelayvar
 end subroutine print_crest_metadata
-
-!========================================================================================!
-!========================================================================================!
-!> Confscript dry-run printout
-!========================================================================================!
-!========================================================================================!
-subroutine crest_dry(env)
-  use iso_fortran_env,wp => real64
-  use crest_data
-  use iomod
-  implicit none
-
-  type(systemdata),intent(inout) :: env
-  character(len=1024) :: dumstr
-  character(len=:),allocatable :: dum
-  logical :: cregenpr = .false.
-  logical :: mdsetpr = .false.
-  logical :: jobpr = .true.
-  logical :: xtbpr = .true.
-  logical :: techpr = .true.
-
-  call largehead('D R Y    R U N')
-  write (*,'(1x,a)') 'Dry run was requested.'
-  write (*,'(1x,a)') 'Running CREST with the chosen cmd arguments will result in the following settings:'
-
-  write (*,'(/,1x,a,a)') 'Input file : ',trim(env%inputcoords)
-
-  write (*,'(/,1x,a)') 'Job type :'
-  if (env%onlyZsort) then
-    write (*,'(2x,a)',advance='no') '1.'
-    write (*,'(2x,a)') 'Standalone use of ZSORT routine.'
-    xtbpr = .false.
-    techpr = .false.
-    jobpr = .false.
-  else if (env%properties .lt. 0) then
-    jobpr = .false.
-    write (*,'(2x,a)',advance='no') '1.'
-    select case (env%properties)
-    case (-1)
-      write (*,'(2x,a)') 'Standalone use of CREGEN sorting routine.'
-      cregenpr = .true.
-      xtbpr = .false.
-    case (-2)
-      write (*,'(2x,a)') 'Comparison of two conformer-rotamer ensembles'
-      cregenpr = .true.
-      xtbpr = .false.
-    case (-3)
-      write (*,'(2x,a)') 'Automated protonation'
-    case (-4)
-      write (*,'(2x,a)') 'Automated deprotonation'
-    case (-5)
-      write (*,'(2x,a)') 'Automated tautomerization'
-    case (-666)
-      write (*,'(2x,a)') '"Property" calculation (-prop) for a given ensemble.'
-    case default
-      write (*,'(2x,a)') '<undefined>'
-    end select
-  else
-    cregenpr = .true.
-    write (*,'(2x,a)',advance='no') '1.'
-    select case (env%crestver)
-    case (1)
-      write (*,'(2x,a)') 'Conformational search via the MF-MD-GC algo'
-    case (2)
-      if (env%properties == 45) then
-        write (*,'(2x,a)') 'Conformational search via the iMTD-sMTD algo'
-      else if (env%iterativeV2) then
-        write (*,'(2x,a)') 'Conformational search via the iMTD-GC algo'
-      else
-        write (*,'(2x,a)') 'Conformational search via the MTD-GC algo'
-      end if
-      mdsetpr = .true.
-    case (crest_imtd2)
-      write (*,'(2x,a)') 'Conformational search cia the iMTD-sMTD algo (-v4)'
-      mdsetpr = .true.
-    case (3)
-      write (*,'(2x,a)') 'Reoptimization of all structures in a given ensemble (-mdopt)'
-    case (4)
-      write (*,'(2x,a)') 'Reoptimization and sorting of all structures in a given ensemble (-screen)'
-    case (7)
-      write (*,'(2x,a)') 'GFNn-xTB nano reactor (-reactor)'
-    case (crest_pka)
-      write (*,'(2x,a)') 'GFN2-xTB/ALPB(H2O) pKa calculation (-pka)'
-    case default
-      write (*,'(2x,a)') '<undefined>'
-    end select
-    if (env%properties .gt. 0) then
-      select case (env%properties)
-      case (45)
-        write (*,'(2x,a,2x,a)') '2.','Calculation of molecular ensemble entropy (-entropy)'
-      case default
-        write (*,'(2x,a,2x,a)') '2.','Additional "property" calculation requested (-prop)'
-      end select
-    end if
-  end if
-
-  if (jobpr) then
-    write (*,'(/,1x,a)') 'Job settings'
-    write (*,'(2x,a,l6)') 'sort Z-matrix        : ',env%autozsort
-    if (env%crestver .eq. 2) then
-      select case (env%runver)
-      case (2)
-        write (*,'(2x,a,a)') 'MTD-GC modified mode : ','"-quick"'
-      case (4)
-        write (*,'(2x,a,a)') 'MTD-GC modified mode : ','"-nci"'
-      case (5)
-        write (*,'(2x,a,a)') 'MTD-GC modified mode : ','"-squick"'
-      case (6)
-        write (*,'(2x,a,a)') 'MTD-GC modified mode : ','"-mquick"'
-      case (111)
-        write (*,'(2x,a,a)') 'iMTD-sMTD mode       : ','"-entropy"'
-      case default
-        continue
-      end select
-    end if
-    if (env%properties .gt. 0) then
-      select case (env%properties)
-      case (1)
-        dum = '"hess"'
-      case (10)
-        dum = '"ohess"'
-      case (2)
-        dum = '"autoIR (GFN)"'
-      case (20)
-        dum = '"reopt"'
-      case (3:7,100)
-        dum = 'DFT'
-      case (45)
-        dum = 'none'
-      case default
-        dum = '<undefined>'
-      end select
-      if (dum .ne. 'none') then
-        write (*,'(2x,a,a)') 'PROP mode (-prop)    : ',dum
-      end if
-    end if
-  end if
-
-  if (cregenpr) then
-    write (*,'(/,1x,a)') 'CRE settings'
-    write (*,'(2x,a,f10.4)') 'energy window         (-ewin) :',env%ewin
-    write (*,'(2x,a,f10.4)') 'RMSD threshold        (-rthr) :',env%rthr          !RTHR - RMSD thr in Angstroem
-    write (*,'(2x,a,f10.4)') 'energy threshold      (-ethr) :',env%ethr          !ETHR - E threshold in kcal
-    write (*,'(2x,a,f10.2)') 'rot. const. threshold (-bthr) :',env%bthr2         !BTHR - rot const  thr
-    write (*,'(2x,a,f10.2)') 'T (for boltz. weight) (-temp) :',env%tboltz
-  end if
-
-  if (mdsetpr) then
-    write (*,'(/,1x,a)') 'General MD/MTD settings'
-    if (env%mdtime .gt. 0.0d0) then
-      write (*,'(2x,a,f10.1)') 'simulation length [ps]    (-len) :',env%mdtime
-    else
-      write (*,'(2x,a,a)') 'simulation length [ps]    (-len) : ','<system dependent>'
-    end if
-    write (*,'(2x,a,f10.1)') 'time step [fs]          (-tstep) :',env%mdstep
-    write (*,'(2x,a,i10)') 'shake mode              (-shake) :',env%shake
-    write (*,'(2x,a,f10.2)') 'MTD temperature [K]    (-mdtemp) :',env%mdtemp
-    write (*,'(2x,a,i10)') 'trj dump step  [fs]    (-mddump) :',env%mddumpxyz
-    write (*,'(2x,a,f10.1)') 'MTD Vbias dump [ps]    (-vbdump) :',real(env%mddump)/1000.0d0
-  end if
-
-  if (env%cts%used) then
-    write (*,'(/,1x,a)') 'Constrainment info'
-    write (*,'(2x,a,l7)') 'applying constraints?  : ',env%cts%used
-    write (*,'(2x,a,a)') 'constraining file      : ',trim(env%constraints)
-    write (*,'(2x,a)') 'file content :'
-    call cat_mod(6,'  > ',env%constraints,'')
-  end if
-
-  if (xtbpr) then
-    if (env%legacy) then
-      write (*,'(/,1x,a)') 'XTB settings'
-      write (*,'(2x,a,a)') 'binary name        (-xnam) : ',trim(env%ProgName)
-      call checkbinary(env)
-      write (*,'(2x,a,a)') 'GFN method         (-gfn)  : ',trim(env%gfnver)
-    else
-      write (*,'(/,1x,a)') 'Calculation settings'
-    end if
-    write (*,'(2x,a,i0)') '(final) opt level  (-opt)  : ',nint(env%optlev)
-    if (env%gbsa) then
-      if (index(env%solv,'--alpb') .ne. 0) then
-        write (*,'(2x,a,a)') 'Implicit solvation (-alpb) : ',trim(env%solvent)
-      else
-        write (*,'(2x,a,a)') 'Implicit solvation (-gbsa) : ',trim(env%solvent)
-      end if
-    end if
-    if (env%chrg .ne. 0.0d0) then
-      write (*,'(2x,a,i0)') 'Molecular charge   (-chrg) : ',env%chrg
-    end if
-    if (env%uhf .ne. 0) then
-      write (*,'(2x,a,i0)') 'UHF (nα-nβ elec.)  (-uhf)  : ',env%uhf
-    end if
-  end if
-
-  if (techpr) then
-    call getcwd(dumstr)
-    write (*,'(/,1x,a)') 'Technical settings'
-    write (*,'(2x,a,a)') 'working directory : ',trim(dumstr)
-    write (*,'(2x,a,i0)') 'CPUs (threads)     (-T) : ',env%threads
-
-  end if
-
-  write (*,'(/,1x,a)') 'CREST binary info'
-  call print_crest_metadata()
-
-  write (*,'(/)')
-  stop 'normal dry run termination.'
-end subroutine crest_dry
 
 subroutine cat_mod(ch,pre,fname,post)
   implicit none
@@ -1000,176 +976,6 @@ subroutine checkbinary(env)
   end if
   return
 end subroutine checkbinary
-
-!========================================================================================!
-!========================================================================================!
-!>  QCG-printouts
-!==============================================================================!
-!========================================================================================!
-
-subroutine print_qcg_grow()
-  implicit none
-  write (*,*)
-  write (*,'(2x,''========================================='')')
-  write (*,'(2x,''|   quantum cluster growth: GROW        |'')')
-  write (*,'(2x,''========================================='')')
-  write (*,*)
-end subroutine print_qcg_grow
-subroutine pr_qcg_fastgrow()
-  implicit none
-  write (*,*)
-  write (*,'(2x,''========================================='')')
-  write (*,'(2x,''|   quantum cluster growth: FASTGROW    |'')')
-  write (*,'(2x,''========================================='')')
-  write (*,*)
-end subroutine pr_qcg_fastgrow
-subroutine print_qcg_ensemble()
-  implicit none
-  write (*,*)
-  write (*,'(2x,''========================================='')')
-  write (*,'(2x,''|   quantum cluster growth: ENSEMBLE    |'')')
-  write (*,'(2x,''========================================='')')
-  write (*,*)
-end subroutine print_qcg_ensemble
-subroutine print_qcg_opt()
-  implicit none
-  write (*,*)
-  write (*,'(2x,''========================================='')')
-  write (*,'(2x,''|   quantum cluster growth: OPT         |'')')
-  write (*,'(2x,''========================================='')')
-  write (*,*)
-  write (*,'(2x,''Very tight post optimization of lowest cluster'')')
-end subroutine print_qcg_opt
-subroutine pr_qcg_fill()
-  implicit none
-  write (*,*)
-  write (*,'(2x,''========================================='')')
-  write (*,'(2x,''|   quantum cluster growth: CFF         |'')')
-  write (*,'(2x,''========================================='')')
-  write (*,*)
-  write (*,'(2x,''CUT-FREEZE-FILL Algorithm to generate reference solvent cluster'')')
-end subroutine pr_qcg_fill
-subroutine pr_qcg_freq()
-  implicit none
-  write (*,*)
-  write (*,'(2x,''========================================='')')
-  write (*,'(2x,''|          Frequency evaluation         |'')')
-  write (*,'(2x,''========================================='')')
-  write (*,*)
-end subroutine pr_qcg_freq
-subroutine pr_eval_solute()
-  implicit none
-  write (*,*)
-  write (*,'(2x,''________________________________________________________________________'')')
-  write (*,*)
-  write (*,'(2x,''__________________     Solute Cluster Generation   _____________________'')')
-  write (*,*)
-  write (*,'(2x,''________________________________________________________________________'')')
-  write (*,*)
-end subroutine pr_eval_solute
-subroutine pr_eval_solvent()
-  implicit none
-  write (*,*)
-  write (*,*)
-  write (*,'(2x,''________________________________________________________________________'')')
-  write (*,*)
-  write (*,'(2x,''_________________     Solvent Cluster Generation   _____________________'')')
-  write (*,*)
-  write (*,'(2x,''________________________________________________________________________'')')
-  write (*,*)
-end subroutine pr_eval_solvent
-subroutine pr_eval_eval()
-  implicit none
-  write (*,*)
-  write (*,*)
-  write (*,'(2x,''________________________________________________________________________'')')
-  write (*,*)
-  write (*,'(2x,''_________________________     Evaluation    ____________________________'')')
-  write (*,*)
-  write (*,'(2x,''________________________________________________________________________'')')
-  write (*,*)
-  write (*,*)
-end subroutine pr_eval_eval
-subroutine pr_freq_energy()
-  implicit none
-  write (*,'(2x,"#       H(T)       SVIB      SROT       STRA      G(T)")')
-  write (*,'(2x,"     [kcal/mol]    [      cal/mol/K        ]    [kcal/mol]")')
-  write (*,'(2x,"--------------------------------------------------------")')
-end subroutine pr_freq_energy
-subroutine pr_eval_1(G,H)
-  use iso_fortran_env,only:wp => real64
-  implicit none
-  real(wp),intent(in)       :: G,H
-  write (*,'(2x,"-----------------------------------------------------")')
-  write (*,'(2x,"Gsolv and Hsolv ref. state: [1 M gas/solution] ")')
-  write (*,'(2x,"G_solv (incl.RRHO)      =",F8.2," kcal/mol")') G
-  write (*,'(2x,"H_solv (incl.RRHO)      =",F8.2," kcal/mol")') H
-  write (*,'(2x,"-----------------------------------------------------")')
-  write (*,*)
-end subroutine pr_eval_1
-subroutine pr_eval_2(srange,G,scal)
-  use iso_fortran_env,only:wp => real64
-  implicit none
-! Dummy
-  integer,intent(in)        :: srange
-  real(wp),intent(in)       :: G(srange)
-  real(wp),intent(in)       :: scal(srange)
-! Stack
-  integer                   :: i
-  write (*,'(2x,"-----------------------------------------------------")')
-  write (*,'(2x,"Solvation free energies with scaled translational")')
-  write (*,'(2x,"and rotational degrees of freedom: Gsolv (scaling)")')
-  do i = 1,srange
-    write (*,'(10x,">>",2x,f8.2," (",f4.2,")",4x,"<<")') G(i),scal(i)
-  end do
-  write (*,'(2x,"-----------------------------------------------------")')
-end subroutine pr_eval_2
-subroutine pr_eval_3(srange,freqscal,scal,G)
-  use iso_fortran_env,only:wp => real64
-  implicit none
-! Dummy
-  integer,intent(in)        :: srange
-  integer,intent(in)        :: freqscal
-  real(wp),intent(in)       :: scal
-  real(wp),intent(in)       :: G(srange)
-  write (*,*)
-  write (*,'(2x,"==================================================")')
-  write (*,'(2x,"|  Gsolv with SCALED RRHO contributions: ",f4.2,4x"|")') scal
-  write (*,'(2x,"|  [1 bar gas/ 1 M solution]                     |")')
-  write (*,'(2x,"|                                                |")')
-  write (*,'(2x,"|  G_solv (incl.RRHO)+dV(T)=",F8.2," kcal/mol    |")') G(freqscal)
-  write (*,'(2x,"==================================================")')
-  write (*,*)
-end subroutine pr_eval_3
-subroutine pr_fill_energy()
-  implicit none
-  write (*,'(x,'' Size'',2x,''Cluster '',2x,''E /Eh '',7x,''De/kcal'',3x,&
-          &''Detot/kcal'',2x,''Opt'',4x)')
-end subroutine pr_fill_energy
-subroutine pr_ensemble_energy()
-  implicit none
-  write (*,*)
-  write (*,'(x,'' Cluster'',3x,''E /Eh '',7x,&
-           &''Density'',2x,''Efix'',7x,''R   av/act.'',1x,&
-           &''Surface'',3x,''Opt'',4x)')
-end subroutine pr_ensemble_energy
-subroutine pr_qcg_esolv()
-  implicit none
-  write (*,*)
-  write (*,'(2x,''========================================='')')
-  write (*,'(2x,''|   quantum cluster growth: ESOLV       |'')')
-  write (*,'(2x,''|                                       |'')')
-end subroutine pr_qcg_esolv
-subroutine pr_grow_energy()
-  implicit none
-  write (*,'(x,'' Size'',7x,''E'',8x,''De'',7x,''Detot'',6x,&
-           &''Density'',5x,''Eatom'',4x,''av. R'', 1x,'' Rlast'',3x,&
-           &''Volume'',4x,''Opt'')')
-  write (*,'(12x,''[Eh]'',4x,''[kcal]'',5x,''[kcal]'',5x,&
-           &''[u/Å^3]'',5x,''[kcal]'',3x,''[bohr]'', 1x,''[bohr]'',1x,&
-           &''[bohr^3]'')')
-
-end subroutine pr_grow_energy
 
 !========================================================================================!
 !========================================================================================!
@@ -1274,19 +1080,321 @@ end subroutine printprogbar
 
 subroutine gxtb_dev_warning
   use crest_parameters
-  use crest_data, only: status_ioerr
+  use crest_data,only:status_safety
   write (stdout,*)
-  write (stdout,'(a)') "!!! WARNING !!!"
-  write (stdout,'(a)') "You have selected g-xTB for your calculations, but currently only the"
-  write (stdout,'(a)') "preliminary binary version is available."
-  write (stdout,'(a)') "This version does NOT HAVE ANALYTICAL GRADIENTS available and uses"
-  write (stdout,'(a)') "NUMERICAL gradients which are SLOW and NOISY."
+  write (stdout,'(a)') "Note: '--gxtb_dev' is deprecated. Use '--gxtb'."
+  write (stdout,'(a)') "g-xTB via the tblite API is available with this build."
   write (stdout,*)
-  write (stdout,'(a)') 'The cmd argument "--gxtb" will be disabled until an implementation'
-  write(stdout,'(a)')  'with analytical gradients is available'
-  write(stdout,*)
-  write (stdout,'(a)') 'Please use "--gxtb_dev" in the mean time.'
-  write (stdout,'(a)') "Make sure you have the dev version gxtb installed (https://github.com/grimme-lab/g-xtb)"
-  write(stdout,*)
-  call creststop(status_ioerr)
+  call creststop(status_safety)
 end subroutine gxtb_dev_warning
+
+!========================================================================================!
+
+subroutine gxtb_syscall_warning
+!*************************************************************
+!* Warn the user that this build runs g-xTB by invoking the
+!* xtb binary via system calls (slow, temporary workaround).
+!* Only prints in the non-WITH_GXTB call path (have_gxtb=F),
+!* i.e. when no native tblite g-xTB build is available.
+!* Points the user to the static xtb binary of the g-xTB
+!* development release and to the (much faster) static CREST
+!* binary with a tblite g-xTB build available upon request.
+!*************************************************************
+  use crest_parameters,only:stdout
+  use tblite_api,only:have_gxtb
+  implicit none
+  integer,parameter :: w = 70  !> inner box width (ASCII content)
+  character(len=*),parameter :: hz = '─'
+  character(len=*),parameter :: vt = '│'
+  if (have_gxtb) return
+  write (stdout,*)
+  write (stdout,'(1x,a)') '╭'//repeat(hz,w)//'╮'
+  call boxline('Note: g-xTB is currently invoked via the xtb binary (system')
+  call boxline('calls). This is a temporary implementation and may be slow.')
+  call boxline('')
+  call boxline('* A static xtb binary providing g-xTB is available from the')
+  call boxline('  g-xTB development release at:')
+  call boxline('    https://github.com/grimme-lab/g-xtb')
+  call boxline('')
+  call boxline('* A static CREST binary with a native tblite development build')
+  call boxline('  of g-xTB (much faster than the bespoke xtb system call) is')
+  call boxline('  available upon request.')
+  write (stdout,'(1x,a)') '╰'//repeat(hz,w)//'╯'
+  write (stdout,*)
+contains
+  subroutine boxline(text)
+    character(len=*),intent(in) :: text
+    character(len=w) :: buf
+    buf = '  '//text
+    write (stdout,'(1x,a)') vt//buf//vt
+  end subroutine boxline
+end subroutine gxtb_syscall_warning
+
+!========================================================================================!
+!========================================================================================!
+
+subroutine gxtb_solvation_guard(env)
+!**************************************************************************
+!* g-xTB does not (yet) support dedicated implicit solvation. This guard
+!* is meant to be called right after input parsing (CLI and/or TOML),
+!* once the dedicated env%calc object is populated.
+!*
+!* It scans all requested calculation levels (both the native tblite
+!* g-xTB level and the xtb-subprocess driver) as well as the legacy CLI
+!* selection. If a g-xTB level is combined with a request for implicit
+!* solvation, CREST is terminated safely with an explanatory message.
+!*
+!* State of the g-xTB implementation: 05/2026 (development version) — no
+!* solvation support, neither via the native tblite interface nor via the
+!* xtb subprocess driver.
+!*
+!*   env  -  CREST system data (read-only here; holds env%calc)
+!**************************************************************************
+  use crest_parameters
+  use crest_data
+  use crest_calculator,only:jobtype
+  use tblite_api,only:xtblvl,have_gxtb
+  use iomod,only:drawbox
+  implicit none
+  type(systemdata),intent(in) :: env
+  integer :: i
+  logical :: usesgxtb,wantssolv
+  integer,parameter :: bw = 72   !> box width
+
+  usesgxtb = .false.
+  wantssolv = .false.
+
+  ! ── legacy CLI selection (env-level) ────────────────────────────────
+  if (index(env%gfnver,'gxtb') .ne. 0) usesgxtb = .true.
+  if (env%gbsa) wantssolv = .true.
+
+  ! ── per-calculation levels collected in env%calc ────────────────────
+  if (associated(env%calc)) then
+    do i = 1,env%calc%ncalculations
+      associate (job => env%calc%calcs(i))
+        !> native tblite g-xTB level
+        if (job%id == jobtype%tblite.and.job%tblitelvl == xtblvl%gxtb) then
+          usesgxtb = .true.
+        end if
+        !> g-xTB run as an xtb subprocess (--gxtb flag or gxtb binary)
+        if (allocated(job%other)) then
+          if (index(job%other,'gxtb') .ne. 0) usesgxtb = .true.
+        end if
+        if (allocated(job%binary)) then
+          if (index(job%binary,'gxtb') .ne. 0) usesgxtb = .true.
+        end if
+        !> any implicit solvation request on this level
+        if (allocated(job%solvmodel).or.allocated(job%solvent)) then
+          wantssolv = .true.
+        end if
+      end associate
+    end do
+  end if
+
+  !> the unsupported combination is g-xTB AND implicit solvation
+  if (.not. (usesgxtb.and.wantssolv)) return
+
+  ! ── unsupported combination → print box and terminate safely ────────
+  write (stdout,*)
+  call drawbox(stdout,'',width=bw,charset=6,procedual=0)
+  call drawbox(stdout,'g-xTB: IMPLICIT SOLVATION NOT SUPPORTED',width=bw, &
+  &            charset=6,procedual=1)
+  call drawbox(stdout,'',width=bw,charset=6,procedual=3)
+  call gsg_line('')
+  call gsg_line('You requested g-xTB together with an implicit solvation model.')
+  call gsg_line('')
+  call gsg_line('The current g-xTB implementation (development version, 05/2026)')
+  call gsg_line('does not support dedicated implicit solvation yet, neither via')
+  call gsg_line('the native tblite interface nor via the xtb subprocess driver.')
+  call gsg_line('')
+  call gsg_line('Please run g-xTB in the gas phase (drop --alpb / --gbsa or the')
+  call gsg_line('corresponding TOML solvation keywords), or pick a different')
+  call gsg_line('level of theory for solvated calculations.')
+  call drawbox(stdout,'',width=bw,charset=6,procedual=2)
+  write (stdout,*)
+
+  call creststop(status_safety)
+
+contains
+  subroutine gsg_line(txt)
+    !> emit a single left-aligned content line of the warning box
+    use iomod,only:drawbox
+    character(len=*),intent(in) :: txt
+    call drawbox(stdout,txt,width=bw,charset=6,procedual=1,padl=2)
+  end subroutine gsg_line
+end subroutine gxtb_solvation_guard
+
+!========================================================================================!
+!========================================================================================!
+
+subroutine crest_no_runtype_selected()
+  !*****************************************************
+  !* Print an error when no runtype has been selected, *
+  !* list the available main runtypes, and stop.       *
+  !*****************************************************
+  use crest_parameters,only:stdout
+  use crest_data,only:status_safety
+  use iomod,only:colorify
+  implicit none
+  write (stdout,*)
+  write (stdout,'(1x,a)') repeat('=',60)
+  write (stdout,'(1x,a)') 'No runtype was selected.'
+  write (stdout,'(1x,a)') 'Please choose one of the main runtypes listed below.'
+  write (stdout,'(1x,a)') repeat('=',60)
+  write (stdout,*)
+  write (stdout,'(3x,a)') 'Main runtypes:'
+  write (stdout,*)
+  write (stdout,'(5x,a,t30,a)') '--sp','Single-point energy calculation'
+  write (stdout,'(5x,a,t30,a)') '--opt','Structure optimization'
+  write (stdout,'(5x,a,t30,a)') '--md','Molecular dynamics simulation'
+  write (stdout,'(5x,a,t30,a)') '--imtdgc/--v3','iMTD-GC conformational search '//colorify('(PREVIOUS DEFAULT)','gold')
+  write (stdout,'(5x,a,t30,a)') '--entropy','Entropy/free-energy sampling'
+  write (stdout,'(5x,a,t30,a)') '--mdopt','Ensemble optimization (no sorting)'
+  write (stdout,'(5x,a,t30,a)') '--screen','Ensemble screening'
+  write (stdout,'(5x,a,t30,a)') '--protonate','Protonation site search'
+  write (stdout,'(5x,a,t30,a)') '--deprotonate','Deprotonation site search'
+  write (stdout,'(5x,a,t30,a)') '--tautomerize','Tautomer generation'
+  write (stdout,'(5x,a,t30,a)') '--qcg','QCG workflows'
+  write (stdout,'(5x,a,t30,a)') '--msreact','MSREACT workflows'
+  !write (stdout,'(5x,a,t30,a)') '--bh','Basin-hopping global optimization'
+  write (stdout,'(5x,a,t30,a)') '--sort','Ensemble sorting (CREGEN)'
+  write (stdout,'(5x,a,t30,a)') '--ttconf','TTConf conformational sampling'
+
+  write (stdout,*)
+  write (stdout,'(3x,a)') 'For TOML input files use:  crest --input <file.toml>'
+  write (stdout,'(3x,a)') 'For the full option list:  crest --help'
+  write (stdout,*)
+  call creststop(status_safety)
+end subroutine crest_no_runtype_selected
+
+!========================================================================================!
+
+subroutine crest_output_summary(env)
+!**************************************************
+!* Print a table of output files written by CREST *
+!* and a short description of their contents.     *
+!* Which files are listed depends on the runtype. *
+!**************************************************
+  use crest_parameters,only:stdout
+  use crest_data
+  implicit none
+  type(systemdata),intent(in) :: env
+  character(len=72),parameter :: hbar = repeat('-',80)
+  logical :: lexists
+
+  select case (env%crestver)
+  case (crest_imtd,crest_imtd2,crest_ttc,crest_screen,crest_mdopt, &
+      & crest_sorting,crest_optimize,crest_trialopt,crest_rigcon, &
+      & crest_moldyn,crest_bh,crest_bhpt,crest_protonate,crest_deprotonate, &
+      & crest_tautomerize,crest_numhessian,crest_ensemblehess)
+    write (stdout,*)
+    write (stdout,*)
+    write (stdout,'(2x,a)') 'Important files written by CREST during this run'
+    write (stdout,'(1x,a)') hbar
+  end select
+
+  select case (env%crestver)
+    ! ── iMTD-GC / sMTD-iMTD conformer search ─────
+  case (crest_imtd,crest_imtd2)
+    call wfe('crest_conformers.xyz','unique conformers (1 per rotamer group), energy-sorted')
+    call wfe('crest_rotamers.xyz','all structures including rotamers, with Boltzmann weights')
+    call wfe('crest_best.xyz','lowest-energy conformer')
+    call wfe('cregen.full','full CREGEN output (written when terminal output is abbreviated)')
+    call wfe('crest.restart','restart/checkpoint file for the iMTD-GC algorithm')
+
+    ! ── TTConf-light (tensor-train) conformer search ──
+  case (crest_ttc)
+    call wfe('crest_conformers.xyz','unique conformers (1 per rotamer group), energy-sorted')
+    call wfe('crest_rotamers.xyz','all structures including rotamers, with Boltzmann weights')
+    call wfe('crest_best.xyz','lowest-energy conformer')
+    call wfe('cregen.full','full CREGEN output (written when terminal output is abbreviated)')
+
+    ! ── ensemble screening / MDOPT ────────────────
+  case (crest_screen)
+    call wfe('crest_ensemble.xyz','ensemble output')
+    call wfe('crest_conformers.xyz','unique conformers (1 per rotamer group), energy-sorted')
+    call wfe('crest_rotamers.xyz','all structures including rotamers')
+    call wfe('crest_best.xyz','lowest-energy structure')
+
+  case (crest_mdopt)
+    call wfe('crest_ensemble.xyz','ensemble output with optimized geometries')
+    if (allocated(env%refine_queue)) &
+    & call wfe('crest_ensemble.xyz.refine','refined ensemble (after the requested --refine step)')
+
+    ! ── standalone CREGEN sorting ─────────────────
+  case (crest_sorting)
+    call wfe('crest_conformers.xyz','unique conformers (1 per rotamer group), energy-sorted')
+    call wfe('crest_rotamers.xyz','all structures including rotamers')
+    call wfe('crest_best.xyz','lowest-energy structure')
+    call wfe('cregen.full','full CREGEN output (written when terminal output is abbreviated)')
+
+    ! ── geometry optimization ─────────────────────
+  case (crest_optimize,crest_trialopt,crest_rigcon)
+    call wfe('crestopt.xyz','final optimized geometry')
+    call wfe('crestopt.log.xyz','step-by-step optimization trajectory')
+    if (env%crest_ohess) then
+      call wfe('numhess','Hessian matrix in Turbomole format (2nd derivatives, a.u.)')
+      call wfe('vibspectrum','vibrational frequencies (cm⁻¹) and IR intensities (km/mol)')
+      call wfe('g98.out','frequencies and normal modes in Gaussian output format')
+    end if
+
+    ! ── numerical Hessian ─────────────────────────
+  case (crest_numhessian)
+    call wfe('numhess','Hessian matrix in Turbomole format (2nd derivatives, a.u.)')
+    call wfe('vibspectrum','vibrational frequencies (cm⁻¹) and IR intensities (km/mol)')
+    call wfe('g98.out','frequencies and normal modes in Gaussian 98 output format')
+    call wfe('dipgrad','Cartesian dipole gradient ∂μ/∂x (a.u.), if available')
+
+    ! ── ensemble Hessians ─────────────────────────
+  case (crest_ensemblehess)
+    call wfe('crest_ensemble.xyz','input ensemble with Gibbs free energies as comments')
+    call wfe('crest.energies','plain list of total Gibbs free energies (Eh)')
+
+    ! ── molecular dynamics ────────────────────────
+  case (crest_moldyn)
+    call wfe('crest_dynamics.trj.xyz','MD trajectory (snapshots)')
+
+    ! ── basin-hopping ─────────────────────────────
+  case (crest_bh,crest_bhpt)
+    call wfe('crest_conformers.xyz','unique conformers found by basin-hopping, energy-sorted')
+    call wfe('crest_rotamers.xyz','all accepted structures including rotamers')
+    call wfe('crest_best.xyz','lowest-energy structure')
+
+    ! ── protonation / deprotonation / tautomers ───
+  case (crest_protonate)
+    call wfe('protonated.xyz','unique site candidates, energy-sorted')
+    call wfe('crest_best.xyz','lowest-energy structure')
+  case (crest_deprotonate)
+    call wfe('deprotonated.xyz','unique site candidates, energy-sorted')
+    call wfe('crest_best.xyz','lowest-energy structure')
+  case (crest_tautomerize)
+    call wfe('tautomers.xyz','unique site candidates, energy-sorted')
+    call wfe('crest_best.xyz','lowest-energy structure')
+
+  case default
+    ! no dedicated file summary for this runtype
+
+  end select
+
+  ! ── if PCA clustering was performed, report the cluster file ─────────────────
+  select case (env%crestver)
+  case (crest_imtd,crest_imtd2,crest_sorting)
+    inquire (file=clusterfile,exist=lexists)
+    if (lexists) call wfe(clusterfile,'representative structures from PCA/k-means clustering')
+  end select
+
+  select case (env%crestver)
+  case (crest_imtd,crest_imtd2,crest_ttc,crest_screen,crest_mdopt, &
+      & crest_sorting,crest_optimize,crest_trialopt,crest_rigcon, &
+      & crest_moldyn,crest_bh,crest_bhpt,crest_protonate,crest_deprotonate, &
+      & crest_tautomerize,crest_numhessian,crest_ensemblehess)
+
+    write (stdout,'(1x,a)') hbar
+  end select
+
+contains
+  subroutine wfe(fname,descr)
+    character(len=*),intent(in) :: fname,descr
+    write (stdout,'(1x,a,t30,''│ '',a)') fname,trim(descr)
+  end subroutine wfe
+end subroutine crest_output_summary

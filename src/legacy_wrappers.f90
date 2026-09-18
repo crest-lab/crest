@@ -35,7 +35,7 @@ subroutine env2calc(env,calc,molin)
   !> OUTPUT
   type(calcdata) :: calc
   !> LOCAL
-  type(calculation_settings) :: cal,cal2
+  type(calculation_settings) :: cal,cal2,cal_rerank,cal_reopt
   type(coord) :: mol
 
 !>--- Calculator level
@@ -47,18 +47,23 @@ subroutine env2calc(env,calc,molin)
   end if
 
   cal%uhf = env%uhf
+  call cal%sync_multiplicity()   !> keep the multiplicity store aligned with uhf
   cal%chrg = env%chrg
+  cal%spin_polarized = env%spin_polarized
 !>-- obtain WBOs OFF by default
   cal%rdwbo = .false.
   cal%rddip = .false.
   !> except for SP runtype (from command line!)
   if (env%crestver == crest_sp) then
     cal%rdgrad = env%gradsp
-    if (cal%id .ne. jobtype%turbomole) then
+    !> ORCA/Turbomole drivers and fmlip-relay MLIPs do not provide
+    !> WBOs/dipoles/charges to read back
+    if (cal%id .ne. jobtype%turbomole .and. cal%id .ne. jobtype%orca &
+    &   .and. cal%id .ne. jobtype%mlip) then
       cal%rdwbo = .true.
       cal%rddip = .true.
       cal%rdqat = .true.
-    else
+    else if (cal%id == jobtype%turbomole .or. cal%id == jobtype%orca) then
       if (.not.env%gradsp) then
         cal%other = ''
       end if
@@ -80,6 +85,16 @@ subroutine env2calc(env,calc,molin)
   !> do not reset parameters between calculations (opt for speed)
   cal%apiclean = .false.
 
+  ! ── ORCA driver set up from CLI (--orca <template> <exe>) ───────────
+  if (trim(env%gfnver) == '--orca') then
+    cal%id = jobtype%orca
+    if (allocated(env%orca_cmd)) then
+      cal%ORCA%cmd = trim(env%orca_cmd)
+      cal%binary = trim(env%orca_cmd)
+    end if
+    if (allocated(env%orca_template)) call cal%ORCA%read(trim(env%orca_template))
+  end if
+
   call cal%autocomplete(1)
   call calc%add(cal)
 
@@ -90,6 +105,7 @@ subroutine env2calc(env,calc,molin)
 
     cal2%chrg = cal%chrg
     cal2%uhf = cal%uhf
+    cal2%spin_polarized = cal%spin_polarized
     if (env%gbsa) then
       cal2%solvmodel = cal%solvmodel
       cal2%solvent = cal%solvent
@@ -101,6 +117,49 @@ subroutine env2calc(env,calc,molin)
     call calc%add(cal2)
     if (allocated(env%refine_queue)) deallocate (env%refine_queue)
     call env%addrefine(refine%singlepoint)
+  end if
+
+!>--- Post-search SP reranking level (--rerank)
+  if (trim(env%rerank_lvl) .ne. '') then
+    call cal_rerank%create(trim(env%rerank_lvl))
+    cal_rerank%chrg = cal%chrg
+    cal_rerank%uhf  = cal%uhf
+    cal_rerank%spin_polarized = cal%spin_polarized
+    if (env%gbsa) then
+      cal_rerank%solvmodel = cal%solvmodel
+      cal_rerank%solvent   = cal%solvent
+    end if
+    call cal_rerank%autocomplete(2)
+    cal_rerank%refine_lvl = refine%post_sp
+    call calc%add(cal_rerank)
+  end if
+
+!>--- Post-search geometry re-optimization level (--reopt)
+  if (trim(env%reopt_lvl) .ne. '') then
+    call cal_reopt%create(trim(env%reopt_lvl))
+    cal_reopt%chrg = cal%chrg
+    cal_reopt%uhf  = cal%uhf
+    cal_reopt%spin_polarized = cal%spin_polarized
+    if (env%gbsa) then
+      cal_reopt%solvmodel = cal%solvmodel
+      cal_reopt%solvent   = cal%solvent
+    end if
+    call cal_reopt%autocomplete(2)
+    cal_reopt%refine_lvl = refine%post_reopt
+    call calc%add(cal_reopt)
+  end if
+
+  if (.not.allocated(env%calc%temperatures)) then
+    if (.not.allocated(env%thermo%temps)) then
+      call env%thermo%get_temps()
+    end if
+    env%calc%nt = env%thermo%ntemps
+    allocate (env%calc%temperatures(env%calc%nt),source=0.0_wp)
+
+    env%calc%temperatures = env%thermo%temps
+    env%calc%ithr = env%thermo%ithr
+    env%calc%sthr = env%thermo%sthr
+    env%calc%fscal = env%thermo%fscal
   end if
 
   return
@@ -140,6 +199,77 @@ subroutine env2calc_setup(env)
 
   ! env%calc = calc
 end subroutine env2calc_setup
+
+subroutine env2calc_modify(env)
+!******************************************
+!* Modify the calc object within env with
+!* additional settings
+!******************************************
+  use crest_parameters
+  use crest_data
+  use crest_calculator
+  use strucrd
+  use lwoniom_module
+  implicit none
+  !> INOUT
+  type(systemdata),intent(inout) :: env
+  !> LOCAL
+  integer :: i,j
+
+!>--- pass on opt-level to new calculator
+  env%calc%optlev = nint(env%optlev)
+
+!>--- pass electric field to tblite
+  if (allocated(env%ref%efield)) then
+    do i = 1,env%calc%ncalculations
+      if (env%calc%calcs(i)%id == jobtype%tblite) then
+        if (.not.allocated(env%calc%calcs(i)%efield)) allocate (env%calc%calcs(i)%efield(3),source=0.0_wp)
+        env%calc%calcs(i)%efield(1:3) = env%ref%efield(1:3)
+      end if
+    end do
+  end if
+
+  !>--- pass on CEH guess flag
+  if (env%ceh_guess) then
+    do i = 1,env%calc%ncalculations
+      env%calc%calcs(i)%ceh_guess = env%ceh_guess
+    end do
+  end if
+
+  !>--- pass on spin-polarized flag
+  if (env%spin_polarized) then
+    do i = 1,env%calc%ncalculations
+      env%calc%calcs(i)%spin_polarized = env%spin_polarized
+    end do
+  end if
+
+!>--- ONIOM setup from toml file
+  if (allocated(env%ONIOM_toml)) then
+    if (.not.allocated(env%calc%ONIOM)) allocate (env%calc%ONIOM)
+    call ONIOM_read_toml(env%ONIOM_toml,env%nat,env%ref%at,env%ref%xyz,env%calc%ONIOM)
+    call env%calc%ONIOMexpand()
+  end if
+
+!>--- pass on thermo data to the calculator
+  if (.not.allocated(env%calc%temperatures)) then
+    if (.not.allocated(env%thermo%temps)) then
+      call env%thermo%get_temps()
+    end if
+    env%calc%nt = env%thermo%ntemps
+    allocate (env%calc%temperatures(env%calc%nt),source=0.0_wp)
+
+    env%calc%temperatures = env%thermo%temps
+    env%calc%ithr = env%thermo%ithr
+    env%calc%sthr = env%thermo%sthr
+    env%calc%fscal = env%thermo%fscal
+    env%calc%emodel = env%thermo%emodel
+  end if
+
+! ── apply GFN-FF special cases for CLI-only setups ───────────────
+!   Also a safety net for refine_queue; duplicate-level guard is idempotent.
+  call env_calcdat_specialcases(env)
+
+end subroutine env2calc_modify
 
 !================================================================================!
 subroutine confscript2i(env,tim)
@@ -351,7 +481,9 @@ subroutine trialOPT(env)
   if (env%crestver == crest_trialopt) then
 !>-- if we reach this point in the standalone trialopt the geometry is ok!
     write (stdout,*)
-    stop 'Geometry ok!'
+    write (stdout,*) 'Geometry ok!'
+    write (stdout,*)
+    call creststop(status_normal)
   end if
 end subroutine trialOPT
 

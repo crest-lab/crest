@@ -155,8 +155,10 @@ contains  !>--- Module routines start here
     else
       fname = calc%calcfile
     end if
-    if(calc%uhf < 1) calc%uhf = 1 !> ORCA uses multiplicity, not n_alpha - n_beta!
-    call calc%ORCA%write(fname,mol,calc%chrg,calc%uhf)
+    !> ORCA uses the spin multiplicity (2S+1), not uhf = Nα-Nβ
+    call calc%sync_multiplicity()
+    !> pass the level thread count so CREST owns the %pal setup (if > 1)
+    call calc%ORCA%write(fname,mol,calc%chrg,calc%multiplicity,nthreads=calc%threads)
     deallocate (fname)
 
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
@@ -174,7 +176,7 @@ contains  !>--- Module routines start here
 
     calc%systemcall = trim(calc%systemcall)//' ORCA.in' 
        
-    if(calc%ORCA%mpi .and. index(calc%binary,'oversubscribe').eq.0)then
+    if((calc%ORCA%mpi .or. calc%threads > 1) .and. index(calc%binary,'oversubscribe').eq.0)then
       calc%systemcall = trim(calc%systemcall)//' --oversubscribe'
     endif
 

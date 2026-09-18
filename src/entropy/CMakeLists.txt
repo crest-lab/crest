@@ -22,6 +22,7 @@ list(APPEND srcs
   "${dir}/mie.f90"
   "${dir}/entropic.f90"
   "${dir}/entropy.f90"
+  "${dir}/thermochem_module.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

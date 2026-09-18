@@ -1,0 +1,6 @@
+# Non-covalent interaction (NCI) conformer sampling
+runtype = "nci"
+input   = "struc.xyz"   # input structure file (water trimer)
+
+[[calculation.level]]
+method = "gfnff"        # GFN-FF for fast NCI sampling

@@ -34,6 +34,7 @@ subroutine cregen2(env)
       use utilities
       use omp_lib
       use crest_cn_module
+      use cregen_utils, only: distcheck
       implicit none
       type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
 
@@ -81,7 +82,7 @@ subroutine cregen2(env)
       logical :: fail
       logical :: substruc
       logical :: ttag
-      logical, external :: distcheck,equalrot,equalrotall
+      logical, external :: equalrot,equalrotall
 
       settingNames: associate( crestver => env%crestver, confgo => env%confgo, &
       &             methautocorr => env%methautocorr, printscoords => env%printscoords,  &
@@ -1366,26 +1367,6 @@ subroutine compare(n,nall,s1,s2,dist,athr,relat)
       enddo
 
 end subroutine compare
-
-!ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-
-logical function distcheck(n,xyz)
-      implicit none
-      real*8,allocatable :: rij(:)
-      integer :: n
-      real*8 :: xyz(3,n)
-      integer i,j
-      distcheck=.true.
-      allocate(rij(3))
-      do i=1,n-1
-         do j=i+1,n
-         rij=xyz(:,j)-xyz(:,i)
-         if(sum(rij*rij).lt.1.d-3) distcheck=.false.
-         enddo
-      enddo
-      deallocate(rij)
-      return
-end function distcheck
 
 
 !==========================================================!

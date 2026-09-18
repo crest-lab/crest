@@ -74,7 +74,7 @@ subroutine crest_scan(env,tim)
 
 !========================================================================================!
   allocate (grad(3,mol%nat),source=0.0_wp)
-  calc = env%calc
+  call calc%copy(env%calc)
   calcclean = env%calc
 
   !>--- initialize scanning
@@ -190,8 +190,6 @@ contains
       deallocate (tmppoints)
     end do
 
-    write(*,*) 'constraints',calc%nconstraints
-
     !>--- set calculations to 1 for the geometry generation
     calc%ncalculations = 1
 
@@ -287,7 +285,7 @@ contains
     allocate (grad(3,mol%nat),source=0.0_wp)
     !>-- geometry optimization
     pr = .false. !> stdout printout
-    wr = .true. !> write crestopt.log
+    wr = .true. !> write crestopt.log.xyz
     molbackup = mol
     do j=1,calc%scans(current)%steps 
       !write(*,*) current, calc%scans(current)%steps, j

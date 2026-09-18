@@ -15,6 +15,7 @@
 # along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
 
+add_subdirectory("molecule")
 add_subdirectory("parsing")
 add_subdirectory("optimize")
 add_subdirectory("calculator")
@@ -23,12 +24,14 @@ add_subdirectory("dynamics")
 add_subdirectory("qcg")
 add_subdirectory("qmhelpers")
 add_subdirectory("graphs")
-add_subdirectory("rigidconf")
+add_subdirectory("molbuilder")
 add_subdirectory("discretize")
 add_subdirectory("entropy")
 add_subdirectory("legacy_algos")
 add_subdirectory("msreact")
-
+add_subdirectory("sorting")
+add_subdirectory("basinhopping")
+add_subdirectory("chelpers")
 
 set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -37,28 +40,22 @@ list(APPEND srcs
   "${dir}/axis_module.f90"
   "${dir}/biasmerge.f90"
   "${dir}/bondconstraint.f90"
-  "${dir}/canonical.f90"
-  "${dir}/ccegen.f90"
   "${dir}/choose_settings.f90"
   "${dir}/classes.f90"
   "${dir}/cleanup.f90"
   "${dir}/cn.f90"
   "${dir}/compress.f90"
   "${dir}/confparse.f90"
-  "${dir}/cregen.f90"
   "${dir}/crest_pars.f90"
-  "${dir}/ensemblecomp.f90"
   "${dir}/eval_timer.f90"
   "${dir}/filemod.f90"
   "${dir}/flexi.F90"
   "${dir}/freqmasses.f90"
   "${dir}/geo.f90"
-  "${dir}/identifiers.f90"
   "${dir}/internals.f90"
   "${dir}/internals2.f90"
   "${dir}/iomod.F90"
   "${dir}/legacy_wrappers.f90"
-  "${dir}/ls_rmsd.f90"
   "${dir}/marqfit.f90"
   "${dir}/minitools.f90"
   "${dir}/miscdata.f90"
@@ -66,26 +63,15 @@ list(APPEND srcs
   "${dir}/ompmklset.F90"
   "${dir}/printouts.f90"
   "${dir}/prmat.f90"
-  "${dir}/propcalc.f90"
-  "${dir}/quicksort.f90"
-  "${dir}/readl.f90"
   "${dir}/restartlog.f90"
-  "${dir}/rotcompare.f90"
   "${dir}/scratch.f90"
-  "${dir}/sdfio.f90"
   "${dir}/select.f90"
-  "${dir}/signal.c"
-  "${dir}/sigterm.f90"
-  "${dir}/sortens.f90"
-  "${dir}/strucreader.f90"
-  "${dir}/symmetry2.f90"
-  "${dir}/symmetry_i.c"
+  "${dir}/sigterm.F90"
+  "${dir}/symmetry_i.f90"
   "${dir}/timer.f90"
   "${dir}/trackorigin.f90"
   "${dir}/utilmod.f90"
   "${dir}/wallsetup.f90"
-  "${dir}/zdata.f90"
-  "${dir}/ztopology.f90"
 )
 
 list(APPEND prog

@@ -18,20 +18,18 @@
 !================================================================================!
 
 module INTERNALS_mod
-   use crest_parameters
-   use adjacency
-   use geo
-   use strucrd, only: i2e
-   implicit none
-   public
-
+  use crest_parameters
+  use adjacency
+  use geo
+  use strucrd,only:i2e
+  implicit none
+  public
 
 !========================================================================================!
 !========================================================================================!
 contains !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
-
 
   SUBROUTINE BETTER_XYZINT(nat,xyz,amat,NA,NB,NC,geo)
 !***********************************************************************
@@ -286,19 +284,21 @@ contains !> MODULE PROCEDURES START HERE
     !> first atom at zero
     GEO(1:3,1) = 0.0_wp
     !> select second atom
-    do i = 2,nat
+    do i = 1,nat
       j = NA(i)
       k = NB(i)
       l = NC(i)
-      GEO(1,i) = sqrt((xyz(1,i)-xyz(1,j))**2+ &
-    &                  (xyz(2,i)-xyz(2,j))**2+ &
-    &                  (xyz(3,i)-xyz(3,j))**2)
-      if (k /= 0) then
-        call BANGLE2(xyz,i,j,k,geo(2,i))
-        geo(2,i) = geo(2,i)*DEGREE
-        if (l /= 0) then
-          call DIHED2(xyz,i,j,k,l,geo(3,i))
-          geo(3,i) = geo(3,i)*DEGREE
+      if (j /= 0) then
+        GEO(1,i) = sqrt((xyz(1,i)-xyz(1,j))**2+ &
+      &                  (xyz(2,i)-xyz(2,j))**2+ &
+      &                  (xyz(3,i)-xyz(3,j))**2)
+        if (k /= 0) then
+          call BANGLE2(xyz,i,j,k,geo(2,i))
+          geo(2,i) = geo(2,i)*DEGREE
+          if (l /= 0) then
+            call DIHED2(xyz,i,j,k,l,geo(3,i))
+            geo(3,i) = geo(3,i)*DEGREE
+          end if
         end if
       end if
     end do
@@ -347,11 +347,15 @@ contains !> MODULE PROCEDURES START HERE
     !taken(:) = .false.
 
 !>--- first atom at origin
-    COORD(1:3,1) = 0.0_wp
+    do i = 1,nat
+      if (na(i) == 0) then
+        COORD(1:3,i) = 0.0_wp
+      end if
+    end do
     !taken(1) = .true.
 !>--- second atom
-    do i = 2,nat
-      if (na(i) == 1.and.nb(i) == 0.and.nc(i) == 0) then
+    do i = 1,nat
+      if (na(i) /= 0.and.nb(i) == 0.and.nc(i) == 0) then
         COORD(1,i) = GEO(1,i)
         COORD(2,i) = 0.0_wp
         COORD(3,i) = 0.0_wp
@@ -361,7 +365,7 @@ contains !> MODULE PROCEDURES START HERE
       end if
     end do
 !>--- third atom
-    do i = 2,nat
+    do i = 1,nat
       if (na(i) /= 0.and.nb(i) /= 0.and.nc(i) == 0) then
         COSC = COS(GEO(2,i))
         j = na(i)
@@ -378,17 +382,17 @@ contains !> MODULE PROCEDURES START HERE
       end if
     end do
 
-   ! TAKELOOP: do while (any(.not.taken(:)))
-   TAKELOOP : do while ( any(COORD(:,:) > verylarge))
-      DO I = 2,nat
+    ! TAKELOOP: do while (any(.not.taken(:)))
+    TAKELOOP: do while (any(COORD(:,:) > verylarge))
+      DO I = 1,nat
 !>--- CYCLE the atom if already generated
         !if (taken(i)) cycle
-        if (COORD(1,i) < verylarge ) cycle
+        if (COORD(1,i) < verylarge) cycle
 !>--- CYCLE if any of the depending atoms have not been generated
-       ! if ((.not.taken(NA(i))).or.(.not.taken(NB(i))) &
-       !&   .or.(.not.taken(NC(i)))) cycle
-        if ( coord(1,NA(i)) > verylarge .or. &
-        &    coord(1,NB(i)) > verylarge .or. &
+        ! if ((.not.taken(NA(i))).or.(.not.taken(NB(i))) &
+        !&   .or.(.not.taken(NC(i)))) cycle
+        if (coord(1,NA(i)) > verylarge.or. &
+        &    coord(1,NB(i)) > verylarge.or. &
         &    coord(1,NC(i)) > verylarge) cycle
 
         COSA = COS(GEO(2,I))
@@ -501,35 +505,36 @@ contains !> MODULE PROCEDURES START HERE
     character(len=120) :: atmp
     integer :: i
 
-    if(nice)then
-    write (ch,'(1x,a5,1x,a12,1x,a12,1x,a12,a5,a5,a5)') 'A','d(AB)','θ(ABC)','ϕ(ABCD)','B','C','D'
-    do i = 1,nat
-      if (na(i) .ne. 0) then
-        if (nb(i) .ne. 0) then
-          if (nc(i) .ne. 0) then
-            write (atmp,'(1x,i5,1x,3f12.4,3i5)') i,geo(1:3,i),na(i),nb(i),nc(i)
+    if (nice) then
+      write (ch,'(1x,a2,1x,a5,1x,a12,1x,a12,1x,a12,a5,a5,a5)') &
+        & 'at','A','d(AB)','θ(ABC)','ϕ(ABCD)','B','C','D'
+      do i = 1,Nat
+        if (na(i) .ne. 0) then
+          if (nb(i) .ne. 0) then
+            if (nc(i) .ne. 0) then
+              write (atmp,'(1x,a2,1x,i5,1x,3f12.4,3i5)') i2e(at(i)),i,geo(1:3,i),na(i),nb(i),nc(i)
+            else
+              write (atmp,'(1x,a2,1x,i5,1x,2f12.4,a12,2i5)') i2e(at(i)),i,geo(1:2,i),'-',na(i),nb(i)
+              atmp = trim(atmp)//'    -'
+            end if
           else
-            write (atmp,'(1x,i5,1x,2f12.4,a12,2i5)') i,geo(1:2,i),'-',na(i),nb(i)
-            atmp = trim(atmp)//'    -'
+            write (atmp,'(1x,a2,1x,i5,1x,f12.4,a12,a12,i5)') i2e(at(i)),i,geo(1,i),'-','-',na(i)
+            atmp = trim(atmp)//'    -    -'
           end if
         else
-          write (atmp,'(1x,i5,1x,f12.4,a12,a12,i5)') i,geo(1,i),'-','-',na(i)
-          atmp = trim(atmp)//'    -    -'
+          write (atmp,'(1x,a2,1x,i5,1x,a12,a12,a12)') i2e(at(i)),i,'-','-','-'
+          atmp = trim(atmp)//'    -    -    -'
         end if
-      else
-        write (atmp,'(1x,i5,1x,a12,a12,a12)') i,'-','-','-'
-        atmp = trim(atmp)//'    -    -    -'
-      end if
-      write (ch,'(a)') trim(atmp)
-    end do
+        write (ch,'(a)') trim(atmp)
+      end do
     else
-      write(ch,*) nat
-     do i = 1,nat
-      write (atmp,'(1x,a,1x,3f12.4,3i5)') i2e(at(i),'nc'),geo(1:3,i),na(i),nb(i),nc(i)
-      write (ch,'(a)') trim(atmp)
-     end do
+      write (ch,*) nat
+      do i = 1,nat
+        write (atmp,'(1x,a,1x,3f12.4,3i5)') i2e(at(i),'nc'),geo(1:3,i),na(i),nb(i),nc(i)
+        write (ch,'(a)') trim(atmp)
+      end do
 
-    endif
+    end if
 
   end subroutine print_zmat
 
@@ -549,46 +554,46 @@ contains !> MODULE PROCEDURES START HERE
     character(len=300) line
 
     at(:) = 0
-    na(:) = 0 
+    na(:) = 0
     nb(:) = 0
     nc(:) = 0
     zmat(:,:) = 0.0_wp
-    open(newunit=ich,file=trim(fname))
-    read(ich,*) j
-    if(j /= nat) error stop 'Nat mismatch in rd_zmat()' 
-    do i=1,nat
-      read(ich,'(a)') line
+    open (newunit=ich,file=trim(fname))
+    read (ich,*) j
+    if (j /= nat) error stop 'Nat mismatch in rd_zmat()'
+    do i = 1,nat
+      read (ich,'(a)') line
       call zmatline(line,sym,zmat(:,i),na(i),nb(i),nc(i),io)
-      if(io /= 0) error stop 'error while reading zmat'
-      at(i) = e2i(sym)  
-    enddo 
-    close(ich)
-   contains
+      if (io /= 0) error stop 'error while reading zmat'
+      at(i) = e2i(sym)
+    end do
+    close (ich)
+  contains
     subroutine zmatline(line,sym,xyz,a,b,c,io)
-    implicit none
-    character(len=*) :: line
-    character(len=*) :: sym
-    real(wp) :: xyz(3)
-    integer :: a,b,c
-    integer,intent(out) :: io
+      implicit none
+      character(len=*) :: line
+      character(len=*) :: sym
+      real(wp) :: xyz(3)
+      integer :: a,b,c
+      integer,intent(out) :: io
 
-    io = 0
-    xyz(1:3) = 0
-    a = 0
-    b = 0
-    c = 0
-    read (line,*,iostat=io) sym,xyz(1:3),a,b,c
-    if (io .ne. 0) then
-      read (line,*,iostat=io) sym,xyz(1:2),a,b
-    if(io.ne.0)then
-       read (line,*,iostat=io) sym,xyz(1),a
-    if(io.ne.0)then
-       read (line,*,iostat=io) sym
-    endif
-    endif
-    end if
+      io = 0
+      xyz(1:3) = 0
+      a = 0
+      b = 0
+      c = 0
+      read (line,*,iostat=io) sym,xyz(1:3),a,b,c
+      if (io .ne. 0) then
+        read (line,*,iostat=io) sym,xyz(1:2),a,b
+        if (io .ne. 0) then
+          read (line,*,iostat=io) sym,xyz(1),a
+          if (io .ne. 0) then
+            read (line,*,iostat=io) sym
+          end if
+        end if
+      end if
 
-    return
+      return
     end subroutine zmatline
 
   end subroutine rd_zmat

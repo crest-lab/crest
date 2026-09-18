@@ -2,7 +2,15 @@ name: CI
 
 on:
   push:
+    branches:
+      - master
+      - experimental
+      - '*-maintenance'
   pull_request:
+    branches:
+      - master
+      - '*-maintenance'
+  workflow_dispatch:
 
 env:
   BUILD_DIR: _build
@@ -15,11 +23,6 @@ env:
     numpy
     ase
     matplotlib
-  LINUX_INTEL_COMPONENTS: >-
-    intel-oneapi-compiler-fortran-2023.1.0
-    intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic-2023.1.0
-    intel-oneapi-mkl-2023.1.0
-    intel-oneapi-mkl-devel-2023.1.0
 
 jobs:
   build:
@@ -28,29 +31,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        build-type: [debug]
-        toolchain:
-          - { compiler: gcc,   version: '11',       build: cmake }
-          - { compiler: gcc,   version: '12',       build: cmake }
-          - { compiler: gcc,   version: '14',       build: cmake }
-          - { compiler: intel, version: '2023.1.0', build: cmake }
-    
         include:
-          # ---- Linux GCC CMake debugoptimized build ------------------------
+          # ---- Linux GCC 14 + OpenBLAS — CMake debugoptimized --------------
           - { os: ubuntu-latest, build-type: debugoptimized,
               toolchain: { compiler: gcc, version: '14', build: cmake } }
-    
-          # ---- Linux static builds -----------------------------------------
-          - { os: ubuntu-latest, build-type: static,
-              toolchain: { compiler: gcc,   version: '12',       build: cmake } }
-          - { os: ubuntu-latest, build-type: static,
-              toolchain: { compiler: intel, version: '2023.1.0', build: meson } }
-    
-          # ---- macOS GCC CMake debug builds --------------------------------
-          - { os: macos-latest, build-type: debug,
-              toolchain: { compiler: gcc, version: '12', build: cmake } }
-          - { os: macos-latest, build-type: debug,
+
+          # ---- Linux Intel (ifx/icx) + MKL — Meson debugoptimized ---------
+          - { os: ubuntu-latest, build-type: debugoptimized,
+              toolchain: { compiler: intel, version: '2025.1', mkl_version: '2025.1', build: meson } }
+
+          # ---- macOS GCC 14 + OpenBLAS — CMake debugoptimized --------------
+          - { os: macos-latest, build-type: debugoptimized,
               toolchain: { compiler: gcc, version: '14', build: cmake } }
 
     defaults:
@@ -67,20 +58,20 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.10"
 
       # ----------------------------------------------------------------------
-      # Compiler setup (GCC via setup-fortran, Intel via oneAPI on Linux)
+      # Compiler setup
       # ----------------------------------------------------------------------
 
       - name: Install GCC using setup-fortran
         if: ${{ contains(matrix.toolchain.compiler, 'gcc') }}
         uses: fortran-lang/setup-fortran@v1
         with:
-          compiler: ${{ matrix.toolchain.compiler }}   # "gcc"
-          version:  ${{ matrix.toolchain.version }}    # e.g. "12"
+          compiler: ${{ matrix.toolchain.compiler }}
+          version:  ${{ matrix.toolchain.version }}
 
-      - name: Install libopenblas (Linux GNU builds only)
+      - name: Install libopenblas (Linux GCC builds)
         if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'gcc') }}
         run: |
           sudo apt-get update
@@ -96,48 +87,49 @@ jobs:
           echo "CPPFLAGS=-I/usr/local/opt/openblas/include -I/opt/homebrew/opt/openblas/include" >> $GITHUB_ENV
 
       - name: Prepare for Intel cache restore
-        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') }}
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') }}
         run: |
           sudo mkdir -p /opt/intel
-          sudo chown "$USER" /opt/intel
+          sudo chown $USER /opt/intel
 
-      - name: Cache Intel oneAPI install
-        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') }}
+      - name: Cache Intel installation
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') }}
         id: cache-install
         uses: actions/cache@v4
         with:
           path: /opt/intel/oneapi
-          key: install-${{ matrix.toolchain.compiler }}-${{ matrix.toolchain.version }}-${{ matrix.os }}
+          key: install-${{ matrix.toolchain.compiler }}-${{ matrix.toolchain.version }}-${{ matrix.toolchain.mkl_version }}-${{ matrix.os }}
 
-      - name: Install Intel oneAPI (compiler + MKL)
-        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') && steps.cache-install.outputs.cache-hit != 'true' }}
+      - name: Install Intel Compiler
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') && steps.cache-install.outputs.cache-hit != 'true' }}
+        uses: fortran-lang/setup-fortran@v1
+        with:
+          compiler: ${{ matrix.toolchain.compiler }}
+          version:  ${{ matrix.toolchain.version }}
+
+      - name: Install Intel MKL
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') && steps.cache-install.outputs.cache-hit != 'true' }}
         run: |
-          KEY=GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-          wget https://apt.repos.intel.com/intel-gpg-keys/$KEY
-          sudo apt-key add $KEY
-          rm $KEY
-
-          echo "deb https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
-          sudo apt-get update
-          sudo apt-get install -y $PKG
-        env:
-          PKG: ${{ env.LINUX_INTEL_COMPONENTS }}
+          sudo apt-get install -y \
+            intel-oneapi-mkl-${{ matrix.toolchain.mkl_version }} \
+            intel-oneapi-mkl-devel-${{ matrix.toolchain.mkl_version }}
 
       - name: Setup Intel oneAPI environment
-        if: ${{ contains(matrix.os, 'ubuntu') && contains(matrix.toolchain.compiler, 'intel') }}
+        if: ${{ contains(matrix.toolchain.compiler, 'intel') }}
         run: |
-          source /opt/intel/oneapi/setvars.sh
+          source /opt/intel/oneapi/setvars.sh --force
           printenv >> $GITHUB_ENV
 
       - name: Set compiler environment variables
         run: |
-          if [ "${{ matrix.toolchain.compiler }}" = "gcc" ]; then
-            echo "FC=gfortran" >> $GITHUB_ENV
-            echo "CC=gcc" >> $GITHUB_ENV
-          elif [ "${{ matrix.toolchain.compiler }}" = "intel" ]; then
-            # adjust to ifx/ifort if we want to change it in the future
-            echo "FC=ifort" >> $GITHUB_ENV
-            echo "CC=icx" >> $GITHUB_ENV
+          if [ ! -n "$FC" ]; then
+            if [ "${{ matrix.toolchain.compiler }}" = "gcc" ]; then
+              echo "FC=gfortran" >> $GITHUB_ENV
+              echo "CC=gcc"      >> $GITHUB_ENV
+            elif [ "${{ matrix.toolchain.compiler }}" = "intel" ]; then
+              echo "FC=ifx" >> $GITHUB_ENV
+              echo "CC=icx" >> $GITHUB_ENV
+            fi
           fi
           echo "COMPILER_VERSION=${{ matrix.toolchain.version }}" >> $GITHUB_ENV
 
@@ -155,15 +147,6 @@ jobs:
       # ----------------------------------------------------------------------
       # Configure
       # ----------------------------------------------------------------------
-
-      - name: Configure build (Meson)
-        if: ${{ matrix.toolchain.build == 'meson' }}
-        run: >
-          meson setup ${{ env.BUILD_DIR }}
-          --buildtype=debugoptimized
-          --prefix=$PWD/_dist
-          --libdir=lib
-          --warnlevel=0
 
       - name: Configure build (CMake, debug)
         if: ${{ matrix.toolchain.build == 'cmake' && matrix.build-type == 'debug' }}
@@ -183,16 +166,26 @@ jobs:
           -DCMAKE_INSTALL_PREFIX=$PWD/_dist
           -DCMAKE_INSTALL_LIBDIR=lib
 
-      - name: Configure build (CMake, static)
-        if: ${{ matrix.toolchain.build == 'cmake' && matrix.build-type == 'static' }}
+      - name: Configure build (Meson, GNU)
+        if: ${{ matrix.toolchain.build == 'meson' && matrix.toolchain.compiler == 'gcc' }}
         run: >
-          cmake -B${{ env.BUILD_DIR }}
-          -GNinja
-          -DCMAKE_BUILD_TYPE=RelWithDebInfo
-          -DCMAKE_INSTALL_PREFIX=$PWD/_dist
-          -DCMAKE_INSTALL_LIBDIR=lib
-          -DWITH_TESTS=OFF
-          -DSTATICBUILD=ON
+          meson setup ${{ env.BUILD_DIR }}
+          --buildtype=${{ matrix.build-type }}
+          --prefix=$PWD/_dist
+          --libdir=lib
+          --warnlevel=0
+          -Dlapack=openblas
+
+      - name: Configure build (Meson, Intel)
+        if: ${{ matrix.toolchain.build == 'meson' && contains(matrix.toolchain.compiler, 'intel') }}
+        run: >
+          meson setup ${{ env.BUILD_DIR }}
+          --buildtype=${{ matrix.build-type }}
+          --prefix=$PWD/_dist
+          --libdir=lib
+          --warnlevel=0
+          --native-file=config/intel-llvm.ini
+          -Dlapack=mkl
 
       # ----------------------------------------------------------------------
       # Build / test / install
@@ -202,7 +195,7 @@ jobs:
         run: ninja -C ${{ env.BUILD_DIR }}
 
       - name: Run unit tests (ctest)
-        if: ${{ matrix.toolchain.build == 'cmake' && contains(matrix.toolchain.compiler, 'gcc') }}
+        if: ${{ matrix.toolchain.build == 'cmake' }}
         run: |
           ctest --output-on-failure --parallel 2 -R '^crest/'
         working-directory: ${{ env.BUILD_DIR }}
@@ -213,4 +206,3 @@ jobs:
         run: |
           ninja -C ${{ env.BUILD_DIR }} install
           echo "CREST_PREFIX=$PWD/_dist" >> $GITHUB_ENV
-

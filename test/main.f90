@@ -9,6 +9,15 @@ program tester
   use test_gfn0occ, only: collect_gfn0occ
   use test_cn, only: collect_cn 
   use test_optimization, only: collect_optimization
+  use test_molecular_dynamics, only: collect_mol_dynamics
+  use test_metadynamics, only: collect_metadynamics
+  use test_pbc_cregen, only: collect_pbc_cregen
+  use test_getsym, only: collect_getsym
+  use test_irmsd, only: collect_irmsd
+  use test_graphs, only: collect_graphs
+  use test_ddx, only: collect_ddx
+  use test_external, only: collect_external
+  use test_oniom, only: collect_oniom
   implicit none
   integer :: stat, is
   character(len=:), allocatable :: suite_name, test_name
@@ -30,7 +39,16 @@ program tester
     new_testsuite("gfn0", collect_gfn0),       &
     new_testsuite("gfn0occ", collect_gfn0occ), &
     new_testsuite("CN",collect_CN),            &
-    new_testsuite("optimization", collect_optimization) &
+    new_testsuite("getsym", collect_getsym),   & 
+    new_testsuite("optimization", collect_optimization), &
+    new_testsuite("molecular_dynamics", collect_mol_dynamics), &
+    new_testsuite("metadynamics", collect_metadynamics), &
+    new_testsuite("pbc_cregen", collect_pbc_cregen), &
+    new_testsuite("irmsd", collect_irmsd), &
+    new_testsuite("graphs", collect_graphs), &
+    new_testsuite("ddx", collect_ddx), &
+    new_testsuite("external", collect_external), &
+    new_testsuite("oniom", collect_oniom) &
   ]
 !&>
 

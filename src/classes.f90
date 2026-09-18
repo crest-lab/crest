@@ -25,15 +25,19 @@ module crest_data
   use iso_fortran_env,wp => real64,dp => int64
   use crest_calculator,only:calcdata
   use dynamics_module,only:mddata
+  use bh_module,only:bh_class
   use strucrd,only:coord
   use crest_type_timer,only:timer
-  use lwoniom_module, only: lwoniom_input
+  use lwoniom_module,only:lwoniom_input
+  use molbuilder_construct_list !> from molbuilder dir
+  use ttconf_settings_mod,only:ttconf_settings !> TTConf-light settings
+  use term_ui,only:progress_state
   implicit none
 
   public :: systemdata
   public :: timer   !> RE-EXPORT from crest_type_timer
   public :: protobj
-  public :: constra
+  public :: legacy_constraints
   public :: optlevflag,optlevnum,optlevmap_alt
   public :: optlev_to_multilev
 
@@ -74,6 +78,7 @@ module crest_data
   integer,parameter,public :: crest_protonate = 16
   integer,parameter,public :: crest_deprotonate = 17
   integer,parameter,public :: crest_tautomerize = 18
+  integer,parameter,public :: crest_sorting = 19
 !>> runtypes with IDs between use non-legacy routines  <<!
   integer,parameter,public :: crest_sp         = 264
   integer,parameter,public :: crest_optimize   = 265
@@ -85,6 +90,11 @@ module crest_data
   integer,parameter,public :: crest_rigcon     = 271
   integer,parameter,public :: crest_trialopt   = 272
   integer,parameter,public :: crest_ensemblesp = 273
+  integer,parameter,public :: crest_bh         = 274
+  integer,parameter,public :: crest_bhpt       = 275
+  integer,parameter,public :: crest_dryrun     = 276
+  integer,parameter,public :: crest_ensemblehess = 277
+  integer,parameter,public :: crest_ttc        = 278
 !>> <<!
   integer,parameter,public :: crest_test       = 456
 
@@ -110,12 +120,22 @@ module crest_data
   integer,parameter,public :: p_thermo       = -3654
   integer,parameter,public :: p_useonly      = -227
   integer,parameter,public :: p_qcg          = 37
+!>---- propcalc sub-modes (imode argument of propcalc / values in env%pqueue)
+  integer,parameter,public :: p_prop_hess        =   1  !> Hessian for all conformers
+  integer,parameter,public :: p_prop_autoir      =   2  !> IR spectrum averaging
+  integer,parameter,public :: p_prop_ohess       =  10  !> Optimization + Hessian
+  integer,parameter,public :: p_prop_finalhess   =  11  !> Hessian+thermo for final conformer ensemble
+  integer,parameter,public :: p_prop_gsolv       =  13  !> Free energy in solvation (2-step)
+  integer,parameter,public :: p_prop_reopt       =  20  !> Vtight reoptimization
+  integer,parameter,public :: p_prop_multilevel  =  50  !> Multilevel/hybrid reopt base (range 50:59)
+  integer,parameter,public :: p_prop_dipole      = 998  !> Singlepoint + dipole extraction
+  integer,parameter,public :: p_prop_rerank      = 999  !> Singlepoint + reranking
 
 !>--- exit status
   integer,parameter,public :: status_normal = 0    !> success
   integer,parameter,public :: status_error  = 1    !> general error
   integer,parameter,public :: status_ioerr  = 2    !> general I/O error
-  integer,parameter,public :: status_args   = 4    !> invalid subroutine arguments 
+  integer,parameter,public :: status_args   = 4    !> invalid subroutine arguments
   integer,parameter,public :: status_input  = 10   !> Input file read error
   integer,parameter,public :: status_config = 20   !> invalid configuration
   integer,parameter,public :: status_failed = 155  !> general calculation failure
@@ -127,7 +147,14 @@ module crest_data
     integer :: singlepoint = 1
     integer :: correction  = 2
     integer :: geoopt      = 3
-    integer :: ConfSolv    = 4
+    integer :: deltaG      = 5
+    !> post_opt   (= 10): post-search re-optimization via pqueue job 51 (e.g. A@B)
+    !> post_sp    (= 11): post-search SP reranking       via pqueue job 52 (--rerank)
+    !> post_reopt (= 12): post-search geo-opt standalone via pqueue job 53 (--reopt)
+    !> Values 6-9 reserved for future inline stages.
+    integer :: post_opt    = 10
+    integer :: post_sp     = 11
+    integer :: post_reopt  = 12
   end type refine_type
   type(refine_type), parameter,public :: refine = refine_type()
 
@@ -139,7 +166,7 @@ module crest_data
 !========================================================================================!
 !========================================================================================!
 
-  type :: constra
+  type :: legacy_constraints
 !****************************************************
 !* separate settings for LEGACY constraint handling
 !****************************************************
@@ -169,9 +196,10 @@ module crest_data
     logical :: usermsdpot = .false.
     logical :: gesc_heavy = .false.
   contains
-    procedure :: allocate => allocate_constraints
-    procedure :: deallocate => deallocate_constraints
-  end type constra
+    procedure :: allocate => allocate_legacy_constraints
+    procedure :: deallocate => deallocate_legacy_constraints
+    procedure :: info => legacy_constraints_info
+  end type legacy_constraints
 
 !========================================================================================!
 
@@ -179,7 +207,7 @@ module crest_data
 !************************************************************
 !* separate settings for protonation and related procedures
 !************************************************************
-    integer :: nfrag  = 0 
+    integer :: nfrag = 0
     integer :: newchrg = 0
     integer :: iter = 1
     real(wp) :: ewin = 30.0_wp       !> separate EWIN threshold
@@ -285,10 +313,12 @@ module crest_data
     integer  :: pcap = 50000       !> limit number of structures
     logical :: avbhess = .false.   !> use bhess in the msRRHO average calc. for all structures (expensive!)
     logical :: constrhess = .false. !> apply constraints in rrhoav?
-    logical :: printpop   = .false. !> print a file with populations at different T
+    logical :: printpop = .false. !> print a file with populations at different T
+    character(len=:),allocatable :: emodel
   contains
     procedure :: get_temps => thermo_get_temps
     procedure :: read_temps => thermo_read_temps
+    procedure :: get_close_rt => thermo_get_close_rt
   end type thermodata
 
 !========================================================================================!
@@ -300,6 +330,7 @@ module crest_data
     integer :: nat
     integer,allocatable :: at(:)
     real(wp),allocatable :: xyz(:,:)
+    real(wp),allocatable :: lat(:,:)    !> lattice vectors (PBC, optional)
     integer :: ichrg = 0
     integer :: uhf = 0
     integer :: ntopo = 0
@@ -307,7 +338,9 @@ module crest_data
     integer,allocatable :: topo(:)
     real(wp),allocatable :: charges(:)
     real(wp),allocatable :: wbo(:,:)
+    real(wp),allocatable :: efield(:)
   contains
+    procedure :: init => ref_init
     procedure :: rdcharges => read_charges
     procedure :: to => ref_to_mol
     procedure :: load => ref_load_mol
@@ -343,6 +376,7 @@ module crest_data
     real(wp) :: pthrsum
     real(wp) :: tboltz
     logical  :: cgf(6)           !> collection of CREGEN options
+    integer  :: iinversion = 0   !> 0=auto,1=on, 2=off
 
     real(wp) :: mdtemps(10)      !> different temperatures for the QMDFF-MDs in V1
     real(wp) :: mdtime           !> MD length (V1&2)
@@ -378,24 +412,29 @@ module crest_data
     logical :: omp_allow_nested = .true.  !> allow nested OpenMP threadding
 
     !>--- various names and flags
-    character(len=128) :: ensemblename   !> ensemble input name for SCREEN,MDOPT and CREGEN
-    character(len=128) :: ensemblename2  !> another ensemble input name
-    character(len=128) :: fixfile
-    character(len=512) :: constraints    !> name of the constraint file
-    character(len=20)  :: solvent        !> the solvent
+    character(len=128) :: ensemblename = '' !> ensemble input name for SCREEN,MDOPT and CREGEN
+    character(len=128) :: ensemblename2 = '' !> another ensemble input name
+    character(len=128) :: fixfile = ''
+    character(len=512) :: constraints = ''   !> name of the constraint file
+    character(len=20)  :: solvent = ''       !> the solvent
     character(len=:),allocatable :: solv !> the entrie gbsa flag including solvent
-    character(len=20)  :: gfnver         !> GFN version
-    character(len=20)  :: gfnver2        !> GFN version (multilevel)
-    character(len=20)  :: lmover         !> GFN version for LMO computation in xtb_lmo subroutine
-    character(len=512) :: ProgName       !> name of the xtb executable (+ path)
-    character(len=512) :: ProgIFF        !> name of xtbiff for QCG-mode
-    character(len=512) :: homedir        !> original directory from which calculation was started
-    character(len=512) :: scratchdir     !> path to the scratch directory
+    character(len=20)  :: gfnver = ''        !> GFN version
+    character(len=20)  :: gfnver2 = ''       !> GFN version (multilevel)
+    character(len=:),allocatable :: orca_template !> ORCA input template (--orca)
+    character(len=:),allocatable :: orca_cmd      !> ORCA executable path (--orca)
+    character(len=40)  :: rerank_lvl = ''    !> method for post-search SP reranking (--rerank)
+    character(len=40)  :: reopt_lvl  = ''    !> method for post-search geo-opt standalone (--reopt)
+    character(len=20)  :: lmover = ''        !> GFN version for LMO computation in xtb_lmo subroutine
+    character(len=512) :: ProgName = ''      !> name of the xtb executable (+ path)
+    character(len=512) :: ProgIFF = ''       !> name of xtbiff for QCG-mode
+    character(len=512) :: homedir = ''       !> original directory from which calculation was started
+    character(len=512) :: scratchdir = ''    !> path to the scratch directory
     character(len=:),allocatable :: cmd
     character(len=:),allocatable :: inputcoords
     character(len=:),allocatable :: wbofile
     character(len=:),allocatable :: atlist
     character(len=:),allocatable :: chargesfilename
+    character(len=:),allocatable :: sortmode
 
     !>--- METADYN data
     real(wp) :: hmass
@@ -430,11 +469,11 @@ module crest_data
     type(protobj) :: protb
 
     !>--- saved constraints
-    type(constra) :: cts
+    type(legacy_constraints) :: cts
 
     !>--- NCI mode data
     real(wp) :: potscal = 1.0_wp
-    real(wp) :: potpad  = 0.0_wp
+    real(wp) :: potpad = 0.0_wp
     character(len=:),allocatable :: potatlist
 
     !>--- Nanoreactor data
@@ -451,6 +490,14 @@ module crest_data
 
     !>--- reference structure data (the input structure)
     type(refdata) :: ref
+    !>--- the reference mol may be partitioned into subfragments
+    !>    the corresponding bookkeeping data is saved here
+    logical :: substructure_queue = .false.
+    type(split_atms),allocatable :: splitqueue(:)
+    type(construct_heap) :: splitheap
+    integer  :: queue_iter = 0
+    integer  :: queue_maxreconstruct = 7500
+    real(wp) :: queue_depthfac = 0.85_wp
 
     !>--- QCG data
     integer :: qcg_runtype = 0      !> Default is grow, 1= ensemble & opt, 2= e_solv, 3= g_solv
@@ -458,11 +505,11 @@ module crest_data
     integer :: nqcgclust = 0        !> Number of cluster to be taken
     integer :: max_solv = 0         !> Maximal number of solvents added, if none is given
     integer :: ensemble_method = -1 !> Default -1 for qcgmtd, 0= crest, 1= standard MD, 2= MTD
-    character(len=:), allocatable :: directed_file !name of the directed list
-    character(len=64), allocatable :: directed_list(:,:) !How many solvents at which atom to add
-    integer, allocatable :: directed_number(:) !Numbers of solvents added per defined atom
-    character(len=20) :: ensemble_opt         !> Method for ensemble optimization in qcg mode
-    character(len=20) :: freqver              !> Method for frequency computation in qcg mode
+    character(len=:),allocatable :: directed_file !name of the directed list
+    character(len=64),allocatable :: directed_list(:,:) !How many solvents at which atom to add
+    integer,allocatable :: directed_number(:) !Numbers of solvents added per defined atom
+    character(len=20) :: ensemble_opt = ''     !> Method for ensemble optimization in qcg mode
+    character(len=20) :: freqver = ''          !> Method for frequency computation in qcg mode
     real(wp)          :: freq_scal            !> Frequency scaling factor
     character(len=:),allocatable :: solu_file,solv_file !> solute  and solvent input file
     character(len=5) :: docking_qcg_flag = '--qcg'
@@ -496,12 +543,15 @@ module crest_data
 
     !================================================!
     !>--- Calculation settings for newer implementations (version >= 3.0)
-    type(calcdata) :: calc
+    type(calcdata),pointer :: calc
     type(mddata)   :: mddat
+    type(bh_class),allocatable :: bh_ref
     !>--- rigidconf data
     integer :: rigidconf_algo = 0
     integer :: rigidconf_toposource = 0
     character(len=:),allocatable :: rigidconf_userfile
+    !>--- TTConf-light settings
+    type(ttconf_settings) :: ttconf
     !>--- refinement queue
     integer,allocatable :: refine_queue(:)
     !>--- lwONIOM input
@@ -510,14 +560,14 @@ module crest_data
     !================================================!
 
     !>--- msreact mode settings
-    logical :: msei =.true. ! use the ei mode as default
-    logical :: mscid =.false. ! use the cid mode
-    logical :: msnoiso =.false. ! print only dissociated structures in msreact
-    logical :: msiso =.false. ! only print non-dissociated structures in msreact
-    logical :: msmolbar =.false. ! sort out duplicates by molbar
-    logical :: msinchi =.false. ! sort out duplicates by inchi
-    logical :: mslargeprint=.false. ! dont remove temporary files
-    logical :: msattrh=.true. ! add attractive potential for H-atoms
+    logical :: msei = .true. ! use the ei mode as default
+    logical :: mscid = .false. ! use the cid mode
+    logical :: msnoiso = .false. ! print only dissociated structures in msreact
+    logical :: msiso = .false. ! only print non-dissociated structures in msreact
+    logical :: msmolbar = .false. ! sort out duplicates by molbar
+    logical :: msinchi = .false. ! sort out duplicates by inchi
+    logical :: mslargeprint = .false. ! dont remove temporary files
+    logical :: msattrh = .true. ! add attractive potential for H-atoms
     integer :: msnbonds = 3 ! distance of bonds up to nonds are stretched
     integer :: msnshifts = 0 ! number of random shifts applied to whole mol
     integer :: msnshifts2 = 0 ! number of random shifts applied to whole mol
@@ -526,11 +576,15 @@ module crest_data
 
     !>--- general logical data
     logical :: allrot = .true.       !> use all rotational constants for check instead of mean?
+    logical :: alkylize = .false.    !> alkylization setting
+    logical :: alkylizeskip = .true. !> alkylization sampling skip
     logical :: altopt = .false.
-    logical :: autothreads           !> automatically determine threads
-    logical :: autozsort             !> do the ZSORT in the beginning ?
+    logical :: autothreads = .true.  !> automatically determine threads
+    logical :: autozsort = .false.   !> do the ZSORT in the beginning ?
     logical :: allowrestart = .true. !> allow restart in crest algos?
-    logical :: better                !> found a better conformer and restart in V1
+    logical :: better = .false.      !> found a better conformer and restart in V1
+    logical :: ceh_guess = .false.   !> use CEH guess in tblite or gfnff, if available
+    logical :: spin_polarized = .false. !> enable spin-polarized calculations
     logical :: cff                   !> CFF used in QCG-energy calculation
     logical :: cluster = .false.     !> perform a clustering analysis
     logical :: checktopo = .true.    !> perform topolgy check in CREGEN
@@ -540,7 +594,7 @@ module crest_data
     logical :: confgo                !> perform only the CREGEN routine ?
     logical :: constrain_solu        !> constrain the solute
     logical :: crest_ohess = .false. !> append numerical Hessian after optimization
-    logical :: doNMR                 !> determine NMR equivalencies in CREGEN ?
+    logical :: doNMR = .false.       !> determine NMR equivalencies in CREGEN ?
     logical :: dryrun = .false.      !> dryrun to print settings
     logical :: ENSO                  !> some options for usage of CREST within ENSO
     logical :: ens_const = .false.   !> constrain solute also in Ensemble generation
@@ -549,26 +603,26 @@ module crest_data
     logical :: esort = .false.       !> legacy option in old cregen
     logical :: ext                   !> external
     logical :: extLFER = .false.     !> read in external LFER parameters
-    logical :: FINAL_GFN2_OPT = .false.
+    logical :: FINAL_GFN2_OPT = .true.
     logical :: fullcre = .false.     !> calculate exact rotamer degeneracies
-    logical :: gbsa                  !> use gbsa
+    logical :: gbsa = .false.        !> use gbsa
     logical :: gcmultiopt            !> 2 level optimization for GC in V2
     logical :: gradsp = .true.       !> turn on/off gradient calculation in singlepoint
     logical :: heavyrmsd = .false.   !> use only heavy atoms for RMSD in CREGEN?
     logical :: inplaceMode = .true.  !> in-place mode: optimization dirs are created "on-the-fly"
-    logical :: iterativeV2           !> iterative version of V2 (= V3)
+    logical :: iterativeV2 = .true.  !> iterative version of V2 (= V3)
     logical :: iru                   !> re-use previously found conformers as bias in iterative approach
     logical :: keepModef             !> keep MODEF* dirs in V1 ?
     logical :: keepScratch = .false. !> keep scratch directory or delete it?
     logical :: legacy = .false.       !> switch between the original system call routines of crest and newer, e.g. tblite implementations
     logical :: metadynset            !> is the number of MTDs already set (V2) ?
     logical :: methautocorr          !> try to automatically include Methyl equivalencies in CREGEN ?
-    logical :: multilevelopt =.true. !> perform the multileveloptimization
+    logical :: multilevelopt = .true. !> perform the multileveloptimization
     logical :: newcregen = .false.   !> use the CREGEN rewrite
-    logical :: NCI                   !> NCI special usage
-    logical :: niceprint             !> make a nice progress-bar printout
+    logical :: NCI = .false.         !> NCI special usage
+    logical :: niceprint = .false.   !> make a nice progress-bar printout
     logical :: noconst = .false.     !> no constrain of solute during QCG Growth
-    logical :: onlyZsort             !> do only the ZSORT routine ?
+    logical :: onlyZsort = .false.   !> do only the ZSORT routine ?
     logical :: optpurge = .false.    !> MDOPT purge application
     logical :: outputsdf = .false.   !> write output ensemble as sdf?
     logical :: pcaexclude = .false.  !> exclude user set atoms from PCA?
@@ -595,10 +649,10 @@ module crest_data
     logical :: riso = .false.        !> take only isomers in reactor mode
     logical :: rotamermds            !> do additional MDs after second  multilevel OPT step in V2 ?
     logical :: refine_presort = .false.  !> run CREGEN at the beginning of crest_refine?
-    logical :: refine_esort   = .false.  !> if CREGEN is run after crest_refine, only sort energy?
+    logical :: refine_esort = .false.  !> if CREGEN is run after crest_refine, only sort energy?
     logical :: sameRandomNumber = .false. !> QCG related, choose same random number for iff
     logical :: scallen               !> scale the automatically determined MD length by some factor?
-    logical :: scratch               !> use scratch directory
+    logical :: scratch = .false.     !> use scratch directory
     logical :: setgcmax = .false.    !> adjust the maxmimum number of structures taken into account for GC?
     logical :: sdfformat = .false.   !> was the SDF format used as input file?
     logical :: slow                  !> slowmode (counterpart to quick mode)
@@ -617,10 +671,11 @@ module crest_data
     logical :: user_nclust = .false. !> true if number of cluster is set by user (only QCG)
     logical :: user_dumxyz = .false. !> true if dumpxyz is set by user
     logical :: user_wscal = .false.  !> true if wscal is set by user
-    logical :: useqmdff              !> use QMDFF in V2?
+    logical :: useqmdff = .false.    !> use QMDFF in V2?
     logical :: water = .false.       !> true if water is used as solvent (only QCG)
     logical :: wallsetup = .false.   !> set up a wall potential?
     logical :: wbotopo = .false.     !> set up topo with WBOs
+    type(progress_state) :: ps  !> terminal progress bar state
   contains
     procedure :: allocate => allocate_metadyn
     procedure :: deallocate => deallocate_metadyn
@@ -629,6 +684,8 @@ module crest_data
     procedure :: rmhy => pqueue_removehybrid
     procedure :: addrefine => add_to_refinequeue
     procedure :: wrtCHRG => wrtCHRG
+    procedure :: addsplitqueue => env_addsplitqueue
+    procedure :: copy => systemdata_copy
   end type systemdata
 
 !========================================================================================!
@@ -653,7 +710,6 @@ contains  !> MODULE PROCEDURES START HERE
     end if
     return
   end subroutine allocate_metadyn
-!========================================================================================!
   subroutine deallocate_metadyn(self)
     implicit none
     class(systemdata) :: self
@@ -662,23 +718,56 @@ contains  !> MODULE PROCEDURES START HERE
     if (allocated(self%metadlist)) deallocate (self%metadlist)
   end subroutine deallocate_metadyn
 !========================================================================================!
-  subroutine allocate_constraints(self,n)
+  subroutine allocate_legacy_constraints(self,n)
     implicit none
-    class(constra) :: self
+    class(legacy_constraints) :: self
     integer,intent(in)  :: n
     self%ndim = n
     allocate (self%sett(n))
     allocate (self%buff(n))
     self%sett = ''
     self%buff = ''
-  end subroutine allocate_constraints
-!========================================================================================!
-  subroutine deallocate_constraints(self)
+  end subroutine allocate_legacy_constraints
+
+  subroutine deallocate_legacy_constraints(self)
     implicit none
-    class(constra) :: self
+    class(legacy_constraints) :: self
     if (allocated(self%sett)) deallocate (self%sett)
     if (allocated(self%buff)) deallocate (self%buff)
-  end subroutine deallocate_constraints
+  end subroutine deallocate_legacy_constraints
+
+  subroutine legacy_constraints_info(self)
+    implicit none
+    class(legacy_constraints) :: self
+    integer :: i
+    write (*,*) "legacy constraints set?",self%used
+    if (self%used) then
+      do i = 1,self%ndim
+        if (trim(self%sett(i)) .ne. '') then
+          write (*,'(a)') trim(self%sett(i))
+        end if
+      end do
+    end if
+
+    write (*,*) 'legacy constraints NCI?',self%NCI
+    if (self%NCI.and.allocated(self%pots)) then
+      do i = 1,10
+        if (trim(self%pots(i)) .ne. '') then
+          write (*,'(a)') trim(self%pots(i))
+        end if
+      end do
+    end if
+
+    write (*,*) 'legacy constraints CBONDS?',allocated(self%cbonds)
+    if (allocated(self%cbonds)) then
+      do i = 1,min(10,self%n_cbonds)
+        if (trim(self%cbonds(i)) .ne. '') then
+          write (*,'(a)') trim(self%cbonds(i))
+        end if
+      end do
+      if (self%n_cbonds > 10) write (*,*) '... and some more'
+    end if
+  end subroutine legacy_constraints_info
 
 !========================================================================================!
 !========================================================================================!
@@ -752,14 +841,13 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end subroutine pqueue_removehybrid
 
-
   subroutine add_to_refinequeue(self,refinetype)
     implicit none
     class(systemdata) :: self
     integer :: refinetype
     integer :: idum
     integer,allocatable :: qdum(:)
-    if( refinetype <= 0 ) return
+    if (refinetype <= 0) return
     if (.not.allocated(self%refine_queue)) then
       allocate (self%refine_queue(1))
       self%refine_queue(1) = refinetype
@@ -768,10 +856,17 @@ contains  !> MODULE PROCEDURES START HERE
       allocate (qdum(idum+1))
       qdum(1:idum) = self%refine_queue(1:idum)
       qdum(idum+1) = refinetype
-      call move_alloc(qdum,self%pqueue)
+      call move_alloc(qdum,self%refine_queue)
     end if
     return
   end subroutine add_to_refinequeue
+
+  subroutine env_addsplitqueue(self,raw_split)
+    implicit none
+    class(systemdata) :: self
+    integer,intent(in) :: raw_split(:)
+    call add_to_splitqueue(self%splitqueue,raw_split)
+  end subroutine env_addsplitqueue
 
 !========================================================================================!
 !========================================================================================!
@@ -827,6 +922,15 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine wrtCHRG
 
 !========================================================================================!
+  subroutine ref_init(self,nat)
+    class(refdata) :: self
+    integer,intent(in) :: nat
+    if (allocated(self%at)) deallocate (self%at)
+    if (allocated(self%xyz)) deallocate (self%xyz)
+    allocate (self%at(nat),source=0)
+    allocate (self%xyz(3,nat),source=0.0_wp)
+  end subroutine ref_init
+
 !> read atomic charges from a file (one line per atom)
   subroutine read_charges(self,chargesfilename,totchrg)
     implicit none
@@ -858,10 +962,11 @@ contains  !> MODULE PROCEDURES START HERE
   subroutine ref_to_mol(self,mol)
     implicit none
     class(refdata) :: self
-    type(coord) :: mol
+    class(coord) :: mol
     mol%nat = self%nat
-    if(allocated(self%at)) mol%at = self%at
-    if(allocated(self%xyz)) mol%xyz = self%xyz
+    if (allocated(self%at)) mol%at = self%at
+    if (allocated(self%xyz)) mol%xyz = self%xyz
+    if (allocated(self%lat)) mol%lat = self%lat
     mol%chrg = self%ichrg
     mol%uhf = self%uhf
     return
@@ -870,12 +975,18 @@ contains  !> MODULE PROCEDURES START HERE
   subroutine ref_load_mol(self,mol)
     implicit none
     class(refdata) :: self
-    type(coord) :: mol
-    self%nat    = mol%nat 
-    self%at     = mol%at  
-    self%xyz    = mol%xyz 
-    self%ichrg  = mol%chrg
-    self%uhf    = mol%uhf 
+    class(coord) :: mol
+    call self%init(mol%nat)
+    self%nat = mol%nat
+    self%at = mol%at
+    self%xyz = mol%xyz
+    if (allocated(mol%lat)) then
+      self%lat = mol%lat
+    else if (allocated(self%lat)) then
+      deallocate (self%lat)
+    end if
+    self%ichrg = mol%chrg
+    self%uhf = mol%uhf
     return
   end subroutine ref_load_mol
 
@@ -898,27 +1009,31 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end function optlevflag
 
-  function optlevnum(flag) result(optlev)
+  function optlevnum(flag,iostat) result(optlev)
     implicit none
     real(wp) :: optlev
-    character(len=*):: flag
+    character(len=*),intent(in) :: flag
+    integer,intent(out),optional :: iostat
+    if (present(iostat)) iostat = 0
     optlev = 0.0_wp
-    if (index(flag,'crude') .ne. 0) optlev = -3.0d0
-    if (index(flag,'loose') .ne. 0) optlev = -1.0d0
-    if (index(flag,'vloose') .ne. 0) optlev = -2.0d0
-    if (index(flag,'sloppy') .ne. 0) optlev = -2.0d0
-    if (index(flag,'normal') .ne. 0) optlev = 0.0d0
-    if (index(flag,'tight') .ne. 0) optlev = 1.0d0
-    if (index(flag,'verytight') .ne. 0) optlev = 2.0d0
-    if (index(flag,'vtight') .ne. 0) optlev = 2.0d0
-    if (index(flag,'extreme') .ne. 0) optlev = 3.0d0 
-    if (index(flag,'3') .ne. 0) optlev = 3.0d0
-    if (index(flag,'2') .ne. 0) optlev = 2.0d0
-    if (index(flag,'1') .ne. 0) optlev = 1.0d0
-    if (index(flag,'0') .ne. 0) optlev = 0.0d0
-    if (index(flag,'-3') .ne. 0) optlev = -3.0d0
-    if (index(flag,'-2') .ne. 0) optlev = -2.0d0
-    if (index(flag,'-1') .ne. 0) optlev = -1.0d0
+    select case (trim(adjustl(flag)))
+    case ('crude','-3')
+      optlev = -3.0_wp
+    case ('vloose','sloppy','-2')
+      optlev = -2.0_wp
+    case ('loose','-1')
+      optlev = -1.0_wp
+    case ('normal','0')
+      optlev = 0.0_wp
+    case ('tight','1')
+      optlev = 1.0_wp
+    case ('verytight','vtight','2')
+      optlev = 2.0_wp
+    case ('extreme','3')
+      optlev = 3.0_wp
+    case default
+      if (present(iostat)) iostat = 1
+    end select
     return
   end function optlevnum
 
@@ -939,23 +1054,23 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),intent(in) :: optlev
     logical,intent(out) :: multilev(6)
     integer :: j
-    if (optlev <= 3.0d0)then !> "extreme" thresholds
+    if (optlev <= 3.0d0) then !> "extreme" thresholds
       multilev(:) = .false.
       multilev(6) = .true.
       multilev(4) = .true.
       multilev(1) = .true.
-    endif
+    end if
     j = optlevmap_alt(optlev)
-    j = max(j-1, 1)  !> j is reduced by one
-    if (optlev <= 2.0d0)then  !> "normal" to "vtight"
-     multilev(:) = .false.
-     multilev(1) = .true.
-     multilev(j) = .true.
-    endif
-    if (optlev <= -1.0d0)then !> "loose" to "crude"
-     multilev(:) = .false.
-     multilev(j) = .true.
-    endif
+    j = max(j-1,1)  !> j is reduced by one
+    if (optlev <= 2.0d0) then  !> "normal" to "vtight"
+      multilev(:) = .false.
+      multilev(1) = .true.
+      multilev(j) = .true.
+    end if
+    if (optlev <= -1.0d0) then !> "loose" to "crude"
+      multilev(:) = .false.
+      multilev(j) = .true.
+    end if
   end subroutine optlev_to_multilev
 
 !========================================================================================!
@@ -1022,6 +1137,370 @@ contains  !> MODULE PROCEDURES START HERE
     write (*,*) self%temps
     return
   end subroutine thermo_read_temps
+
+  function thermo_get_close_rt(self,nrt) result(temp)
+    implicit none
+    class(thermodata) :: self
+    integer,intent(out) :: nrt
+    real(wp) :: temp
+    integer :: i,nt,io,ich
+    real(wp),allocatable :: tmptemps(:)
+    nrt = 0
+    nt = self%ntemps
+    allocate (tmptemps(nt),source=0.0_wp)
+    tmptemps(:) = abs(self%temps(:)-298.15_wp)
+    nrt = minloc(tmptemps,1)
+    temp = self%temps(nrt)
+  end function thermo_get_close_rt
+!========================================================================================!
+!========================================================================================!
+
+  subroutine systemdata_copy(self,src)
+!*************************************************************
+!* Deep copy of a systemdata object from src to self.        *
+!*                                                           *
+!* On Input:  src  - source systemdata object                *
+!* On Output: self - destination, populated with src data    *
+!*                                                           *
+!* NOTE: Some embedded derived types (mddat, splitqueue,     *
+!*       splitheap, bh_ref, ONIOM_input) are assigned via    *
+!*       Fortran intrinsic assignment, which may only be a   *
+!*       shallow copy if those types contain pointer         *
+!*       components. See individual placeholder comments.    *
+!*************************************************************
+    implicit none
+    class(systemdata),intent(out) :: self
+    type(systemdata),intent(in)   :: src
+
+! ── run-control integers ──────────────────────────────────────────────────────
+    self%iostatus_meta = src%iostatus_meta
+    self%crestver      = src%crestver
+    self%runver        = src%runver
+    self%properties    = src%properties
+    self%properties2   = src%properties2
+    self%npq           = src%npq
+    if (allocated(src%pqueue)) self%pqueue = src%pqueue
+
+! ── CREGEN thresholds ─────────────────────────────────────────────────────────
+    self%level      = src%level
+    self%thresholds = src%thresholds
+    self%ewin       = src%ewin
+    self%ethr       = src%ethr
+    self%ethrpurge  = src%ethrpurge
+    self%couthr     = src%couthr
+    self%rthr       = src%rthr
+    self%bthr       = src%bthr
+    self%bthr2      = src%bthr2
+    self%bthrmax    = src%bthrmax
+    self%bthrshift  = src%bthrshift
+    self%athr       = src%athr
+    self%pthr       = src%pthr
+    self%pthrsum    = src%pthrsum
+    self%tboltz     = src%tboltz
+    self%cgf        = src%cgf
+    self%iinversion = src%iinversion
+
+! ── MD / algo control ─────────────────────────────────────────────────────────
+    self%mdtemps    = src%mdtemps
+    self%mdtime     = src%mdtime
+    self%elowest    = src%elowest
+    self%eprivious  = src%eprivious
+    self%gcmax      = src%gcmax
+    self%gcmaxparent = src%gcmaxparent
+    self%icount     = src%icount
+    self%mdmode     = src%mdmode
+    self%nmodes     = src%nmodes
+    self%temps      = src%temps
+    self%snapshots  = src%snapshots
+    self%Maxrestart = src%Maxrestart
+    self%nreset     = src%nreset
+    self%nrotammds  = src%nrotammds
+    self%maxcompare = src%maxcompare
+    self%tsplit     = src%tsplit
+
+! ── molecular data ────────────────────────────────────────────────────────────
+    self%nat          = src%nat
+    self%chrg         = src%chrg
+    self%uhf          = src%uhf
+    self%rednat       = src%rednat
+    self%optlev       = src%optlev
+    self%forceconst   = src%forceconst
+    self%dummypercent = src%dummypercent
+
+! ── parallelization ───────────────────────────────────────────────────────────
+    self%MAXRUN          = src%MAXRUN
+    self%omp             = src%omp
+    self%Threads         = src%Threads
+    self%omp_allow_nested = src%omp_allow_nested
+
+! ── fixed-length names and flags ──────────────────────────────────────────────
+    self%ensemblename  = src%ensemblename
+    self%ensemblename2 = src%ensemblename2
+    self%fixfile       = src%fixfile
+    self%constraints   = src%constraints
+    self%solvent       = src%solvent
+    self%gfnver        = src%gfnver
+    self%gfnver2       = src%gfnver2
+    self%rerank_lvl    = src%rerank_lvl
+    self%reopt_lvl     = src%reopt_lvl
+    self%lmover        = src%lmover
+    self%ProgName      = src%ProgName
+    self%ProgIFF       = src%ProgIFF
+    self%homedir       = src%homedir
+    self%scratchdir    = src%scratchdir
+
+! ── allocatable character fields ──────────────────────────────────────────────
+    if (allocated(src%solv))            self%solv           = src%solv
+    if (allocated(src%cmd))             self%cmd            = src%cmd
+    if (allocated(src%inputcoords))     self%inputcoords    = src%inputcoords
+    if (allocated(src%wbofile))         self%wbofile        = src%wbofile
+    if (allocated(src%atlist))          self%atlist         = src%atlist
+    if (allocated(src%chargesfilename)) self%chargesfilename = src%chargesfilename
+    if (allocated(src%sortmode))        self%sortmode       = src%sortmode
+
+! ── METADYN scalar settings ───────────────────────────────────────────────────
+    self%hmass    = src%hmass
+    self%mdtemp   = src%mdtemp
+    self%nmdtemp  = src%nmdtemp
+    self%mdstep   = src%mdstep
+    self%mdlenfac = src%mdlenfac
+    self%tmtd     = src%tmtd
+    self%flexi    = src%flexi
+    self%shake    = src%shake
+    self%mddumpxyz = src%mddumpxyz
+    self%mdskip   = src%mdskip
+    self%mddump   = src%mddump
+    self%maxopt   = src%maxopt
+    self%hlowopt  = src%hlowopt
+    self%microopt = src%microopt
+    self%s6opt    = src%s6opt
+    self%mtd_kscal = src%mtd_kscal
+    self%nstatic  = src%nstatic
+
+! ── METADYN allocatable arrays ────────────────────────────────────────────────
+    self%nmetadyn = src%nmetadyn
+    if (allocated(src%metadfac))  self%metadfac  = src%metadfac
+    if (allocated(src%metadexp))  self%metadexp  = src%metadexp
+    if (allocated(src%metadlist)) self%metadlist = src%metadlist
+    if (allocated(src%mtdstaticfile)) self%mtdstaticfile = src%mtdstaticfile
+    if (allocated(src%includeRMSD))   self%includeRMSD   = src%includeRMSD
+    if (allocated(src%excludeTOPO))   self%excludeTOPO   = src%excludeTOPO
+
+! ── NCI / reactor settings ────────────────────────────────────────────────────
+    self%potscal  = src%potscal
+    self%potpad   = src%potpad
+    self%rdens    = src%rdens
+    self%tempfermi = src%tempfermi
+    self%XH3      = src%XH3
+    self%kappa    = src%kappa
+    if (allocated(src%potatlist)) self%potatlist = src%potatlist
+
+! ── embedded derived types (allocatable-only internals; intrinsic =) ──────────
+    self%protb  = src%protb   !> protobj:     allocatables only, intrinsic = is deep
+    self%cts    = src%cts     !> legacy_constraints: allocatables only, intrinsic = is deep
+    self%eMTD   = src%eMTD   !> entropyMTD:  allocatables only, intrinsic = is deep
+    self%thermo = src%thermo !> thermodata:  allocatables only, intrinsic = is deep
+    self%ref    = src%ref    !> refdata:     allocatables only, intrinsic = is deep
+
+! ── calc pointer: allocate new target and deep-copy ───────────────────────────
+    if (associated(src%calc)) then
+      if (.not. associated(self%calc)) allocate (self%calc)
+      call self%calc%copy(src%calc)
+    end if
+
+! ── placeholder: mddat (mddata) ───────────────────────────────────────────────
+!   mddata may contain pointer components; use intrinsic = as placeholder.
+    self%mddat = src%mddat
+
+! ── placeholder: bh_ref (bh_class) ───────────────────────────────────────────
+!   bh_class may contain pointer components; use intrinsic = as placeholder.
+    if (allocated(src%bh_ref)) then
+      if (.not. allocated(self%bh_ref)) allocate (self%bh_ref,source=src%bh_ref)
+    end if
+
+! ── rigidconf settings ────────────────────────────────────────────────────────
+    self%rigidconf_algo       = src%rigidconf_algo
+    self%rigidconf_toposource = src%rigidconf_toposource
+    if (allocated(src%rigidconf_userfile)) self%rigidconf_userfile = src%rigidconf_userfile
+    self%ttconf = src%ttconf  !> ttconf_settings: allocatables only, intrinsic = is deep
+    if (allocated(src%refine_queue))       self%refine_queue       = src%refine_queue
+    if (allocated(src%ONIOM_toml))         self%ONIOM_toml         = src%ONIOM_toml
+
+! ── placeholder: ONIOM_input (lwoniom_input) ──────────────────────────────────
+!   lwoniom_input may contain pointer components; use intrinsic = as placeholder.
+    if (allocated(src%ONIOM_input)) then
+      if (.not. allocated(self%ONIOM_input)) allocate (self%ONIOM_input,source=src%ONIOM_input)
+    end if
+
+! ── substructure queue ────────────────────────────────────────────────────────
+    self%substructure_queue    = src%substructure_queue
+    self%queue_iter            = src%queue_iter
+    self%queue_maxreconstruct  = src%queue_maxreconstruct
+    self%queue_depthfac        = src%queue_depthfac
+!   splitqueue (split_atms) and splitheap (construct_heap): placeholder
+    if (allocated(src%splitqueue)) self%splitqueue = src%splitqueue
+    self%splitheap = src%splitheap
+
+! ── QCG settings ─────────────────────────────────────────────────────────────
+    self%qcg_runtype    = src%qcg_runtype
+    self%nsolv          = src%nsolv
+    self%nqcgclust      = src%nqcgclust
+    self%max_solv       = src%max_solv
+    self%ensemble_method = src%ensemble_method
+    self%ensemble_opt   = src%ensemble_opt
+    self%freqver        = src%freqver
+    self%freq_scal      = src%freq_scal
+    self%docking_qcg_flag = src%docking_qcg_flag
+    if (allocated(src%directed_file))   self%directed_file   = src%directed_file
+    if (allocated(src%directed_list))   self%directed_list   = src%directed_list
+    if (allocated(src%directed_number)) self%directed_number = src%directed_number
+    if (allocated(src%solu_file))       self%solu_file       = src%solu_file
+    if (allocated(src%solv_file))       self%solv_file       = src%solv_file
+
+! ── clustering settings ───────────────────────────────────────────────────────
+    self%maxcluster = src%maxcluster
+    self%nclust     = src%nclust
+    self%pccap      = src%pccap
+    self%pcthr      = src%pcthr
+    self%pcmin      = src%pcmin
+    self%csthr      = src%csthr
+    self%clustlev   = src%clustlev
+    if (allocated(src%pcmeasure)) self%pcmeasure = src%pcmeasure
+
+! ── structure generation / bias settings ──────────────────────────────────────
+    self%doOHflip   = src%doOHflip
+    self%maxflip    = src%maxflip
+    self%rthr2      = src%rthr2
+    self%kshift     = src%kshift
+    self%kshiftnum  = src%kshiftnum
+    self%gescoptlev = src%gescoptlev
+    if (allocated(src%biasfile)) self%biasfile = src%biasfile
+
+! ── DFT driver (deprecated) ───────────────────────────────────────────────────
+    self%hardcutDFT  = src%hardcutDFT
+    self%harcutpthr  = src%harcutpthr
+    self%hardcutnst  = src%hardcutnst
+    if (allocated(src%dftrcfile)) self%dftrcfile = src%dftrcfile
+
+! ── msreact settings ──────────────────────────────────────────────────────────
+    self%msei         = src%msei
+    self%mscid        = src%mscid
+    self%msnoiso      = src%msnoiso
+    self%msiso        = src%msiso
+    self%msmolbar     = src%msmolbar
+    self%msinchi      = src%msinchi
+    self%mslargeprint = src%mslargeprint
+    self%msattrh      = src%msattrh
+    self%msnbonds     = src%msnbonds
+    self%msnshifts    = src%msnshifts
+    self%msnshifts2   = src%msnshifts2
+    self%msnfrag      = src%msnfrag
+    self%msinput      = src%msinput
+
+! ── general logical flags ─────────────────────────────────────────────────────
+    self%allrot         = src%allrot
+    self%alkylize       = src%alkylize
+    self%alkylizeskip   = src%alkylizeskip
+    self%altopt         = src%altopt
+    self%autothreads    = src%autothreads
+    self%autozsort      = src%autozsort
+    self%allowrestart   = src%allowrestart
+    self%better         = src%better
+    self%ceh_guess      = src%ceh_guess
+    self%spin_polarized = src%spin_polarized
+    self%cff            = src%cff
+    self%cluster        = src%cluster
+    self%checktopo      = src%checktopo
+    self%checkiso       = src%checkiso
+    self%chargesfile    = src%chargesfile
+    self%compareens     = src%compareens
+    self%confgo         = src%confgo
+    self%constrain_solu = src%constrain_solu
+    self%crest_ohess    = src%crest_ohess
+    self%doNMR          = src%doNMR
+    self%dryrun         = src%dryrun
+    self%ENSO           = src%ENSO
+    self%ens_const      = src%ens_const
+    self%entropic       = src%entropic
+    self%entropymd      = src%entropymd
+    self%esort          = src%esort
+    self%ext            = src%ext
+    self%extLFER        = src%extLFER
+    self%FINAL_GFN2_OPT = src%FINAL_GFN2_OPT
+    self%fullcre        = src%fullcre
+    self%gbsa           = src%gbsa
+    self%gcmultiopt     = src%gcmultiopt
+    self%gradsp         = src%gradsp
+    self%heavyrmsd      = src%heavyrmsd
+    self%inplaceMode    = src%inplaceMode
+    self%iterativeV2    = src%iterativeV2
+    self%iru            = src%iru
+    self%keepModef      = src%keepModef
+    self%keepScratch    = src%keepScratch
+    self%legacy         = src%legacy
+    self%metadynset     = src%metadynset
+    self%methautocorr   = src%methautocorr
+    self%multilevelopt  = src%multilevelopt
+    self%newcregen      = src%newcregen
+    self%NCI            = src%NCI
+    self%niceprint      = src%niceprint
+    self%noconst        = src%noconst
+    self%onlyZsort      = src%onlyZsort
+    self%optpurge       = src%optpurge
+    self%outputsdf      = src%outputsdf
+    self%pcaexclude     = src%pcaexclude
+    self%pclean         = src%pclean
+    self%performCross   = src%performCross
+    self%performMD      = src%performMD
+    self%performModef   = src%performModef
+    self%performMTD     = src%performMTD
+    self%preactormtd    = src%preactormtd
+    self%preactorpot    = src%preactorpot
+    self%preopt         = src%preopt
+    self%presp          = src%presp
+    self%printscoords   = src%printscoords
+    self%QCG            = src%QCG
+    self%qcg_flag       = src%qcg_flag
+    self%qcg_restart    = src%qcg_restart
+    self%nopreopt       = src%nopreopt
+    self%quick          = src%quick
+    self%readbias       = src%readbias
+    self%reftopo        = src%reftopo
+    self%relax          = src%relax
+    self%restartopt     = src%restartopt
+    self%reweight       = src%reweight
+    self%riso           = src%riso
+    self%rotamermds     = src%rotamermds
+    self%refine_presort = src%refine_presort
+    self%refine_esort   = src%refine_esort
+    self%sameRandomNumber = src%sameRandomNumber
+    self%scallen        = src%scallen
+    self%scratch        = src%scratch
+    self%setgcmax       = src%setgcmax
+    self%sdfformat      = src%sdfformat
+    self%slow           = src%slow
+    self%solv_md        = src%solv_md
+    self%staticmtd      = src%staticmtd
+    self%subRMSD        = src%subRMSD
+    self%superquick     = src%superquick
+    self%threadssetmanual = src%threadssetmanual
+    self%trackorigin    = src%trackorigin
+    self%testnumgrad    = src%testnumgrad
+    self%use_xtbiff     = src%use_xtbiff
+    self%user_enslvl    = src%user_enslvl
+    self%user_temp      = src%user_temp
+    self%user_mdtime    = src%user_mdtime
+    self%user_mdstep    = src%user_mdstep
+    self%user_nclust    = src%user_nclust
+    self%user_dumxyz    = src%user_dumxyz
+    self%user_wscal     = src%user_wscal
+    self%useqmdff       = src%useqmdff
+    self%water          = src%water
+    self%wallsetup      = src%wallsetup
+    self%wbotopo        = src%wbotopo
+
+    return
+  end subroutine systemdata_copy
 
 !========================================================================================!
 !========================================================================================!

@@ -19,16 +19,23 @@
 
 module calc_type
   use iso_fortran_env,only:wp => real64,stdout => output_unit
+  use crest_external_engrad,only:engrad_interface
   use constraints
   use strucrd,only:coord
 !>--- api types
   use tblite_api
   use gfn0_api
+  use crest_solvation,only:solvation_data
+  use crest_electrostatic,only:electrostatic_data
   use gfnff_api,only:gfnff_data
   use libpvol_api,only:libpvol_calculator
 !>--- other types
   use orca_type
   use lwoniom_module
+  use hessian_reconstruct
+  use approxg_module, only: approxg_params
+  use penalty_module, only: penalty_params
+  use mlip_sc, only: mlip_params
   implicit none
 
   character(len=*),public,parameter :: sep = '/'
@@ -49,10 +56,16 @@ module calc_type
     integer :: gfnff     = 9
     integer :: libpvol   = 10
     integer :: lj        = 11
+    integer :: approxg   = 12
+    integer :: penalty   = 13
+    integer :: mlip      = 14
+    integer :: solvation = 15
+    integer :: electrostatic = 16
+    integer :: external  = 17
   end type enum_jobtype
   type(enum_jobtype), parameter,public :: jobtype = enum_jobtype()
 
-  character(len=45),parameter,private :: jobdescription(12) = [ &
+  character(len=45),parameter,private :: jobdescription(18) = [character(len=45) :: &
      & 'Unknown calculation type                    ', &
      & 'xTB calculation via external binary         ', &
      & 'Generic script execution                    ', &
@@ -64,8 +77,19 @@ module calc_type
      & 'GFN0*-xTB calculation via GFN0 lib          ', &
      & 'GFN-FF calculation via GFNFF lib            ', &
      & 'external pressure calculation via libpvol   ', &
-     & 'Lennard-Jones potential calculation         ' ]
+     & 'Lennard-Jones potential calculation         ', &
+     & 'Approximate free energy computation         ', &
+     & 'Empirical penalty function                  ', &
+     & 'MLIP via persistent python socket           ', &
+     & 'Standalone implicit solvation contribution  ', &
+     & 'Charge-equilibration electrostatics         ', &
+     & 'Externally supplied potential (host callback)']
 !&>
+
+!=========================================================================================!
+!>--- RE-EXPORT of the externally-supplied-potential interface
+!>    (defined in module crest_external_engrad)
+  public :: engrad_interface
 
 !=========================================================================================!
 
@@ -82,9 +106,14 @@ module calc_type
     integer :: refine_lvl = 0 !> to allow defining different refinement levels
 
     integer :: chrg = 0          !> molecular charge
-    integer :: uhf = 0           !> uhf parameter (xtb) or multiplicity (other)
+    integer :: uhf = 0           !> uhf = Nα-Nβ = 2S (xtb/tblite/gfn0/gfnff/turbomole)
+    integer :: multiplicity = 1  !> spin multiplicity = 2S+1 = uhf+1 (ORCA, fmlip-relay)
+                                 !> kept aligned with uhf via sync_multiplicity/set_multiplicity
     logical :: active = .true.   !> active setting to disable the calculation (this is different from weight=0)
     real(wp) :: weight = 1.0_wp  !> calculation weight (when adding them up)
+    integer :: threads = 0       !> max number of cores this level may use per engrad call
+                                 !> (e.g. ORCA %pal nprocs, MLIP server threads).
+                                 !> 0 (or <1) means "unset/inherit" and is ignored.
 
     character(len=:),allocatable :: calcspace  !> subdirectory to perform the calculation in
     character(len=:),allocatable :: calcfile
@@ -126,14 +155,16 @@ module calc_type
     real(wp),allocatable :: dipgrad(:,:)
 
     !> other properties
-    logical,allocatable :: getsasa(:) 
+    logical,allocatable :: getsasa(:)
     logical :: getlmocent = .false.
     integer :: nprot = 0
-    real(wp),allocatable :: protxyz(:,:) 
+    real(wp),allocatable :: protxyz(:,:)
+    real(wp),allocatable :: efield(:)  !> in V/Å
 
 !>--- API constructs
     integer  :: tblitelvl = 2
     real(wp) :: etemp = 300.0_wp
+    logical  :: etemp_user_set = .false.
     real(wp) :: accuracy = 1.0_wp
     logical  :: apiclean = .true.
     integer  :: maxscc = 500
@@ -150,6 +181,8 @@ module calc_type
 !>--- tblite data
     type(tblite_data),allocatable :: tblite
     character(len=:),allocatable :: tbliteparam
+    logical :: ceh_guess = .false.
+    logical :: spin_polarized = .false.
 
 !>--- GFN0-xTB data
     type(gfn0_data),allocatable :: g0calc
@@ -159,6 +192,11 @@ module calc_type
 
 !>--- GFN-FF data
     type(gfnff_data),allocatable :: ff_dat
+    !> optional user-defined fragmentation (one atom-range string per fragment,
+    !> e.g. ["1-432","433-458"]). Atoms not covered by any string form one
+    !> additional "rest" fragment. Passed to GFN-FF to prevent artificial bonds
+    !> between fragments. Resolved to a per-atom list once nat is known.
+    character(len=:),allocatable :: gff_fragments(:)
 
 !>--- libpvol data
     integer  :: pvmodel = 1            !> libpvol model type (0=XHCFF, 1=PV)
@@ -169,16 +207,37 @@ module calc_type
     real(wp) :: pvradscal = 1.0_wp     !> Scaling factor for SAS radii
     type(libpvol_calculator),allocatable :: libpvol
 
+!>--- implicit solvation composite data
+    type(solvation_data),allocatable :: solv
+
+!>--- charge-equilibration electrostatics data
+    type(electrostatic_data),allocatable :: eeq
+
+!>--- approxg data
+    type(approxg_params) :: ag
+
+!>--- penalty params
+    type(penalty_params) :: penalty
+
     !> ONIOM fragment IDs
     integer :: ONIOM_highlowroot = 0
     integer :: ONIOM_id = 0
 
-    !> ORCA job template
+!>--- ORCA job template
     type(orca_input) :: ORCA
+
+!>--- MLIP settings
+    type(mlip_params) :: MPAR
+
+!>--- externally supplied potential (host-program callback)
+!>    native Fortran procedure pointer + unlimited polymorphic context
+    procedure(engrad_interface),pointer,nopass :: ext_engrad => null()
+    class(*),pointer :: ext_userdata => null()  !> opaque host context
 
 !>--- Type procedures
   contains
     procedure :: deallocate => calculation_settings_deallocate
+    procedure :: set_external => calculation_settings_set_external
     procedure :: addconfig => calculation_settings_addconfig
     procedure :: autocomplete => calculation_settings_autocomplete
     procedure :: printid => calculation_settings_printid
@@ -186,6 +245,9 @@ module calc_type
     procedure :: create => create_calclevel_shortcut
     procedure :: norestarts => calculation_settings_norestarts
     procedure :: dumpdipgrad => calculation_dump_dipgrad
+    procedure :: copy => calculation_settings_copy
+    procedure :: sync_multiplicity => calc_sync_multiplicity
+    procedure :: set_multiplicity => calc_set_multiplicity
   end type calculation_settings
 
 !=========================================================================================!
@@ -251,6 +313,9 @@ module calc_type
     logical  :: tsopt = .false.
     integer  :: iupdat = 0  !> 0=BFGS, 1=Powell, 2=SR1, 3=Bofill, 4=Schlegel
     integer  :: opt_engine = 0 !> default: ANCOPT
+    integer  :: lbfgs_histsize = 20  !> L-BFGS history size
+    integer  :: hess_init = 5 !> Initialization of the hessian, standard modhess lindh95
+    logical  :: logextxyz = .true.  !> write extended xyz files from optimization trajectories
 
 !>--- GFN0* data, needed for special MECP application
     type(gfn0_data),allocatable  :: g0calc
@@ -263,13 +328,38 @@ module calc_type
 !>--- ONIOM calculator data
     type(lwoniom_data),allocatable :: ONIOM
     type(coord),allocatable :: ONIOMmols(:)
-    integer,allocatable :: ONIOMmap(:) !> map ONIOM fragments to calculation_settings
-    integer,allocatable :: ONIOMrevmap(:) !> map calculation settings to ONIOM frags (or zero)
+    integer,allocatable :: ONIOMmap(:) !> map lwONIOM jobs to calculation_settings
+
+!>--- Hessian Reconstructor and Thermo data
+    type(cashed_hessian),allocatable :: chess
+    logical :: do_HR = .false.
+    logical :: full_HR = .false. !> Keyword for HR with all opt steps
+    integer :: hu_steps = 10 !> default number of update steps
+    integer :: nt !> following all required for thermochemistry
+    real(wp),allocatable :: temperatures(:)
+    real(wp),allocatable :: et(:),ht(:),gt(:),stot(:)
+    real(wp) :: ithr,fscal,sthr
+    character(len=:),allocatable :: emodel
+    integer :: initialize_hr_type !> case defining initialization
+    integer :: mh_type = 0
+    integer :: hr_hu_type = 0
+    logical :: deform_opt_hess = .false.
+    real(wp) :: doh_stepsize = 0.10_wp !>stepsize for the deformation/reoptimization hessian generation
+    real(wp) :: chess_id_guess = 0.1_wp
+    logical :: g_sampling = .false. !>Do sampling on free energy surface as approximated using the lindh95 hessian
+    integer :: gs_hess_type = 5
+
+!>--- Parameters for smooth function within optimizer
+    real(wp) :: L = 1.50_wp
+    real(wp) :: k = 5000.0_wp
+    real(wp) :: shift = 0.0006_wp
+    real(wp) :: scaling = 0.1_wp
 
 !>--- Type procedures
   contains
     procedure :: reset => calculation_reset
     procedure :: init => calculation_init
+    procedure :: create => calcdata_create_shortcut
     generic,public :: add => calculation_add_constraint,calculation_add_settings, &
     & calculation_add_scan,calculation_add_constraintlist
     procedure,private :: calculation_add_constraint,calculation_add_settings, &
@@ -281,10 +371,15 @@ module calc_type
     procedure :: ONIOMexpand => calculation_ONIOMexpand
     procedure :: active => calc_set_active
     procedure :: active_restore => calc_set_active_restore
+    generic,public :: set_freeze => calculation_set_freeze_range,calculation_set_freeze_bools
+    procedure,private :: calculation_set_freeze_range,calculation_set_freeze_bools
     procedure :: freezegrad => calculation_freezegrad
+    procedure :: set_charge => calculation_set_charge
     procedure :: increase_charge => calculation_increase_charge
     procedure :: decrease_charge => calculation_decrease_charge
     procedure :: dealloc_params => calculation_deallocate_params
+    procedure :: maxthreads => calculation_maxthreads
+    procedure :: maxthreads_capped => calculation_maxthreads_capped
   end type calcdata
 
   public :: get_dipoles
@@ -353,13 +448,64 @@ contains  !>--- Module routines start here
     integer :: i,j,k
     if (self%ncalculations > 0) then
       do i = 1,self%ncalculations
-        if(allocated(self%calcs(i)%tblite)) deallocate(self%calcs(i)%tblite)
-        if(allocated(self%calcs(i)%g0calc)) deallocate(self%calcs(i)%g0calc)
-        if(allocated(self%calcs(i)%ff_dat)) deallocate(self%calcs(i)%ff_dat)
-        if(allocated(self%calcs(i)%libpvol)) deallocate(self%calcs(i)%libpvol)
+        if (allocated(self%calcs(i)%tblite)) deallocate (self%calcs(i)%tblite)
+        if (allocated(self%calcs(i)%g0calc)) deallocate (self%calcs(i)%g0calc)
+        if (allocated(self%calcs(i)%ff_dat)) deallocate (self%calcs(i)%ff_dat)
+        if (allocated(self%calcs(i)%libpvol)) deallocate (self%calcs(i)%libpvol)
       end do
     end if
   end subroutine calculation_deallocate_params
+
+!=========================================================================================!
+
+  function calculation_maxthreads(self) result(maxthreads)
+!************************************************************
+!* Return the largest per-level thread count requested by
+!* any active calculation level (default 1). Intended to
+!* inform the outer OMP thread-budgeting (cores per job).
+!************************************************************
+    class(calcdata),intent(in) :: self
+    integer :: maxthreads
+    integer :: i
+    maxthreads = 1
+    if (self%ncalculations > 0) then
+      do i = 1,self%ncalculations
+        if (.not.self%calcs(i)%active) cycle
+        maxthreads = max(maxthreads,self%calcs(i)%threads)
+      end do
+    end if
+  end function calculation_maxthreads
+
+!=========================================================================================!
+
+  function calculation_maxthreads_capped(self) result(maxcap)
+!************************************************************
+!* Largest thread reservation among active levels whose
+!* backend is HARD-CAPPED at that count, i.e. uses exactly
+!* threads cores and does not grow into cores_per_job via the
+!* OMP_NUM_THREADS env var / nested OpenMP. Hard-capped are the
+!* ORCA subprocess (its %pal is written from threads) and the
+!* fmlip-relay MLIP servers (spawned with --max-threads from
+!* threads); internal API calculators and generic subprocesses
+!* pick up cores_per_job instead and thus soak leftover cores.
+!*
+!* Returns 0 if no capped level is active. Used to report
+!* genuinely idle cores (see new_ompautoset).
+!************************************************************
+    class(calcdata),intent(in) :: self
+    integer :: maxcap
+    integer :: i
+    maxcap = 0
+    if (self%ncalculations > 0) then
+      do i = 1,self%ncalculations
+        if (.not.self%calcs(i)%active) cycle
+        if (self%calcs(i)%id == jobtype%orca .or. &
+        &   self%calcs(i)%id == jobtype%mlip) then
+          maxcap = max(maxcap,self%calcs(i)%threads)
+        end if
+      end do
+    end if
+  end function calculation_maxthreads_capped
 
 !=========================================================================================!
 
@@ -386,6 +532,52 @@ contains  !>--- Module routines start here
 
     return
   end subroutine calculation_add_settings
+
+!=========================================================================================!
+
+  subroutine calcdata_create_shortcut(self,levelstring, &
+      & chrg,uhf,solvmodel,solvent)
+!*********************************************************************
+!* subroutine calcdata_create_shortcut called with %create(...)
+!* Quick clean setup of a *fresh* calcdata object holding exactly
+!* one calculation level. The calcdata is reset first, then a single
+!* calculation_settings object is built (via its own %create) for the
+!* requested level of theory and registered in self%calcs(1).
+!*
+!* This is the calcdata-level counterpart to the %create shortcut of
+!* the calculation_settings type and exists as an internal code
+!* shortcut only (it does not sanity-check the chosen settings).
+!*
+!* Required argument:
+!*  - levelstring : level of theory, passed on to settings%create
+!* Optional arguments (forwarded to settings%create):
+!*  - chrg        : molecular charge  (integer)
+!*  - uhf         : uhf parameter     (integer)
+!*  - solvmodel   : solvation model   (only together with solvent)
+!*  - solvent     : implicit solvent  (only together with solvmodel)
+!*********************************************************************
+    implicit none
+    class(calcdata),intent(inout) :: self
+    character(len=*),intent(in) :: levelstring
+    integer,intent(in),optional :: chrg
+    integer,intent(in),optional :: uhf
+    character(len=*),intent(in),optional :: solvmodel
+    character(len=*),intent(in),optional :: solvent
+    type(calculation_settings) :: job
+
+    ! ── start from a clean calcdata object ──────────────────────────
+    call self%reset()
+
+    ! ── build the single calculation level (absent optionals are ────
+    ! ── forwarded as absent to settings%create) ─────────────────────
+    call job%create(levelstring,chrg=chrg,uhf=uhf, &
+    &               solvmodel=solvmodel,solvent=solvent)
+
+    ! ── register it as the only level in this calcdata ──────────────
+    call self%add(job)
+
+    return
+  end subroutine calcdata_create_shortcut
 
 !=========================================================================================!
 
@@ -532,47 +724,165 @@ contains  !>--- Module routines start here
 
 !=========================================================================================!
 !> copy a calcdata object from src to self
-  subroutine calculation_copy(self,src)
+  subroutine calculation_copy(self,src,ignore_constraints)
     class(calcdata) :: self
-    type(calcdata) :: src
+    type(calcdata),intent(in) :: src
+    logical,intent(in),optional :: ignore_constraints
+    type(calculation_settings) :: newset
+    type(constraint) :: newcons
     integer :: i
+    logical :: igno
 
-    self%id = src%id
+    call self%reset()
 
-    self%ncalculations = src%ncalculations
-    if (allocated(self%calcs)) deallocate (self%calcs)
-    !self%calcs = src%calcs
-    do i = 1,self%ncalculations
-      call self%add(src%calcs(i))
+! ── identity ─────────────────────────────────────────────────────────────────
+    self%id           = src%id
+    self%refine_stage = src%refine_stage
+
+! ── calculation levels ───────────────────────────────────────────────────────
+    if (allocated(self%calcs)) deallocate(self%calcs)
+    self%ncalculations = 0
+    do i = 1,src%ncalculations
+      call newset%copy(src%calcs(i))
+      call self%add(newset)
     end do
 
-    self%nconstraints = src%nconstraints
-    if (allocated(self%cons)) deallocate (self%cons)
-    !self%cons = src%cons
-    do i = 1,self%nconstraints
-      call self%add(src%cons(i))
-    end do
+! ── constraints ──────────────────────────────────────────────────────────────
+    igno = .false.
+    if (present(ignore_constraints)) igno = ignore_constraints
+    if (allocated(self%cons)) deallocate(self%cons)
+    self%nconstraints = 0
+    if (.not.igno) then
+      do i = 1,src%nconstraints
+        call newcons%copy(src%cons(i))
+        call self%add(newcons)
+      end do
+    end if
 
-    self%optlev = src%optlev
-    self%micro_opt = src%micro_opt
-    self%maxcycle = src%maxcycle
-    self%maxdispl_opt = src%maxdispl_opt
-    self%hlow_opt = src%hlow_opt
-    self%hmax_opt = src%hmax_opt
-    self%acc_opt = src%acc_opt
-    self%exact_rf = src%exact_rf
-    self%average_conv = src%average_conv
-    self%tsopt = src%tsopt
-    self%iupdat = src%iupdat
+! ── scans ────────────────────────────────────────────────────────────────────
+    self%nscans    = src%nscans
+    self%relaxscan = src%relaxscan
+    self%scansforce = src%scansforce
+    if (allocated(src%scans)) then
+      allocate(self%scans(src%nscans))
+      do i = 1,src%nscans
+        self%scans(i)%type        = src%scans(i)%type
+        self%scans(i)%n           = src%scans(i)%n
+        self%scans(i)%steps       = src%scans(i)%steps
+        self%scans(i)%minval      = src%scans(i)%minval
+        self%scans(i)%maxval      = src%scans(i)%maxval
+        self%scans(i)%constrnmbr  = src%scans(i)%constrnmbr
+        self%scans(i)%restore     = src%scans(i)%restore
+        self%scans(i)%currentstep = src%scans(i)%currentstep
+        if (allocated(src%scans(i)%atms))   self%scans(i)%atms   = src%scans(i)%atms
+        if (allocated(src%scans(i)%points)) self%scans(i)%points = src%scans(i)%points
+      end do
+    end if
 
+! ── frozen atoms ─────────────────────────────────────────────────────────────
+    self%nfreeze = src%nfreeze
+    if (allocated(src%freezelist)) self%freezelist = src%freezelist
+
+! ── optimization settings ────────────────────────────────────────────────────
+    self%optnewinit     = src%optnewinit
+    self%anopt          = src%anopt
+    self%optlev         = src%optlev
+    self%micro_opt      = src%micro_opt
+    self%maxcycle       = src%maxcycle
+    self%maxdispl_opt   = src%maxdispl_opt
+    self%ethr_opt       = src%ethr_opt
+    self%gthr_opt       = src%gthr_opt
+    self%hlow_opt       = src%hlow_opt
+    self%hmax_opt       = src%hmax_opt
+    self%acc_opt        = src%acc_opt
+    self%maxerise       = src%maxerise
+    self%hguess         = src%hguess
+    self%exact_rf       = src%exact_rf
+    self%average_conv   = src%average_conv
+    self%tsopt          = src%tsopt
+    self%iupdat         = src%iupdat
+    self%opt_engine     = src%opt_engine
+    self%lbfgs_histsize = src%lbfgs_histsize
+    self%hess_init      = src%hess_init
+    self%logextxyz      = src%logextxyz
+
+! ── smooth-function parameters ───────────────────────────────────────────────
+    self%L       = src%L
+    self%k       = src%k
+    self%shift   = src%shift
+    self%scaling = src%scaling
+
+! ── printout and I/O ─────────────────────────────────────────────────────────
     self%pr_energies = src%pr_energies
-    self%eout_unit = src%eout_unit
-    self%elog = src%elog
+    self%eout_unit   = src%eout_unit
+    if (allocated(src%elog)) self%elog = src%elog
 
+! ── ONIOM integer maps ───────────────────────────────────────────────────────
+    if (allocated(src%ONIOMmap))    self%ONIOMmap    = src%ONIOMmap
+
+! ── thermochemistry ──────────────────────────────────────────────────────────
+    self%do_HR              = src%do_HR
+    self%full_HR            = src%full_HR
+    self%hu_steps           = src%hu_steps
+    self%nt                 = src%nt
+    self%ithr               = src%ithr
+    self%fscal              = src%fscal
+    self%sthr               = src%sthr
+    self%initialize_hr_type = src%initialize_hr_type
+    self%mh_type            = src%mh_type
+    self%hr_hu_type         = src%hr_hu_type
+    self%deform_opt_hess    = src%deform_opt_hess
+    self%doh_stepsize       = src%doh_stepsize
+    self%chess_id_guess     = src%chess_id_guess
+    self%g_sampling         = src%g_sampling
+    self%gs_hess_type       = src%gs_hess_type
+    if (allocated(src%emodel))       self%emodel       = src%emodel
+    if (allocated(src%temperatures)) self%temperatures = src%temperatures
+    if (allocated(src%et))   self%et   = src%et
+    if (allocated(src%ht))   self%ht   = src%ht
+    if (allocated(src%gt))   self%gt   = src%gt
+    if (allocated(src%stot)) self%stot = src%stot
+
+! ── ONIOM model data ─────────────────────────────────────────────────────────
+    !> lwoniom_data is plain (allocatable-only) Fortran data, so a deep copy
+    !> is safe and REQUIRED: engrad consults calc%ONIOM of the object it is
+    !> called with, and algos like crest_singlepoint work on a copy.
+    !> (The ONIOMmols scratch buffers are recreated on demand in engrad.)
+    if (allocated(src%ONIOM)) self%ONIOM = src%ONIOM
+
+!>  NOTE: API handle objects (g0calc, ONIOMmols, chess) are NOT copied;
+!>        they hold C-level or heavy reconstructed state and are re-initialized.
     return
   end subroutine calculation_copy
 
 !=========================================================================================!
+  subroutine calculation_set_freeze_range(self,nat,start,finish)
+    class(calcdata) :: self
+    integer,intent(in) :: nat,start,finish
+    integer :: i,k
+    if (allocated(self%freezelist)) deallocate (self%freezelist)
+    allocate (self%freezelist(nat),source=.false.)
+    k = 0
+    do i = 1,nat
+
+      if (i >= start.and.i <= finish) then
+        k = k+1
+        self%freezelist(i) = .true.
+      end if
+    end do
+    self%nfreeze = k
+  end subroutine calculation_set_freeze_range
+
+  subroutine calculation_set_freeze_bools(self,freezetmp)
+    class(calcdata) :: self
+    logical,intent(in) :: freezetmp(:)
+    integer :: nat
+    if (allocated(self%freezelist)) deallocate (self%freezelist)
+    nat = size(freezetmp,1)
+    allocate (self%freezelist(nat),source=.false.)
+    self%nfreeze = count(freezetmp)
+    self%freezelist(:) = freezetmp(:)
+  end subroutine calculation_set_freeze_bools
 
   subroutine calculation_freezegrad(self,grad)
     class(calcdata) :: self
@@ -591,25 +901,43 @@ contains  !>--- Module routines start here
 
 !=========================================================================================!
 
+  subroutine calculation_set_charge(self,dchrg)
+!***********************************************************
+!* set the charge of all calculation_settings objects to 
+!* the specified dchrg
+!***********************************************************
+    implicit none
+    class(calcdata) :: self
+    integer,intent(in) :: dchrg
+    integer :: i,j
+    if (self%ncalculations > 0) then
+       j = dchrg
+      do i = 1,self%ncalculations
+        self%calcs(i)%chrg = j
+      end do
+    end if
+    return
+  end subroutine calculation_set_charge
+
   subroutine calculation_increase_charge(self,dchrg)
 !******************************************************************
 !* increase the charge of all calculation_settings objects by one
 !* or the specified dchrg
-!****************************************************************** 
+!******************************************************************
     implicit none
     class(calcdata) :: self
     integer,intent(in),optional :: dchrg
     integer :: i,j
-    if(self%ncalculations > 0)then
-     if(present(dchrg))then
-       j = dchrg
-     else
-       j = 1
-     endif
-     do i=1,self%ncalculations
-        self%calcs(i)%chrg = self%calcs(i)%chrg + j
-     enddo
-    endif
+    if (self%ncalculations > 0) then
+      if (present(dchrg)) then
+        j = dchrg
+      else
+        j = 1
+      end if
+      do i = 1,self%ncalculations
+        self%calcs(i)%chrg = self%calcs(i)%chrg+j
+      end do
+    end if
     return
   end subroutine calculation_increase_charge
 
@@ -619,21 +947,21 @@ contains  !>--- Module routines start here
 !******************************************************************
 !* decrease the charge of all calculation_settings objects by one
 !* or the specified dchrg
-!****************************************************************** 
+!******************************************************************
     implicit none
     class(calcdata) :: self
     integer,intent(in),optional :: dchrg
     integer :: i,j
-      if(self%ncalculations > 0)then
-     if(present(dchrg))then
-       j = dchrg
-     else
-       j = 1
-     endif
-     do i=1,self%ncalculations
-        self%calcs(i)%chrg = self%calcs(i)%chrg - j
-     enddo
-    endif
+    if (self%ncalculations > 0) then
+      if (present(dchrg)) then
+        j = dchrg
+      else
+        j = 1
+      end if
+      do i = 1,self%ncalculations
+        self%calcs(i)%chrg = self%calcs(i)%chrg-j
+      end do
+    end if
     return
   end subroutine calculation_decrease_charge
 
@@ -659,9 +987,9 @@ contains  !>--- Module routines start here
         self%calcs(i)%active = .false.
       else
 !>--- and all other to active
-        if(self%calcs(i)%weight == 0.0_wp)then
-           self%calcs(i)%weight = 1.0_wp
-        endif 
+        if (self%calcs(i)%weight == 0.0_wp) then
+          self%calcs(i)%weight = 1.0_wp
+        end if
         self%calcs(i)%active = .true.
       end if
     end do
@@ -707,19 +1035,25 @@ contains  !>--- Module routines start here
 
   subroutine calculation_ONIOMexpand(self)
 !*******************************************************
-!* for an ONIOM calculations some of the calculators
-!* have to be duplikated, which is done by this routine
+!* for an ONIOM calculation some of the calculators
+!* have to be duplicated, which is done by this routine.
+!* The canonical list of required calculations is taken
+!* from lwONIOM's job table (lwoniom_get_jobs); crest
+!* only clones its calculation_settings templates
+!* accordingly and records the job -> calculator index
+!* mapping in self%ONIOMmap.
 !*******************************************************
     class(calcdata) :: self
-    integer :: ncalcs
-    integer :: maxid
-    integer :: i,j,k,l,newid,j2
+    type(lwoniom_job),allocatable :: jobs(:)
     type(calculation_settings) :: calculator
-    integer,allocatable :: newids(:,:)
+    integer :: j,ref,newid,maxid
     character(len=40) :: atmp
     if (.not.allocated(self%ONIOM)) return
-    ncalcs = self%ONIOM%ncalcs
-    maxid = maxval(self%ONIOM%calcids(1,:),1)
+
+! ── canonical job list from lwONIOM (frag-major, high before low, root once) ──
+    call lwoniom_get_jobs(self%ONIOM,jobs)
+
+    maxid = maxval(jobs(:)%theoryid,1)
     if (maxid > self%ncalculations) then
       write (stdout,'(a)') '**ERROR** in ONIOM setup: not enough calculators defined!'
       error stop
@@ -728,97 +1062,70 @@ contains  !>--- Module routines start here
     write (stdout,'(a)',advance='no') 'Assigning and duplicating calculators for ONIOM setup ...'
     flush (stdout)
 
-    allocate (self%ONIOMmap(ncalcs),source=0)
-    allocate (newids(2,self%ONIOM%nfrag),source=0)
-    k = 0
-    do i = 1,self%ONIOM%nfrag
+! ── one crest calculator per job: reuse each template once, then clone ────────
+    if (allocated(self%ONIOMmap)) deallocate (self%ONIOMmap)
+    allocate (self%ONIOMmap(size(jobs)),source=0)
+    do j = 1,size(jobs)
+      !> the reference calculation_settings object (from layerlevel input)
+      ref = jobs(j)%theoryid
+      if (any(self%ONIOMmap(1:j-1) .eq. ref)) then
+        !> template already assigned to another job: duplicate the calculator.
+        !> However, we MUST not use restart I/O options for duplicates!
+        call calculator%deallocate()
+        calculator = self%calcs(ref)
+        call calculator%norestarts()
+        call self%add(calculator)
+        newid = self%ncalculations
+      else
+        !> otherwise (i.e. it's not yet present), we can simply use it in place
+        newid = ref
+      end if
+      self%ONIOMmap(j) = newid
 
-      do l = 1,2
-        !> j is now the ID of the reference calculation_settings object
-        j = self%ONIOM%calcids(l,i)
-        if (l == 2) then
-          !> to exlcude the highest ONIOM layer, we need to cycle
-          j2 = self%ONIOM%calcids(1,i)
-          if (j == j2) then
-            newid = newids(1,i)
-            newids(2,i) = newid
-            self%calcs(newid)%ONIOM_highlowroot = 3
-            self%calcs(newid)%ONIOM_id = i
-            cycle
-          end if
-        end if
+      self%calcs(newid)%ONIOM_id = jobs(j)%fragid
+      self%calcs(newid)%ONIOM_highlowroot = jobs(j)%level
+      select case (jobs(j)%level)
+      case (oniom_high)
+        write (atmp,'(a,i0,a)') 'ONIOM.',jobs(j)%fragid,'.high'
+      case (oniom_low)
+        write (atmp,'(a,i0,a)') 'ONIOM.',jobs(j)%fragid,'.low'
+      case (oniom_root)
+        write (atmp,'(a,i0,a)') 'ONIOM.',jobs(j)%fragid,'.root'
+      end select
+      self%calcs(newid)%calcspace = trim(atmp)
 
-        if (any(self%ONIOMmap(:) .eq. j)) then
-          !> If one of this type is already in the mapping, duplicate the calculator and add it
-          call calculator%deallocate()
-          calculator = self%calcs(j)
-          !> However, we MUST not use restart I/O options for duplicates!
-          call calculator%norestarts()
-          call self%add(calculator)
-          newid = self%ncalculations
-          k = k+1
-          self%ONIOMmap(k) = newid
-        else
-          !> otherwise (i.e. it's not yet present), we can simply add it
-          k = k+1
-          newid = j
-          self%ONIOMmap(k) = newid
-        end if
-        newids(l,i) = newid
+      !> ALWAYS set the weight of ONIOM calcs to 0!
+      self%calcs(newid)%weight = 0.0_wp
 
-        self%calcs(newid)%ONIOM_highlowroot = l
-        self%calcs(newid)%ONIOM_id = i
-        select case (l)
-        case (1)
-          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.high'
-        case (2)
-          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.low'
-        case (3)
-          write (atmp,'(a,i0,a)') 'ONIOM.',i,'.root'
-        end select
-        self%calcs(newid)%calcspace = trim(atmp)
-
-        !> ALWAYS set the weight of ONIOM calcs to 0!
-        self%calcs(newid)%weight = 0.0_wp
-
-        !> Check if the ONIOM fragment has a charge attached!
-        if (allocated(self%ONIOM%fragment(i)%chrg)) then
-          self%calcs(newid)%chrg = self%ONIOM%fragment(i)%chrg
-        end if
-
-      end do
+      !> transfer fragment charge/multiplicity, if attached
+      if (allocated(jobs(j)%chrg)) self%calcs(newid)%chrg = jobs(j)%chrg
+      if (allocated(jobs(j)%uhf)) self%calcs(newid)%uhf = jobs(j)%uhf
     end do
-    self%ONIOM%calcids = newids
-    deallocate (newids)
-
-    if (allocated(self%ONIOMrevmap)) deallocate (self%ONIOMrevmap)
-    allocate (self%ONIOMrevmap(self%ncalculations),source=0)
-    do i = 1,self%ncalculations
-      do j = 1,self%ONIOM%ncalcs
-        if (self%ONIOMmap(j) == i) then
-          self%ONIOMrevmap(i) = j
-        end if
-      end do
-    end do
+    !> NOTE: self%ONIOM%calcids remains untouched (it keeps the theory level ids)
 
     write (stdout,*) 'done.'
   end subroutine calculation_ONIOMexpand
 
 !========================================================================================!
 
-  subroutine calculation_info(self,iunit)
+  subroutine calculation_info(self,iunit,printhdr)
     implicit none
     class(calcdata) :: self
     integer,intent(in) :: iunit
+    logical,intent(in),optional :: printhdr
     integer :: i,j
     character(len=*),parameter :: fmt1 = '(1x,a20," : ",i5)'
     character(len=*),parameter :: fmt2 = '(1x,a20," : ",f12.5)'
     character(len=20) :: atmp
     integer :: constraintype(8)
+    logical :: prhdr
 
-    write (iunit,'(1x,a)') '----------------'
-    write (iunit,'(1x,a)') 'Calculation info'
-    write (iunit,'(1x,a)') '----------------'
+    prhdr=.true.; if(present(printhdr)) prhdr = printhdr
+    if(prhdr)then
+      write (iunit,'(1x,a)') '----------------'
+      write (iunit,'(1x,a)') 'Calculation info'
+      write (iunit,'(1x,a)') '----------------'
+    endif
     if (self%ncalculations <= 0) then
       write (iunit,'("> ",a)') 'No calculation levels set up!'
     else if (self%ncalculations > 1) then
@@ -840,11 +1147,13 @@ contains  !>--- Module routines start here
       write (iunit,'("> ",a)') 'User-defined constraints:'
       if (self%nconstraints <= 20) then
         do i = 1,self%nconstraints
+          if (.not.self%cons(i)%active) cycle
           call self%cons(i)%print(iunit)
         end do
       else
         constraintype(:) = 0
         do i = 1,self%nconstraints
+          if (.not.self%cons(i)%active) cycle
           j = self%cons(i)%type
           if (j > 0.and.j < 9) then
             constraintype(j) = constraintype(j)+1
@@ -888,8 +1197,6 @@ contains  !>--- Module routines start here
     return
   end subroutine calculation_info
 
-
-
 !=========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 !> CALCULATION_SETTINGS associated routines
@@ -916,8 +1223,15 @@ contains  !>--- Module routines start here
     if (allocated(self%solvent)) deallocate (self%solvent)
     if (allocated(self%tblite)) deallocate (self%tblite)
     if (allocated(self%g0calc)) deallocate (self%g0calc)
+    if (allocated(self%solv)) deallocate (self%solv)
+    if (allocated(self%eeq)) deallocate (self%eeq)
     if (allocated(self%ff_dat)) deallocate (self%ff_dat)
+    if (allocated(self%gff_fragments)) deallocate (self%gff_fragments)
     if (allocated(self%libpvol)) deallocate (self%libpvol)
+
+    !> external callback: drop the references (we do not own the targets)
+    self%ext_engrad => null()
+    self%ext_userdata => null()
 
     self%id = 0
     self%prch = stdout
@@ -936,6 +1250,7 @@ contains  !>--- Module routines start here
 
     self%tblitelvl = 2
     self%etemp = 300.0_wp
+    self%etemp_user_set = .false.
     self%accuracy = 1.0_wp
     self%apiclean = .false.
     self%maxscc = 500
@@ -947,8 +1262,162 @@ contains  !>--- Module routines start here
 
     self%ONIOM_highlowroot = 0
     self%ONIOM_id = 0
+
     return
   end subroutine calculation_settings_deallocate
+
+  subroutine calculation_settings_copy(self,src)
+    implicit none
+    class(calculation_settings),intent(out) :: self
+    type(calculation_settings) :: src
+
+! ── identity and printout ────────────────────────────────────────────────────
+    self%id         = src%id
+    self%prch       = src%prch
+    self%pr         = src%pr
+    self%prappend   = src%prappend
+    self%prstdout   = src%prstdout
+    self%refine_lvl = src%refine_lvl
+
+! ── system ───────────────────────────────────────────────────────────────────
+    self%chrg       = src%chrg
+    self%uhf        = src%uhf
+    self%multiplicity = src%multiplicity
+    self%spin_polarized = src%spin_polarized
+    self%active     = src%active
+    self%weight     = src%weight
+    self%threads    = src%threads
+
+! ── allocatable strings ──────────────────────────────────────────────────────
+    if (allocated(src%calcspace))      self%calcspace      = src%calcspace
+    if (allocated(src%calcfile))       self%calcfile       = src%calcfile
+    if (allocated(src%gradfile))       self%gradfile       = src%gradfile
+    if (allocated(src%path))           self%path           = src%path
+    if (allocated(src%other))          self%other          = src%other
+    if (allocated(src%binary))         self%binary         = src%binary
+    if (allocated(src%systemcall))     self%systemcall     = src%systemcall
+    if (allocated(src%description))    self%description    = src%description
+    if (allocated(src%shortflag))      self%shortflag      = src%shortflag
+    if (allocated(src%gradkey))        self%gradkey        = src%gradkey
+    if (allocated(src%efile))          self%efile          = src%efile
+    if (allocated(src%solvmodel))      self%solvmodel      = src%solvmodel
+    if (allocated(src%solvent))        self%solvent        = src%solvent
+    if (allocated(src%parametrisation))self%parametrisation= src%parametrisation
+    if (allocated(src%restartfile))    self%restartfile    = src%restartfile
+    if (allocated(src%refgeo))         self%refgeo         = src%refgeo
+    if (allocated(src%refcharges))     self%refcharges     = src%refcharges
+    if (allocated(src%gff_fragments))  self%gff_fragments  = src%gff_fragments
+    if (allocated(src%tbliteparam))    self%tbliteparam    = src%tbliteparam
+    if (allocated(src%solv))           self%solv           = src%solv
+    if (allocated(src%eeq))            self%eeq            = src%eeq
+
+! ── gradient settings ────────────────────────────────────────────────────────
+    self%numgrad    = src%numgrad
+    self%gradstep   = src%gradstep
+    self%rdgrad     = src%rdgrad
+    self%gradtype   = src%gradtype
+    self%gradfmt    = src%gradfmt
+
+! ── property requests ────────────────────────────────────────────────────────
+    self%rdwbo      = src%rdwbo
+    self%rdqat      = src%rdqat
+    self%dumpq      = src%dumpq
+    self%rddip      = src%rddip
+    self%dipole     = src%dipole
+    self%rddipgrad  = src%rddipgrad
+    self%getlmocent = src%getlmocent
+    self%nprot      = src%nprot
+    if (allocated(src%getsasa))   self%getsasa   = src%getsasa
+    if (allocated(src%efield))    self%efield    = src%efield
+    if (allocated(src%wbo))       self%wbo       = src%wbo
+    if (allocated(src%qat))       self%qat       = src%qat
+    if (allocated(src%dipgrad))   self%dipgrad   = src%dipgrad
+    if (allocated(src%protxyz))   self%protxyz   = src%protxyz
+
+! ── API / backend settings ───────────────────────────────────────────────────
+    self%tblitelvl  = src%tblitelvl
+    self%etemp          = src%etemp
+    self%etemp_user_set = src%etemp_user_set
+    self%accuracy   = src%accuracy
+    self%apiclean   = src%apiclean
+    self%maxscc     = src%maxscc
+    self%saveint    = src%saveint
+    self%ceh_guess  = src%ceh_guess
+    self%restart    = src%restart
+
+    self%ngrid       = src%ngrid
+    self%extpressure = src%extpressure
+    self%proberad    = src%proberad
+    self%pvmodel     = src%pvmodel
+    self%vdwset      = src%vdwset
+    self%pvradscal   = src%pvradscal
+
+    self%nconfig     = src%nconfig
+    if (allocated(src%config))    self%config    = src%config
+    if (allocated(src%occ))       self%occ       = src%occ
+
+! ── ONIOM identifiers ────────────────────────────────────────────────────────
+    self%ONIOM_highlowroot = src%ONIOM_highlowroot
+    self%ONIOM_id          = src%ONIOM_id
+
+! ── ORCA input block ─────────────────────────────────────────────────────────
+    self%ORCA%mpi     = src%ORCA%mpi
+    self%ORCA%nlines  = src%ORCA%nlines
+    self%ORCA%maxcore = src%ORCA%maxcore
+    self%ORCA%srckind = src%ORCA%srckind
+    if (allocated(src%ORCA%cmd))   self%ORCA%cmd   = src%ORCA%cmd
+    if (allocated(src%ORCA%input)) self%ORCA%input = src%ORCA%input
+
+! ── inline potentials ────────────────────────────────────────────────────────
+    self%ag      = src%ag
+    self%penalty = src%penalty
+
+! ── MLIP settings ────────────────────────────────────────────────────────────
+    self%MPAR     = src%MPAR
+    self%MPAR%iid = 0  !> reset instance ID for parallelization
+
+! ── external callback ─────────────────────────────────────────────────────────
+!>  Pointer-copy the host callback and its context: both copies refer to the
+!>  same host-side routine/data (the targets are owned by the host program).
+    self%ext_engrad    => src%ext_engrad
+    self%ext_userdata  => src%ext_userdata
+
+!>  NOTE: API handle objects (tblite, g0calc, ff_dat, libpvol) are NOT copied;
+!>        they hold C-level state and are re-initialized on first use.
+    return
+  end subroutine calculation_settings_copy
+
+!=========================================================================================!
+
+  subroutine calculation_settings_set_external(self,fptr,userdata)
+!*********************************************************************
+!* Register an externally supplied energy+gradient routine on this
+!* calculation level. This is the public entry point for a host
+!* program that links CREST as a library: provide a routine matching
+!* the engrad_interface and (optionally) an opaque context object,
+!* and the level is switched to jobtype%external.
+!*
+!*  fptr     : procedure matching engrad_interface (required)
+!*  userdata : optional opaque host context. Must have the TARGET or
+!*             POINTER attribute on the caller side and must outlive
+!*             all engrad calls; CREST only stores a reference to it
+!*             and passes it back to fptr verbatim.
+!*********************************************************************
+    implicit none
+    class(calculation_settings) :: self
+    procedure(engrad_interface)              :: fptr
+    class(*),pointer,intent(in),optional     :: userdata
+
+    self%id = jobtype%external
+    self%ext_engrad => fptr
+    if (present(userdata)) then
+      self%ext_userdata => userdata
+    else
+      self%ext_userdata => null()
+    end if
+
+    call self%autocomplete(self%id)
+  end subroutine calculation_settings_set_external
 
 !=========================================================================================!
 
@@ -993,6 +1462,9 @@ contains  !>--- Module routines start here
     self%description = trim(jobdescription(self%id+1))
     call calculation_settings_shortflag(self)
 
+    !> ── keep the spin multiplicity aligned with the uhf carrier ─────────────────
+    call self%sync_multiplicity()
+
     if (.not.allocated(self%calcspace)) then
       !> I've decided to perform all calculations in a separate directory to
       !> avoid accumulation of files in the main workspace
@@ -1000,29 +1472,58 @@ contains  !>--- Module routines start here
       self%calcspace = 'calculation.level.'//trim(nmbr)
     end if
 
-    if (self%pr .and. self%prch.ne.stdout) then
+    if (self%pr.and.self%prch .ne. stdout) then
       self%prch = self%prch+id
     end if
   end subroutine calculation_settings_autocomplete
 
+!========================================================================================!
+
+  subroutine calc_sync_multiplicity(self)
+    !***************************************************************
+    !* Align the spin multiplicity with the uhf carrier:          *
+    !* multiplicity = uhf + 1 = (Nα-Nβ) + 1 = 2S+1.               *
+    !* uhf is the single source of truth that survives copies and *
+    !* direct assignments; call this before any interface that    *
+    !* consumes a multiplicity (ORCA, fmlip-relay).               *
+    !***************************************************************
+    implicit none
+    class(calculation_settings) :: self
+    self%multiplicity = self%uhf+1
+  end subroutine calc_sync_multiplicity
+
+!========================================================================================!
+
+  subroutine calc_set_multiplicity(self,mult)
+    !***************************************************************
+    !* Set the spin state from a multiplicity (2S+1) value while  *
+    !* keeping the uhf carrier (=2S=Nα-Nβ) aligned: uhf = mult-1. *
+    !***************************************************************
+    implicit none
+    class(calculation_settings) :: self
+    integer,intent(in) :: mult
+    self%multiplicity = mult
+    self%uhf = mult-1
+  end subroutine calc_set_multiplicity
+
 !>--- create a short calculation info flag
-    subroutine calculation_settings_shortflag(self)
+  subroutine calculation_settings_shortflag(self)
     implicit none
     class(calculation_settings) :: self
     integer :: i,j
 
-    select case( self%id )
-    case( jobtype%xtbsys )   
+    select case (self%id)
+    case (jobtype%xtbsys)
       self%shortflag = 'xtb subprocess'
-    case( jobtype%generic ) 
-      self%shortflag = 'generic subprocess' 
-    case( jobtype%turbomole ) 
+    case (jobtype%generic)
+      self%shortflag = 'generic subprocess'
+    case (jobtype%turbomole)
       self%shortflag = 'TURBOMOLE subprocess'
-    case( jobtype%orca ) 
+    case (jobtype%orca)
       self%shortflag = 'ORCA subprocess'
-    case( jobtype%terachem ) 
+    case (jobtype%terachem)
       self%shortflag = 'TeraChem subprocess'
-    case( jobtype%tblite )
+    case (jobtype%tblite)
       select case (self%tblitelvl)
       case (xtblvl%gfn2)
         self%shortflag = 'GFN2-xTB'
@@ -1037,23 +1538,45 @@ contains  !>--- Module routines start here
       case (xtblvl%param)
         self%shortflag = 'parameter file: '//trim(self%tbliteparam)
       end select
-    case( jobtype%gfn0 )
-      self%shortflag =  'GFN0-xTB' 
-    case( jobtype%gfn0occ )
-      self%shortflag =  'GFN0-xTB*'
-    case( jobtype%gfnff )
-      self%shortflag =  'GFN-FF'
-    case( jobtype%libpvol )
-      self%shortflag =  'LIVPVOL'
-    case( jobtype%lj )
-      self%shortflag =  'LJ'
+    case (jobtype%gfn0)
+      self%shortflag = 'GFN0-xTB'
+    case (jobtype%gfn0occ)
+      self%shortflag = 'GFN0-xTB*'
+    case (jobtype%gfnff)
+      self%shortflag = 'GFN-FF'
+    case (jobtype%libpvol)
+      self%shortflag = 'libpvol'
+    case (jobtype%lj)
+      self%shortflag = 'LJ'
+    case (jobtype%approxg)
+      self%shortflag = 'model Hessian gradient'
+    case (jobtype%penalty)
+      self%shortflag = 'penalty potential'
+    case (jobtype%mlip)
+      self%shortflag = 'MLIP'
+    case (jobtype%solvation)
+      self%shortflag = 'solvation'
+      if (allocated(self%solv)) then
+        if (allocated(self%solv%smodel)) &
+        & self%shortflag = self%shortflag//'/'//trim(self%solv%smodel)
+        if (allocated(self%solv%solvent)) &
+        & self%shortflag = self%shortflag//'('//trim(self%solv%solvent)//')'
+      end if
+    case (jobtype%electrostatic)
+      self%shortflag = 'EEQ'
+      if (allocated(self%eeq)) then
+        if (allocated(self%eeq%charge_model)) &
+        & self%shortflag = trim(self%eeq%charge_model)
+      end if
+    case (jobtype%external)
+      self%shortflag = 'external (host callback)'
     case default
       self%shortflag = 'undefined'
     end select
-    if(allocated(self%solvmodel).and.allocated(self%solvent))then
+    if (allocated(self%solvmodel).and.allocated(self%solvent)) then
       self%shortflag = self%shortflag//'/'//trim(self%solvmodel)
-       self%shortflag = self%shortflag//'('//trim(self%solvent)//')'
-    endif
+      self%shortflag = self%shortflag//'('//trim(self%solvent)//')'
+    end if
   end subroutine calculation_settings_shortflag
 
 !>-- generate a unique print id for the calculation
@@ -1095,7 +1618,7 @@ contains  !>--- Module routines start here
     character(len=20) :: atmp
     logical :: gxtbwarn
 
-    gxtbwarn=.false.
+    gxtbwarn = .false.
 
     if (allocated(self%description)) then
       write (iunit,'(" :",1x,a)') trim(self%description)
@@ -1114,26 +1637,198 @@ contains  !>--- Module routines start here
         write (iunit,fmt4) 'Charge Extended Hückel (CEH) model'
       end select
     end if
+
+    !> MLIP (fmlip-relay) backend details — print only what is meaningful
+    !> for the selected backend
+    if (self%id == jobtype%mlip) then
+      block
+        character(len=:),allocatable :: bk
+        bk = 'unknown'
+        if (allocated(self%MPAR%backend)) bk = trim(self%MPAR%backend)
+        ! ── friendly backend headline ───────────────────────────────────────
+        select case (bk)
+        case ('uma')
+          write (iunit,fmt4) 'FairChem UMA foundation model (fairchem)'
+        case ('mace_off')
+          write (iunit,fmt4) 'MACE-OFF23 organic force field'
+        case ('mace_mp')
+          write (iunit,fmt4) 'MACE-MP foundation model (Materials Project)'
+        case ('mace')
+          write (iunit,fmt4) 'Custom MACE model'
+        case ('lj')
+          write (iunit,fmt4) 'Lennard-Jones potential'
+        case ('dummy')
+          write (iunit,fmt4) 'Dummy (zero) potential'
+        case default
+          write (iunit,fmt4) 'fmlip-relay backend: '//bk
+        end select
+        write (atmp,*) 'MLIP backend'
+        write (iunit,fmt3) atmp,bk
+        ! ── backend-specific model / task selection ─────────────────────────
+        select case (bk)
+        case ('uma')
+          write (atmp,*) 'UMA model'
+          if (allocated(self%MPAR%umamodel)) then
+            write (iunit,fmt3) atmp,trim(self%MPAR%umamodel)
+          else
+            write (iunit,fmt3) atmp,'uma-s-1p2 (default)'
+          end if
+          write (atmp,*) 'UMA task'
+          if (allocated(self%MPAR%umatask)) then
+            write (iunit,fmt3) atmp,trim(self%MPAR%umatask)
+          else
+            write (iunit,fmt3) atmp,'omol (default)'
+          end if
+        case ('mace_off','mace_mp')
+          if (allocated(self%MPAR%modelpath)) then
+            write (atmp,*) 'MACE model file'
+            write (iunit,fmt3) atmp,trim(self%MPAR%modelpath)
+          else
+            write (atmp,*) 'MACE model size'
+            if (allocated(self%MPAR%modelsize)) then
+              write (iunit,fmt3) atmp,trim(self%MPAR%modelsize)
+            else
+              write (iunit,fmt3) atmp,'medium (default)'
+            end if
+          end if
+        case default
+          if (allocated(self%MPAR%modelpath)) then
+            write (atmp,*) 'Model file'
+            write (iunit,fmt3) atmp,trim(self%MPAR%modelpath)
+          end if
+        end select
+        ! ── compute device: always shown for the torch-based backends ───────
+        select case (bk)
+        case ('uma','mace_off','mace_mp','mace')
+          write (atmp,*) 'Compute device'
+          if (allocated(self%MPAR%device)) then
+            write (iunit,fmt3) atmp,trim(self%MPAR%device)
+          else
+            write (iunit,fmt3) atmp,'cpu (default)'
+          end if
+        case default
+          !> lj / dummy etc. have no torch device; show only if explicitly set
+          if (allocated(self%MPAR%device)) then
+            write (atmp,*) 'Compute device'
+            write (iunit,fmt3) atmp,trim(self%MPAR%device)
+          end if
+        end select
+        if (self%threads > 0) then
+          write (atmp,*) 'Server thread cap'
+          write (iunit,fmt1) atmp,self%threads
+        end if
+        if (self%MPAR%BASE_PORT /= 54320) then
+          write (atmp,*) 'Socket base port'
+          write (iunit,fmt1) atmp,self%MPAR%BASE_PORT
+        end if
+        if (self%MPAR%TIMEOUT_SEC /= 120) then
+          write (atmp,*) 'Server timeout [s]'
+          write (iunit,fmt1) atmp,self%MPAR%TIMEOUT_SEC
+        end if
+      end block
+    end if
+
+    !> composite implicit-solvation calculator details
+    if (self%id == jobtype%solvation .and. allocated(self%solv)) then
+      write (iunit,fmt4) 'Composite implicit solvation (ddX-based)'
+      if (allocated(self%solv%solvent)) then
+        write (atmp,*) 'solvent'
+        write (iunit,fmt3) atmp,trim(self%solv%solvent)
+      end if
+      if (allocated(self%solv%smodel)) then
+        write (atmp,*) 'continuum model'
+        write (iunit,fmt3) atmp,trim(self%solv%smodel)
+      end if
+      if (allocated(self%solv%charge_model)) then
+        write (atmp,*) 'charge model'
+        write (iunit,fmt3) atmp,trim(self%solv%charge_model)
+      end if
+      write (atmp,*) 'nonpolar params'
+      write (iunit,fmt3) atmp,'GFN2/ALPB'
+      write (atmp,*) 'H-bond term'
+      if (self%solv%do_hbond) then
+        write (iunit,fmt3) atmp,'on'
+      else
+        write (iunit,fmt3) atmp,'off'
+      end if
+    end if
+
+    !> charge-equilibration electrostatics details
+    if (self%id == jobtype%electrostatic .and. allocated(self%eeq)) then
+      write (iunit,fmt4) 'Charge-equilibration electrostatics (multicharge)'
+      if (allocated(self%eeq%charge_model)) then
+        write (atmp,*) 'charge model'
+        write (iunit,fmt3) atmp,trim(self%eeq%charge_model)
+      end if
+    end if
+
+    !> externally supplied (host-program) potential details
+    if (self%id == jobtype%external) then
+      write (iunit,fmt4) 'Externally supplied potential (host callback)'
+      write (atmp,*) 'callback'
+      if (associated(self%ext_engrad)) then
+        write (iunit,fmt3) atmp,'Fortran procedure'
+      else
+        write (iunit,fmt3) atmp,'NOT associated (!)'
+      end if
+      write (atmp,*) 'user context'
+      if (associated(self%ext_userdata)) then
+        write (iunit,fmt3) atmp,'provided'
+      else
+        write (iunit,fmt3) atmp,'none'
+      end if
+    end if
+
     if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &
     &  jobtype%generic,jobtype%terachem/) == self%id)) then
-      if(index(self%binary,'gxtb').ne.0)then
-        write(iunit,fmt4) 'g-xTB (development version)'
+      if (index(self%binary,'gxtb') .ne. 0) then
+        write (iunit,fmt4) 'g-xTB (development version)'
         gxtbwarn = .true.
-      else  
+      else
         write (iunit,'(" :",3x,a,a)') 'selected binary : ',trim(self%binary)
-      endif
+      end if
     end if
     if (self%refine_lvl > 0) then
       write (atmp,*) 'refinement stage'
-      write (iunit,fmt1) atmp,self%refine_lvl
+      block
+        character(len=20) :: rtmp
+        select case (self%refine_lvl)
+        case (1);  rtmp = 'singlepoint'
+        case (2);  rtmp = 'correction'
+        case (3);  rtmp = 'geoopt'
+        case (5);  rtmp = 'deltaG'
+        case (10); rtmp = 'post_opt'
+        case (11); rtmp = 'post_sp'
+        case (12); rtmp = 'post_reopt'
+        case default
+          write (rtmp,'(i0)') self%refine_lvl
+        end select
+        write (iunit,fmt3) atmp,trim(rtmp)
+      end block
     end if
 
     !> system data
     write (atmp,*) 'Molecular charge'
     write (iunit,fmt1) atmp,self%chrg
-    if (self%uhf /= 0) then
-      write (atmp,*) 'UHF parameter'
-      write (iunit,fmt1) atmp,self%uhf
+    !> spin: ORCA and the UMA (omol) backend consume a multiplicity (2S+1)
+    !> from the multiplicity store, the xtb-type methods consume uhf = Nα-Nβ
+    block
+      logical :: use_mult
+      use_mult = (self%id == jobtype%orca)
+      if (self%id == jobtype%mlip .and. allocated(self%MPAR%backend)) then
+        if (trim(self%MPAR%backend) == 'uma') use_mult = .true.
+      end if
+      if (use_mult) then
+        write (atmp,*) 'Multiplicity'
+        write (iunit,fmt1) atmp,self%multiplicity
+      else if (self%uhf /= 0) then
+        write (atmp,*) 'UHF parameter'
+        write (iunit,fmt1) atmp,self%uhf
+      end if
+    end block
+    if (self%id == jobtype%tblite .and. self%spin_polarized) then
+      write (atmp,*) 'Spin-polarization'
+      write (iunit,fmt3) atmp,'yes'
     end if
 
     if (allocated(self%solvmodel)) then
@@ -1141,7 +1836,7 @@ contains  !>--- Module routines start here
       write (iunit,fmt3) atmp,trim(self%solvmodel)
     end if
     if (allocated(self%solvent)) then
-    write (atmp,*) 'Solvent'
+      write (atmp,*) 'Solvent'
       write (iunit,fmt3) atmp,trim(self%solvent)
     end if
 
@@ -1173,31 +1868,45 @@ contains  !>--- Module routines start here
       end select
       write (iunit,fmt1) trim(atmp),self%ONIOM_id
     else
-      if(self%weight .ne. 1.0_wp)then
+      if (self%weight .ne. 1.0_wp) then
         write (atmp,*) 'Weight'
         write (iunit,fmt2) atmp,self%weight
-      endif
+      end if
     end if
 
-    if(gxtbwarn)then
-       write(iunit,fmt4) 'WARNING: This currently is the development version of g-xTB.'
-       write(iunit,fmt4) 'WARNING: Gradients are NUMERICAL (i.e., expensive and noisy!)' 
-    endif
+    if (gxtbwarn) then
+      write (iunit,fmt4) 'WARNING: This currently is the development version of g-xTB.'
+      write (iunit,fmt4) 'WARNING: Gradients are NUMERICAL (i.e., expensive and noisy!)'
+    end if
 
   end subroutine calculation_settings_info
 
 !=========================================================================================!
 
-  subroutine create_calclevel_shortcut(self,levelstring)
+  subroutine create_calclevel_shortcut(self,levelstring, &
+      & chrg,uhf,solvmodel,solvent)
 !*********************************************************************
 !* subroutine create_calclevel_shortcut called with %create(...)
 !* Set up a calculation_settings object for a given level of theory
 !* More shortcuts can be added as required.
+!*
+!* Optional settings are for:
+!*  - molecular charge  (integer)
+!*  - uhf parameter (integer)
+!*  - solvent/solventmodel (either none or BOTH must be present to work)
+!*
 !* Be careful about the intent(out) setting!
+!* Also, the routine is "dumb" and does not check if the user-provided
+!* settings actually make sense for a create_calclevel_shortcutation. It very much
+!* exists as an internal code shortcut only.
 !*********************************************************************
     implicit none
     class(calculation_settings),intent(out) :: self
-    character(len=*) :: levelstring
+    character(len=*),intent(in) :: levelstring
+    integer,intent(in),optional :: chrg
+    integer,intent(in),optional :: uhf
+    character(len=*),intent(in),optional :: solvmodel
+    character(len=*),intent(in),optional :: solvent
     call self%deallocate()
     select case (trim(levelstring))
     case ('gfnff','--gff','--gfnff')
@@ -1214,22 +1923,61 @@ contains  !>--- Module routines start here
       self%id = jobtype%turbomole
       self%rdgrad = .false.
       self%binary = 'gp3'
-    case ('gxtb','gxtb_dev')
-      self%id = jobtype%turbomole 
-      self%rdgrad = .false.       
-      self%binary = 'gxtb'
-      self%rdwbo = .false.
-      if(index(levelstring,'_dev').ne.0)then
-        self%other = '-grad'
-        self%rdgrad=.true.
-      endif  
-    case ('orca')
+    case ('gxtb','--gxtb')
+      if (have_gxtb) then
+        self%id = jobtype%tblite
+        self%tblitelvl = xtblvl%gxtb
+        self%etemp = 0.0_wp  ! g-xTB uses integer occupations (T=0)
+      else
+        self%id = jobtype%xtbsys
+        self%other = '--gxtb'
+      end if
+    case ('orca','--orca')
       self%id = jobtype%orca
+
+    case ('uma','--uma')
+      !> FairChem UMA via fmlip-relay; default to the molecular (omol) task head
+      self%id = jobtype%mlip
+      self%MPAR%backend = 'uma'
+      self%MPAR%umatask = 'omol'
+
+    case ('maceoff','mace-off','mace_off','--maceoff')
+      !> MACE-OFF23 organic force field via fmlip-relay; default to medium size
+      self%id = jobtype%mlip
+      self%MPAR%backend = 'mace_off'
+      self%MPAR%modelsize = 'medium'
 
     case ('generic')
       self%id = jobtype%generic
 
+    case ('external','--external')
+      !> the host program must still register its callback via %set_external
+      self%id = jobtype%external
+
     end select
+
+    if (present(chrg)) then
+      self%chrg = chrg
+    end if
+
+    if (present(uhf)) then
+      self%uhf = uhf
+    end if
+
+    !> both must be present to work
+    if (present(solvmodel).and.present(solvent)) then
+      !> the first two if-cases exist to convert cli args
+      !> into sensible keywords (required for legacy compatibility)
+      if (index(solvmodel,'gbsa') .ne. 0) then
+        self%solvmodel = 'gbsa'
+      else if (index(solvmodel,'alpb') .ne. 0) then
+        self%solvmodel = 'alpb'
+      else
+        self%solvmodel = trim(solvmodel)
+      end if
+      self%solvent = trim(solvent)
+    end if
+
     call self%autocomplete(self%id)
   end subroutine create_calclevel_shortcut
 

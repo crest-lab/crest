@@ -32,5 +32,7 @@ srcs += files(
   'stereoisomers.f90',
   'tautomerize.f90',
   'trialmd_legacy.f90',
+  'identifiers.f90',
+  'sortens.f90',
   'zsort.f90',
 )

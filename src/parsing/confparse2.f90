@@ -42,6 +42,7 @@ subroutine parseinputfile(env,fname)
   use crest_data
   use crest_calculator,only:calcdata
   use dynamics_module,only:mddata
+  use bh_module,only:bh_class
 
   !> modules used for parsing the root_object
   use parse_keyvalue,only:keyvalue
@@ -50,7 +51,7 @@ subroutine parseinputfile(env,fname)
   use parse_maindata
   use parse_inputfile,only:parse_input
   use parse_calcdata,only:parse_calculation_data, &
-  &                         parse_dynamics_data
+  &                       parse_dynamics_data,parse_basinhopping_data
   !> Declarations
   implicit none
   type(systemdata),intent(inout) :: env
@@ -60,6 +61,7 @@ subroutine parseinputfile(env,fname)
   type(datablock) :: blk
   type(calcdata) :: newcalc
   type(mddata) :: mddat
+  type(bh_class) :: bh
   logical :: ex,l1,l2
   integer :: i,j,k,l
   integer :: readstatus
@@ -78,7 +80,7 @@ subroutine parseinputfile(env,fname)
   call dict%print2()
 
 !>--- sanity check for input files
-  readstatus = 0  !> has to remain 0, or something went wrong 
+  readstatus = 0  !> has to remain 0, or something went wrong
 
 !>--- parse all root-level key-value pairs
   do i = 1,dict%nkv
@@ -112,11 +114,17 @@ subroutine parseinputfile(env,fname)
     call env_mddat_specialcases(env)
   end if
 
+!>--- check for any basinhopping/MC setup
+  call parse_basinhopping_data(env,bh,dict,l1,readstatus)
+  if (l1) then
+    env%bh_ref = bh
+  end if
+
 !>--- terminate if there were any unrecognized keywords
-  if(readstatus /= 0)then
-    write(stdout, '(i0,a)') readstatus,' error(s) while reading input file'
+  if (readstatus /= 0) then
+    write (stdout,'(i0,a)') readstatus,' error(s) while reading input file'
     call creststop(status_config)
-  endif  
+  end if
 
 !>--- check for lwONIOM setup (will be read at end of confparse)
   do i = 1,dict%nblk
@@ -193,8 +201,7 @@ subroutine env_calcdat_specialcases(env)
   integer :: refine_lvl
 
   !> if this return is triggered, the program will fall back to GFN2 at some point
-  if(env%calc%ncalculations .lt. 1) return
-   
+  if (env%calc%ncalculations .lt. 1) return
 
   !> special case for GFN-FF calculations
   if (any(env%calc%calcs(:)%id == jobtype%gfnff)) then
@@ -209,12 +216,26 @@ subroutine env_calcdat_specialcases(env)
     do i = 1,env%calc%ncalculations
       refine_lvl = env%calc%calcs(i)%refine_lvl
       if (refine_lvl <= 0) cycle
-      if(allocated(env%refine_queue))then
+      if (refine_lvl >= refine%post_opt) cycle  !> post-search calcs handled via pqueue
+      if (allocated(env%refine_queue)) then
         if (any(env%refine_queue(:) == refine_lvl)) cycle
-      endif
+      end if
       call env%addrefine(refine_lvl)
     end do
   end if
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 end subroutine env_calcdat_specialcases
 
@@ -235,15 +256,15 @@ subroutine env_mddat_specialcases(env)
   integer :: nac,ii,iac
 
 !>--- Check for MD-active only levels
-  if(allocated(env%mddat%active_potentials))then
+  if (allocated(env%mddat%active_potentials)) then
     nac = size(env%mddat%active_potentials)
-    do ii=1,nac
-    !>--- deactivate by default (the MD routine will set them to active automatically)  
-     iac = env%mddat%active_potentials(ii)
-     if(iac <= env%calc%ncalculations)then
-       env%calc%calcs(iac)%active = .false.
-     endif
-    enddo
-  endif
+    do ii = 1,nac
+      !>--- deactivate by default (the MD routine will set them to active automatically)
+      iac = env%mddat%active_potentials(ii)
+      if (iac <= env%calc%ncalculations) then
+        env%calc%calcs(iac)%active = .false.
+      end if
+    end do
+  end if
 
 end subroutine env_mddat_specialcases

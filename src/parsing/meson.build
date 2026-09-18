@@ -16,6 +16,7 @@
 
 srcs += files(
   'confparse2.f90',
+  'parse_hybrid.f90',
   'constraining.f90',
   'parse_block.f90',
   'parse_calcdata.f90',

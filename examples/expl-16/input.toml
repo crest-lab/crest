@@ -1,0 +1,12 @@
+# Geometry optimisation of an Ar4 cluster using a Lennard-Jones potential
+# served through the fmlip-relay persistent Python backend.
+# The LJ backend requires only ASE, no ML framework needed.
+runtype = "optimize"
+input   = "struc.xyz"   # input structure file (Ar4 cluster, slightly compressed)
+
+[calculation]
+optlev = "normal"       # convergence level: crude/loose/normal/tight/vtight
+
+[[calculation.level]]
+method       = "mlip"   # ML/classical potential via fmlip-relay socket server
+mlip_backend = "lj"     # Lennard-Jones backend — default Ar parameters (ε=0.0104 eV, σ=3.40 Å)

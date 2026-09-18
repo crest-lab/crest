@@ -28,12 +28,19 @@ list(APPEND srcs
   "${dir}/search_1.f90"
   "${dir}/search_mecp.f90"
   "${dir}/setuptest.f90"
+  "${dir}/sorting.f90"
   "${dir}/protonate.f90"
-  "${dir}/hessian_tools.f90"
-  "${dir}/ConfSolv.F90"
   "${dir}/search_conformers.f90"
   "${dir}/search_entropy.f90"
   "${dir}/parallel.f90"
+  "${dir}/deform_opt_hess.f90"
+  "${dir}/queueing.f90"
+  "${dir}/alkylize.f90"
+  "${dir}/dryrun.f90"
+  "${dir}/propcalc.f90"
+  "${dir}/term_ui.f90"
+  "${dir}/ttconf_ringmtd.f90"
+  "${dir}/ttconf_light.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

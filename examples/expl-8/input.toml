@@ -1,0 +1,11 @@
+# Quick iMTD-GC conformer search with reduced MTD simulation length.
+# Uncomment finalhess to add a post-search Hessian and re-rank by Gibbs free energy.
+runtype = "mtd_search_quick"  # reduced settings; alternatives: mtd_search_squick, mtd_search_mquick
+input   = "struc.xyz"         # input structure file (1-propanol)
+# Note: -finalhess (post-search Hessian + free-energy re-ranking) is CLI-only; add it to the crest call above.
+
+[[calculation.level]]
+method = "gfnff"              # GFN-FF force field
+
+[cregen]
+ewin = 2.0                    # keep conformers within 2.0 kcal/mol of the lowest
