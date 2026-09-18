@@ -263,7 +263,7 @@ tomlf_dep = dependency('toml-f',
   version  : '>=0.2.4',
   fallback : ['toml-f', 'tomlf_dep'],
   required : get_option('toml-f'),
-  static   : link_deps_static,
+  kwargs   : static_dep_kw,
   default_options : ['tests=false'],
 )
 with_tomlf = tomlf_dep.found()
@@ -288,7 +288,7 @@ ddx_dep = dependency('ddx',
   version  : '>=0.8.0',
   fallback : ['ddx', 'ddx_dep'],
   required : get_option('tblite'),
-  static   : link_deps_static,
+  kwargs   : static_dep_kw,
   default_options : ['default_library=static', 'lapack=netlib'],
 )
 with_ddx = ddx_dep.found()
@@ -297,12 +297,30 @@ tblite_dep = dependency('tblite',
   version  : '>=0.3.0',
   fallback : ['tblite', 'tblite_dep'],
   required : get_option('tblite'),
-  static   : link_deps_static,
+  kwargs   : static_dep_kw,
   default_options: ['api=false', 'ddx=true', 'hdf5=disabled', 'trexio=disabled'],
 )
 with_tblite = tblite_dep.found()
 if with_tblite
   add_project_arguments('-DWITH_TBLITE', language : ['c', 'fortran'])
+endif
+
+# crest's tblite interface uses modules of tblite's own dependencies directly
+# (mctc-lib, multicharge), mirroring the find_package() calls of the CMake build.
+# With a shared system tblite the link line does not carry them transitively.
+_tblite_libs_deps = []
+if with_tblite
+  foreach _l : [
+    ['mctc-lib',    'mctc_dep',        '>=0.5.1'],
+    ['multicharge', 'multicharge_dep', '>=0.5.0'],
+  ]
+    _tblite_libs_deps += dependency(_l[0],
+      version  : _l[2],
+      fallback : [_l[0], _l[1]],
+      required : true,
+      kwargs   : static_dep_kw,
+    )
+  endforeach
 endif
 
 # WITH_DDX guards crest sources that use the ddX modules directly (the
@@ -324,7 +342,7 @@ endif
 gfnff_dep = dependency('gfnff',
   fallback : ['gfnff', 'gfnff_dep'],
   required : get_option('gfnff'),
-  static   : link_deps_static,
+  kwargs   : static_dep_kw,
   default_options : ['tests=false'],
 )
 with_gfnff = gfnff_dep.found()
@@ -335,7 +353,7 @@ endif
 gfn0_dep = dependency('gfn0',
   fallback : ['gfn0', 'gfn0_dep'],
   required : get_option('gfn0'),
-  static   : link_deps_static,
+  kwargs   : static_dep_kw,
 )
 with_gfn0 = gfn0_dep.found()
 if with_gfn0
@@ -345,7 +363,7 @@ endif
 libpvol_dep = dependency('libpvol',
   fallback : ['pvol', 'libpvol_dep'],
   required : get_option('libpvol'),
-  static   : link_deps_static,
+  kwargs   : static_dep_kw,
   default_options : ['tests=false'],
 )
 with_libpvol = libpvol_dep.found()
@@ -356,7 +374,7 @@ endif
 lwoniom_dep = dependency('lwoniom',
   fallback : ['lwoniom', 'lwoniom_dep'],
   required : get_option('lwoniom'),
-  static   : link_deps_static,
+  kwargs   : static_dep_kw,
 )
 with_lwoniom = lwoniom_dep.found()
 if with_lwoniom
@@ -366,7 +384,7 @@ endif
 fmlip_dep = dependency('fmlip_relay',
   fallback : ['fmlip_relay', 'fmlip_relay_dep'],
   required : get_option('fmlip-relay'),
-  static   : link_deps_static,
+  kwargs   : static_dep_kw,
 )
 with_fmlip = fmlip_dep.found()
 if with_fmlip
@@ -378,7 +396,7 @@ if get_option('tests')
     version  : '>=0.4.0',
     fallback : ['test-drive', 'testdrive_dep'],
     required : true,
-    static   : link_deps_static,
+    kwargs   : static_dep_kw,
   )
 endif
 
@@ -413,8 +431,12 @@ subdir('src')
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Build targets
 # ═══════════════════════════════════════════════════════════════════════════════
-_optional_deps = []
-foreach d : [tblite_dep, gfn0_dep, gfnff_dep, libpvol_dep, lwoniom_dep, tomlf_dep, fmlip_dep]
+# ddx_dep is listed explicitly: crest's own solvation components use the ddX
+# modules directly (WITH_DDX), and a tblite taken from the system (e.g. a
+# distro or conda-forge package built without ddX) does not carry the ddX
+# include path or link line transitively.
+_optional_deps = _tblite_libs_deps
+foreach d : [tblite_dep, ddx_dep, gfn0_dep, gfnff_dep, libpvol_dep, lwoniom_dep, tomlf_dep, fmlip_dep]
   if d.found()
     _optional_deps += [d]
   endif

@@ -112,6 +112,14 @@ static_build = get_option('static')
 # A fully static build (-Dstatic) implies it.
 link_deps_static = static_build or get_option('static-deps')
 
+# Keyword set for dependency() lookups of subprojects/external libraries.
+# Passed via kwargs: so that a disabled static-deps adds no 'static' keyword at
+# all.  An explicit dependency(static : false) would force
+# default_library=shared onto every fallback subproject, overriding a global
+# -Ddefault_library=static (needed e.g. by package builds that link the
+# bundled subprojects statically but take system libraries as shared objects).
+static_dep_kw = link_deps_static ? {'static' : true} : {}
+
 if fc_id == 'intel-llvm'
   ## -lifport  : POSIX intrinsics (getcwd, chdir, …) not auto-linked by ifx.
   ##             In static builds -static-intel already bundles libifport.a, so
