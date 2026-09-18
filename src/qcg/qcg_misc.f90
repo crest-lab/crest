@@ -580,6 +580,11 @@ end subroutine opt_cluster
 
 subroutine ensemble_dock(env,outer_ell_abc,nfrag1,frag1_file,frag2_file,n_shell&
         &,n_solvent,NTMP,TMPdir,conv)
+  !*****************************************************************
+  !* Dock one solvent molecule (frag2_file) to the cluster
+  !* (frag1_file) in each open directory TMPdir<conv(i)>, i=1..NTMP,
+  !* via parallel "xtb dock" system calls.
+  !*****************************************************************
   use crest_parameters
   use iomod
   use crest_data
@@ -600,6 +605,7 @@ subroutine ensemble_dock(env,outer_ell_abc,nfrag1,frag1_file,frag2_file,n_shell&
   character(len=20)               :: pipe
   character(len=1024)             :: jobcall
   character(len=512)              :: thispath,tmppath
+  character(len=1536),allocatable :: jobs(:)
   character(len=*),intent(in)    :: frag1_file
   character(len=*),intent(in)    :: frag2_file
   character(len=64)               :: frag1
@@ -638,18 +644,26 @@ subroutine ensemble_dock(env,outer_ell_abc,nfrag1,frag1_file,frag2_file,n_shell&
     call chdirdbug(trim(thispath))
   end do
 
+  !> full job strings are set up here and not inside the tasks below: with ifx
+  !> (2025.3) the internal write on the dummy arguments TMPdir/conv within an
+  !> OpenMP task yields corrupted directory names or a segfault
+  allocate (jobs(NTMP))
+  do i = 1,NTMP
+    write (tmppath,'(a,i0)') trim(TMPdir),conv(i)
+    jobs(i) = 'cd '//trim(tmppath)//' && '//trim(jobcall)
+  end do
+
   k = 0 !counting the finished jobs
 
 !___________________________________________________________________________________
 
 !$omp parallel &
-!$omp shared( vz,NTMP,percent,k,TMPdir,conv,n_shell,n_solvent,jobcall )
+!$omp shared( vz,NTMP,percent,k,jobs )
 !$omp single
   do i = 1,NTMP
     vz = i
-    !$omp task firstprivate( vz ) private( tmppath )
-    write (tmppath,'(a,i0)') trim(TMPdir),conv(vz)
-    call command('cd '//trim(tmppath)//' && '//trim(jobcall))
+    !$omp task firstprivate( vz )
+    call command(trim(jobs(vz)))
     !$omp critical
     k = k+1
     percent = real(k)/real(NTMP)*100
@@ -662,6 +676,7 @@ subroutine ensemble_dock(env,outer_ell_abc,nfrag1,frag1_file,frag2_file,n_shell&
 !$omp end parallel
 
 !___________________________________________________________________________________
+  deallocate (jobs)
   call chdirdbug(trim(thispath))
 
 end subroutine ensemble_dock
@@ -672,6 +687,18 @@ end subroutine ensemble_dock
 !___________________________________________________________________________________
 
 subroutine cff_opt(pr,env,fname,n12,NTMP,TMPdir,conv,nothing_added,eread)
+  !*****************************************************************
+  !* Constrained optimization + SP of the CFF clusters in TMPdir<n>.
+  !* Redirects to cff_opt_calculator unless env%legacy is set.
+  !*
+  !* pr            : final run, all env%nqcgclust directories are
+  !*                 processed (NTMP and conv are reset accordingly)
+  !* n12           : atoms 1-n12 are frozen (0 = no freezing)
+  !* NTMP          : number of open jobs
+  !* conv          : directory indices of the open jobs
+  !* nothing_added : per cluster, no freezing in the final run
+  !* eread         : energies, indexed by cluster (directory) number
+  !*****************************************************************
   use crest_parameters
   use iomod
   use crest_data
@@ -687,7 +714,7 @@ subroutine cff_opt(pr,env,fname,n12,NTMP,TMPdir,conv,nothing_added,eread)
   logical,intent(in)              :: pr
   logical,intent(in)              :: nothing_added(env%nqcgclust)
   integer,intent(in)              :: n12
-  real(wp),intent(out)            :: eread(env%nqcgclust)
+  real(wp),intent(inout)          :: eread(env%nqcgclust)
   integer                         :: i,k
   integer                         :: vz,T,Tn
   integer                         :: funit
@@ -704,14 +731,6 @@ subroutine cff_opt(pr,env,fname,n12,NTMP,TMPdir,conv,nothing_added,eread)
     return
   end if
 
-! setting the threads for correct parallelization
-  call new_ompautoset(env,'auto',NTMP,T,Tn)
-
-  if (pr) then
-    write (stdout,'(2x,''Starting optimizations + SP  of structures'')')
-    write (stdout,'(2x,i0,'' jobs to do.'')') NTMP
-  end if
-
 ! pr eq true => post opt run, which has to be performed in every directory !!!
   if (pr) then
     k = 0
@@ -721,6 +740,14 @@ subroutine cff_opt(pr,env,fname,n12,NTMP,TMPdir,conv,nothing_added,eread)
       conv(k) = i
       conv(env%nqcgclust+1) = k
     end do
+  end if
+
+! setting the threads for correct parallelization
+  call new_ompautoset(env,'auto',NTMP,T,Tn)
+
+  if (pr) then
+    write (stdout,'(2x,''Starting optimizations + SP  of structures'')')
+    write (stdout,'(2x,i0,'' jobs to do.'')') NTMP
   end if
 
   call getcwd(thispath)
@@ -734,7 +761,7 @@ subroutine cff_opt(pr,env,fname,n12,NTMP,TMPdir,conv,nothing_added,eread)
       write (funit,'(3x,"atoms: 1-",i0)') n12 !Initial number of atoms (starting solvent shell)
     end if
     close (funit)
-    if (pr.and.nothing_added(i)) call remove('xcontrol')
+    if (pr.and.nothing_added(conv(i))) call remove('xcontrol')
     call chdirdbug(trim(thispath))
   end do
 
@@ -825,7 +852,7 @@ subroutine cff_opt(pr,env,fname,n12,NTMP,TMPdir,conv,nothing_added,eread)
     write (tmppath,'(a,i0)') trim(TMPdir),conv(i)
     call chdirdbug(trim(tmppath))
 
-    call grepval('xtb_sp.out','| TOTAL ENERGY',e_there,eread(i))
+    call grepval('xtb_sp.out','| TOTAL ENERGY',e_there,eread(conv(i)))
 
     call remove('xtbrestart')
     !call remove('xcontrol')
@@ -838,6 +865,11 @@ end subroutine cff_opt
 
 subroutine cff_opt_calculator(pr,env,fname,n12,NTMP,TMPdir, &
     & conv,nothing_added,eread)
+  !*****************************************************************
+  !* Calculator version of cff_opt: gas-phase optimization with
+  !* atoms 1-n12 frozen, followed by an SP with implicit solvation.
+  !* Arguments as in cff_opt.
+  !*****************************************************************
   use crest_parameters
   use iomod
   use crest_data
@@ -855,7 +887,7 @@ subroutine cff_opt_calculator(pr,env,fname,n12,NTMP,TMPdir, &
   logical,intent(in)              :: pr
   logical,intent(in)              :: nothing_added(env%nqcgclust)
   integer,intent(in)              :: n12
-  real(wp),intent(out)            :: eread(env%nqcgclust)
+  real(wp),intent(inout)          :: eread(env%nqcgclust)
   integer                         :: i,k
   integer                         :: vz,T,Tn
   integer                         :: funit
@@ -863,7 +895,7 @@ subroutine cff_opt_calculator(pr,env,fname,n12,NTMP,TMPdir, &
   character(len=1024)             :: jobcall
   character(len=2)                :: flag
   real(wp)                        :: percent
-  logical :: gbsa_tmp,opt_nofreeze
+  logical :: gbsa_tmp,opt_nofreeze,all_frozen
   integer :: io,nconstraints_tmp
   character(len=40)  :: solv_tmp
   real(wp) :: etot
@@ -873,6 +905,17 @@ subroutine cff_opt_calculator(pr,env,fname,n12,NTMP,TMPdir, &
   type(coord),allocatable :: structures(:)
   real(wp),allocatable :: grd(:,:)
   character(len=*),parameter      :: pipe = '2>/dev/null'
+
+! pr eq true => post opt run, which has to be performed in every directory !!!
+  if (pr) then
+    k = 0
+    NTMP = env%nqcgclust
+    do i = 1,env%nqcgclust
+      k = k+1
+      conv(k) = i
+      conv(env%nqcgclust+1) = k
+    end do
+  end if
 
   !> setting the threads to accelerate individual energy calculations
   call new_ompautoset(env,'max',NTMP,T,Tn)
@@ -886,17 +929,6 @@ subroutine cff_opt_calculator(pr,env,fname,n12,NTMP,TMPdir, &
     return
   end if
 
-! pr eq true => post opt run, which has to be performed in every directory !!!
-  if (pr) then
-    k = 0
-    NTMP = env%nqcgclust
-    do i = 1,env%nqcgclust
-      k = k+1
-      conv(k) = i
-      conv(env%nqcgclust+1) = k
-    end do
-  end if
-
   !> Local storage for structures.
   allocate (structures(NTMP))
 
@@ -907,11 +939,6 @@ subroutine cff_opt_calculator(pr,env,fname,n12,NTMP,TMPdir, &
     call structures(i)%open(fname)
     call chdirdbug(trim(thispath))
   end do
-
-  if (NTMP .lt. 1) then
-    write (stdout,'(2x,"No structures to be optimized")')
-    return
-  end if
 
 !--- Jobcall WITHOUT GBSA, back up data
   solv_tmp = env%solv
@@ -946,23 +973,25 @@ subroutine cff_opt_calculator(pr,env,fname,n12,NTMP,TMPdir, &
 
   do i = 1,NTMP
     mol = structures(i)
-    allocate (grd(3,mol%nat))
-    opt_nofreeze = (pr.and.nothing_added(i))
-    if (.not.opt_nofreeze.and.n12 > 0) then
-      call newcalcs(i)%set_freeze(mol%nat,1,n12)
-      if (n12 == mol%nat) cycle !> safeguard against freezing all
-    end if
+    opt_nofreeze = (pr.and.nothing_added(conv(i)))
+    !> safeguard against freezing all, the SP below provides the energy
+    all_frozen = (.not.opt_nofreeze.and.n12 >= mol%nat)
 
-    call optimize_geometry(mol,molopt,newcalcs(i),etot,grd, &
-      & .false.,.false.,io)
-    structures(i) = molopt
-    structures(i)%energy = etot
+    if (.not.all_frozen) then
+      if (.not.opt_nofreeze.and.n12 > 0) then
+        call newcalcs(i)%set_freeze(mol%nat,1,n12)
+      end if
+      allocate (grd(3,mol%nat))
+      call optimize_geometry(mol,molopt,newcalcs(i),etot,grd, &
+        & .false.,.false.,io)
+      structures(i) = molopt
+      structures(i)%energy = etot
+      deallocate (grd)
+    end if
 
     k = k+1
     percent = real(k)/real(NTMP)*100.0_wp
     if (pr) call progress_update(env%ps,k,NTMP)
-
-    deallocate (grd)
   end do
   if (pr) call progress_finish(env%ps)
   !> clear up space
@@ -1013,7 +1042,7 @@ subroutine cff_opt_calculator(pr,env,fname,n12,NTMP,TMPdir, &
   !> and pass on energies
   call getcwd(thispath)
   do i = 1,NTMP
-    eread(i) = structures(i)%energy
+    eread(conv(i)) = structures(i)%energy
     write (tmppath,'(a,i0)') trim(TMPdir),conv(i)
     call chdirdbug(trim(tmppath))
     call structures(i)%write('xtbopt.coord')

@@ -39,6 +39,7 @@ module qcg_coord_type
     real(wp)  :: srot          !> rotational entropy
     real(wp)  :: stra          !> translational entropy
     real(wp)  :: eax(3)        !> molecular axis
+    character(len=20) :: elevel = ''  !> level of theory at which %energy was evaluated
   contains
     procedure :: as_coord
     procedure :: from_coord

@@ -61,6 +61,7 @@ subroutine parseflags(env,arg,nra)
   real(wp) :: rdum
   integer :: ctype
   logical :: ex,bondconst,presetok
+  logical :: user_finopt
   character(len=:),allocatable :: argument
   logical,allocatable :: processedarg(:)
   logical,allocatable :: atlist(:)
@@ -253,6 +254,7 @@ subroutine parseflags(env,arg,nra)
 
   env%forceconst = 0.02_wp !> force constant (mainly for GFN-FF iMTD-GC)
   bondconst = .false.      !> constrain all bonds
+  user_finopt = .false.    !> -fin_opt_gfn2 given explicitly (QCG)
   ctype = 0                !> bond constraint type
 
   env%NCI = .false.      !> use specialized NCI mode?
@@ -2887,6 +2889,7 @@ subroutine parseflags(env,arg,nra)
       case ('-fin_opt_gfn2')
         processedarg(i) = .true.
         env%final_gfn2_opt = .true.
+        user_finopt = .true.
 
       case ('-no_fin_opt_gfn2')
         processedarg(i) = .true.
@@ -3273,8 +3276,12 @@ subroutine parseflags(env,arg,nra)
       env%lmover = env%gfnver
     end if
   end if
-  if (env%ensemble_opt == '--gfn2'.or.env%gfnver == '--gfn2') &
-          & env%final_gfn2_opt = .false. !Prevent additional opt.
+  !> the extra GFN2 re-optimization is redundant only if the ensemble level is GFN2 already
+  if (env%ensemble_opt == '--gfn2'.and.env%final_gfn2_opt) then
+    if (env%crestver == crest_solv.and.user_finopt) write (stdout,'(1x,a)') &
+      & 'Note: -fin_opt_gfn2 is ignored because the ensemble level is already GFN2-xTB.'
+    env%final_gfn2_opt = .false.
+  end if
 
   if (env%useqmdff) then
     env%autozsort = .false.

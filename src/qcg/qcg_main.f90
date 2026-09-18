@@ -38,6 +38,7 @@ subroutine crest_solvtool(env,tim)
   type(ensemble) :: full_ensemble,solvent_ensemble
 
   integer :: progress,io
+  integer :: chrg_tmp,uhf_tmp
   character(len=512) :: thispath
 
 !--- Molecule settings
@@ -92,6 +93,12 @@ subroutine crest_solvtool(env,tim)
     call chdirdbug(thispath)
   end if
 
+!>-- monomer references at the energy level of the ensemble, also needed on restart
+  if (env%qcg_runtype .ge. 2.and.progress .le. env%qcg_runtype) then
+    call qcg_update_reference(env,solute,.true.)
+    call qcg_update_reference(env,solvent,.false.)
+  end if
+
 !------------------------------------------------------------------------------
 !   Ensemble search
 !------------------------------------------------------------------------------
@@ -119,11 +126,19 @@ subroutine crest_solvtool(env,tim)
       deallocate (cluster_backup%at)
       deallocate (cluster_backup%xyz)
       env%solv_md = .true.
+      !>-- pure solvent cluster, neutral closed-shell
+      chrg_tmp = env%chrg
+      uhf_tmp = env%uhf
+      env%chrg = 0
+      env%uhf = 0
       call qcg_ensemble(env,solute,solvent,cluster,solvent_ensemble,&
              & tim,'solvent_ensemble')
+      env%chrg = chrg_tmp
+      env%uhf = uhf_tmp
     end if
+    call qcg_check_reference(env,solute)
     call pr_qcg_esolv()
-    write (stdout,'(2x,"|",9x,F8.2," kcal/mol ",12x,"|")') &
+    write (stdout,'(2x,"|",7x,F10.2," kcal/mol ",12x,"|")') &
            &   full_ensemble%g-solvent_ensemble%g-(solute%energy*autokcal)
     write (stdout,'(2x,''========================================='')')
     call chdirdbug(thispath)
@@ -170,6 +185,7 @@ subroutine qcg_setup(env,solu,solv)
 
   integer :: io,f,r
   integer :: num_O,num_H,i
+  integer :: chrg_tmp,uhf_tmp
   character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
   logical :: e_there,tmp,used_tmp,gbsa_tmp
   character(len=512) :: thispath,tmp_grow
@@ -231,6 +247,7 @@ subroutine qcg_setup(env,solu,solv)
 
 !---- SP-Computation solute
   call xtb_sp_qcg(env,'solute',e_there,solu%energy)
+  solu%elevel = env%gfnver
 
   if (.not.e_there) then
     write (stdout,*) 'Total Energy of solute not found'
@@ -247,6 +264,11 @@ subroutine qcg_setup(env,solu,solv)
 ! No constraints for solvent possible
   used_tmp = env%cts%used
   env%cts%used = .false.
+! The solvent is neutral closed-shell, charge and uhf belong to the solute
+  chrg_tmp = env%chrg
+  uhf_tmp = env%uhf
+  env%chrg = 0
+  env%uhf = 0
 
 !---- Properties solvent
   call chdirdbug(env%scratchdir)
@@ -261,6 +283,7 @@ subroutine qcg_setup(env,solu,solv)
 
 !---- SP-Computation solvent
   call xtb_sp_qcg(env,'solvent',e_there,solv%energy)
+  solv%elevel = env%gfnver
 
   if (.not.e_there) then
     write (stdout,'(1x,a)') 'Total Energy of solvent not found'
@@ -291,8 +314,136 @@ subroutine qcg_setup(env,solu,solv)
   env%solv = solv_tmp
   env%gbsa = gbsa_tmp
   env%cts%used = used_tmp
+  env%chrg = chrg_tmp
+  env%uhf = uhf_tmp
 
 end subroutine qcg_setup
+
+!==============================================================================!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!==============================================================================!
+
+subroutine qcg_update_reference(env,mol,is_solute)
+  !*****************************************************************
+  !* Re-evaluate the gas-phase monomer reference energy at the QCG
+  !* energy level (see qcg_energy_level), if it was obtained at a
+  !* different one. The growth needs mol%energy at env%gfnver, while
+  !* Esolv/Gsolv and CFF need it at the level of the ensemble SPs.
+  !*
+  !* mol       : solute or solvent; only %energy and %elevel change,
+  !*             the geometry is kept
+  !* is_solute : .true. for the solute, .false. for the solvent
+  !*****************************************************************
+  use crest_parameters
+  use crest_data
+  use iomod
+  use qcg_coord_type
+  use qcg_utils
+  implicit none
+
+  type(systemdata) :: env
+  type(coord_qcg),intent(inout) :: mol
+  logical,intent(in) :: is_solute
+
+  type(coord_qcg) :: ref
+  integer :: io,chrg_tmp,uhf_tmp
+  logical :: e_there,used_tmp,gbsa_tmp
+  real(wp) :: eref
+  character(len=512) :: thispath
+  character(len=40)  :: solv_tmp
+  character(len=20)  :: gfnver_tmp,elevel
+  character(len=:),allocatable :: molname
+  character(len=*),parameter :: outfmt = '(1x,1x,a,1x,f14.7,a,1x)'
+
+  elevel = qcg_energy_level(env)
+  if (trim(mol%elevel) == trim(elevel)) return
+
+  if (is_solute) then
+    molname = 'solute'
+  else
+    molname = 'solvent'
+  end if
+  call getcwd(thispath)
+
+!>-- gas phase at the energy level, same settings as in qcg_setup
+  solv_tmp = env%solv
+  gbsa_tmp = env%gbsa
+  used_tmp = env%cts%used
+  gfnver_tmp = env%gfnver
+  env%solv = ''
+  env%gbsa = .false.
+  env%gfnver = elevel
+  chrg_tmp = env%chrg
+  uhf_tmp = env%uhf
+  if (.not.is_solute) then
+    env%cts%used = .false.
+    env%chrg = 0
+    env%uhf = 0
+  end if
+
+!>-- separate directory, the files of qcg_setup are still needed (CFF)
+  call chdirdbug(env%scratchdir)
+  call chdirdbug(molname//'_properties')
+  io = makedir('reference')
+  call chdirdbug('reference')
+  if (is_solute) call env%wrtCHRG('')
+
+!>-- work on a copy, mol%xyz is used later for the monomer frequencies
+  ref = mol
+  if ((.not.env%nopreopt).and.(ref%nat /= 1)) then
+    call xtb_opt_qcg(env,ref,is_solute)
+  end if
+  call ref%write(molname)
+  call xtb_sp_qcg(env,molname,e_there,eref)
+
+  env%solv = solv_tmp
+  env%gbsa = gbsa_tmp
+  env%cts%used = used_tmp
+  env%gfnver = gfnver_tmp
+  env%chrg = chrg_tmp
+  env%uhf = uhf_tmp
+  call chdirdbug(thispath)
+
+  if (.not.e_there) then
+    write (stdout,'(1x,a,a,a,a)') 'ERROR: reference energy of the ',molname, &
+      & ' could not be computed at the level ',trim(elevel)
+    call creststop(status_safety)
+  end if
+
+  write (stdout,*)
+  write (stdout,'(2x,a,a,a,a,a,a)') 'Reference energy of the ',molname, &
+    & ' re-evaluated: ',trim(mol%elevel),' -> ',trim(elevel)
+  write (stdout,outfmt) 'Total Energy of '//molname//':',eref,' Eh'
+
+  mol%energy = eref
+  mol%elevel = elevel
+  call ref%deallocate()
+
+end subroutine qcg_update_reference
+
+!==============================================================================!
+
+subroutine qcg_check_reference(env,mol)
+  !***********************************************
+  !* Stop if the monomer reference energy was not
+  !* evaluated at the QCG energy level.
+  !***********************************************
+  use crest_parameters
+  use crest_data
+  use qcg_coord_type
+  use qcg_utils
+  implicit none
+  type(systemdata) :: env
+  type(coord_qcg),intent(in) :: mol
+  character(len=20) :: elevel
+
+  elevel = qcg_energy_level(env)
+  if (trim(mol%elevel) /= trim(elevel)) then
+    write (stdout,'(1x,a,a,a,a)') 'ERROR: solute reference energy evaluated at ', &
+      & trim(mol%elevel),' but the cluster energies at ',trim(elevel)
+    call creststop(status_safety)
+  end if
+end subroutine qcg_check_reference
 
 !==============================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
@@ -789,6 +940,7 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
   use qcg_utils
   use strucrd
   use utilities
+  use parallel_interface,only:crest_sploop !explicit interface needed (optional arguments)
   implicit none
 
   type(systemdata) :: env
@@ -959,7 +1111,6 @@ subroutine qcg_ensemble(env,solu,solv,clus,ens,tim,fname_results)
 
 !--- Optimization with gfn2 if necessary
   if (env%final_gfn2_opt.and.env%gfnver .ne. '--gfn2') then
-    gfnver_tmp = env%gfnver
     write (stdout,'(2x,a)') 'GFN2-xTB optimization'
     env%gfnver = '--gfn2'
 
@@ -1229,7 +1380,7 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
 
   integer                    :: i,j,k,iter
   integer                    :: io,r
-  integer                    :: nsolv,n_ini
+  integer                    :: n_ini,nopen
   integer                    :: ipos,dum
   integer                    :: v_ratio
   integer                    :: minE_pos,m,nat_tot
@@ -1259,6 +1410,7 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   character(len=20)          :: gfnver_tmp
   real(wp)                   :: optlev_tmp
   integer                    :: ich98,ich31
+  integer                    :: chrg_tmp,uhf_tmp
 
   call tim%start(8,'QCG CFF')
 
@@ -1275,11 +1427,12 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   optlev_tmp = env%optlev
   env%optlev = 1.0d0    !Increaseing percision for ensemble search to minimze scattering
   gfnver_tmp = env%gfnver
-  if (env%final_gfn2_opt) then
-    env%gfnver = '--gfn2'
-  else
-    env%gfnver = env%ensemble_opt !CFF always with ensemble method
-  end if
+  env%gfnver = qcg_energy_level(env) !CFF always at the level of the ensemble SPs
+!--- Only pure solvent clusters are computed here, neutral closed-shell
+  chrg_tmp = env%chrg
+  uhf_tmp = env%uhf
+  env%chrg = 0
+  env%uhf = 0
   nothing_added = .false.
 
   dum = 0
@@ -1358,18 +1511,19 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
         if (.not.converged(i)) then
           k = k+1
           conv(k) = i
-          conv(env%nqcgclust+1) = k !How many jobs are open
         else
           cycle
         end if
       end do
       conv(k+1:env%nqcgclust) = 0
+      conv(env%nqcgclust+1) = k !How many jobs are open
+      nopen = k
 
       call chdirdbug(tmppath2)
 
 !--- Solvent addition to the cluster---------------------------------------------
       call ensemble_dock(env,outer_ell_abc,nat_frag1,'solvent_cluster.coord',&
-              &'solvent',clus%nat,solv%nat,conv(env%nqcgclust+1),'TMPCFF',conv)
+              &'solvent',clus%nat,solv%nat,nopen,'TMPCFF',conv)
 !--------------------------------------------------------------------------------
 
       nat_frag1 = nat_frag1+solv%nat
@@ -1414,19 +1568,22 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
         if (.not.converged(i)) then
           k = k+1
           conv(k) = i
-          conv(env%nqcgclust+1) = k !How many jobs are open
         else
           cycle
         end if
       end do
       conv(k+1:env%nqcgclust) = 0
+      conv(env%nqcgclust+1) = k !How many jobs are open
+      nopen = k
 
 !--- Parallel optimization-------------------------------------------------------------------
       ! for some reason pre-processing with constraint is coupled to the pr flag
       ! also, I don't think this call does anything useful...
       ! I implemented e_cur readout, this makes sense to me at least
-      call cff_opt(.false.,env,'solvent_cluster.coord',n_ini,conv(env%nqcgclust+1)&
-              &,'TMPCFF',conv,nothing_added,e_cur(iter,:))
+      if (nopen .gt. 0) then
+        call cff_opt(.false.,env,'solvent_cluster.coord',n_ini,nopen&
+                &,'TMPCFF',conv,nothing_added,e_cur(iter,:))
+      end if
 !----------------------------------------------------------------------------------------------
       de_tot(:) = 0.0_wp
       do i = 1,env%nqcgclust
@@ -1456,7 +1613,7 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
       !--- Check if everything is converged
       dum = 0
       do i = 1,env%nqcgclust
-        if (converged(1)) then
+        if (converged(i)) then
           dum = dum+1
         end if
       end do
@@ -1469,7 +1626,7 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
 
       write (stdout,'(2x,70("-"))')
       !--- Or if maximum solvent is added
-      if (iter-nsolv .eq. v_ratio) then
+      if (iter .eq. v_ratio) then
         write (stdout,'(2x,''volume filled'')')
         all_converged = .true.
         call copy('solvent_cluster.coord','filled_cluster.coord')
@@ -1488,13 +1645,14 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
   tmp_optlev = env%optlev
   if (env%optlev .lt. 1.0) env%optlev = 1.0d0 !higher accuracy
 
+  nopen = env%nqcgclust !final optimization is done for all clusters
   if (.not.skip) then
-    call cff_opt(.true.,env,'filled_cluster.coord',n_ini,conv(env%nqcgclust+1),&
+    call cff_opt(.true.,env,'filled_cluster.coord',n_ini,nopen,&
            & 'TMPCFF',conv,nothing_added,e_cluster)
   else
     n_ini = 0 !If this is 0, no constraining will be done (optimization of total system)
     nothing_added = .true.
-    call cff_opt(.true.,env,'filled_cluster.coord',n_ini,env%nqcgclust,'TMPCFF',&
+    call cff_opt(.true.,env,'filled_cluster.coord',n_ini,nopen,'TMPCFF',&
            & conv,nothing_added,e_cluster)
   end if
   env%optlev = tmp_optlev
@@ -1606,6 +1764,8 @@ subroutine qcg_cff(env,solu,solv,clus,ens,solv_ens,tim)
 
   env%gfnver = gfnver_tmp
   env%optlev = optlev_tmp
+  env%chrg = chrg_tmp
+  env%uhf = uhf_tmp
 
   deallocate (e_empty)
   deallocate (converged)
@@ -1648,6 +1808,7 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
   real(wp)                   :: stra(3)
   integer                    :: ich65,ich56,ich33,ich81
   logical                    :: opt
+  integer                    :: chrg_tmp,uhf_tmp
   type(coord_qcg) :: tmpmol
 
   call tim%start(9,'QCG Frequencies')
@@ -1756,6 +1917,11 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
 !   frequencies for solvent cluster
 !----------------------------------------------------------------------------
   write (stdout,'(/,1x,a)') 'processing  SOLVENT CLUSTER'
+!--- pure solvent clusters are neutral closed-shell
+  chrg_tmp = env%chrg
+  uhf_tmp = env%uhf
+  env%chrg = 0
+  env%uhf = 0
   if (env%cff) then
     call chdirdbug('tmp_solv')
     call ens_freq(env,'solvent_cut.coord',solu_ens%nall,'TMPFREQ',opt)
@@ -1785,6 +1951,8 @@ subroutine qcg_freq(env,tim,solu,solv,solu_ens,solv_ens)
     call ens_freq(env,'solv_cluster.xyz',solv_ens%nall,'TMPFREQ',opt)
     call chdirdbug(tmppath2)
   end if
+  env%chrg = chrg_tmp
+  env%uhf = uhf_tmp
 
 !----------------------------------------------------------------------------
 !   Data read out
@@ -1928,6 +2096,7 @@ subroutine qcg_eval(env,solu,solu_ens,solv_ens)
   integer            :: ich23
 
   call pr_eval_eval()
+  call qcg_check_reference(env,solu)
 
   call getcwd(thispath)
 
@@ -1990,7 +2159,7 @@ subroutine qcg_eval(env,solu,solu_ens,solv_ens)
 ! Save Result
   open (newunit=ich23,file='frequencies/result.dat')
   write (ich23,'("Solvation Free Energy [kcal/mol] :")')
-  write (ich23,'(f8.2)') Gsolv(freqscal)
+  write (ich23,'(f12.2)') Gsolv(freqscal)
   close (ich23)
 
 end subroutine qcg_eval

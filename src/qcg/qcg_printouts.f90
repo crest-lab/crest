@@ -205,8 +205,8 @@ contains
     real(wp),intent(in)       :: G,H
     write (stdout,'(2x,"-----------------------------------------------------")')
     write (stdout,'(2x,"Gsolv and Hsolv ref. state: [1 M gas/solution] ")')
-    write (stdout,'(2x,"G_solv (incl.RRHO)      =",F8.2," kcal/mol")') G
-    write (stdout,'(2x,"H_solv (incl.RRHO)      =",F8.2," kcal/mol")') H
+    write (stdout,'(2x,"G_solv (incl.RRHO)      =",F12.2," kcal/mol")') G
+    write (stdout,'(2x,"H_solv (incl.RRHO)      =",F12.2," kcal/mol")') H
     write (stdout,'(2x,"-----------------------------------------------------")')
     write (stdout,*)
   end subroutine pr_eval_1
@@ -222,7 +222,7 @@ contains
     write (stdout,'(2x,"Solvation free energies with scaled translational")')
     write (stdout,'(2x,"and rotational degrees of freedom: Gsolv (scaling)")')
     do i = 1,srange
-      write (stdout,'(10x,">>",2x,f8.2," (",f4.2,")",4x,"<<")') G(i),scal(i)
+      write (stdout,'(10x,">>",f10.2," (",f4.2,")",4x,"<<")') G(i),scal(i)
     end do
     write (stdout,'(2x,"-----------------------------------------------------")')
   end subroutine pr_eval_2
@@ -238,7 +238,7 @@ contains
     write (stdout,'(2x,"|  Gsolv with SCALED RRHO contributions: ",f4.2,4x"|")') scal
     write (stdout,'(2x,"|  [1 bar gas/ 1 M solution]                     |")')
     write (stdout,'(2x,"|                                                |")')
-    write (stdout,'(2x,"|  G_solv (incl.RRHO)+dV(T)=",F8.2," kcal/mol    |")') G(freqscal)
+    write (stdout,'(2x,"|  G_solv (incl.RRHO)+dV(T)=",F10.2," kcal/mol  |")') G(freqscal)
     write (stdout,'(2x,"==================================================")')
     write (stdout,*)
   end subroutine pr_eval_3

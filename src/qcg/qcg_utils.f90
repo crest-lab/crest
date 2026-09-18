@@ -27,6 +27,25 @@ module qcg_utils
 contains
 
 !========================================================================================!
+!> Level of theory of all energies entering Esolv/Gsolv
+!========================================================================================!
+  function qcg_energy_level(env) result(lvl)
+    !***********************************************
+    !* Return the method flag of the QCG energy level,
+    !* i.e. the level of the final ensemble and CFF
+    !* single points. The monomer reference energies
+    !* must be evaluated at the same level.
+    !***********************************************
+    type(systemdata),intent(in) :: env
+    character(len=20) :: lvl
+    if (env%final_gfn2_opt) then
+      lvl = '--gfn2'
+    else
+      lvl = env%ensemble_opt
+    end if
+  end function qcg_energy_level
+
+!========================================================================================!
 !> Convert given QCG coordinate files into (TM format)
 !> Write "solute" and "solvent" coordinate files
 !========================================================================================!
