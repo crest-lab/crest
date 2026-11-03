@@ -33,6 +33,9 @@ subroutine crest_setup_alkylize(env)
   call env%ref%to(mol)
 
   call underline("Analyzing Input Structure")
+  write (stdout,'(a)') 'Substructure sampling of alkyl substituents, see'
+  write (stdout,'(a)') 'L.S.Rindt, P.Pracht, JCTC, 2026, https://doi.org/10.1021/acs.jctc.6c01611'
+  write (stdout,*)
 
   call setup_classify(mol,molc)
   call functional_group_classify(molc)

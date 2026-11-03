@@ -54,8 +54,12 @@ subroutine confscript_head(vers)
   write (*,'(  3x,''  Angew. Chem. Int. Ed. 2023, 62, e202214477.'')')
   write (*,'(/,3x,''for works involving MECP screening cite'')')
   write (*,'(/,3x,''• P.Pracht, C.Bannwarth, JCTC, 2022, 18 (10), 6370-6385.'')')
-  write (*,'(/,3x,''for works involving the TTConf reimplementaiton cite'')')
+  write (*,'(/,3x,''for works involving the TTConf reimplementation cite'')')
   write (*,'(/,3x,''• C.Zurek, et al., JCTC, 2025, 21, 1459-1475.'')')
+  write (*,'(/,3x,''for works involving iRMSD cite'')')
+  write (*,'(/,3x,''• P.Pracht, JCIM, 2025, 65, 4501-4511.'')')
+  write (*,'(/,3x,''for works involving --alkylize cite'')')
+  write (*,'(/,3x,''• L.S.Rindt, P.Pracht, JCTC, 2026.'')')
   write (*,*)
 
   write (*,'(3x,a)') 'Original code'
@@ -370,6 +374,7 @@ subroutine confscript_morehelp(flag)
     call help_opt('-wscal <float>',fw,'Scale wall potential sphere radius')
     call help_opt('-hflip/-noflip',fw,'OH proton flip after MTD  [default: OFF]')
     call help_opt('-maxflip <int>',fw,'Max OH flip attempts  [default: 1000]')
+    call help_opt('-alkylize [full]',fw,'Substructure sampling with detached alkyl side chains')
     write (stdout,*)
 
     ! ── Thermochemistry / entropy ─────────────────────────────────────────
@@ -654,6 +659,10 @@ subroutine crestcite
   write (*,'(5x, ''  PCCP, 2022,24, 12249-12259.'')')
   write (*,'(/5x,''• C.Zurek, R.A.Malleav, A.C.Paul, N.van Staalduinen, et al.,'')')
   write (*,'(5x, ''  J. Chem. Theory Comput. 2025, 21, 3, 1459-1475.'')')
+  write (*,'(/5x,''• P.Pracht, J. Chem. Inf. Model. 2025, 65, 4501-4511.'')')
+  write (*,'(5x, ''  DOI: 10.1021/acs.jcim.4c02143'')')
+  write (*,'(/5x,''• L.S.Rindt, P.Pracht, J. Chem. Theory Comput. 2026,'')')
+  write (*,'(5x, ''  DOI: 10.1021/acs.jctc.6c01611'')')
 
   write (*,'(/,/)')
   write (*,'(3x,''Please cite work conducted with this code appropriately.'')')

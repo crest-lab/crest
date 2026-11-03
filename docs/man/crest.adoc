@@ -65,6 +65,20 @@ For QCG calculations additionally cite:
    Angew. Chem. Int. Ed. 2023, 62, e202214477.
 ----
 
+For iRMSD-based comparisons (*--irmsd*, *--sort* _file_ *isort*) additionally cite:
+
+[quote]
+----
+ P. Pracht, J. Chem. Inf. Model. 2025, 65, 4501-4511.
+----
+
+For *--alkylize* additionally cite:
+
+[quote]
+----
+ L. S. Rindt, P. Pracht, JCTC, 2026, DOI: 10.1021/acs.jctc.6c01611.
+----
+
 == OPTIONS
 
 === Run modes
@@ -347,6 +361,13 @@ The following flags apply constraints to *all* calculations made by CREST.
 *-maxflip* _int_::
   Maximum number of OH flip attempts.
   [_default_: *1000*]
+
+*-alkylize* [*full*]::
+  Substructure sampling for molecules with flexible alkyl substituents.
+  The alkyl side chains are detached from the molecular core and capped, the
+  subsystems are sampled independently, and the full ensemble is reconstructed.
+  By default each chain is taken in its extended conformation without sampling;
+  *full* samples every fragment separately.
 
 === Thermostatistical options
 
