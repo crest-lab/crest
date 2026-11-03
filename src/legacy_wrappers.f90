@@ -28,6 +28,7 @@ subroutine env2calc(env,calc,molin)
   use crest_calculator
   use strucrd
   use iomod
+  use parse_hybrid,only:setup_hybrid_calc,level_add_cli_solvation
   implicit none
   !> INPUT
   type(systemdata),intent(inout) :: env
@@ -37,66 +38,24 @@ subroutine env2calc(env,calc,molin)
   !> LOCAL
   type(calculation_settings) :: cal,cal2,cal_rerank,cal_reopt
   type(coord) :: mol
+  logical :: ok
 
-!>--- Calculator level
-
-!>-- defaults to whatever env has selected or gfn0
-  call cal%create(trim(env%gfnver))
-  if (present(molin)) then
-    mol = molin
-  end if
-
-  cal%uhf = env%uhf
-  call cal%sync_multiplicity()   !> keep the multiplicity store aligned with uhf
-  cal%chrg = env%chrg
-  cal%spin_polarized = env%spin_polarized
-!>-- obtain WBOs OFF by default
-  cal%rdwbo = .false.
-  cal%rddip = .false.
-  !> except for SP runtype (from command line!)
-  if (env%crestver == crest_sp) then
-    cal%rdgrad = env%gradsp
-    !> ORCA/Turbomole drivers and fmlip-relay MLIPs do not provide
-    !> WBOs/dipoles/charges to read back
-    if (cal%id .ne. jobtype%turbomole .and. cal%id .ne. jobtype%orca &
-    &   .and. cal%id .ne. jobtype%mlip) then
-      cal%rdwbo = .true.
-      cal%rddip = .true.
-      cal%rdqat = .true.
-    else if (cal%id == jobtype%turbomole .or. cal%id == jobtype%orca) then
-      if (.not.env%gradsp) then
-        cal%other = ''
-      end if
+!>--- Composite CLI method (A//B, A/sp/B, A/opt/B, A@B): two levels instead of one.
+!>    Only for the main setup (env%calc still empty); helper calls that derive
+!>    a single side-job level from env (WBOs, LMO centres, ...) keep one level.
+  if (len_trim(env%hybrid_mode) > 0.and.env%calc%ncalculations == 0) then
+    if (trim(env%gfnver2) .ne. '') then
+      write (stdout,'(/,a)') '**ERROR** --refine cannot be combined with a composite method flag,'
+      write (stdout,'(a)') '          which already defines the second level.'
+      call creststop(status_config)
     end if
+    call setup_hybrid_calc(env,calc,trim(env%hybrid_work),trim(env%hybrid_qual), &
+    &                      trim(env%hybrid_mode))
+    cal = calc%calcs(1)  !> workhorse, template for --rerank/--reopt below
+  else
+    call env2calc_single(cal)
+    call calc%add(cal)
   end if
-
-  !> implicit solvation
-  if (env%gbsa) then
-    if (index(env%solv,'gbsa') .ne. 0) then
-      cal%solvmodel = 'gbsa'
-    else if (index(env%solv,'alpb') .ne. 0) then
-      cal%solvmodel = 'alpb'
-    else
-      cal%solvmodel = 'unknown'
-    end if
-    cal%solvent = trim(env%solvent)
-  end if
-
-  !> do not reset parameters between calculations (opt for speed)
-  cal%apiclean = .false.
-
-  ! ── ORCA driver set up from CLI (--orca <template> <exe>) ───────────
-  if (trim(env%gfnver) == '--orca') then
-    cal%id = jobtype%orca
-    if (allocated(env%orca_cmd)) then
-      cal%ORCA%cmd = trim(env%orca_cmd)
-      cal%binary = trim(env%orca_cmd)
-    end if
-    if (allocated(env%orca_template)) call cal%ORCA%read(trim(env%orca_template))
-  end if
-
-  call cal%autocomplete(1)
-  call calc%add(cal)
 
 !>--- Refinement level
   if (trim(env%gfnver2) .ne. '') then
@@ -106,10 +65,8 @@ subroutine env2calc(env,calc,molin)
     cal2%chrg = cal%chrg
     cal2%uhf = cal%uhf
     cal2%spin_polarized = cal%spin_polarized
-    if (env%gbsa) then
-      cal2%solvmodel = cal%solvmodel
-      cal2%solvent = cal%solvent
-    end if
+    call level_add_cli_solvation(env,cal2,ok)
+    if (.not.ok) call no_solvation_stop(trim(env%gfnver2))
 
     call cal2%autocomplete(2)
 
@@ -125,10 +82,8 @@ subroutine env2calc(env,calc,molin)
     cal_rerank%chrg = cal%chrg
     cal_rerank%uhf  = cal%uhf
     cal_rerank%spin_polarized = cal%spin_polarized
-    if (env%gbsa) then
-      cal_rerank%solvmodel = cal%solvmodel
-      cal_rerank%solvent   = cal%solvent
-    end if
+    call level_add_cli_solvation(env,cal_rerank,ok)
+    if (.not.ok) call no_solvation_stop(trim(env%rerank_lvl))
     call cal_rerank%autocomplete(2)
     cal_rerank%refine_lvl = refine%post_sp
     call calc%add(cal_rerank)
@@ -140,10 +95,8 @@ subroutine env2calc(env,calc,molin)
     cal_reopt%chrg = cal%chrg
     cal_reopt%uhf  = cal%uhf
     cal_reopt%spin_polarized = cal%spin_polarized
-    if (env%gbsa) then
-      cal_reopt%solvmodel = cal%solvmodel
-      cal_reopt%solvent   = cal%solvent
-    end if
+    call level_add_cli_solvation(env,cal_reopt,ok)
+    if (.not.ok) call no_solvation_stop(trim(env%reopt_lvl))
     call cal_reopt%autocomplete(2)
     cal_reopt%refine_lvl = refine%post_reopt
     call calc%add(cal_reopt)
@@ -163,6 +116,67 @@ subroutine env2calc(env,calc,molin)
   end if
 
   return
+contains
+
+  subroutine env2calc_single(cal)
+!>--- single calculation level from the CLI method (defaults to GFN2)
+    type(calculation_settings),intent(out) :: cal
+    call cal%create(trim(env%gfnver))
+    if (present(molin)) then
+      mol = molin
+    end if
+
+    cal%uhf = env%uhf
+    call cal%sync_multiplicity()   !> keep the multiplicity store aligned with uhf
+    cal%chrg = env%chrg
+    cal%spin_polarized = env%spin_polarized
+!>-- obtain WBOs OFF by default
+    cal%rdwbo = .false.
+    cal%rddip = .false.
+    !> except for SP runtype (from command line!)
+    if (env%crestver == crest_sp) then
+      cal%rdgrad = env%gradsp
+      !> ORCA/Turbomole drivers and fmlip-relay MLIPs do not provide
+      !> WBOs/dipoles/charges to read back
+      if (cal%id .ne. jobtype%turbomole .and. cal%id .ne. jobtype%orca &
+      &   .and. cal%id .ne. jobtype%mlip) then
+        cal%rdwbo = .true.
+        cal%rddip = .true.
+        cal%rdqat = .true.
+      else if (cal%id == jobtype%turbomole .or. cal%id == jobtype%orca) then
+        if (.not.env%gradsp) then
+          cal%other = ''
+        end if
+      end if
+    end if
+
+    !> do not reset parameters between calculations (opt for speed)
+    cal%apiclean = .false.
+
+    ! ── ORCA driver set up from CLI (--orca <template> <exe>) ───────────
+    if (trim(env%gfnver) == '--orca') then
+      cal%id = jobtype%orca
+      if (allocated(env%orca_cmd)) then
+        cal%ORCA%cmd = trim(env%orca_cmd)
+        cal%binary = trim(env%orca_cmd)
+      end if
+      if (allocated(env%orca_template)) call cal%ORCA%read(trim(env%orca_template))
+    end if
+
+    !> implicit solvation; stop rather than silently running in the gas phase
+    call level_add_cli_solvation(env,cal,ok)
+    if (.not.ok) call no_solvation_stop(trim(env%gfnver))
+
+    call cal%autocomplete(1)
+  end subroutine env2calc_single
+
+  subroutine no_solvation_stop(method)
+    character(len=*),intent(in) :: method
+    write (stdout,'(/,a,a,a,a)') '**ERROR** implicit solvation (',trim(env%solv), &
+      & ') is not available for ',method
+    call creststop(status_config)
+  end subroutine no_solvation_stop
+
 end subroutine env2calc
 
 subroutine env2calc_setup(env)

@@ -220,7 +220,7 @@ subroutine rdfreq_vibspectrum_file(fname,nmodes,freq)
   inquire (file=fname,exist=ex)
   if (.not.ex) return
   k = 1 !modes
-  open (file=fname,unit=ich)
+  open (file=fname,newunit=ich)
   rdfile: do
     read (ich,'(a)',iostat=io) atmp
     if (io < 0) exit
@@ -258,7 +258,7 @@ subroutine rdfreq_orca_ir_spectrum(fname,nmodes,freq)
 
   freq = 0.0_wp
   k = 1 !modes
-  open (file=fname,unit=ich)
+  open (file=fname,newunit=ich)
   rdfile: do
     read (ich,'(a)',iostat=io) atmp
     if (io < 0) exit
@@ -311,7 +311,7 @@ subroutine rdfreq_orca_hess(mol,fname,nmodes,freq)
   freq = 0.0_wp
   allocate (hess(nmodes,nmodes),source=0.0_wp)
   k = 1 !modes
-  open (file=fname,unit=ich)
+  open (file=fname,newunit=ich)
   rdfile: do
     read (ich,'(a)',iostat=io) atmp
     if (io < 0) exit

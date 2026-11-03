@@ -46,6 +46,8 @@ subroutine crest_sort(env,tim)
   integer,allocatable :: groups(:)
 
 !========================================================================================!
+!>--- "--sort <file>" without a mode: default iRMSD sort (case default below)
+  if (.not.allocated(env%sortmode)) env%sortmode = ''
   select case (env%sortmode)
   case default
     write (stdout,'(a,a,a)',advance='no') '> Read ensemble ',trim(env%ensemblename),' ... '

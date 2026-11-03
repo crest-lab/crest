@@ -114,6 +114,7 @@ module tblite_api
   public :: tblite_getcharges
   public :: tblite_getdipole
   public :: tblite_quick_ceh_q
+  public :: tblite_solvent_known
 
 !========================================================================================!
 !========================================================================================!
@@ -854,6 +855,33 @@ contains  !> MODULE PROCEDURES START HERE
     end do
   end subroutine get_spin_constants
 #endif
+
+!========================================================================================!
+
+  function tblite_solvent_known(solvent) result(known)
+  !*********************************************************
+  !* .true. if tblite has parameters for this solvent name.
+  !* Lets the CLI reject typos before a calculation starts.
+  !* Without tblite there is no list, so every name passes.
+  !*********************************************************
+#ifdef WITH_TBLITE
+    use tblite_solvation,only:solvent_data,get_solvent_data
+#endif
+    implicit none
+    character(len=*),intent(in) :: solvent
+    logical :: known
+#ifdef WITH_TBLITE
+    type(solvent_data) :: solv_data
+    if (trim(solvent) == 'h2o') then  !> as in tblite_add_solv
+      solv_data = get_solvent_data('water')
+    else
+      solv_data = get_solvent_data(trim(solvent))
+    end if
+    known = solv_data%eps > 0.0_wp
+#else
+    known = .true.
+#endif
+  end function tblite_solvent_known
 
 !========================================================================================!
 !========================================================================================!

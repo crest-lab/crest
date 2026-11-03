@@ -152,7 +152,7 @@ contains !> MODULE PROCEDURES START HERE
     type(datablock),intent(in) :: blk
     type(calculation_settings),intent(out) :: job
     integer,intent(inout) :: istat
-    logical :: rd
+    logical :: rd,setwbo,setdip,setqat
     integer :: i
     call job%deallocate()
     if ((blk%header .ne. 'calculation.level').and. &
@@ -170,6 +170,26 @@ contains !> MODULE PROCEDURES START HERE
 !>-- method-specific defaults, applied only after the entire block was read
 !>   so that they do not depend on the order of the key/value pairs
     call parse_level_defaults(job)
+
+!>-- singlepoint runtype: read WBOs, dipole and charges as the CLI --sp does,
+!>   for methods that provide them and unless the block sets them itself
+    if (env%crestver == crest_sp.and.any((/jobtype%xtbsys,jobtype%tblite, &
+    &   jobtype%gfn0,jobtype%gfn0occ,jobtype%gfnff/) == job%id)) then
+      setwbo = .true.; setdip = .true.; setqat = .true.
+      do i = 1,blk%nkv
+        select case (blk%kv_list(i)%key)
+        case ('rdwbo')
+          setwbo = .false.
+        case ('rddip','rddipole')
+          setdip = .false.
+        case ('rdqat','rdchrg')
+          setqat = .false.
+        end select
+      end do
+      if (setwbo) job%rdwbo = .true.
+      if (setdip) job%rddip = .true.
+      if (setqat) job%rdqat = .true.
+    end if
     return
   end subroutine parse_leveldata
 
@@ -661,10 +681,15 @@ contains !> MODULE PROCEDURES START HERE
     type(keyvalue) :: kv
     logical,intent(out) :: rd
     logical,allocatable :: atlist(:)
+    integer :: io
     rd = .true.
     select case (kv%key)
     case ('optlev','ancopt_level')
-      env%optlev = optlevnum(kv%rawvalue)
+      env%optlev = optlevnum(kv%rawvalue,io)
+      if (io /= 0) then
+        write (stdout,fmtura) trim(kv%rawvalue)
+        call creststop(status_config)
+      end if
 
 !>--- floats
     case ('converge_e','ethr_opt')
@@ -1034,7 +1059,7 @@ contains !> MODULE PROCEDURES START HERE
           call constr%dummyconstraint(11)
           success = .true.
         end select
-      case (5)  !> regular array
+      case (5,6)  !> regular array (integer arrays also carry value_fa)
         call constr%rdbondconstraint(kv%na,kv%value_fa)
         success = .true.
       case (9) !> unspecified array
@@ -1045,31 +1070,43 @@ contains !> MODULE PROCEDURES START HERE
       end select
 
     case ('dihedral')
-      read (kv%value_rawa(1),*) atm1
-      read (kv%value_rawa(2),*) atm2
-      read (kv%value_rawa(3),*) atm3
-      read (kv%value_rawa(4),*) atm4
-      read (kv%value_rawa(5),*) dum1
+      if (kv%na < 5) then
+        write (stdout,'(a)') '**ERROR** dihedral constraint needs [i, j, k, l, angle(, fc)]'
+        call creststop(status_config)
+      end if
+      !>--- purely numeric arrays come as value_fa, mixed ones only as raw strings
+      if (allocated(kv%value_fa)) then
+        atm1 = nint(kv%value_fa(1))
+        atm2 = nint(kv%value_fa(2))
+        atm3 = nint(kv%value_fa(3))
+        atm4 = nint(kv%value_fa(4))
+        dum1 = kv%value_fa(5)
+        if (kv%na > 5) dum2 = kv%value_fa(6)
+      else
+        read (kv%value_rawa(1),*) atm1
+        read (kv%value_rawa(2),*) atm2
+        read (kv%value_rawa(3),*) atm3
+        read (kv%value_rawa(4),*) atm4
+        read (kv%value_rawa(5),*) dum1
+        if (kv%na > 5) read (kv%value_rawa(6),*) dum2
+      end if
       if (kv%na > 5) then
-        read (kv%value_rawa(6),*) dum2
         call constr%dihedralconstraint(atm1,atm2,atm3,atm4,dum1,dum2)
       else
         call constr%dihedralconstraint(atm1,atm2,atm3,atm4,dum1)
       end if
       success = .true.
 
-    case ('sphere')
-      dum1 = kv%value_fa(3)  !> sphere radius
-      dum2 = kv%value_fa(1)  !> prefactor
-      dum3 = kv%value_fa(2)  !> exponent
-      call constr%sphereconstraint(0,dum1,dum2,dum3,.false.)
-      success = .true.
-
-    case ('sphere_logfermi')
-      dum1 = kv%value_fa(3)  !> sphere radius
-      dum2 = kv%value_fa(1)  !> fermi temperature
-      dum3 = kv%value_fa(2)  !> exponent factor
-      call constr%sphereconstraint(0,dum1,dum2,dum3,.true.)
+    case ('sphere','sphere_logfermi')
+      if (.not.allocated(kv%value_fa).or.kv%na < 3) then
+        write (stdout,'(a,a,a)') '**ERROR** ',trim(kv%key),' needs three numbers'
+        call creststop(status_config)
+      end if
+      !> [prefactor, exponent, radius] or, for logfermi, [T, exponent factor, radius]
+      dum1 = kv%value_fa(3)
+      dum2 = kv%value_fa(1)
+      dum3 = kv%value_fa(2)
+      call constr%sphereconstraint(0,dum1,dum2,dum3,kv%key == 'sphere_logfermi')
       success = .true.
 
     case ('ellipsoid','ellipsoid_logfermi')
@@ -1125,9 +1162,12 @@ contains !> MODULE PROCEDURES START HERE
         dum2 = kv%value_fa(4)*aatoau
         call constr%bondrangeconstraint(atm1,atm2,dum1,dum2)
       case (5)
+        dum2 = kv%value_fa(4)*aatoau
         dum3 = kv%value_fa(5)
         call constr%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3)
       case (6)
+        dum2 = kv%value_fa(4)*aatoau
+        dum3 = kv%value_fa(5)
         dum4 = kv%value_fa(6)
         call constr%bondrangeconstraint(atm1,atm2,dum1,dum2,beta=dum3,T=dum4)
       case default
@@ -1214,9 +1254,6 @@ contains !> MODULE PROCEDURES START HERE
     case ('dihedral')
       scn%type = 3
       scn%n = 2
-      write (*,*) kv%value_rawa(:)
-      write (*,*) kv%value_ia(:)
-      write (*,*) kv%value_fa(:)
       allocate (scn%atms(4))
 
       if (kv%id == valuetypes%float_array) then
@@ -1364,7 +1401,8 @@ contains !> MODULE PROCEDURES START HERE
         mddat%thermotype = 'none'
       case ('berendsen','langevin','bbk')
         mddat%thermotype = trim(kv%value_c)
-      case ('bussi','bussi-donaido-parinello','bussi-parinello','csvr')
+      case ('bussi','bdp','bussi-donadio-parrinello','bussi-donaido-parinello', &
+        &   'bussi-parinello','csvr')
         mddat%thermotype = 'bussi'
       case default
         write (stdout,fmtura) kv%value_c
@@ -1603,7 +1641,7 @@ contains !> MODULE PROCEDURES START HERE
         call creststop(status_config)
       end select
 
-    case ('temp','T')
+    case ('temp','t','temperature')  !> keys arrive lowercased
       bh%temp = kv%value_f
 
     case ('parallel')

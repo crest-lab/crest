@@ -1786,11 +1786,19 @@ contains  !>--- Module routines start here
 
     if (any((/jobtype%orca,jobtype%xtbsys,jobtype%turbomole, &
     &  jobtype%generic,jobtype%terachem/) == self%id)) then
-      if (index(self%binary,'gxtb') .ne. 0) then
-        write (iunit,fmt4) 'g-xTB (development version)'
-        gxtbwarn = .true.
-      else
-        write (iunit,'(" :",3x,a,a)') 'selected binary : ',trim(self%binary)
+      if (allocated(self%binary)) then
+        if (index(self%binary,'gxtb') .ne. 0) then
+          write (iunit,fmt4) 'g-xTB (development version)'
+          gxtbwarn = .true.
+        else
+          write (iunit,'(" :",3x,a,a)') 'selected binary : ',trim(self%binary)
+        end if
+      else if (self%id == jobtype%xtbsys) then
+        !> the binary is only set on the first call; xtb_sc falls back to 'xtb'
+        write (iunit,'(" :",3x,a,a)') 'selected binary : ','xtb'
+      end if
+      if (self%id == jobtype%xtbsys.and.allocated(self%other)) then
+        if (index(self%other,'--gxtb') .ne. 0) write (iunit,fmt4) 'g-xTB via the xtb binary'
       end if
     end if
     if (self%refine_lvl > 0) then

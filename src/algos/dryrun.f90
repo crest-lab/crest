@@ -70,10 +70,8 @@ subroutine crest_dry_run(env,tim)
     write (stdout,'(2x,a)') 'Conformational search via the iMTD-GC algorithm'
   case (crest_imtd2)
     write (stdout,'(2x,a)') 'Conformational search via the iMTD-sMTD algorithm (-v4)'
-  case (crest_mdopt)
+  case (crest_mdopt,crest_mdopt2)
     write (stdout,'(2x,a)') 'Ensemble reoptimization (-mdopt)'
-  case (crest_mdopt2)
-    write (stdout,'(2x,a)') 'Ensemble reoptimization, variant 2 (-mdopt2)'
   case (crest_screen)
     write (stdout,'(2x,a)') 'Ensemble screening and reoptimization (-screen)'
   case (crest_nano)
@@ -104,6 +102,22 @@ subroutine crest_dry_run(env,tim)
     write (stdout,'(2x,a)') 'Basin-hopping conformer search'
   case (crest_bhpt)
     write (stdout,'(2x,a)') 'Basin-hopping with parallel tempering'
+  case (crest_ensemblesp)
+    write (stdout,'(2x,a)') 'Ensemble singlepoint calculations'
+  case (crest_ensemblehess)
+    write (stdout,'(2x,a)') 'Ensemble numerical Hessian calculations'
+  case (crest_ttc)
+    write (stdout,'(2x,a)') 'Rule-based conformer generation (TTConf)'
+  case (crest_dock)
+    write (stdout,'(2x,a)') 'Docking via aISS'
+  case (crest_msreac)
+    write (stdout,'(2x,a)') 'Mass spectral fragment generation (MSREACT)'
+  case (crest_protonate)
+    write (stdout,'(2x,a)') 'Protonation site screening'
+  case (crest_deprotonate)
+    write (stdout,'(2x,a)') 'Deprotonation site screening'
+  case (crest_tautomerize)
+    write (stdout,'(2x,a)') 'Tautomer screening'
   case (crest_none)
     write (stdout,'(2x,a)') '<no runtype specified>'
   case default

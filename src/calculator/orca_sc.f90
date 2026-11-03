@@ -166,6 +166,12 @@ contains  !>--- Module routines start here
     if (allocated(calc%systemcall)) return
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
 
+    !>--- an absolute path to a missing binary is the most common setup error
+    if (calc%binary(1:1) == '/'.and.index(trim(calc%binary),' ') == 0) then
+      inquire (file=trim(calc%binary),exist=ex)
+      if (.not.ex) write (stdout,'(a,a)') '**ERROR** ORCA binary not found: ',trim(calc%binary)
+    end if
+
     !>--- construct path information for sys-call
     if (allocated(calc%calcspace)) then
       calc%systemcall = 'cd '//calc%calcspace//' &&'

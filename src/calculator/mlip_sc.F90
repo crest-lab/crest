@@ -108,6 +108,11 @@ contains  !>--- Module routines start here
 
     !> options prepping
     tmpport = MPAR%BASE_PORT+iid
+    !> with the default base port, two CREST runs on one machine would both
+    !> ask for 54321 and the second server could not bind it; offset by PID
+    if (MPAR%BASE_PORT == 54320) then
+      tmpport = tmpport+MLIP_MAX_INSTANCES*mod(get_pid(),40)
+    end if
     write (cmd_1,'("--dtype float64")')
     !> cap the server's CPU inference threads (torch/BLAS pools) to the
     !> per-level core reservation so parallel instances don't oversubscribe

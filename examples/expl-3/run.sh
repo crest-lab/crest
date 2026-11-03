@@ -6,7 +6,7 @@
 command -v crest >/dev/null 2>&1 || { echo >&2 "Cannot find crest binary."; exit 1; }
 
 # --- CLI run ---
-crest struc.xyz -ohess
+crest struc.xyz -ohess tight
 
 # --- TOML run (equivalent settings) ---
 # crest input.toml

@@ -66,6 +66,16 @@ endif
 
 _omp_link_dep = omp_dep.found() ? [omp_dep] : []
 
+# With link_language 'fortran', Meson appends the Intel "stdlib" flags
+# -lifcore -limf, i.e. the non-thread-safe Fortran runtime. It then wins over
+# the libifcoremt that -qopenmp brings (static: --allow-multiple-definition,
+# shared: earlier NEEDED entry), and file I/O from OpenMP threads can corrupt
+# the runtime's unit table (SIGSEGV or hang in for_open). Dependency link args
+# come before the appended -lifcore, so naming libifcoremt here makes it win.
+if omp_dep.found() and fc_id in ['intel', 'intel-llvm']
+  _omp_link_dep += declare_dependency(link_args : ['-lifcoremt'])
+endif
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  LAPACK / BLAS
 # ═══════════════════════════════════════════════════════════════════════════════

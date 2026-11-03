@@ -208,7 +208,7 @@ subroutine confscript_morehelp(flag)
     call help_opt('-sp',fw,'Single-point energy calculation')
     call help_opt('-opt/-optimize',fw,'Geometry optimization')
     call help_opt('-hess/-numhess',fw,'Numerical Hessian / vibrational frequencies')
-    call help_opt('-md/-dynamics',fw,'Molecular dynamics simulation')
+    call help_opt('-dyn/-dynamics',fw,'Molecular dynamics simulation')
     call help_opt('-v3/-imtdgc',fw,'iMTD-GC conformational search  (see '//colorify('--help conf','gold')//')')
     call help_opt('-v4/-entropy',fw,'Entropy/free-energy sampling  (see '//colorify('--help conf','gold')//')')
     call help_opt('-mdopt',fw,'Ensemble optimization (no sorting)')
@@ -327,7 +327,7 @@ subroutine confscript_morehelp(flag)
   case ('conf','sampling')
     fw = 20
     call help_section('Conformer search algorithms:')
-    call help_opt('-v3/-imtdgc',fw,'iMTD-GC (iterative MTD-GC)  [default]')
+    call help_opt('-v3/-imtdgc',fw,'iMTD-GC (iterative MTD-GC); no default, a runtype is required')
     call help_opt('-v4',fw,'iMTD-sMTD (entropy-focused search)')
     call help_opt('-entropy',fw,'Same as -v4, specialized for conformational entropy')
     call help_opt('-ttconf [<preset>]',fw,'TTConf conformational sampling, where <preset> is one of [fast,normal,accurate] or [bruteforce]')
@@ -1288,7 +1288,7 @@ subroutine crest_no_runtype_selected()
   write (stdout,*)
   write (stdout,'(5x,a,t30,a)') '--sp','Single-point energy calculation'
   write (stdout,'(5x,a,t30,a)') '--opt','Structure optimization'
-  write (stdout,'(5x,a,t30,a)') '--md','Molecular dynamics simulation'
+  write (stdout,'(5x,a,t30,a)') '--dyn','Molecular dynamics simulation'
   write (stdout,'(5x,a,t30,a)') '--imtdgc/--v3','iMTD-GC conformational search '//colorify('(PREVIOUS DEFAULT)','gold')
   write (stdout,'(5x,a,t30,a)') '--entropy','Entropy/free-energy sampling'
   write (stdout,'(5x,a,t30,a)') '--mdopt','Ensemble optimization (no sorting)'
@@ -1323,6 +1323,7 @@ subroutine crest_output_summary(env)
   type(systemdata),intent(in) :: env
   character(len=72),parameter :: hbar = repeat('-',80)
   logical :: lexists
+  character(len=:),allocatable :: smode
 
   select case (env%crestver)
   case (crest_imtd,crest_imtd2,crest_ttc,crest_screen,crest_mdopt, &
@@ -1365,10 +1366,22 @@ subroutine crest_output_summary(env)
 
     ! ── standalone CREGEN sorting ─────────────────
   case (crest_sorting)
-    call wfe('crest_conformers.xyz','unique conformers (1 per rotamer group), energy-sorted')
-    call wfe('crest_rotamers.xyz','all structures including rotamers')
-    call wfe('crest_best.xyz','lowest-energy structure')
-    call wfe('cregen.full','full CREGEN output (written when terminal output is abbreviated)')
+    smode = ''
+    if (allocated(env%sortmode)) smode = env%sortmode
+    select case (smode)
+    case ('cregen')
+      call wfe('crest_conformers.xyz','unique conformers (1 per rotamer group), energy-sorted')
+      call wfe('crest_rotamers.xyz','all structures including rotamers')
+      call wfe('crest_best.xyz','lowest-energy structure')
+      call wfe('cregen.full','full CREGEN output (written when terminal output is abbreviated)')
+    case ('cluster','compare','all','allpair')
+      continue !> no ensemble files of their own (a cluster file is listed below)
+    case default  !> iRMSD-based sorting (isort, isort_noid)
+      call wfe('crest_ensemble.xyz','one structure per conformer group, energy-sorted')
+      call wfe('crest_best.xyz','lowest-energy structure')
+      call wfe('crest.energies','relative energies of the unique structures')
+      call wfe('cre_members','conformer group of each structure (CREGEN format)')
+    end select
 
     ! ── geometry optimization ─────────────────────
   case (crest_optimize,crest_trialopt,crest_rigcon)

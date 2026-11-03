@@ -1440,9 +1440,12 @@ contains !> MODULE PROCEDURES START HERE
     implicit none
     character(len=*),intent(in) :: cmd
     integer,intent(out),optional :: exitstat
-    integer :: io
+    integer :: io,cs
 #ifdef __INTEL_COMPILER
-    call execute_command_line(trim(cmd),exitstat=io)
+    !> without cmdstat, ifx aborts the program if the command cannot be run
+    io = 0
+    call execute_command_line(trim(cmd),exitstat=io,cmdstat=cs)
+    if (cs /= 0.and.io == 0) io = 127
 #else
     call system(trim(cmd),io)
 #endif

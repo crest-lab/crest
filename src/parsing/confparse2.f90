@@ -52,6 +52,7 @@ subroutine parseinputfile(env,fname)
   use parse_inputfile,only:parse_input
   use parse_calcdata,only:parse_calculation_data, &
   &                       parse_dynamics_data,parse_basinhopping_data
+  use strucrd,only:get_atlist
   !> Declarations
   implicit none
   type(systemdata),intent(inout) :: env
@@ -65,6 +66,8 @@ subroutine parseinputfile(env,fname)
   logical :: ex,l1,l2
   integer :: i,j,k,l
   integer :: readstatus
+  character(len=:),allocatable :: freezestr
+  logical,allocatable :: atlist(:)
 
 !>--- check for the input files' existence
   inquire (file=fname,exist=ex)
@@ -85,8 +88,18 @@ subroutine parseinputfile(env,fname)
 !>--- parse all root-level key-value pairs
   do i = 1,dict%nkv
     kv = dict%kv_list(i)
+    if (kv%key == 'freeze') then
+      freezestr = kv%rawvalue  !> resolved below, "input =" may come later
+      cycle
+    end if
     call parse_main_auto(env,kv,readstatus)
   end do
+!>--- root-level freeze, same as [calculation] freeze
+  if (allocated(freezestr)) then
+    call get_atlist(env%ref%nat,atlist,freezestr,env%ref%at)
+    env%calc%nfreeze = count(atlist)
+    call move_alloc(atlist,env%calc%freezelist)
+  end if
 !>------------------------------------------------------
 !> After this point I assume an input structure was
 !> provided. Either in parse_main_auto or confparse.f90
@@ -96,12 +109,29 @@ subroutine parseinputfile(env,fname)
   do i = 1,dict%nblk
     blk = dict%blk_list(i)
     call parse_main_blk(env,blk,readstatus)
+!>--- a misspelled table name would otherwise be dropped without a word
+    select case (blk%header)
+    case ('cregen','thermo','protonation','ttconf','dock', &
+    &     'calculation','calculation.level','calculation.constraint', &
+    &     'calculation.constraints','calculation.mecp','calculation.scans', &
+    &     'dynamics','dynamics.meta','basinhopping')
+      continue
+    case default
+      if (index(blk%header,'lwoniom') /= 1) then
+        write (stdout,'(a,a,a)') 'unrecognized BLOCK : [',trim(blk%header),']'
+        readstatus = readstatus+1
+      end if
+    end select
   end do
 
 !>--- check objects for a calculation setup
 !     i.e., all [calculation] and [[calculation.*]] blocks
   call parse_calculation_data(env,newcalc,dict,l1,readstatus)
   if (l1) then
+    if (allocated(env%calc%freezelist).and..not.allocated(newcalc%freezelist)) then
+      newcalc%nfreeze = env%calc%nfreeze
+      call move_alloc(env%calc%freezelist,newcalc%freezelist)
+    end if
     env%calc = newcalc
     call env_calcdat_specialcases(env)
   end if
@@ -205,7 +235,7 @@ subroutine env_calcdat_specialcases(env)
 
   !> special case for GFN-FF calculations
   if (any(env%calc%calcs(:)%id == jobtype%gfnff)) then
-    env%mdstep = 1.5d0
+    if (.not.env%user_mdstep) env%mdstep = 1.5d0
     env%hmass = 5.0d0
     env%cts%cbonds_md = .true.
     env%checkiso = .true.

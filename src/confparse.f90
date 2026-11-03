@@ -48,6 +48,7 @@ subroutine parseflags(env,arg,nra)
   use crest_restartlog
   use parse_hybrid
   use aiss_standalone,only:parse_dock_cli
+  use tblite_api,only:tblite_solvent_known
 
   implicit none
   type(systemdata),intent(inout) :: env
@@ -69,8 +70,19 @@ subroutine parseflags(env,arg,nra)
   character(len=:),allocatable :: arg1,arg2,arg3
   character(len=:),allocatable :: hybrid_quality,hybrid_workhorse
   character(len=4) :: hybrid_mode
+  type(coord) :: molpre
+  !> level settings given on the CLI, applied to TOML levels at the end
+  logical :: cli_chrg,cli_uhf,cli_solv,cli_method
+  logical :: nocbonds,gfnff_search
+  integer :: ntoml_lvl
 
   allocate (xx(10),floats(3),strings(3))
+  cli_chrg = .false.
+  cli_uhf = .false.
+  cli_solv = .false.
+  cli_method = .false.
+  ntoml_lvl = 0
+  nocbonds = .false.
   ctmp = ''
   dtmp = ''
 
@@ -116,18 +128,16 @@ subroutine parseflags(env,arg,nra)
     if (any((/character(10)::'-cite','--cite','--citation'/) == trim(arg(i)))) then
       call crestcite()
     end if
-    if (index(arg(i),'-newversion') .ne. 0) then !> as in CREST version >= 3.0
+    !>--- exact matches only, a file name like mol-dry.xyz must not trigger these
+    select case (trim(arg(i)))
+    case ('-newversion','--newversion') !> as in CREST version >= 3.0
       env%legacy = .false.
-      !processedarg(i) = .true.
-    end if
-    if (index(arg(i),'-legacy') .ne. 0) then  !> as in CREST version <3.0
+    case ('-legacy','--legacy')  !> as in CREST version <3.0
       env%legacy = .true.
-      !processedarg(i) = .true.
-    end if
-    if (index(arg(i),'-dry') .ne. 0) then   !> "dry" run to print settings
+    case ('-dry','--dry')   !> "dry" run to print settings
       env%dryrun = .true.
       processedarg(i) = .true.
-    end if
+    end select
   end do
 
 !========================================================================================!
@@ -178,7 +188,7 @@ subroutine parseflags(env,arg,nra)
   env%ethr = 0.05d0   !> ETHR - E threshold in kcal
   env%ethrpurge = 0.20d0   !> ETHRPURGE - E threshold in kcal (purgemode)
   env%couthr = 0.1d0    !> COUTHR - CREGEN coulomb energy threshold
-  env%thresholds(4) = 15.0d0   !> BTHR - rot.const. thr., A B and C in MHz
+  env%thresholds(4) = 15.0d0   !> BTHR - legacy rot.const. thr. in MHz (CREGEN uses bthr2)
   env%bthr2 = 0.01d0   !> BTHR2 - rot.const relative deviation
   env%bthrmax = 0.025d0  !> max value of BTHR2 for anisotropic rot. const.
   env%bthrshift = 0.5d0    !> BHTR2 anisotropy error-function shift
@@ -261,21 +271,19 @@ subroutine parseflags(env,arg,nra)
   env%NCI = .false.      !> use specialized NCI mode?
   env%potscal = 1.0d0    !> scale automatically set wall potential by this factor
 
-!>--- get CHRG and UHF if the respective files are present
+!>--- .CHRG/.UHF files are not read since 3.0.2; a leftover one only gets a warning
   inquire (file='.CHRG',exist=ex)
   if (any(index(arg,'-chrg') .ne. 0)) ex = .false.
   if (ex) then
-    write(stdout,*) '**ERROR** CREST will not read .CHRG files following version 3.0.2'
-    write(stdout,*) 'Please use --chrg or the input file specifications.'
-    error stop
+    write(stdout,'(a)') '**WARNING** found a .CHRG file, which is ignored since version 3.0.2.'
+    write(stdout,'(a)') '            Use --chrg or the input file to set the charge.'
   end if
   inquire (file='.UHF',exist=ex)
   if (any(index(arg,'-uhf') .ne. 0)) ex = .false.
   if (any(index(arg,'-mult') .ne. 0)) ex = .false.
   if (ex) then
-    write(stdout,*) '**ERROR** CREST will not read .UHF files following version 3.0.2'
-    write(stdout,*) 'Please use --uhf or the input file specifications.'
-    error stop
+    write(stdout,'(a)') '**WARNING** found a .UHF file, which is ignored since version 3.0.2.'
+    write(stdout,'(a)') '            Use --uhf or the input file to set the spin.'
   end if
 
 !>--- options for constrained conformer sampling
@@ -350,8 +358,26 @@ subroutine parseflags(env,arg,nra)
 !>--- check for (TOML) input file
   call find_input_file(arg,nra,idum)
   if (idum .ne. 0) then
+    !>--- crest struc.xyz input.toml: atom lists in the TOML (e.g. freeze) need
+    !>    the structure before the input file is parsed. "input =" overrides it.
+    if (idum > 1) then
+      ctmp = trim(arg(1))
+      inquire (file=ctmp,exist=ex)
+      if (ex.and.ctmp(1:1) .ne. '-') then
+        call molpre%open(ctmp)
+        call env%ref%load(molpre)
+        call molpre%deallocate()
+      end if
+    end if
     call parseinputfile(env,trim(arg(idum)))
+    ntoml_lvl = env%calc%ncalculations
     processedarg(idum) = .true.
+    if (idum > 1) then
+      select case (trim(arg(idum-1)))
+      case ('--input','-input','-i','--i')
+        processedarg(idum-1) = .true.
+      end select
+    end if
   end if
 
 !>--- standalone docking takes over its xtb-dock style options first
@@ -722,11 +748,17 @@ subroutine parseflags(env,arg,nra)
         if (ctmp(1:1) .ne. '-') then
           env%inputcoords = trim(ctmp)
           env%thermo%coords = trim(ctmp)
+          processedarg(1) = .true.
         end if
         ctmp = arg1 ! second argument to read the vibspectrum
-        if (ctmp(1:1) .ne. '-') then
+        ex = .false.
+        if (len_trim(ctmp) > 0) ex = (ctmp(1:1) .ne. '-')
+        if (ex) then
           processedarg(i+1) = .true.
           env%thermo%vibfile = trim(ctmp)
+        else
+          inquire (file='vibspectrum',exist=ex)
+          if (ex) env%thermo%vibfile = 'vibspectrum'
         end if
 
       case ('-rmsd','-rmsdheavy','-hrmsd')
@@ -946,6 +978,15 @@ subroutine parseflags(env,arg,nra)
           env%inputcoords = ctmp
           env%ensemblename = ctmp
         end if
+        !>--- crest <ref> --cregen <ensemble>: the positional file is the reference
+        if (i > 1) then
+          ctmp = trim(arg(1))
+          inquire (file=ctmp,exist=ex)
+          if (ex.and.ctmp(1:1) .ne. '-') then
+            processedarg(1) = .true.
+            env%inputcoords = ctmp
+          end if
+        end if
         if (argument == '-sort'.and.nra >= i+2) then
           ctmp = arg2
           if (ctmp(1:1) .ne. '-') then
@@ -975,6 +1016,20 @@ subroutine parseflags(env,arg,nra)
       end select !> RUNTYPES
     end if
   end do
+
+!>--- search-mode flags only exist for iMTD-GC, so without a runtype they select it
+  if (env%crestver == crest_none) then
+    do i = 1,nra
+      select case (trim(arg(i)))
+      case ('-quick','--quick','-squick','--squick','-superquick','--superquick', &
+      &     '-mquick','--mquick','-megaquick','--megaquick','-nci','--nci')
+        env%crestver = crest_imtd
+        env%iterativeV2 = .true.
+        write (stdout,'(2x,a,a)') trim(arg(i)),' : iMTD-GC (implied, no runtype given)'
+        exit
+      end select
+    end do
+  end if
 
 !=========================================================================================!
 !=========================================================================================!
@@ -1554,6 +1609,7 @@ subroutine parseflags(env,arg,nra)
 
       case ('-gfn','-gfn1','-gfn2','-gfn0','-gff','-gfnff')
         processedarg(i) = .true.
+        cli_method = .true.
         ctmp = argument
         if (argument == '-gfn') then
           processedarg(i+1) = .true.
@@ -1576,7 +1632,7 @@ subroutine parseflags(env,arg,nra)
         case ('-gff','-gfnff')
           env%gfnver = '--gff'
           write (stdout,'(2x,a,'' : Use of GFN-FF requested.'')') '--gfnff'
-          env%mdstep = 1.5d0
+          if (.not.env%user_mdstep) env%mdstep = 1.5d0
           env%hmass = 5.0d0
           ctype = 5 !> bond constraint activated
           if (any((/crest_imtd,crest_imtd2/) == env%crestver)) then
@@ -1592,17 +1648,20 @@ subroutine parseflags(env,arg,nra)
 
       case ('-gxtb')
         processedarg(i) = .true.
+        cli_method = .true.
         env%gfnver = '--gxtb'
         write (stdout,'(2x,a,'' : Use of g-xTB requested.'')') env%gfnver
         call gxtb_syscall_warning()
 
       case ('-gxtb_dev')
         processedarg(i) = .true.
+        cli_method = .true.
         env%gfnver = '--gxtb'
         write (stdout,'(2x,a)') 'Note: --gxtb_dev is deprecated, redirecting to --gxtb.'
 
       case ('-mlip') !> quick setup of an fmlip-relay ML potential: --mlip <uma|maceoff>
         processedarg(i) = .true.
+        cli_method = .true.
         env%legacy = .false. !> new calculators only!
         select case (trim(arg1))
         case ('uma')
@@ -1626,6 +1685,7 @@ subroutine parseflags(env,arg,nra)
         end select
 
       case ('-orca') !> set up a single ORCA driver level: --orca <template> <exe>
+        cli_method = .true.
         processedarg(i) = .true.
         env%legacy = .false. !> new calculators only!
         ! ── both the template and the executable are mandatory ──────────
@@ -1698,8 +1758,11 @@ subroutine parseflags(env,arg,nra)
           if (io == 0) then
             processedarg(i) = .true.
             env%legacy = .false.
-            call setup_hybrid_calc(env,trim(hybrid_workhorse), &
-              &                    trim(hybrid_quality),trim(hybrid_mode))
+            cli_method = .true.
+            !> levels are built in env2calc, after charge and solvation are known
+            env%hybrid_work = trim(hybrid_workhorse)
+            env%hybrid_qual = trim(hybrid_quality)
+            env%hybrid_mode = trim(hybrid_mode)
           end if
         end if
 
@@ -1799,6 +1862,7 @@ subroutine parseflags(env,arg,nra)
 
       case ('-gbsa','-g','-alpb')   !> use GBSA or ALPB implicit solvation
         processedarg(i) = .true.
+        cli_solv = .true.
         env%gbsa = .true.
         atmp = adjustl(arg(i+1))
         if (atmp(1:1) .ne. '-'.and.atmp(1:1) .ne. ' ') then
@@ -1809,36 +1873,38 @@ subroutine parseflags(env,arg,nra)
           else
             env%solv = '--gbsa '//trim(env%solvent)
           end if
+          !> catch typos here, not only when the calculator is set up (also for --dry)
+          if (.not.tblite_solvent_known(lowercase(trim(env%solvent)))) then
+            write (stdout,'(a,a,a)') '**ERROR** unknown solvent "',trim(env%solvent), &
+              & '" for implicit solvation'
+            call creststop(status_config)
+          end if
         else
           call parseflags_missing(argument)
         end if
         write (stdout,'(2x,a,a)') trim(env%solv),' : implicit solvation'
 
-      case ('-chrg')                  !> create a .CHRG file
+      case ('-chrg')                  !> molecular charge
         processedarg(i) = .true.
         call readl(arg1,xx,j)
         if (j > 0) then
           processedarg(i+1) = .true.
-          open (newunit=ich,file='.CHRG')
+          cli_chrg = .true.
           env%chrg = nint(xx(1))
           env%ref%ichrg = env%chrg
-          write (ich,'(i0)') nint(xx(1))
-          close (ich)
           write (stdout,'(2x,a,1x,a)') trim(arg(i)),arg1
         else
           call parseflags_missing(argument)
         end if
 
-      case ('-uhf')                    !> create a .UHF file
+      case ('-uhf')                    !> number of unpaired electrons
         processedarg(i) = .true.
         call readl(arg1,xx,j)
         if (j > 0) then
           processedarg(i+1) = .true.
-          open (newunit=ich,file='.uhf')
+          cli_uhf = .true.
           env%uhf = nint(xx(1))
           env%ref%uhf = env%uhf
-          write (ich,'(i0)') nint(xx(1))
-          close (ich)
           write (stdout,'(2x,a,1x,a)') trim(arg(i)),arg1
         else
           call parseflags_missing(argument)
@@ -1849,11 +1915,9 @@ subroutine parseflags(env,arg,nra)
         call readl(arg1,xx,j)
         if (j > 0) then
           processedarg(i+1) = .true.
+          cli_uhf = .true.
           env%uhf = nint(xx(1))-1
           env%ref%uhf = env%uhf
-          open (newunit=ich,file='.uhf')
-          write (ich,'(i0)') env%uhf
-          close (ich)
           write (stdout,'(2x,a,1x,a)') trim(arg(i)),arg1
         else
           call parseflags_missing(argument)
@@ -1872,9 +1936,12 @@ subroutine parseflags(env,arg,nra)
         atmp = arg(i+1)
         call to_lower(atmp)
         j = index(atmp,'x')
-        env%user_mdtime = .true.
-        if (j .ne. 0) then             !> scaling of the md length
-          btmp = atmp(j+1:)
+        if (j .ne. 0) then             !> scaling of the md length, "x2" or "2x"
+          if (j == 1) then
+            btmp = atmp(2:)
+          else
+            btmp = atmp(:j-1)
+          end if
           env%scallen = .true.
           call readl(btmp,xx,j)
           if (j > 0) then
@@ -1888,6 +1955,7 @@ subroutine parseflags(env,arg,nra)
           if (j > 0) then
             processedarg(i+1) = .true.
             env%mdtime = xx(1)
+            env%user_mdtime = .true.  !> only an absolute length counts as user-set
             write (stdout,'(2x,a,1x,a,1x,a)') trim(arg(i)),arg1, &
             &    '(MD length in ps)'
           else
@@ -2039,6 +2107,7 @@ subroutine parseflags(env,arg,nra)
 
       case ('-nocbonds')
         processedarg(i) = .true.
+        nocbonds = .true.
         bondconst = .false.
         env%cts%cbonds_global = .false.
         env%cts%cbonds_md = .false.
@@ -3216,6 +3285,24 @@ subroutine parseflags(env,arg,nra)
     write (stdout,*)
   end if
 
+!>--- GFN-FF searches get the automatic bond constraints of --gfnff also when the
+!>    GFN-FF level comes from the input file or is the workhorse of a composite flag
+  if (any((/crest_imtd,crest_imtd2/) == env%crestver).and.ctype == 0.and. &
+  &   .not.nocbonds.and..not.env%legacy) then
+    gfnff_search = any(lowercase(trim(env%hybrid_work)) == ['gfnff','gff  '])
+    !> TOML levels that a CLI method flag replaces below do not count
+    if (.not.cli_method) then
+      do i = 1,env%calc%ncalculations
+        if (env%calc%calcs(i)%id == jobtype%gfnff.and.env%calc%calcs(i)%refine_lvl == 0) &
+        &  gfnff_search = .true.
+      end do
+    end if
+    if (gfnff_search) then
+      ctype = 5
+      bondconst = .true.
+    end if
+  end if
+
 !>--- automatic bond constraint setup
   if (bondconst) then
     select case (ctype)
@@ -3237,6 +3324,17 @@ subroutine parseflags(env,arg,nra)
 
 !>--- internal constraint check-up
   call internal_constraint_repair(env,bondconst)
+
+!>--- --subrmsd with frozen atoms: CREGEN RMSDs only over the mobile atoms,
+!>    unless an atomlist+/- from --cinp already selected a subset
+  if (env%subRMSD.and.allocated(env%calc%freezelist).and. &
+  &   env%rednat == env%ref%nat.and.allocated(env%includeRMSD)) then
+    if (size(env%calc%freezelist) == size(env%includeRMSD)) then
+      where (env%calc%freezelist) env%includeRMSD = 0
+      env%rednat = sum(env%includeRMSD)
+      write (stdout,'(2x,a,i0)') '--subrmsd: # of atoms considered for RMSDs: ',env%rednat
+    end if
+  end if
 
 !========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
@@ -3345,6 +3443,55 @@ subroutine parseflags(env,arg,nra)
 !> FALLBACK setup of new calculator (important CREST >3.0 handling things)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>!
 !========================================================================================!
+!>--- CLI level settings on top of [[calculation.level]] blocks from the input file:
+!>    one level is overridden, several levels may differ in charge, spin or solvent
+  if (ntoml_lvl > 0.and.(cli_chrg.or.cli_uhf.or.cli_solv.or.cli_method)) then
+    if (ntoml_lvl > 1) then
+      write (stdout,'(/,a,i0,a)') '**ERROR** the input file defines ',ntoml_lvl, &
+        & ' [[calculation.level]] blocks, so --chrg, --uhf, --alpb/--gbsa'
+      write (stdout,'(a)') '          and method flags on the command line are ambiguous.'
+      write (stdout,'(a)') '          Set them per level in the input file instead.'
+      call creststop(status_config)
+    end if
+    if (len_trim(env%hybrid_mode) > 0) then
+      write (stdout,'(/,a)') '**ERROR** a composite method flag (A//B, A/opt/B, A@B) cannot replace'
+      write (stdout,'(a)') '          the [[calculation.level]] of the input file.'
+      call creststop(status_config)
+    end if
+    if (cli_method) then
+      !>--- rebuild the level from the CLI method (below); keep what the CLI did not set
+      if (.not.cli_chrg) env%chrg = env%calc%calcs(1)%chrg
+      if (.not.cli_uhf) env%uhf = env%calc%calcs(1)%uhf
+      if (.not.cli_solv.and.allocated(env%calc%calcs(1)%solvmodel).and. &
+      &   allocated(env%calc%calcs(1)%solvent)) then
+        env%gbsa = .true.
+        env%solvent = env%calc%calcs(1)%solvent
+        env%solv = '--'//trim(env%calc%calcs(1)%solvmodel)//' '//trim(env%solvent)
+      end if
+      deallocate (env%calc%calcs)
+      env%calc%ncalculations = 0
+      write (stdout,'(2x,a)') 'CLI method replaces the [[calculation.level]] of the input file'
+    else
+      if (cli_chrg) env%calc%calcs(1)%chrg = env%chrg
+      if (cli_uhf) then
+        env%calc%calcs(1)%uhf = env%uhf
+        call env%calc%calcs(1)%sync_multiplicity()
+      end if
+      if (cli_solv) then
+        call level_add_cli_solvation(env,env%calc%calcs(1),ex)
+        if (.not.ex) then
+          write (stdout,'(/,a,a)') '**ERROR** implicit solvation is not available for the method', &
+            & ' of the [[calculation.level]] in the input file'
+          call creststop(status_config)
+        end if
+      end if
+      write (stdout,'(2x,a)') 'CLI charge/spin/solvation applied to the [[calculation.level]]'
+    end if
+  end if
+
+!>--- legacy xtb system calls still pick up the charge and spin from these files
+  if (env%legacy) call env%wrtCHRG('')
+
   if (.not.env%legacy.and.env%calc%ncalculations == 0) then
     write (stdout,'(/,a)',advance='no') '> Setting up backup calculator ...'
     flush (stdout)

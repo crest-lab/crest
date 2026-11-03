@@ -424,6 +424,9 @@ module crest_data
     character(len=:),allocatable :: orca_cmd      !> ORCA executable path (--orca)
     character(len=40)  :: rerank_lvl = ''    !> method for post-search SP reranking (--rerank)
     character(len=40)  :: reopt_lvl  = ''    !> method for post-search geo-opt standalone (--reopt)
+    character(len=40)  :: hybrid_work = ''   !> composite CLI method A//B etc.: workhorse B
+    character(len=40)  :: hybrid_qual = ''   !> composite CLI method: quality level A
+    character(len=4)   :: hybrid_mode = ''   !> composite CLI method: 'sp', 'opt' or 'at'
     character(len=20)  :: lmover = ''        !> GFN version for LMO computation in xtb_lmo subroutine
     character(len=512) :: ProgName = ''      !> name of the xtb executable (+ path)
     character(len=512) :: ProgIFF = ''       !> name of xtbiff for QCG-mode
@@ -1245,6 +1248,9 @@ contains  !> MODULE PROCEDURES START HERE
     self%gfnver2       = src%gfnver2
     self%rerank_lvl    = src%rerank_lvl
     self%reopt_lvl     = src%reopt_lvl
+    self%hybrid_work   = src%hybrid_work
+    self%hybrid_qual   = src%hybrid_qual
+    self%hybrid_mode   = src%hybrid_mode
     self%lmover        = src%lmover
     self%ProgName      = src%ProgName
     self%ProgIFF       = src%ProgIFF

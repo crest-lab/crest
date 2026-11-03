@@ -39,6 +39,8 @@ module parse_maindata
 
   character(len=*),parameter,private :: fmturk = '("unrecognized KEYWORD in ",a," : ",a)'
   character(len=*),parameter,private :: fmtura = '("unrecognized ARGUMENT : ",a)'
+  !> optlev given in the main section; runtype defaults must not overwrite it
+  logical,private :: user_optlev = .false.
 
   external creststop
 
@@ -53,7 +55,7 @@ contains   !> MODULE PROCEDURES START HERE
     type(systemdata) :: env
     type(keyvalue) :: kv
     integer,intent(inout) :: istat
-    integer :: istat_ref
+    integer :: istat_ref,io
     logical :: rd
     istat_ref = istat
     rd = .false.
@@ -71,7 +73,12 @@ contains   !> MODULE PROCEDURES START HERE
     if (.not.rd) then
       select case (kv%key)
       case ('optlev','ancopt_level')
-        env%optlev = optlevnum(kv%rawvalue)
+        env%optlev = optlevnum(kv%rawvalue,io)
+        if (io /= 0) then
+          write (stdout,fmtura) trim(kv%rawvalue)
+          call creststop(status_config)
+        end if
+        user_optlev = .true.
 
       case ('split')
         if (kv%id .ne. valuetypes%int_array.or. &
@@ -155,20 +162,23 @@ contains   !> MODULE PROCEDURES START HERE
       case ('ancopt','optimize','ohess')
         env%preopt = .false.
         env%crestver = crest_optimize
-        env%optlev = 0.0_wp
+        if (.not.user_optlev) env%optlev = 0.0_wp
         if (val .eq. 'ohess') then
           env%crest_ohess = .true.
         end if
       case ('ancopt_ensemble','optimize_ensemble','mdopt')
         env%preopt = .false.
         env%crestver = crest_mdopt2
-        env%optlev = 0.0d0
+        !> same optimization level as CLI -mdopt (program default, very tight)
       case ('screen_ensemble','screen')
         env%preopt = .false.
         env%crestver = crest_screen
       case ('ensemble_singlepoints','ensemblesp','mdsp')
         env%preopt = .false.
         env%crestver = crest_ensemblesp
+      case ('ensemble_hessian','ensemblehess','mdhess')
+        env%preopt = .false.
+        env%crestver = crest_ensemblehess
 
       case ('md','mtd','metadynamics','dynamics')
         env%preopt = .false.
@@ -223,7 +233,7 @@ contains   !> MODULE PROCEDURES START HERE
         env%performCross = .false.
         env%rotamermds = .false.
         env%crestver = crest_imtd
-      case ('bh','gmin')
+      case ('bh','gmin','basinhopping','basin-hopping')
         env%crestver = crest_bh
       case ('entropy','imtd-smtd','entropy_search')
         env%crestver = crest_imtd  !> the entropy mode acts as subtype of the crest_imtd algo
@@ -327,6 +337,8 @@ contains   !> MODULE PROCEDURES START HERE
       env%checktopo = val
     case ('notopo')
       env%checktopo = .not.val
+    case ('subrmsd')  !> as --subrmsd: RMSDs only over the non-frozen atoms
+      env%subRMSD = val
     case ('multilevelopt')
       env%multilevelopt = val
     case ('refine_presort')
@@ -578,7 +590,8 @@ contains   !> MODULE PROCEDURES START HERE
     type(datablock) :: blk
     type(keyvalue) :: kv
     integer,intent(inout) :: istat
-    integer :: i
+    integer :: i,j
+    logical :: user_sthr
 !>--- parse the arguments
     do i = 1,blk%nkv
       kv = blk%kv_list(i)
@@ -611,9 +624,17 @@ contains   !> MODULE PROCEDURES START HERE
         select case (kv%value_c)
         case ('grimme')
           env%thermo%emodel = kv%value_c
-        case ('truhlar') 
-          env%thermo%emodel = kv%value_c 
-          env%thermo%sthr = 100.0_wp
+        case ('truhlar')
+          env%thermo%emodel = kv%value_c
+          !>--- Truhlar's 100 cm-1 cutoff, unless sthr is given in this block
+          user_sthr = .false.
+          do j = 1,blk%nkv
+            select case (blk%kv_list(j)%key)
+            case ('sthr','freq_interpol')
+              user_sthr = .true.
+            end select
+          end do
+          if (.not.user_sthr) env%thermo%sthr = 100.0_wp
         case default
           write (stdout,fmtura) trim(kv%rawvalue)
           call creststop(status_config)

@@ -78,12 +78,13 @@ For QCG calculations additionally cite:
 *--hess*, *--numhess*::
   Numerical Hessian / vibrational frequencies.
 
-*--md*, *--dynamics*::
+*--dyn*, *--dynamics*::
   Stand-alone molecular dynamics simulation.
 
-*--v3*, *--v2i*::
+*--imtdgc*, *--v3*, *--v2i*::
   iMTD-GC iterative conformational search.
-  [_default_ conformer search]
+  There is no default runtype; one must be given explicitly. The search-mode
+  flags *-quick*, *-squick*, *-mquick* and *-NCI* imply iMTD-GC.
 
 *--v4*, *--entropy*::
   iMTD-sMTD entropy-focused conformational search.
@@ -323,6 +324,7 @@ The following flags apply constraints to *all* calculations made by CREST.
 
 *-quick*, *-squick*, *-mquick*::
   Progressively reduced search settings for fast, approximate ensembles.
+  Without another runtype, they select iMTD-GC.
 
 *-origin*::
   Track the MTD step of origin for each conformer.
@@ -333,7 +335,7 @@ The following flags apply constraints to *all* calculations made by CREST.
 
 *-NCI*::
   NCI cluster mode: flat-bottom wall potential and specialised MTD settings
-  suited for weakly-bound complexes.
+  suited for weakly-bound complexes. Without another runtype, it selects iMTD-GC.
 
 *-wscal* _float_::
   Scale the wall potential sphere radius.

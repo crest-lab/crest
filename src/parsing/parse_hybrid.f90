@@ -23,7 +23,7 @@
 module parse_hybrid
   use crest_parameters
   use crest_data
-  use crest_calculator,only:calcdata,calculation_settings
+  use crest_calculator,only:calcdata,calculation_settings,jobtype
   use iomod,only:lowercase
   implicit none
   private
@@ -31,6 +31,9 @@ module parse_hybrid
   public :: parse_hybrid_argument
   public :: is_valid_method
   public :: setup_hybrid_calc
+  public :: level_add_cli_solvation
+
+  external creststop
 
 contains
 
@@ -124,9 +127,11 @@ contains
 
 !========================================================================================!
 
-  subroutine setup_hybrid_calc(env,workhorse_str,quality_str,mode)
+  subroutine setup_hybrid_calc(env,calc,workhorse_str,quality_str,mode)
   !*******************************************************************
   !* Set up a two-level calcdata from a hybrid method pair.
+  !* Called after all CLI flags are parsed, so charge, spin and the
+  !* implicit solvation from env apply to both levels.
   !*  workhorse → primary calc (refine_lvl=0, runs during iMTD-GC)
   !*  quality   → secondary calc:
   !*               mode='sp'  → refine_lvl=singlepoint (inline SP)
@@ -137,9 +142,12 @@ contains
   !*   workhorse_str - method string for the fast workhorse (e.g. 'gfnff')
   !*   quality_str   - method string for the quality level  (e.g. 'gfn2')
   !*   mode          - 'sp', 'opt', or 'at'
+  !* Output:
+  !*   calc          - the two levels are appended to it
   !*******************************************************************
     implicit none
     type(systemdata),intent(inout) :: env
+    type(calcdata),intent(inout) :: calc
     character(len=*),intent(in) :: workhorse_str,quality_str,mode
     type(calculation_settings) :: cal_work,cal_qual
     integer :: rlvl
@@ -155,17 +163,23 @@ contains
     call cal_work%create(workhorse_str)
     cal_work%chrg = env%chrg
     cal_work%uhf  = env%uhf
+    call cal_work%sync_multiplicity()
+    cal_work%spin_polarized = env%spin_polarized
+    call hybrid_solvation(cal_work,workhorse_str)
     cal_work%refine_lvl = 0
     call cal_work%autocomplete(1)
-    call env%calc%add(cal_work)
+    call calc%add(cal_work)
 
   ! ── quality level ──────────────────────────────────────────────
     call cal_qual%create(quality_str)
     cal_qual%chrg = env%chrg
     cal_qual%uhf  = env%uhf
+    call cal_qual%sync_multiplicity()
+    cal_qual%spin_polarized = env%spin_polarized
+    call hybrid_solvation(cal_qual,quality_str)
     cal_qual%refine_lvl = rlvl
     call cal_qual%autocomplete(2)
-    call env%calc%add(cal_qual)
+    call calc%add(cal_qual)
 
   ! ── register refine_queue / pqueue ────────────────────────────
     if (trim(mode) == 'at') then
@@ -185,7 +199,53 @@ contains
           & ' : inline singlepoint re-ranking'
       end if
     end if
+
+  contains
+
+    subroutine hybrid_solvation(cal,method)
+      type(calculation_settings),intent(inout) :: cal
+      character(len=*),intent(in) :: method
+      logical :: ok
+      call level_add_cli_solvation(env,cal,ok)
+      if (.not.ok) then
+        write (stdout,'(a,a,a)') '**ERROR** implicit solvation (',trim(env%solv), &
+          & ') is not available for '//trim(method)//' in the composite method'
+        call creststop(status_config)
+      end if
+    end subroutine hybrid_solvation
   end subroutine setup_hybrid_calc
+
+!========================================================================================!
+
+  subroutine level_add_cli_solvation(env,cal,ok)
+  !*******************************************************
+  !* Copy the CLI implicit solvation (--alpb/--gbsa) into
+  !* one calculation level. ok is .false. if the level's
+  !* method has no implicit solvation in the calculator
+  !* layer (e.g. g-xTB via the xtb binary, ORCA, MLIPs),
+  !* so the caller can stop instead of silently running
+  !* in the gas phase. Without --alpb/--gbsa: no-op.
+  !*******************************************************
+    implicit none
+    type(systemdata),intent(in) :: env
+    type(calculation_settings),intent(inout) :: cal
+    logical,intent(out) :: ok
+    ok = .true.
+    if (.not.env%gbsa) return
+    select case (cal%id)
+    case (jobtype%tblite,jobtype%gfn0,jobtype%gfn0occ,jobtype%gfnff)
+      continue
+    case default
+      ok = .false.
+      return
+    end select
+    if (index(env%solv,'gbsa') .ne. 0) then
+      cal%solvmodel = 'gbsa'
+    else
+      cal%solvmodel = 'alpb'
+    end if
+    cal%solvent = trim(env%solvent)
+  end subroutine level_add_cli_solvation
 
 !========================================================================================!
 end module parse_hybrid
