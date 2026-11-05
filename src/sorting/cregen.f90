@@ -413,7 +413,7 @@ subroutine cregen_prout(env,simpleset,pr1,pr2,pr3,pr4)
   implicit none
   type(systemdata) :: env !> MAIN STORAGE OS SYSTEM DATA
   integer,intent(in) :: simpleset
-  logical,intent(out) :: pr1,pr2,pr3,pr4
+  logical,intent(inout) :: pr1,pr2,pr3,pr4
 
   pr1 = .true.  !> threshold summary
   pr2 = .true.  !> detailed energy/group list
@@ -458,15 +458,15 @@ subroutine cregen_director(env,simpleset,checkbroken,sortE,sortRMSD,sortRMSD2, &
   implicit none
   type(systemdata) :: env    ! MAIN STORAGE OS SYSTEM DATA
   integer,intent(in) :: simpleset
-  logical,intent(out) :: checkbroken
-  logical,intent(out) :: sortE,sortRMSD,sortRMSD2
-  logical,intent(out) :: repairord
-  logical,intent(out) :: newfile,conffile
-  logical,intent(out) :: bonusfiles
-  logical,intent(out) :: anal
-  logical,intent(out) :: topocheck
-  logical,intent(out) :: checkez
-  logical,intent(out) :: saveelow
+  logical,intent(inout) :: checkbroken
+  logical,intent(inout) :: sortE,sortRMSD,sortRMSD2
+  logical,intent(inout) :: repairord
+  logical,intent(inout) :: newfile,conffile
+  logical,intent(inout) :: bonusfiles
+  logical,intent(inout) :: anal
+  logical,intent(inout) :: topocheck
+  logical,intent(inout) :: checkez
+  logical,intent(inout) :: saveelow
 
   checkbroken = .true. !> fragmentized structures are sorted out
   sortE = .true.       !> sort based on energy
@@ -568,7 +568,7 @@ subroutine cregen_filldata1(env,ewin,rthr,ethr,bthr,athr,pthr,T,couthr)
   use crest_data
   implicit none
   type(systemdata) :: env  !> MAIN STORAGE OS SYSTEM DATA
-  real(wp),intent(out) :: ewin,rthr,ethr,bthr,athr,pthr,T,couthr
+  real(wp),intent(inout) :: ewin,rthr,ethr,bthr,athr,pthr,T,couthr
   !>--------------------------------------------------------------------
   ewin = env%ewin      !> ensemble energy window in kcal/mol
   rthr = env%rthr      !> RMSD thr in Ang
@@ -585,7 +585,7 @@ subroutine cregen_filldata2(simpleset,ewin)
   use crest_data
   implicit none
   integer,intent(in) :: simpleset
-  real(wp),intent(out) :: ewin
+  real(wp),intent(inout) :: ewin
   if (any(simpleset == (/6,12/))) then
     ewin = huge(ewin)
   end if
