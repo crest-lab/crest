@@ -34,6 +34,8 @@ list(APPEND srcs
   "${dir}/stereoisomers.f90"
   "${dir}/tautomerize.f90"
   "${dir}/trialmd_legacy.f90"
+  "${dir}/identifiers.f90"
+  "${dir}/sortens.f90"
   "${dir}/zsort.f90"
 )
 

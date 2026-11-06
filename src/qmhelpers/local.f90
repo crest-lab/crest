@@ -26,6 +26,8 @@ module mo_localize
   private
 
   public :: local
+  public :: local_iff
+  public :: Dints,cao2saop
 
   logical,parameter :: pr_local = .true.
 
@@ -578,6 +580,346 @@ contains  !> MODULE PROCEDURES START HERE
     deallocate (xcen,cca,d,f,qmo,ecent,rklmo)
 
   end subroutine local
+
+!========================================================================================!
+
+  subroutine local_iff(nat,at,nao,ihomo,xyz,z,focc,s,p,cmo,eig,aoat2,dip, &
+  &                    nlmo,lmo,rlmo,qct,ehomo,elumo,dipol,basat)
+    !******************************************************************
+    !* Silent xTB-IFF variant of local (xtb src/local.f90): localizes
+    !* the occupied MOs and returns the LMO charge centers and types
+    !* plus the HOMO/LUMO data for the IFF charge-transfer term.
+    !*
+    !* dip   : packed lower-triangular electronic dipole integrals
+    !*         -<mu|r|nu> over the nao AOs, gauge origin at zero
+    !* eig   : orbital energies in Hartree
+    !* nlmo  : number of LMO centers with type > 0, stored in
+    !*         lmo(1:nlmo) and rlmo(1:3,1:nlmo)
+    !* qct   : HOMO (:,1) and LUMO (:,2) atomic populations
+    !* dipol : total dipole moment (au)
+    !* basat : (optional) atoms carrying a LP or pi LMO, selected as
+    !*         msreact did from the xtb --lmo printout
+    !******************************************************************
+    implicit none
+    integer,intent(in)  :: nat,at(nat),nao,ihomo
+    real(wp),intent(in) :: xyz(3,nat),z(nat),focc(nao)
+    real(wp),intent(in) :: s(nao,nao),p(nao,nao),cmo(nao,nao),eig(nao)
+    integer,intent(in)  :: aoat2(nao)
+    real(wp),intent(in) :: dip(nao*(nao+1)/2,3)
+    integer,intent(out) :: nlmo
+    integer,intent(inout)  :: lmo(:)
+    real(wp),intent(inout) :: rlmo(:,:)
+    real(wp),intent(out) :: qct(nat,2),ehomo,elumo,dipol
+    logical,intent(out),optional :: basat(nat)
+
+    real(wp),allocatable :: op(:,:),cca(:),dip2(:),d(:,:),f(:),eiga(:)
+    real(wp),allocatable :: xcen(:),qmo(:,:),tmpq(:,:),wbo(:,:),tmp_cmo(:,:)
+    real(wp),allocatable :: ecent(:,:)
+    real(sp),allocatable :: rklmo(:,:)
+    integer,allocatable  :: lneigh(:,:),aneigh(:,:)
+    integer :: mo,n,i,j,k,ii,jj,imem(nat),idum,jdum,is1,is2,is3
+    integer :: ilumo,klev,nlev,m,ldum(ihomo),sigrel(3,ihomo),npi,pilist(ihomo)
+    integer :: i1,i2,i3,ipi,piset(nat),j1,j2,smo,pmo,nl,nm,nr,imo,new
+    real(wp) :: dd,dum,pp,dtot(3),thr,vec1(3),vec2(3)
+    real(wp) :: enlumo,enhomo,qhl(nat,2),ps,efh,efl,pithr
+    logical :: l1,l2,l3,flip
+    external :: dgemm
+
+    n = ihomo
+    ilumo = n+1
+    if (ilumo .gt. nao) then
+      enlumo = 1000.0_wp
+    else
+      enlumo = eig(ilumo)
+    end if
+    efh = eig(max(n,1))
+    efl = enlumo
+
+!>-- HOMO/LUMO populations for the CT term, averaged over near-degenerate levels
+    qhl = 0.0_wp
+    thr = 0.01_wp
+    if (ihomo .eq. 0) then
+      enhomo = -999.999999990_wp
+      qhl(1:nat,1) = 0.0_wp
+    else
+      klev = 0
+      enhomo = 0.0_wp
+      do nlev = ihomo,1,-1
+        if (efh-eig(nlev) .gt. thr) exit
+        klev = klev+1
+        enhomo = enhomo+eig(nlev)
+        call levelpop(nlev,1)
+      end do
+      enhomo = enhomo/real(klev,wp)
+      qhl(1:nat,1) = qhl(1:nat,1)/real(klev,wp)
+    end if
+
+    klev = 0
+    enlumo = 0.0_wp
+    do nlev = ilumo,nao
+      if (eig(nlev)-efl .gt. thr) exit
+      klev = klev+1
+      enlumo = enlumo+eig(nlev)
+      call levelpop(nlev,2)
+    end do
+    if (klev > 0) then
+      enlumo = enlumo/real(klev,wp)
+      qhl(1:nat,2) = qhl(1:nat,2)/real(klev,wp)
+    end if
+    if (ilumo .gt. nao) then
+      enlumo = 1000.0_wp
+      qhl(1:nat,2) = 0.0_wp
+    end if
+
+    allocate (lneigh(4,n),aneigh(2,n),source=0)
+    allocate (cca(nao*nao),xcen(n),source=0.0_wp)
+    allocate (d(n,n),ecent(n,4),eiga(n),source=0.0_wp)
+    allocate (tmp_cmo(nao,nao),f(n))
+
+    dtot = 0.0_wp
+    do i = 1,nat
+      dtot(1:3) = dtot(1:3)+xyz(1:3,i)*z(i)
+    end do
+    if (n .eq. 0) then
+      dipol = sqrt(sum(dtot**2))
+      tmp_cmo = cmo
+    else
+      k = 0
+      do i = 1,n
+        k = k+1
+        eiga(k) = eig(i)
+        cca(1+(k-1)*nao:k*nao) = cmo(1:nao,i)
+      end do
+
+!>-- dipole integrals over the occupied MOs
+      allocate (dip2(nao*nao),op(n*(n+1)/2,3))
+      do mo = 1,3
+        call onetri(1,dip(:,mo),dip2,cca,nao,n)
+        k = 0
+        do i = 1,n
+          do j = 1,i
+            k = k+1
+            op(k,mo) = dip2(j+(i-1)*n)
+          end do
+        end do
+      end do
+
+      k = 0
+      do i = 1,n
+        k = k+i
+        dtot(1:3) = dtot(1:3)+op(k,1:3)*focc(i)
+      end do
+      dipol = sqrt(sum(dtot**2))
+
+      call lopt(.true.,n,3,1.d-6,op,d)
+
+      k = 0
+      do i = 1,n
+        k = k+i
+        ecent(i,1:3) = -op(k,1:3)
+      end do
+
+!>-- LMO Fock diagonal, sort, and transform to LMOs
+      do i = 1,n
+        f(i) = sum(eiga(1:n)*d(1:n,i)**2)
+      end do
+      call lmosort2(n,f,d,ecent)
+      tmp_cmo = cmo
+      call dgemm('N','N',nao,n,n,1.d0,cca,nao,d,n,0.d0,tmp_cmo,nao)
+    end if
+
+    pithr = 2.20_wp
+    allocate (qmo(nat,n))
+    call mocent(nat,nao,n,tmp_cmo,s,qmo,xcen,aoat2)
+
+    !> xtb allocates 2*n here, which the pi regularization can overrun
+    allocate (rklmo(5,4*n),source=0.0_sp)
+    allocate (tmpq(nat,n))
+    tmpq(1:nat,1:n) = qmo(1:nat,1:n)
+    do i = 1,n
+      do j = 1,nat
+        imem(j) = j
+      end do
+      call lmosort(nat,n,i,imem,qmo)
+      if (nat .eq. 1) then
+        jdum = 2
+      else
+        call lmotype(nat,at,xyz,ecent(i,1),ecent(i,2),ecent(i,3), &
+        &            imem(1),imem(2),xcen(i),.false.,pithr,jdum)
+      end if
+      rklmo(1:3,i) = real(ecent(i,1:3),sp)
+      rklmo(4,i) = real(ecent(i,4),sp)
+      rklmo(5,i) = real(jdum,sp)
+    end do
+    qmo(1:nat,1:n) = tmpq(1:nat,1:n)
+    deallocate (tmpq)
+
+!>-- second pass shifts the LP centers (modi=.true.) for the pi regularization
+    if (present(basat)) basat = .false.
+    do i = 1,n
+      do j = 1,nat
+        imem(j) = j
+      end do
+      call lmosort(nat,n,i,imem,qmo)
+      if (nat .ne. 1) then
+        call lmotype(nat,at,xyz,ecent(i,1),ecent(i,2),ecent(i,3), &
+        &            imem(1),imem(2),xcen(i),.true.,pithr,jdum)
+      else
+        jdum = 1
+      end if
+!>-- LP: its atom; pi/delpi: the two main atoms, or one if only one contributes
+      if (present(basat)) then
+        idum = 1
+        do j = 1,nat
+          if (qmo(j,i) .gt. 0.07_wp) idum = j
+        end do
+        if (jdum .ge. 3.and.idum .ge. 2) then
+          basat(imem(1)) = .true.
+          basat(imem(2)) = .true.
+        else if (jdum .ge. 2) then
+          basat(imem(1)) = .true.
+        end if
+      end if
+    end do
+
+    new = 0
+    !> the pi regularization looks up four LMO neighbours
+    if (n >= 4) then
+      if (maxval(rklmo(5,1:n)) .ge. 3.0) then
+        call atomneigh(n,nat,xyz,ecent,aneigh)
+        call lmoneigh(n,rklmo,ecent,aneigh,lneigh)
+
+!>-- pair the pi LMOs above/below the plane
+        ldum = -1
+        do i = 1,n
+          if (int(rklmo(5,i)) .ge. 3.and.ldum(i) .ne. 1) then
+            flip = .false.
+            call piorient(ecent(i,:),ecent(lneigh(1,i),:),flip)
+            if (flip) then
+              ldum(i) = 1
+              ldum(lneigh(1,i)) = 0
+            else
+              ldum(i) = 0
+              ldum(lneigh(1,i)) = 1
+            end if
+          end if
+        end do
+        k = 0
+        piset = 0
+        do i = 1,n
+          if (ldum(i) .eq. 0) then
+            k = k+1
+            pilist(k) = i
+            piset(aneigh(1,i)) = 1
+            piset(aneigh(2,i)) = 1
+          end if
+        end do
+        npi = k
+
+!>-- sigma bonds that belong to each deloc. pi system
+        ldum = 0
+        sigrel = 0
+        do i = 1,npi
+          ipi = pilist(i)
+          call irand3(i1,i2,i3)
+          is1 = lneigh(i1+1,ipi)
+          is2 = lneigh(i2+1,ipi)
+          is3 = lneigh(i3+1,ipi)
+          l1 = bndcheck(nat,piset,aneigh(1,is1),aneigh(2,is1))
+          l2 = bndcheck(nat,piset,aneigh(1,is2),aneigh(2,is2))
+          l3 = bndcheck(nat,piset,aneigh(1,is3),aneigh(2,is3))
+          if (l1.and.ldum(is1) .eq. 0) then
+            ldum(is1) = 1
+            sigrel(1,i) = is1
+          end if
+          if (l2.and.ldum(is2) .eq. 0) then
+            ldum(is2) = 1
+            sigrel(2,i) = is2
+          end if
+          if (l3.and.ldum(is3) .eq. 0) then
+            ldum(is3) = 1
+            sigrel(3,i) = is3
+          end if
+        end do
+
+        allocate (wbo(nat,nat),source=0.0_wp)
+        call get_wbo_rhf(nat,nao,p,s,aoat2,wbo)
+
+!>-- project the pi centers onto neighbouring sigma bonds with low pi order difference
+        k = 0
+        m = 0
+        do i = 1,npi
+          pmo = pilist(i)
+          i1 = aneigh(1,pmo)
+          i2 = aneigh(2,pmo)
+          dd = wbo(i2,i1)
+          do j = 1,3
+            smo = sigrel(j,i)
+            if (smo .eq. 0) cycle
+            if (rklmo(5,smo) .ne. 1) cycle
+            j1 = aneigh(1,smo)
+            j2 = aneigh(2,smo)
+            dum = wbo(j2,j1)
+            pp = abs((dum-dd)/(dum+dd-2.0_wp))
+            if (pp .ge. 0.50_wp) cycle
+            call threeoutfour(i1,i2,j1,j2,nl,nm,nr)
+            if (nl .eq. 0) cycle
+            vec1(1:3) = xyz(1:3,nm)
+            vec2(1:3) = (xyz(1:3,nl)+xyz(1:3,nr))*0.5_wp
+            dtot(1:3) = rklmo(1:3,pmo)
+            call calcrotation(dtot,vec2,vec1-vec2,pi)
+            k = k+1
+            rklmo(1:3,n+k) = real(dtot(1:3),sp)
+            rklmo(4:5,n+k) = rklmo(4:5,pmo)
+            imo = lneigh(1,pmo)
+            dtot(1:3) = rklmo(1:3,imo)
+            call calcrotation(dtot,vec2,vec1-vec2,pi)
+            k = k+1
+            rklmo(1:3,n+k) = real(dtot(1:3),sp)
+            rklmo(4:5,n+k) = rklmo(4:5,imo)
+            rklmo(5,smo) = 0
+            m = m+1
+          end do
+        end do
+        new = k
+        deallocate (wbo)
+      end if
+    end if
+
+!>-- store the centers with type > 0 contiguously
+    nlmo = 0
+    do i = 1,n+new
+      if (int(rklmo(5,i)) .gt. 0) then
+        nlmo = nlmo+1
+        lmo(nlmo) = int(rklmo(5,i))
+        rlmo(1:3,nlmo) = rklmo(1:3,i)
+      end if
+    end do
+    qct(1:nat,1:2) = qhl(1:nat,1:2)
+    ehomo = enhomo
+    elumo = enlumo
+
+    deallocate (xcen,cca,d,f,qmo,ecent,rklmo)
+
+  contains
+
+    subroutine levelpop(lev,ic)
+      integer,intent(in) :: lev,ic
+      integer :: ia,ja
+      do ia = 1,nao
+        ii = aoat2(ia)
+        do ja = 1,ia-1
+          jj = aoat2(ja)
+          ps = s(ja,ia)*cmo(ja,lev)*cmo(ia,lev)
+          qhl(ii,ic) = qhl(ii,ic)+ps
+          qhl(jj,ic) = qhl(jj,ic)+ps
+        end do
+        ps = s(ia,ia)*cmo(ia,lev)*cmo(ia,lev)
+        qhl(ii,ic) = qhl(ii,ic)+ps
+      end do
+    end subroutine levelpop
+
+  end subroutine local_iff
 
 !========================================================================================!
   subroutine lmotype(n,at,xyz,ex,ey,ez,ia1,ia2,xcen,modi,pithr,typ)

@@ -26,9 +26,7 @@ subroutine crest_search_mecp(env,tim)
   real(wp),allocatable :: grad(:,:)
   character(len=:),allocatable :: ensnam
   integer :: nat,nall
-  real(wp),allocatable :: eread(:)
-  real(wp),allocatable :: xyz(:,:,:)
-  integer,allocatable  :: at(:)
+  type(coord),allocatable :: structures(:)
   logical :: dump,ex
   character(len=80) :: atmp
 
@@ -72,8 +70,8 @@ subroutine crest_search_mecp(env,tim)
   call tim%start(2,'Molecular dynamics (MD)')
   call crest_search_multimd(env,mol,mddats,nsim)
   call tim%stop(2)
-  !>--- a file called crest_dynamics.trj should have been written
-  ensnam = 'crest_dynamics.trj'
+  !>--- a file called crest_dynamics.trj.xyz should have been written
+  ensnam = 'crest_dynamics.trj.xyz'
 
 !==========================================================!
 !>--- Reoptimization of trajectories
@@ -89,12 +87,7 @@ subroutine crest_search_mecp(env,tim)
     write (stdout,*) 'empty ensemble file'
     return
   end if
-  allocate (xyz(3,nat,nall),at(nat),eread(nall))
-  call rdensemble(ensnam,nat,nall,at,xyz,eread)
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
-!>--- Important: crest_oloop requires coordinates in Bohrs
-  xyz = xyz/bohr
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+  call rdensemble(ensnam,nall,structures)
 
   write (stdout,'(1x,a,i0,a,a,a)') 'Optimizing all ',nall, &
   & ' structures from file "',trim(ensnam),'" ...'
@@ -104,7 +97,7 @@ subroutine crest_search_mecp(env,tim)
 !>--- optimize
   call tim%start(3,'Geometry optimization')
   dump = .true.
-  call crest_oloop(env,nat,nall,at,xyz,eread,dump)
+  call crest_oloop(env,nall,structures,dump)
   call tim%stop(3)
 
 !==========================================================!

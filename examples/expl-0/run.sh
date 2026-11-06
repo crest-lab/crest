@@ -1,27 +1,12 @@
 #!/bin/bash
+# Dry run of CREST: prints settings and thresholds without running any calculation.
+# Use this to preview the iMTD-GC setup before committing to a full run.
+# Note: -dry is a CLI-only flag; see input.toml for the equivalent full-run settings.
 
-xtbin='xtb'
-crst='crest'
+command -v crest >/dev/null 2>&1 || { echo >&2 "Cannot find crest binary."; exit 1; }
 
-command -v $xtbin >/dev/null 2>&1 || { echo >&2 "Cannot find xtb binary. Exit."; exit 1; }
-command -v $crst >/dev/null 2>&1 || { echo >&2 "Cannot find crest binary. Exit."; exit 1; }
+# --- CLI run ---
+crest struc.xyz -dry
 
-if [ $xtbin == 'xtb' ]
- then
-    $crst struc.xyz -dry
- else
-    $crst struc.xyz -dry -xnam $xtbin
- fi
-
-# Before starting any calculation, settings
-# can be checked with the '-dry' flag.
-# This will only print a summary about the
-# selected settings and thresholds to the
-# consol and check for the xtb binary.
-#
-# Every time the input file (struc.xyz) is
-# something else than 'coord', a file called
-# 'coord' will be (over-)written, containing
-# the atomic coordinates in Bohr. CREST will
-# then continue to use and overwrite this
-# coord file for all further calculations.
+# --- TOML run (equivalent full run without -dry) ---
+# crest input.toml

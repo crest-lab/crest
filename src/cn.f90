@@ -51,7 +51,7 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 
-  subroutine calculate_CN(nat,at,xyz,cn,cnthr,cntype,dcndr,bond)
+  subroutine calculate_CN(nat,at,xyz,cn,cnthr,cntype,dcndr,bond,lat)
 !*********************************************************
 !* Universal CN calculator with several optional settings
 !* for customisation.
@@ -64,6 +64,9 @@ contains  !> MODULE PROCEDURES START HERE
 !*   cntype - string to select CN type (exp,erf,erf_en)
 !*   dcndr  - optional output cn derivatives
 !*   bond   - optional output "bond" connectivity matrix
+!*   lat    - lattice (3x3, columns = lattice vectors, Bohr). If
+!*            present, pair displacements use the minimum-image
+!*            convention so the CN/topology is periodic-aware.
 !*********************************************************
     implicit none
     !> INPUT
@@ -77,6 +80,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=*),intent(in),optional :: cntype
     real(wp),intent(out),optional :: dcndr(:,:,:)
     real(wp),intent(out),allocatable,optional :: bond(:,:)
+    real(wp),intent(in),optional :: lat(3,3)
     !> LOCAL
     real(wp) :: cn_thr,cn_direct
     integer :: cn_type,ati,atj
@@ -84,6 +88,8 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: damp,ddamp(3),den
     integer :: i,j,k,l,iat,jat
     logical :: deriv,getbond
+    logical :: periodic
+    real(wp) :: latinv(3,3),sfrac(3)
 
 !>--- check options and defaults
     if (present(cnthr)) then
@@ -128,6 +134,10 @@ contains  !> MODULE PROCEDURES START HERE
     endif
 
 
+!>--- minimum-image setup (periodic CN/topology)
+    periodic = present(lat)
+    if (periodic) latinv = inv3x3_cn(lat)
+
     cn(:) = 0.0_wp
 !>--- actual calculation
 
@@ -137,6 +147,12 @@ contains  !> MODULE PROCEDURES START HERE
 
       do j = 1,i-1
         rij(:) = xyz(:,i)-xyz(:,j)
+        if (periodic) then
+!>--- nearest periodic image: s = L⁻¹·d; s -= anint(s); d = L·s
+          sfrac = matmul(latinv,rij)
+          sfrac = sfrac-anint(sfrac)
+          rij = matmul(lat,sfrac)
+        end if
         r2 = sum(rij**2)
 !>--- cycle cutoff
         if (r2 > cn_thr) cycle
@@ -401,6 +417,31 @@ contains  !> MODULE PROCEDURES START HERE
     dz = xyz(3,iat)-xyz(3,jat)
     r2 = dx*dx+dy*dy+dz*dz
   end function cn_help_rdist
+
+  pure function inv3x3_cn(a) result(ainv)
+!*****************************************************
+!* Inverse of a 3x3 matrix via the cofactor/adjugate
+!* method. Used for the minimum-image convention in
+!* the periodic CN (s = L⁻¹·d).
+!*****************************************************
+    implicit none
+    real(wp),intent(in) :: a(3,3)
+    real(wp) :: ainv(3,3)
+    real(wp) :: det,detinv
+    det = a(1,1)*(a(2,2)*a(3,3)-a(2,3)*a(3,2)) &
+      & -a(1,2)*(a(2,1)*a(3,3)-a(2,3)*a(3,1)) &
+      & +a(1,3)*(a(2,1)*a(3,2)-a(2,2)*a(3,1))
+    detinv = 1.0_wp/det
+    ainv(1,1) = (a(2,2)*a(3,3)-a(2,3)*a(3,2))*detinv
+    ainv(2,1) = (a(2,3)*a(3,1)-a(2,1)*a(3,3))*detinv
+    ainv(3,1) = (a(2,1)*a(3,2)-a(2,2)*a(3,1))*detinv
+    ainv(1,2) = (a(1,3)*a(3,2)-a(1,2)*a(3,3))*detinv
+    ainv(2,2) = (a(1,1)*a(3,3)-a(1,3)*a(3,1))*detinv
+    ainv(3,2) = (a(1,2)*a(3,1)-a(1,1)*a(3,2))*detinv
+    ainv(1,3) = (a(1,2)*a(2,3)-a(1,3)*a(2,2))*detinv
+    ainv(2,3) = (a(1,3)*a(2,1)-a(1,1)*a(2,3))*detinv
+    ainv(3,3) = (a(1,1)*a(2,2)-a(1,2)*a(2,1))*detinv
+  end function inv3x3_cn
 
   function cn_damp_exp(rco,r) result(damp)
 !*****************************************

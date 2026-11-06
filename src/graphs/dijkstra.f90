@@ -65,13 +65,11 @@ contains
       !>-- loop over the neighbours of vertex k
       do u = 1,V
         if (A(vc,u) == 0) cycle
-        if (prev(u) .ne. v) then
-          newdist = dist(vc) + E(vc,u)
-          !>-- is the new dist value of u better than the previous one?
-          if (newdist < dist(u)) then
-            dist(u) = newdist
-            prev(u) = vc
-          end if
+        newdist = dist(vc) + E(vc,u)
+        !>-- is the new dist value of u better than the previous one?
+        if (newdist < dist(u)) then
+          dist(u) = newdist
+          prev(u) = vc
         end if
       end do
     end do
@@ -119,13 +117,11 @@ contains
       !>-- loop over the neighbours of vertex k
       do u = 1,V
         if (A(vc,u) == 0) cycle
-        if (prev(u) .ne. v) then
-          newdist = dist(vc) + float(A(vc,u))
-          !>-- is the new dist value of u better than the previous one?
-          if (newdist < dist(u)) then
-            dist(u) = newdist
-            prev(u) = vc
-          end if
+        newdist = dist(vc) + float(A(vc,u))
+        !>-- is the new dist value of u better than the previous one?
+        if (newdist < dist(u)) then
+          dist(u) = newdist
+          prev(u) = vc
         end if
       end do
     end do
@@ -184,49 +180,6 @@ contains
     end if
     return
   end subroutine getPathD
-
-!========================================================================================!
-
-!> A wrapper for an example with Dijkstra's algorithm
-  subroutine Dijkstra_Example(V,A,E,start,end)
-    implicit none
-    !> INPUT
-    integer,intent(in)  :: V        !> number of vertices
-    integer,intent(in)  :: A(V,V)   !> adjacency matrix
-    real(wp),intent(in) :: E(V,V)   !> distance matrix
-    integer,intent(in) :: start,end !> start and end vertex
-    !> LOCAL
-    real(wp),allocatable :: dist(:)
-    integer,allocatable :: prev(:)
-    integer,allocatable :: path(:)
-    real(wp) :: dummy
-    integer :: lpath
-    integer :: i
-
-    !>-- allocate space for the dist and prev vectors
-    allocate (dist(V),prev(V))
-
-    !>-- run Dijkstra's algo, get distance and prev
-    call Dijkstra(V,A,E,start,dist,prev)
-
-    !>-- allocate an array for analyzing the path
-    allocate (path(V),source=0)
-    if (dist(end) == huge(dummy)) then
-      write (*,'(a,i0,a,i0)') 'There is no path from vertex ',start,' to vertex ',end
-    else
-      lpath = 0
-      call getPathD(V,lpath,start,end,prev,path)
-      write (*,'(a,i0,a,i0,a)') "shortest path from vertex ",start," to vertex ",end,":"
-      do i = 1,lpath
-        write (*,'(1x,i0)',advance='no') path(i)
-      end do
-      write (*,*)
-      write (*,'(a,f12.4)') 'with a total path length of ',dist(end)
-    end if
-
-    deallocate (path,prev,dist)
-    return
-  end subroutine
 
 !========================================================================================!
 end module dijkstra_mod

@@ -36,7 +36,7 @@ subroutine crest_search_newnci(env,tim)
   type(timer),intent(inout)      :: tim
   type(coord) :: mol,molnew
   integer :: i,j,k,l,io,ich,m
-  logical :: pr,wr
+  logical :: pr,wr,doreturn
 !===========================================================!
   type(calcdata) :: calc
   type(mddata) :: mddat
@@ -71,11 +71,9 @@ subroutine crest_search_newnci(env,tim)
   call mol%append(stdout)
   write (stdout,*)
 
-!>--- saftey termination
-  if(mol%nat .le. 2)then
-     call catchdiatomic(env)
-    return
-  endif
+!>--- saftey terminations
+  call crest_sampling_skip(env,doreturn)
+  if (doreturn) return
 
 !>--- sets the MD length according to a flexibility measure
   call md_length_setup(env)
@@ -121,8 +119,8 @@ subroutine crest_search_newnci(env,tim)
       call tim%start(2,'Metadynamics (MTD)')
       call crest_search_multimd(env,mol,mddats,nsim)
       call tim%stop(2)
-!>--- a file called crest_dynamics.trj should have been written
-      ensnam = 'crest_dynamics.trj'
+!>--- a file called crest_dynamics.trj.xyz should have been written
+      ensnam = 'crest_dynamics.trj.xyz'
 !>--- deallocate for next iteration
       if (allocated(mddats)) deallocate (mddats)
 
@@ -130,7 +128,7 @@ subroutine crest_search_newnci(env,tim)
 !>--- Reoptimization of trajectories
       call tim%start(3,'Geometry optimization')
       call optlev_to_multilev(env%optlev,multilevel)
-      call crest_multilevel_oloop(env,ensnam,multilevel)
+      call crest_multilevel_oloop(env,ensnam,multilevel,i)
       call tim%stop(3)
       if(env%iostatus_meta .ne. 0 ) return
 

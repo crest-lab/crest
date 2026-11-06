@@ -152,12 +152,16 @@ subroutine pkaquick(env,tim)
       if (ACID%at(h) .ne. 1) error stop 'selected atom in pKa tool is not a hydrogen atom'
     end if
     call ACID%write('acid.xyz')      !--- resave it as 'acid.xyz'
+    call pka_update_ref(env,ACID,refchrg)
 
     if (env%preopt) then  !--- optional geometry optimization
       write (stdout,'(1x,a)',advance='no') 'Optimizing acid geometry ... '
       flush (stdout)
       call pka_miniopt(env,'acid.xyz')
       call xyz2coord('acid.xyz','coord')  !--update coord for possible confsearch
+      call ACID%deallocate()
+      call ACID%open('acid.xyz')
+      call pka_update_ref(env,ACID,refchrg)
       write (stdout,*) 'done.'
     end if
     if (env%relax.and.env%preopt) then      !--- optional conformational sampling
@@ -169,6 +173,7 @@ subroutine pkaquick(env,tim)
     !---finally, update geometry in memory
     call ACID%deallocate()
     call ACID%open('acid.xyz')
+    call pka_update_ref(env,ACID,refchrg)
 
 !---- then do the (relaxed) deprotonation
     call largehead2('Calculation of the base')
@@ -207,8 +212,18 @@ subroutine pkaquick(env,tim)
       write (stdout,*) 'done.'
     end if
     if (env%relax.and.env%preopt) then
-      call relaxensemble('base.xyz',env,tim)
-      call rename('relax.base.xyz','crest_pka_base.xyz')
+      if (env%legacy) then
+        call relaxensemble('base.xyz',env,tim)
+        call rename('relax.base.xyz','crest_pka_base.xyz')
+      else
+!>--- conformational search of the base, env%ref and env%calc follow the base
+        call BASE%deallocate()
+        call BASE%open('base.xyz')
+        call pka_update_ref(env,BASE,basechrg)
+        call confscript2i(env,tim)
+        call rename('crest_conformers.xyz','crest_pka_base.xyz')
+        call V2cleanup(.false.)
+      end if
     end if
     !-- update geometry in memory
     call BASE%deallocate()
@@ -347,9 +362,10 @@ subroutine pkaquick(env,tim)
 end subroutine pkaquick
 
 subroutine pka_miniopt(env,fname)
-  use crest_parameters,only:wp
+  use crest_parameters,only:wp,stdout
   use crest_data
   use iomod
+  use acidbase_calc,only:pka_set_charge,pka_opt_calc
   implicit none
   type(systemdata) :: env
   character(len=*) :: fname
@@ -357,6 +373,12 @@ subroutine pka_miniopt(env,fname)
   character(len=:),allocatable :: jobcall
   integer :: io
   logical :: ex
+  if (.not.env%legacy) then
+    call pka_set_charge(env,env%chrg)
+    call pka_opt_calc(env,fname,io)
+    if (io /= 0) write (stdout,'(a,a)') 'WARNING: optimization failed for ',fname
+    return
+  end if
   call env%wrtCHRG('')
   jobcall = ''
   jobcall = trim(env%ProgName)//' '//trim(fname)
@@ -376,6 +398,26 @@ subroutine pka_miniopt(env,fname)
   call remove('.UHF')
   return
 end subroutine pka_miniopt
+
+subroutine pka_update_ref(env,mol,chrg)
+!********************************************************
+!* Make mol the reference structure of the calculator
+!* routines (conformer search, deprotonation) at charge
+!* chrg; the legacy xtb route reads the coord file instead
+!********************************************************
+  use crest_data
+  use strucrd
+  use acidbase_calc,only:pka_set_charge
+  implicit none
+  type(systemdata) :: env
+  type(coord) :: mol
+  integer,intent(in) :: chrg
+  if (env%legacy) return
+  mol%chrg = chrg
+  mol%uhf = env%uhf
+  call env%ref%load(mol)
+  call pka_set_charge(env,chrg)
+end subroutine pka_update_ref
 
 subroutine pka_argparse(str,h)
   use crest_parameters,only:wp

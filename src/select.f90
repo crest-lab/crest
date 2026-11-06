@@ -49,42 +49,6 @@ subroutine mrec(molcount,xyz,nat,at,molvec)
   molcount = molcount-1
 end subroutine mrec
 
-!=================================================================!
-! subroutine mreclm
-! a variant of the mrec routine with less allocate statements
-! should be faster than the old version if several thousand
-! calls are done.
-!=================================================================!
-subroutine mreclm(molcount,nat,at,xyz,molvec,bond,rcov,cn)
-  use iso_fortran_env,only:wp => real64
-  use crest_cn_module
-  implicit none
-  integer :: molcount,nat
-  integer :: at(nat),molvec(nat)
-  real(wp) :: xyz(3,nat)
-  real(wp) :: cn(nat),bond(nat,nat)
-  real(wp) :: bref(nat,nat)
-  real(wp) :: rcov(*)
-  integer :: i
-  logical :: taken(nat)
-  molvec = 0
-  molcount = 1
-  taken = .false.
-  cn = 0.0d0
-  bond = 0.0d0
-  call calc_ncoord(nat,at,xyz,rcov,cn,400.0_wp,bond)
-  bref = bond
-  do i = 1,nat
-    if (.not.taken(i)) then
-      molvec(i) = molcount
-      taken(i) = .true.
-      call neighbours(i,xyz,at,taken,nat,cn,bond,molvec,molcount)
-      molcount = molcount+1
-    end if
-  end do
-  molcount = molcount-1
-  bond = bref
-end subroutine mreclm
 
 !==================================================================================!
 recursive subroutine neighbours(i,xyz,iat,taken,nat,cn,bond,molvec,molcnt)

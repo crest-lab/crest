@@ -17,6 +17,7 @@
 set(_lib "toml-f")
 set(_pkg "TOML-F")
 set(_url "https://github.com/toml-f/toml-f")
+set(_branch "28f4601fe0992ed17a6b97e230a61289f56bcd8e")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
   set("${_pkg}_FIND_METHOD" "subproject" "cmake" "fetch" "pkgconf")
@@ -24,7 +25,11 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/crest-utils.cmake")
 
-crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
+# toml-f gates its test suite on the standard CTest BUILD_TESTING flag
+# (include(CTest) defaults it to ON); pre-set it OFF so the subproject skips
+# its tests.  crest's own tests use WITH_TESTS and are unaffected.
+set(BUILD_TESTING OFF CACHE BOOL "Disable subproject test suites" FORCE)
+crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}" "${_branch}")
 
 if(TARGET "toml-f::toml-f")
   set (found TRUE)

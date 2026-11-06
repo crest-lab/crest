@@ -1,7 +1,7 @@
 !================================================================================!
 ! This file is part of crest.
 !
-! Copyright (C) 2021 - 2023 Philipp Pracht
+! Copyright (C) 2021 - 2026 Philipp Pracht
 !
 ! crest is free software: you can redistribute it and/or modify it under
 ! the terms of the GNU Lesser General Public License as published by
@@ -23,6 +23,7 @@
 module dynamics_module
   use crest_parameters
   use crest_calculator
+  use iomod
   use strucrd
   use atmasses
   use shake_module
@@ -60,6 +61,7 @@ module dynamics_module
     integer :: simtype = type_md !> type of the molecular dynamics simulation
     logical :: restart = .false.
     character(len=:),allocatable :: restartfile
+    logical :: wrtrj = .true.
     character(len=:),allocatable :: trajectoryfile
     !>--- data
     real(wp) :: length_ps = 0.0_wp !20.0_wp  !> total simulation length in ps
@@ -77,8 +79,12 @@ module dynamics_module
     type(shakedata) :: shk !> SHAKE bond information
 
     real(wp) :: tsoll = 0.0_wp !298.15_wp  !> wanted temperature
+    real(wp) :: Tavg = 0.0_wp  !> trajectory-average temperature (set after dynamics())
+    real(wp) :: Tvar = 0.0_wp  !> trajectory temperature variance (set after dynamics())
+    integer  :: Ndf = 0       !> degrees of freedom used in the run (set after dynamics())
     logical :: thermostat = .true. !> apply thermostat?
     character(len=64) :: thermotype = 'berendsen'
+    integer :: thermotype_i = 2 !> integer mapping thermostats, 2=berendsen
     real(wp) :: thermo_damp = 500.0_wp !> thermostat damping parameter
     logical :: samerand = .false.
 
@@ -108,6 +114,12 @@ module dynamics_module
   public :: dynamics
   public :: mdautoset
 
+  character(len=30),parameter,private :: thermostattype(4) = [ &
+     & 'None                         ', &
+     & 'Berendsen                    ', &
+     & 'Langevin                     ', &
+     & 'Bussi-Donadio-Parrinello     ']
+
 !========================================================================================!
 !========================================================================================!
 contains  !> MODULE PROCEDURES START HERE
@@ -118,8 +130,8 @@ contains  !> MODULE PROCEDURES START HERE
 !*************************************************************
 !* subroutine dynamics
 !* perform a molecular dynamics simulation
-!* the coordinate propagation is made with an 
-!* Leap-Frog algorithm (Velert-type algo)
+!* the coordinate propagation is made with an
+!* Leap-Frog algorithm (Verlet-type algo)
 !*************************************************************
     implicit none
 
@@ -134,7 +146,9 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: epot,ekin,edum
     real(wp) :: temp,thermoscal
 !>--- averages & errors
-    real(wp) :: Tav,Epav,Ekav,Eerror
+    real(wp) :: Tav,Tav2,Epav,Ekav,Eerror
+!>--- block statistics (computed before printout)
+    real(wp) :: eblk_mean,eblk_std,eblk_drift
 
     real(wp),allocatable :: grd(:,:)
     real(wp),allocatable :: velo(:,:)
@@ -142,53 +156,70 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),allocatable :: veln(:,:)
     real(wp),allocatable :: acc(:,:)
     real(wp),allocatable :: mass(:)
-    real(wp),allocatable :: xyz_angstrom(:,:)
     real(wp),allocatable :: backupweights(:)
     type(coord) :: molo
     real(wp) :: f,rt,rtshift
     real(wp) :: molmass,tmass
+    real(wp),allocatable :: cn(:)
     character(len=:),allocatable :: trajectory
     integer :: trj
     character(len=256) :: commentline
     integer :: i,j,k,l,ich,och,io
     integer :: dcount,printcount
-    logical :: ex,fail,bdump
+    integer,allocatable :: iseed(:)
+    logical :: ex,fail,bdump,shakefallback
 
     call initsignal()
 
 !>--- pre-settings and calculations
     !$omp critical
     call dat%defaults() !> check for unset parameters
+!>--- seed RNG before any stochastic use (velocity init or thermostat steps)
+    if (dat%samerand) then
+      call random_seed(size=i)
+      allocate (iseed(i),source=1)
+      call random_seed(put=iseed)
+      deallocate (iseed)
+    else
+      call random_seed()
+    end if
     term = 0
     tstep_au = dat%tstep*fstoau
     nfreedom = 3*mol%nat
-    if(calc%nfreeze > 0)then
-      nfreedom = nfreedom - 3*calc%nfreeze
-    endif
+    shakefallback = .false.
+    if (calc%nfreeze > 0) then
+      nfreedom = nfreedom-3*calc%nfreeze
+    end if
     if (dat%shake) then
-      if(calc%nfreeze > 0)then
+      if (calc%nfreeze > 0) then
         dat%shk%freezeptr => calc%freezelist
       else
-        nullify(dat%shk%freezeptr)
-      endif
+        nullify (dat%shk%freezeptr)
+      end if
+      if (.not.allocated(dat%shk%wbo)) then
+        !> fake bondorder fallback for shake
+        shakefallback = .true.
+        call mol%cn_to_bond(cn,dat%shk%wbo)
+        deallocate (cn)
+      end if
       call init_shake(mol%nat,mol%at,mol%xyz,dat%shk,pr)
       dat%nshake = dat%shk%ncons
       nfreedom = nfreedom-dat%nshake
     end if
 !>--- averages
     tav = 0.0_wp
+    tav2 = 0.0_wp
     eerror = 0.0_wp
     ekav = 0.0_wp
     epav = 0.0_wp
     temp = 0.0_wp
 
 !>--- on-the-fly multiscale definition
-    if(allocated(dat%active_potentials))then
+    if (allocated(dat%active_potentials)) then
       call calc%active(dat%active_potentials)
-    endif
+    end if
 
 !>--- allocate data fields
-    allocate (xyz_angstrom(3,mol%nat))
     allocate (molo%at(mol%nat),molo%xyz(3,mol%nat))
     allocate (grd(3,mol%nat),vel(3,mol%nat),velo(3,mol%nat),source=0.0_wp)
     allocate (veln(3,mol%nat),acc(3,mol%nat),mass(mol%nat),source=0.0_wp)
@@ -198,31 +229,41 @@ contains  !> MODULE PROCEDURES START HERE
 
 !>--- settings printout
     if (pr) then
-      write (*,*)
-      write (*,'("> ",a)') 'Molecular dynamics settings'
-      write (*,'('' MD time /ps        :'',f10.2)') dat%length_ps
-      write (*,'('' dt /fs             :'',f10.2)') dat%tstep
-      write (*,'('' temperature /K     :'',f10.2)') dat%tsoll
-      write (*,'('' max steps          :'',i10  )') dat%length_steps
-      write (*,'('' block length (av.) :'',i10  )') dat%blockl
-      write (*,'('' dumpstep(trj) /fs  :'',f10.2,i6)') dat%dumpstep,dat%sdump
-      write (*,'('' # deg. of freedom  :'',i10  )') nfreedom
-      if(calc%nfreeze > 0)then
-      write (*,'('' # frozen atoms     :'',i10  )') calc%nfreeze
-      endif
+      write (stdout,*)
+      write (stdout,'(1x,15("─"),1x,a,1x,14("─"))') 'Molecular Dynamics Settings'
+      write (stdout,'("  Simulation type",t25,       ":",1x)',advance='no')
+      if (dat%thermostat) then
+        write (stdout,'(a9)') 'NVT'
+      else
+        write (stdout,'(a9)') 'NVE'
+      end if
+      write (stdout,'("  MD time (length)",t25,       ":",f10.2,a)') dat%length_ps,' ps'
+      write (stdout,'("  dt (timetep)",t25,            ":",f10.2,a)') dat%tstep,' fs'
+      write (stdout,'("  temperature",t25,    ":",f10.2,a)') dat%tsoll,' K'
+      write (stdout,'("  max steps",t25,         ":",i10  )') dat%length_steps
+      write (stdout,'("  block length (av.)",t25,":",i10  )') dat%blockl
+      write (stdout,'("  dumpstep(trj) /fs",t25, ":",f10.2,1x,"(",i0,")")') dat%dumpstep,dat%sdump
+      write (stdout,'("  # deg. of freedom",t25, ":",i10  )') nfreedom
+      if (calc%nfreeze > 0) then
+        write (stdout,'("  # frozen atoms",t25,     ":",i10  )') calc%nfreeze
+      end if
       call thermostatprint(dat,pr)
-      write (*,'('' SHAKE constraint   :'',8x,l)') dat%shake
+      write (stdout,'("  SHAKE constraint",t25,   ":",1x,a9)') to_str(dat%shake)
       if (dat%shake) then
+        if (shakefallback) then
+          write (stdout,'("  SHAKE using CN fallback",t25,":",9x,l)') shakefallback
+        end if
         if (dat%shk%shake_mode == 2) then
-          write (*,'('' # SHAKE bonds      :'',i10,a)') dat%nshake,' (all bonds)'
+          write (stdout,'("  # SHAKE bonds",t25,":",i10,a)') dat%nshake,' (all bonds)'
         elseif (dat%shk%shake_mode == 1) then
-          write (*,'('' # SHAKE bonds      :'',i10,a)') dat%nshake,' (H only)'
+          write (stdout,'("  # SHAKE bonds",t25,":",i10,a)') dat%nshake,' (H only)'
         end if
       end if
-      write (*,'('' hydrogen mass /u   :'',f10.5 )') dat%md_hmass
-      if(allocated(dat%active_potentials))then
-       write (*,'('' active potentials  :'',i10)') size(dat%active_potentials,1)
-      endif
+      write (stdout,'("  hydrogen mass /u",t25,":",f10.5 )') dat%md_hmass
+      if (allocated(dat%active_potentials)) then
+        write (stdout,'("  active potentials",t25,":",i10)') size(dat%active_potentials,1)
+      end if
+
     end if
 
 !>--- set atom masses
@@ -249,28 +290,29 @@ contains  !> MODULE PROCEDURES START HERE
     end if
     edum = f*dat%tsoll*0.5_wp*kB*float(nfreedom)
     rtshift = 0.0_wp
-    if(.not.dat%restart .or. .not.allocated(dat%restartfile))then 
-     call mdinitu(mol,dat,velo,mass,edum,pr)
+    if (.not.dat%restart.or..not.allocated(dat%restartfile)) then
+      call mdinitu(mol,dat,velo,mass,edum,pr)
     else
-     call rdmdrestart(mol,dat,velo,fail,rtshift)
-     if(fail)then
+      call rdmdrestart(mol,dat,velo,fail,rtshift,pr)
+      if (fail) then
         call mdinitu(mol,dat,velo,mass,edum,pr)
-     else
-       call ekinet(mol%nat,velo,mass,ekin)
-       temp = 2.0_wp*ekin/float(nfreedom)/kB
-       tav = temp
-     endif
-    endif 
+      else
+        call ekinet(mol%nat,velo,mass,ekin)
+        temp = 2.0_wp*ekin/float(nfreedom)/kB
+        tav = temp
+        tav2 = temp**2
+      end if
+    end if
     call ekinet(mol%nat,velo,mass,ekin)
-    if(calc%nfreeze > 0)then
-       do i = 1,mol%nat
-         if(calc%freezelist(i))then
-           acc(:,i) = 0.0_wp
-           grd(:,i) = 0.0_wp
-           velo(:,i) = 0.0_wp
-         endif
-       end do
-     endif
+    if (calc%nfreeze > 0) then
+      do i = 1,mol%nat
+        if (calc%freezelist(i)) then
+          acc(:,i) = 0.0_wp
+          grd(:,i) = 0.0_wp
+          velo(:,i) = 0.0_wp
+        end if
+      end do
+    end if
 
 !>--- initialize MTDs (if required)
     !$omp critical
@@ -287,17 +329,22 @@ contains  !> MODULE PROCEDURES START HERE
       trajectory = trim(commentline)
     end if
     !$omp critical
-    open (newunit=trj,file=trajectory)
+    if (dat%wrtrj) open (newunit=trj,file=trajectory)
+    !>--- under PBC force extxyz trajectory output so the lattice (Lattice=...)
+    !>    survives into any downstream re-read/re-optimization of the frames
+    mol%wrextxyz = calc%logextxyz .or. allocated(mol%lat)
     !$omp end critical
 
 !>--- begin printout
     if (pr) then
-      write (*,'(/,"> ",a)') 'Starting simulation'
+      write (stdout,'(1x,58("─"))')
+
+      write (stdout,'(/,"> ",a)') 'Starting simulation'
       if (.not.dat%thermostat) then
-        write (*,'(/,11x,"time (ps)",7x,"<Epot>",8x,"Ekin",5x,"<T>",7x,"T",12x, &
+        write (stdout,'(/,11x,"time (ps)",7x,"<Epot>",8x,"Ekin",5x,"<T>",7x,"T",12x, &
            &         "Etot",7x,"error")')
       else
-        write (*,'(/,11x,"time (ps)",7x,"<Epot>",8x,"Ekin",5x,"<T>",7x,"T",12x, &
+        write (stdout,'(/,11x,"time (ps)",7x,"<Epot>",8x,"Ekin",5x,"<T>",7x,"T",12x, &
            &         "Etot")')
       end if
     end if
@@ -315,6 +362,7 @@ contains  !> MODULE PROCEDURES START HERE
       epot = 0.0_wp
       grd = 0.0_wp
       call engrad(mol,calc,epot,grd,io)
+      mol%energy = epot
 
       if (io /= 0) then
         if (dat%dumped > 0) then
@@ -340,12 +388,12 @@ contains  !> MODULE PROCEDURES START HERE
       !>--- block data printouts
       call u_block(mol,dat,epot,temp,pr,bdump)
       !>--- MD restart files written for each block rather than at each timestep to reduce I/O
-      if(bdump)then
-        rt = float(t)*dat%tstep + rtshift
+      if (bdump) then
+        rt = float(t)*dat%tstep+rtshift
         !$omp critical
-        call wrmdrestart(mol,dat,velo,rt) 
+        call wrmdrestart(mol,dat,velo,rt)
         !$omp end critical
-      endif 
+      end if
 
       !===========================================!
       !>>-- write to trajectory and printout
@@ -353,22 +401,20 @@ contains  !> MODULE PROCEDURES START HERE
         dcount = 0
         dat%dumped = dat%dumped+1
         !$omp critical
-        xyz_angstrom = mol%xyz*bohr
-        write (commentline,'(a,f22.12,1x,a)') 'Epot =',epot,''
-        call wrxyz(trj,mol%nat,mol%at,xyz_angstrom,commentline)
+        if (dat%wrtrj) call mol%append(trj)
         !$omp end critical
       end if
       if ((printcount == dat%printstep).or.(t == 1)) then
         if (t > 1) printcount = 0
         if (pr) then
-          rt = float(t)*dat%tstep + rtshift
+          rt = float(t)*dat%tstep+rtshift
           if (.not.dat%thermostat) then
-            write (*,'(i7,f10.2,F16.5,F12.4,2F8.1,F16.5,4F10.4)') &
+            write (stdout,'(i7,f10.2,F16.5,F12.4,2F8.1,F16.5,4F10.4)') &
                &   t,0.001_wp*rt, (Epav+Epot)/float(t), &
                &   Ekin,Tav/float(t),temp,Epot+Ekin, &
                &   Edum/float(t)-Epot-Ekin
           else
-            write (*,'(i7,f10.2,F16.5,F12.4,2F8.1,F16.5)') &
+            write (stdout,'(i7,f10.2,F16.5,F12.4,2F8.1,F16.5)') &
                &   t,0.001_wp*rt, (Epav+epot)/float(t), &
                &   Ekin,Tav/float(t),temp,Epot+Ekin
           end if
@@ -381,14 +427,14 @@ contains  !> MODULE PROCEDURES START HERE
       end do
 
       !>--- special setup for frozen atoms
-      if(calc%nfreeze > 0)then
-       do i = 1,mol%nat
-         if(calc%freezelist(i))then
-           acc(:,i) = 0.0_wp
-           grd(:,i) = 0.0_wp
-         endif
-       end do
-      endif
+      if (calc%nfreeze > 0) then
+        do i = 1,mol%nat
+          if (calc%freezelist(i)) then
+            acc(:,i) = 0.0_wp
+            grd(:,i) = 0.0_wp
+          end if
+        end do
+      end if
 
       !>--- store positions (at t); velocities are at t-1/2dt
       !$omp critical
@@ -405,25 +451,45 @@ contains  !> MODULE PROCEDURES START HERE
       call ekinet(mol%nat,veln,mass,ekin)
       temp = 2.0_wp*ekin/float(nfreedom)/kB
 
-      !>--- THERMOSTATING (determine factor thermoscal)
-      call thermostating(mol,dat,temp,thermoscal)
+      !>--- THERMOSTATING and velocity update
+      if (dat%thermotype_i == 3) then !'langevin') then
+        if (dat%thermostat) then
+          call langevin_step(mol%nat,dat,mass,velo,acc,tstep_au,vel)
+        else
+          vel = velo+acc*tstep_au
+        end if
+      else
+        !>>-- STEP 3: velocity update for scaling thermostats
+        !>--- compute trial velocity (unscaled leapfrog step)
+        vel = velo+acc*tstep_au
+        !>--- Bussi/CSVR: recompute ekin from the actual trial velocity so that
+        !>--- the scaling scal=sqrt(K_new/ekin) gives Ekin(vel_scaled)=K_new exactly.
+        !>--- Using the half-step estimate veln would give Ekin(vel_scaled)=K_new*(Efull/Ehalf)
+        !>--- and systematically overshoot the target temperature by ~Efull/Ehalf.
+        if (dat%thermostat.and. &
+           & dat%thermotype_i == 4) then
+          !& (trim(dat%thermotype) == 'bussi'.or.trim(dat%thermotype) == 'csvr')) then
+          call ekinet(mol%nat,vel,mass,ekin)
+          temp = 2.0_wp*ekin/float(nfreedom)/kB
+        end if
+        call thermostating(mol,dat,temp,ekin,nfreedom,thermoscal)
+        vel = thermoscal*vel
+      end if
 
-      !>>-- STEP 3: velocity and position update
-      !>--- update velocities to t
-      vel = thermoscal*(velo + acc*tstep_au)
-
-      !>--- update positions to t+dt, except for frozen atoms
-      if(calc%nfreeze > 0)then
-       do i = 1,mol%nat
-         if(.not.calc%freezelist(i))then
-           mol%xyz(:,i) = molo%xyz(:,i)+vel(:,i)*tstep_au
-         else
-           vel(:,i) = 0.0_wp
-         endif
-       end do
-      else  
-        mol%xyz = molo%xyz+vel*tstep_au
-      endif
+      !>--- update positions to t+dt, except for frozen atoms, and not at the final step
+      if (t < dat%length_steps) then
+        if (calc%nfreeze > 0) then
+          do i = 1,mol%nat
+            if (.not.calc%freezelist(i)) then
+              mol%xyz(:,i) = molo%xyz(:,i)+vel(:,i)*tstep_au
+            else
+              vel(:,i) = 0.0_wp
+            end if
+          end do
+        else
+          mol%xyz = molo%xyz+vel*tstep_au
+        end if
+      end if
 
       !>--- estimate new velocities at t
       veln = 0.5_wp*(velo+vel)
@@ -449,12 +515,14 @@ contains  !> MODULE PROCEDURES START HERE
       velo = vel
 
       !>--- remove translational and rotational componetnts of the velocity
-      call rmrottr(mol%nat,mass,velo,mol%xyz)
+      !>    (under PBC the fixed cell forbids rotation removal -> translation only)
+      call rmrottr(mol%nat,mass,velo,mol%xyz,allocated(mol%lat))
 
       !>>-- Update averages and counter
       edum = edum+epot+ekin
       eerror = edum/float(t)-epot-ekin
       tav = tav+temp
+      tav2 = tav2+temp**2
       epav = epav+epot
       ekav = ekav+ekin
       dcount = dcount+1
@@ -466,47 +534,76 @@ contains  !> MODULE PROCEDURES START HERE
 !===============================================================!
 !>--- close trajectory file
     !$omp critical
-    close (trj)
+    if (dat%wrtrj) close (trj)
     !$omp end critical
+
+!>--- block energy statistics (blockrege still allocated here)
+    eblk_mean = 0.0_wp
+    eblk_std = 0.0_wp
+    eblk_drift = 0.0_wp
+    if (dat%nblock >= 1) then
+      eblk_mean = sum(dat%blockrege(1:dat%nblock))/real(dat%nblock,wp)
+    end if
+    if (dat%nblock >= 2) then
+      eblk_std = sqrt(sum((dat%blockrege(1:dat%nblock)-eblk_mean)**2) &
+               &      /real(dat%nblock-1,wp))
+      !> drift in Eh/ps: endpoint slope over all completed blocks
+      eblk_drift = (dat%blockrege(dat%nblock)-dat%blockrege(1)) &
+                 & /real(dat%nblock-1,wp) &
+                 & /(dat%blockl*dat%tstep*1.0e-3_wp)
+    end if
 
 !>--- averages printout
     if (pr) then
-      write (*,*)
-      write (*,*) 'average properties '
-      write (*,*) '----------------------'
-      write (*,*) '<Epot> / Eh          :',Epav/float(t)
-      write (*,*) '<Ekin> / Eh          :',Ekav/float(t)
-      write (*,*) '<Etot> / Eh          :', (Ekav+Epav)/float(t)
-      write (*,*) '<T> / K              :',Tav/float(t)
+      write (stdout,*)
+      write (stdout,'(1x,a)') 'average properties'
+      write (stdout,'(1x,a)') repeat('-',42)
+      write (stdout,'(1x,a,t22,f16.8,a)') '<Epot>',Epav/float(t),' Eh'
+      write (stdout,'(1x,a,t22,f16.8,a)') '<Ekin>',Ekav/float(t),' Eh'
+      write (stdout,'(1x,a,t22,f16.8,a)') '<Etot>', (Ekav+Epav)/float(t),' Eh'
+      write (stdout,'(1x,a,t28,f10.2,a)') '<T>',Tav/float(t),' K'
+      write (stdout,'(1x,a,t28,f10.2,a)') 'Tvar',tav2/float(t)-(tav/float(t))**2,' K²'
+      write (stdout,'(1x,a,t29,f10.2,a)') 'σ(T)',sqrt(max(tav2/float(t)-(tav/float(t))**2,0.0_wp)),' K'
+      if (dat%nblock >= 2) then
+        write (stdout,'(1x,a)') repeat('-',42)
+        write (stdout,'(1x,a,t28,i10,a)') 'blocks',dat%nblock,' '
+        write (stdout,'(1x,a,t23,f16.8,a)') 'block σ(Epot)',eblk_std,' Eh'
+        write (stdout,'(1x,a,t28,es10.2,a)') 'drift',eblk_drift,' Eh/ps'
+      end if
+      write (stdout,'(1x,a)') repeat('-',42)
     end if
 
 !>--- write restart file
-    rt = float(dat%length_steps)*dat%tstep + rtshift
+    rt = float(dat%length_steps)*dat%tstep+rtshift
     call wrmdrestart(mol,dat,velo,rt)
 
 !>--- termination printout
     if (pr) then
       select case (term)
       case (0)
-        write (*,*) 'normal MD termination'
+        write (stdout,*) 'normal MD termination'
       case (1)
         write (stderr,*) 'error in MD calculation'
       case (2)
-        write (*,*) 'MD terminated, but still taking as converged.'
+        write (stdout,*) 'MD terminated, but still taking as converged.'
       end select
     end if
+
+!>--- store trajectory-average temperature for callers
+    dat%Tavg = tav/float(t)
+    dat%Tvar = tav2/float(t)-(tav/float(t))**2
+    dat%Ndf = nfreedom
 
 !>--- deallocate data
     deallocate (dat%blockrege,dat%blockt,dat%blocke)
     deallocate (mass,acc,veln)
     deallocate (vel,velo,grd)
     deallocate (molo%xyz,molo%at)
-    deallocate (xyz_angstrom)
 
 !>--- restore weights if necessary
-    if(allocated(dat%active_potentials))then
+    if (allocated(dat%active_potentials)) then
       call calc%active_restore()
-    endif
+    end if
 
     return
   end subroutine dynamics
@@ -565,6 +662,65 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine ekinet
 
 !========================================================================================!
+! subroutine random_gauss
+! sample one standard normal N(0,1) via Box-Muller transform
+  subroutine random_gauss(z)
+    !*************************************
+    !* Sample one standard normal N(0,1) *
+    !* via Box-Muller transform.         *
+    !*************************************
+    implicit none
+    real(wp),intent(out) :: z
+    real(wp) :: u1,u2
+    real(wp),parameter :: twopi = 6.28318530717958647693_wp
+    do
+      call random_number(u1)
+      if (u1 > 0.0_wp) exit
+    end do
+    call random_number(u2)
+    z = sqrt(-2.0_wp*log(u1))*cos(twopi*u2)
+    return
+  end subroutine random_gauss
+
+!========================================================================================!
+! subroutine random_gamma
+! sample x ~ Gamma(a,1) using the Marsaglia-Tsang (2000) algorithm
+  subroutine random_gamma(a,x)
+    !*****************************************************
+    !* Sample x ~ Gamma(a,1) using Marsaglia-Tsang 2000. *
+    !* For a < 1: apply the relation Gamma(a) = Gamma(a+1)*U^(1/a). *
+    !*****************************************************
+    implicit none
+    real(wp),intent(in)  :: a
+    real(wp),intent(out) :: x
+    real(wp) :: d,c,z,v,u,aa
+    logical  :: small
+    small = (a < 1.0_wp)
+    aa = merge(a+1.0_wp,a,small)
+    d = aa-1.0_wp/3.0_wp
+    c = 1.0_wp/sqrt(9.0_wp*d)
+    do
+      do
+        call random_gauss(z)
+        v = (1.0_wp+c*z)**3
+        if (v > 0.0_wp) exit
+      end do
+      call random_number(u)
+      if (u < 1.0_wp-0.0331_wp*z**2*z**2) then
+        x = d*v; exit
+      end if
+      if (log(u) < 0.5_wp*z**2+d*(1.0_wp-v+log(v))) then
+        x = d*v; exit
+      end if
+    end do
+    if (small) then
+      call random_number(u)
+      x = x*u**(1.0_wp/a)
+    end if
+    return
+  end subroutine random_gamma
+
+!========================================================================================!
 ! subroutine u_block
 ! update block data and printout
   subroutine u_block(mol,dat,epot,temp,pr,bdump)
@@ -595,8 +751,8 @@ contains  !> MODULE PROCEDURES START HERE
         slope = 99.0_wp
       end if
       if (pr) then
-        write (*,'(''block <Epot> / <T> :'',f14.5,f7.1,4x, &
-           &             ''drift:'',d10.2,3x,''Tbath :'',f6.1)')  &
+        write (stdout,'("block <Epot> / <T> :",f14.5,f7.1,4x, &
+           &             "drift:",d10.2,3x,"Tbath :",f6.1)')  &
            &             bave,bavt,slope,dat%tsoll
       end if
     else
@@ -669,8 +825,8 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i,j,k,l,ich,och,io
     logical :: ex
     character(len=256) :: atmp
-    if (.not.allocated(dat%restartfile) .or. dat%restart) then
-    !>--- we must not overwrite the user-provided restart file!
+    if (.not.allocated(dat%restartfile).or.dat%restart) then
+      !>--- we must not overwrite the user-provided restart file!
       write (atmp,'(a,i0,a)') 'crest_',dat%md_index,'.mdrestart'
     else
       atmp = dat%restartfile
@@ -684,13 +840,14 @@ contains  !> MODULE PROCEDURES START HERE
     return
   end subroutine wrmdrestart
 
-  subroutine rdmdrestart(mol,dat,velo,fail,rtshift)
+  subroutine rdmdrestart(mol,dat,velo,fail,rtshift,pr)
     implicit none
     type(coord) :: mol
     type(mddata) :: dat
     real(wp),intent(inout) :: velo(3,mol%nat)
     logical,intent(out) :: fail
     real(wp),intent(out) :: rtshift
+    logical,intent(in) :: pr
     real(wp) :: dum
     character(len=256) :: atmp
     integer :: i,j,k,l,ich,och,io
@@ -706,7 +863,7 @@ contains  !> MODULE PROCEDURES START HERE
       do
         read (ich,*,iostat=io) dum
         if (io < 0) exit
-        if(dum > 0.0_wp) rtshift = dum 
+        if (dum > 0.0_wp) rtshift = dum
         do i = 1,mol%nat
           read (ich,'(a)',iostat=io) atmp
           if (io < 0) exit
@@ -723,9 +880,10 @@ contains  !> MODULE PROCEDURES START HERE
     else
       fail = .true.
     end if
-    if(.not.fail)then
-      write (*,'(1x,a,8x,l)') 'read restart file  :',.not.fail
-    endif
+    if (.not.fail.and.pr) then
+      write (stdout,'("  read RESTART file",t25,":",1x,a9)') to_str(.not.fail)
+      write (stdout,'("  restart file",t25,":",1x,a)') dat%restartfile
+    end if
 
     return
   end subroutine rdmdrestart
@@ -743,9 +901,7 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp),intent(in) :: Ekin
     logical,intent(in) :: pr
     real :: x(3),ranf
-    integer :: n
     real(wp) :: eperat,v,f,t,edum,f2
-    integer,allocatable :: iseed(:)
     logical :: newvelos
     integer :: i
 
@@ -753,13 +909,6 @@ contains  !> MODULE PROCEDURES START HERE
 
     !>--- newly initialized
     if (newvelos) then
-      if (dat%samerand) then
-        call random_seed(size=n)
-        allocate (iseed(n),source=1)
-        call random_seed(put=iseed)
-      else
-        call random_seed()
-      end if
       eperat = Ekin/(3.0_wp*float(mol%nat))
       do i = 1,mol%nat
         call random_number(x)
@@ -787,29 +936,95 @@ contains  !> MODULE PROCEDURES START HERE
 ! helper routine to re-scale velocities,
 ! i.e., thermostating
 
-  subroutine thermostating(mol,dat,t,scal)
+  subroutine thermostating(mol,dat,t,ekin,nfreedom,scal)
+    !**************************************************************
+    !* Apply velocity-scaling thermostat and return scale factor. *
+    !* Supports: berendsen, bussi/csvr                            *
+    !**************************************************************
     implicit none
     type(coord) :: mol
     type(mddata) :: dat
     real(wp),intent(in) :: t
+    real(wp),intent(in) :: ekin
+    integer,intent(in)  :: nfreedom
     real(wp),intent(out) :: scal
-    integer :: i,j,k,l,ich,och,io
+    real(wp) :: c1,K_ref,K_new,gam,xi,chi2
+    integer  :: Nf
 
     scal = 1.0_wp
 
     if (.not.dat%thermostat) return
 
-    select case (trim(dat%thermotype))
-    case ('berendsen')
-      scal = dsqrt(1.0d0+(dat%tstep/dat%thermo_damp) &
-                  &     *(dat%tsoll/t-1.0_wp))
-    case default 
-    !>-- (no scaling, other thermostats require special implementation)
+    select case (dat%thermotype_i) !(trim(dat%thermotype))
+    case (2) !('berendsen')
+      scal = sqrt(1.0d0+(dat%tstep/dat%thermo_damp) &
+                 &     *(dat%tsoll/t-1.0_wp))
+    case (4) !('bussi','csvr')
+      !> Bussi-Donadio-Parrinello CSVR (J. Chem. Phys. 126, 014101, 2007)
+      !> Stochastic velocity rescaling for correct NVT ensemble sampling.
+      !>
+      !> Exact discrete update (paper Eq. A7):
+      !>   K_new = K*c1 + K_ref*(1-c1)/Nf * sum_i(z_i^2) + 2*sqrt(K*K_ref*c1*(1-c1)/Nf)*z1
+      !>   E[K_new] = K*c1 + K_ref*(1-c1)  →  converges to K_ref = Nf/2*kB*T
+      !>
+      !> Setting A = sqrt(K_ref*(1-c1)/Nf), B = sqrt(K*c1):
+      !>   sum term:  A^2*(z1^2 + chi2(Nf-1))  with chi2(Nf-1) = 2*Gamma((Nf-1)/2)
+      !>   cross term: 2*A*B*z1
+      !>   combined: (A*z1 + B)^2 + A^2*chi2(Nf-1)   <- always non-negative
+      Nf = nfreedom
+      c1 = exp(-dat%tstep/dat%thermo_damp)
+      K_ref = 0.5_wp*real(Nf,wp)*kB*dat%tsoll
+      xi = sqrt(K_ref*(1.0_wp-c1)/real(Nf,wp))   ! A = sqrt(K_ref*(1-c1)/Nf)
+      call random_gauss(chi2)                         ! z1 ~ N(0,1)
+      K_new = (xi*chi2+sqrt(ekin*c1))**2             ! (A*z1 + B)^2, B = sqrt(K*c1)
+      if (Nf > 1) then
+        call random_gamma(0.5_wp*real(Nf-1,wp),gam)  ! gam ~ Gamma((Nf-1)/2)
+        K_new = K_new+xi**2*2.0_wp*gam               ! + A^2 * chi2(Nf-1)
+      end if
+      scal = sqrt(K_new/max(ekin,1.0e-30_wp))
+    case default
+      !>-- (no scaling; langevin uses a separate integration path)
       scal = 1.0_wp
     end select
 
     return
   end subroutine thermostating
+
+!========================================================================================!
+! subroutine langevin_step
+! BBK Langevin velocity update for leapfrog MD
+  subroutine langevin_step(nat,dat,mass,velo,acc,tstep_au,vel)
+    !*************************************************************
+    !* Langevin BBK velocity update for leapfrog MD.             *
+    !* velo = v(t-dt/2), acc = a(t), vel = v(t+dt/2) on output.  *
+    !* Uses dat%thermo_damp as relaxation time tau (in fs).      *
+    !*************************************************************
+    implicit none
+    integer,intent(in)      :: nat
+    type(mddata),intent(in) :: dat
+    real(wp),intent(in)     :: mass(nat)
+    real(wp),intent(in)     :: velo(3,nat),acc(3,nat)
+    real(wp),intent(in)     :: tstep_au
+    real(wp),intent(out)    :: vel(3,nat)
+    real(wp) :: tau_au,gamma_dt,c1,c2,sigma
+    real(wp) :: xi
+    integer  :: i,k
+
+    tau_au = dat%thermo_damp*fstoau
+    gamma_dt = tstep_au/tau_au
+    c1 = (1.0_wp-0.5_wp*gamma_dt)/(1.0_wp+0.5_wp*gamma_dt)
+    c2 = tstep_au/(1.0_wp+0.5_wp*gamma_dt)
+
+    do i = 1,nat
+      sigma = sqrt(2.0_wp*kB*dat%tsoll*tstep_au/(mass(i)*tau_au)) &
+            & /(1.0_wp+0.5_wp*gamma_dt)
+      do k = 1,3
+        call random_gauss(xi)
+        vel(k,i) = c1*velo(k,i)+c2*acc(k,i)+sigma*xi
+      end do
+    end do
+    return
+  end subroutine langevin_step
 
   subroutine thermostatprint(dat,pr)
     implicit none
@@ -818,19 +1033,49 @@ contains  !> MODULE PROCEDURES START HERE
     integer :: i,j,k,l,ich,och,io
 
     if (.not.pr) return
+    write (stdout,'("  thermostat",t25,":")',advance='no')
     if (dat%thermostat) then
       select case (trim(dat%thermotype))
       case ('berendsen')
-        write (*,'('' thermostat         :'',1x,a  )') trim(dat%thermotype)
-      case default !>-- (also berendsen thermostat)
-        write (*,'('' thermostat         :'',1x,a  )') 'berendsen'
+        write (stdout,'(1x,a  )') trim(thermostattype(2))
+      case ('bussi','csvr')
+        write (stdout,'(1x,a )') trim(thermostattype(4))
+      case ('langevin','bbk')
+        write (stdout,'(1x,a  )') trim(thermostattype(3))
+      case default
+        write (stdout,'(1x,a  )') trim(thermostattype(1))
       end select
     else
-      write (*,'('' thermostat         :'',1x,a  )') 'OFF'
+      write (stdout,'(1x,a  )') trim(thermostattype(1))
     end if
 
     return
   end subroutine thermostatprint
+
+  subroutine thermostat2int(dat)
+    implicit none
+    type(mddata) :: dat
+    integer :: i,j,k,l,ich,och,io
+
+    if (dat%thermostat) then
+      select case (trim(dat%thermotype))
+      case ('berendsen')
+        dat%thermotype_i = 2
+      case ('bussi','csvr')
+        dat%thermotype_i = 4
+      case ('langevin','bbk')
+        dat%thermotype_i = 3
+      case default
+        dat%thermotype_i = 1
+        dat%thermostat = .false.
+      end select
+    else
+      dat%thermotype_i = 1
+      dat%thermostat = .false.
+    end if
+
+    return
+  end subroutine thermostat2int
 
 !========================================================================================!
 ! subroutine zeroz
@@ -850,57 +1095,73 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 ! subroutine rmrottr
 ! some MATHs to remove translational and rotational velocities
-  subroutine rmrottr(natoms,mass,vel_atom,c)
+  subroutine rmrottr(natoms,mass,vel_atom,c,pbc)
+    !***********************************************************
+    !* Remove the net translational (and, in free space, the
+    !* net rotational) component of the atomic velocities.
+    !* Under periodic boundary conditions (pbc=.true.) the cell
+    !* is fixed, so rigid-body rotation is not a true symmetry;
+    !* only the translational drift is projected out then.
+    !***********************************************************
     implicit none
     integer :: natoms
     real(wp) :: vel_atom(3,natoms),c(3,natoms),mass(natoms)
+    logical,intent(in),optional :: pbc !> periodic cell -> translation only
     real(wp) :: rlm(3),ram(3),omega(3)
     real(wp) :: ixx,iyy,izz,ixy,ixz,iyz,dummy
     real(wp) :: fixx,fiyy,fizz,fixy,fixz,fiyz,COM(3)
     real(wp) :: inertia(3,3),angmom(3)
     real(wp) :: tmass
     integer :: i
+    logical :: rmrot
+
+    !> under PBC remove translation only (rotation is invalid vs. a fixed cell)
+    rmrot = .true.
+    if (present(pbc)) rmrot = .not.pbc
 
     rlm = 0.0
     ram = 0.0
+    omega = 0.0
     call centerofmass(natoms,c,mass,tmass,COM)
     angmom = 0.0
-    do i = 1,natoms
-      c(1,i) = c(1,i)-COM(1)
-      c(2,i) = c(2,i)-COM(2)
-      c(3,i) = c(3,i)-COM(3)
-      angmom(1) = angmom(1)+mass(i)*(c(2,i)*vel_atom(3,i)-&
-         &                                      c(3,i)*vel_atom(2,i))
-      angmom(2) = angmom(2)+mass(i)*(c(3,i)*vel_atom(1,i)-&
-         &                                      c(1,i)*vel_atom(3,i))
-      angmom(3) = angmom(3)+mass(i)*(c(1,i)*vel_atom(2,i)-&
-         &                                      c(2,i)*vel_atom(1,i))
-    end do
-    ixx = 0.0
-    iyy = 0.0
-    izz = 0.0
-    ixy = 0.0
-    ixz = 0.0
-    iyz = 0.0
-    do i = 1,natoms
-      ixx = ixx+mass(i)*(c(2,i)*c(2,i)+c(3,i)*c(3,i))
-      iyy = iyy+mass(i)*(c(3,i)*c(3,i)+c(1,i)*c(1,i))
-      izz = izz+mass(i)*(c(1,i)*c(1,i)+c(2,i)*c(2,i))
-      ixy = ixy-mass(i)*c(1,i)*c(2,i)
-      ixz = ixz-mass(i)*c(1,i)*c(3,i)
-      iyz = iyz-mass(i)*c(2,i)*c(3,i)
-    end do
-    inertia(1,1) = ixx
-    inertia(2,2) = iyy
-    inertia(3,3) = izz
-    inertia(1,2) = ixy
-    inertia(2,1) = ixy
-    inertia(1,3) = ixz
-    inertia(3,1) = ixz
-    inertia(2,3) = iyz
-    inertia(3,2) = iyz
-    call dmatinv(inertia,3,3,dummy)
-    omega = matmul(inertia,angmom)
+    if (rmrot) then
+      do i = 1,natoms
+        c(1,i) = c(1,i)-COM(1)
+        c(2,i) = c(2,i)-COM(2)
+        c(3,i) = c(3,i)-COM(3)
+        angmom(1) = angmom(1)+mass(i)*(c(2,i)*vel_atom(3,i)-&
+           &                                      c(3,i)*vel_atom(2,i))
+        angmom(2) = angmom(2)+mass(i)*(c(3,i)*vel_atom(1,i)-&
+           &                                      c(1,i)*vel_atom(3,i))
+        angmom(3) = angmom(3)+mass(i)*(c(1,i)*vel_atom(2,i)-&
+           &                                      c(2,i)*vel_atom(1,i))
+      end do
+      ixx = 0.0
+      iyy = 0.0
+      izz = 0.0
+      ixy = 0.0
+      ixz = 0.0
+      iyz = 0.0
+      do i = 1,natoms
+        ixx = ixx+mass(i)*(c(2,i)*c(2,i)+c(3,i)*c(3,i))
+        iyy = iyy+mass(i)*(c(3,i)*c(3,i)+c(1,i)*c(1,i))
+        izz = izz+mass(i)*(c(1,i)*c(1,i)+c(2,i)*c(2,i))
+        ixy = ixy-mass(i)*c(1,i)*c(2,i)
+        ixz = ixz-mass(i)*c(1,i)*c(3,i)
+        iyz = iyz-mass(i)*c(2,i)*c(3,i)
+      end do
+      inertia(1,1) = ixx
+      inertia(2,2) = iyy
+      inertia(3,3) = izz
+      inertia(1,2) = ixy
+      inertia(2,1) = ixy
+      inertia(1,3) = ixz
+      inertia(3,1) = ixz
+      inertia(2,3) = iyz
+      inertia(3,2) = iyz
+      call dmatinv(inertia,3,3,dummy)
+      omega = matmul(inertia,angmom)
+    end if
     do i = 1,natoms
       rlm(1) = rlm(1)+mass(i)*vel_atom(1,i)
       rlm(2) = rlm(2)+mass(i)*vel_atom(2,i)
@@ -915,9 +1176,12 @@ contains  !> MODULE PROCEDURES START HERE
       vel_atom(2,i) = vel_atom(2,i)-rlm(2)/tmass-ram(2)
       vel_atom(3,i) = vel_atom(3,i)-rlm(3)/tmass-ram(3)
 
-      c(1,i) = c(1,i)+COM(1)
-      c(2,i) = c(2,i)+COM(2)
-      c(3,i) = c(3,i)+COM(3)
+      !> restore the COM offset only if we centered for the rotation part
+      if (rmrot) then
+        c(1,i) = c(1,i)+COM(1)
+        c(2,i) = c(2,i)+COM(2)
+        c(3,i) = c(3,i)+COM(3)
+      end if
     end do
 
   contains
@@ -1202,10 +1466,12 @@ contains  !> MODULE PROCEDURES START HERE
     end if
 
     !> block length (for average analysis and restart dump)
-    if(self%blockl <= 0 )then
+    if (self%blockl <= 0) then
       self%blockl = min(5000,idint(5000.0_wp/self%tstep))
-    endif
+    end if
     self%maxblock = nint(self%length_steps/float(self%blockl))
+
+    call thermostat2int(self)
 
   end subroutine md_defaults_fallback
 !========================================================================================!

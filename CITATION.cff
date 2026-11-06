@@ -44,9 +44,9 @@ authors:
   given-names: "Felix"
   orcid: "https://orcid.org/0000-0001-9140-8359"
 title: "CREST - Conformer-Rotamer Sampling Tool"
-version: 3.0
+version: 3.1.0
 doi: 10.1063/5.0197592
-date-released: 2024-03-21
+date-released: 2026-10-27
 url: "https://github.com/crest-lab/crest"
 preferred-citation:
   type: article

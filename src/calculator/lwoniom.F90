@@ -18,6 +18,15 @@
 !================================================================================!
 
 module lwoniom_module
+!*************************************************************
+!* Thin wrapper around the lwONIOM library.
+!* Most of the ONIOM bookkeeping (job lists, fragment update,
+!* gradient projection, energy/gradient/Hessian reconstruction)
+!* is handled by lwONIOM itself via its job table and driver
+!* layer; crest only provides the potentials through an
+!* adapter extending the abstract lwoniom_calculator class
+!* (see crest_oniom_calc in calculator.F90).
+!*************************************************************
   use crest_parameters
   use strucrd
 #ifdef WITH_LWONIOM
@@ -27,10 +36,10 @@ module lwoniom_module
   private
 
 #ifndef WITH_LWONIOM
-  !> this is a placeholder if no lwONIOM module is used!
+  !> placeholders if no lwONIOM module is used!
   type :: lwoniom_frag_placeholder
-    integer,allocatable :: chrg 
-  end  type lwoniom_frag_placeholder
+    integer,allocatable :: chrg
+  end type lwoniom_frag_placeholder
   type :: lwoniom_input
     integer :: id = 0
   end type lwoniom_input
@@ -41,29 +50,42 @@ module lwoniom_module
     integer :: ncalcs = 0
     type(lwoniom_frag_placeholder),allocatable :: fragment(:)
   end type lwoniom_data
+  type :: lwoniom_job
+    integer :: id = 0
+    integer :: fragid = 0
+    integer :: level = 0
+    integer :: theoryid = 0
+    integer :: nat = 0
+    integer :: nlink = 0
+    integer,allocatable :: chrg
+    integer,allocatable :: uhf
+  end type lwoniom_job
+  integer,parameter :: oniom_high = 1
+  integer,parameter :: oniom_low = 2
+  integer,parameter :: oniom_root = 3
 #endif
 
   !> if compiled without(!!!) -DWITH_LWONIOM=true this will export
-  !> the placeholder from above. Otherwise it will RE-export
-  !> the types from lwoniom_interface
+  !> the placeholders from above. Otherwise it will RE-export
+  !> the types and driver layer from lwoniom_interface
   public :: lwoniom_input,lwoniom_data
+  public :: lwoniom_job,lwoniom_get_jobs
+  public :: oniom_high,oniom_low,oniom_root
+#ifdef WITH_LWONIOM
+  public :: lwoniom_calculator
+  public :: lwoniom_engrad_driver,lwoniom_numhess_driver
+  public :: lwoniom_initialize,lwoniom_get_jobgeo
+#endif
 
   public :: ONIOM_read_toml
- 
-  public :: ONIOM_update_geo
-
-  public :: ONIOM_associate_mol
-
   public :: ONIOM_get_fraggrad
-  
-  public :: ONIOM_engrad
+  public :: ONIOM_compile_error
 
 !========================================================================================!
 !========================================================================================!
 contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
-
 
   subroutine ONIOM_read_toml(tomlfile,nat,at,xyz,ONIOM_data)
 !********************************************
@@ -78,101 +100,19 @@ contains  !> MODULE PROCEDURES START HERE
     type(lwoniom_data),intent(out) :: ONIOM_data
     type(lwoniom_input),allocatable :: ONIOM_input
 #ifdef WITH_LWONIOM
-    allocate(ONIOM_input)
-    call lwoniom_parse_inputfile(tomlfile,ONIOM_input,required = .false., natoms=nat)
+    allocate (ONIOM_input)
+    call lwoniom_parse_inputfile(tomlfile,ONIOM_input,required=.false.,natoms=nat)
     ONIOM_input%at = at
     ONIOM_input%xyz = xyz*autoaa !> ONIOM_input needs to store coords in Angstroem rather than bohr
-    call lwoniom_new_calculator( ONIOM_input, ONIOM_data ) !> because this converts to Bohr
-    deallocate(ONIOM_input)
+    call lwoniom_new_calculator(ONIOM_input,ONIOM_data) !> because this converts to Bohr
+    deallocate (ONIOM_input)
     call ONIOM_data%dump_fragments()
 #else
     call ONIOM_compile_error()
 #endif
   end subroutine ONIOM_read_toml
 
-
 !========================================================================================!
-
-
-  subroutine ONIOM_update_geo(ONIOM,mol,mollist,cmap)
-!**********************************************************
-!* Update all fragments of a previously set up ONIOM setup
-!**********************************************************
-    implicit none
-    !> INPUT
-    type(lwoniom_data),intent(inout) :: ONIOM
-    type(coord),intent(in)  :: mol
-    type(coord),intent(inout),optional :: mollist(ONIOM%ncalcs)
-    integer,intent(in),optional :: cmap(ONIOM%ncalcs) !> calculation index mapping
-    integer :: i,highlow,fragid,j
-#ifdef WITH_LWONIOM
-    call ONIOM%update( mol%xyz )  !> no point charge version
-
-    !> optional, update a given list of coord-type molecules (the fragments)
-    if(present(mollist).and.present(cmap))then
-      do i=1,ONIOM%ncalcs
-          j = cmap(i)
-          call ONIOM_get_mapping(j, ONIOM%calcids, highlow, fragid)
-          call ONIOM_get_mol(ONIOM,fragid,mollist(i),highlow)
-      enddo
-    endif
-#else
-    call ONIOM_compile_error()
-#endif
-  end subroutine ONIOM_update_geo
-
-!========================================================================================!
-
-  subroutine ONIOM_engrad(ONIOM,mol,energy,gradient)
-!**********************************************
-!* reconstruct ONIOM energy and gradient
-!* energy and gradient is additive to whatever
-!* is saved there already
-!**********************************************
-    implicit none
-    !> INPUT
-    type(lwoniom_data),intent(inout) :: ONIOM
-    type(coord),intent(in)  :: mol
-
-    real(wp),intent(inout) :: energy
-    real(wp),intent(inout) :: gradient(3,mol%nat)
-    integer :: i,l
-#ifdef WITH_LWONIOM
-    call lwoniom_singlepoint(mol%nat,ONIOM,energy,gradient)
-#else
-    call ONIOM_compile_error()
-#endif
-  end subroutine ONIOM_engrad
-
-!========================================================================================!
-
-  subroutine ONIOM_get_mol(ONIOM,F,mol,highlow)
-!*****************************************
-!* transfer data from fragment F into mol
-!*****************************************
-    implicit none
-    !> INPUT
-    type(lwoniom_data),intent(inout) :: ONIOM
-    type(coord),intent(inout)  :: mol
-    integer,intent(in) :: F 
-    integer,intent(in),optional :: highlow
-    integer :: natf   
-#ifdef WITH_LWONIOM
-    if(F > ONIOM%nfrag ) error stop 'ONIOM fragment mismatch'
-
-    natf =  ONIOM%fragment(F)%nat +  ONIOM%fragment(F)%nlink
-    if(mol%nat /=  natf) call mol%deallocate()
-
-    mol%nat = natf
-    mol%at = reshape( [ONIOM%fragment(F)%at,ONIOM%fragment(F)%linkat], [natf])
-    mol%xyz = reshape( [ONIOM%fragment(F)%xyz,ONIOM%fragment(F)%linkxyz], [3,natf]) 
-    
-#else
-    call ONIOM_compile_error()
-#endif
-  end subroutine ONIOM_get_mol
-
-!=========================================================================================!
 
   subroutine ONIOM_get_fraggrad(ONIOM,F,gradient,highlow,energy)
 !********************************************
@@ -188,19 +128,19 @@ contains  !> MODULE PROCEDURES START HERE
     integer,intent(in) :: highlow
     real(wp),intent(out),optional :: energy
     integer :: natf,root_id
-    gradient = 0.0_wp 
+    gradient = 0.0_wp
 #ifdef WITH_LWONIOM
-    if(F > ONIOM%nfrag ) error stop 'ONIOM fragment mismatch'
-    select case(highlow)
-    case(1)
-       gradient = ONIOM%fragment(F)%gradient_high
+    if (F > ONIOM%nfrag) error stop 'ONIOM fragment mismatch'
+    select case (highlow)
+    case (oniom_high)
+      gradient = ONIOM%fragment(F)%gradient_high
     case default
-       gradient = ONIOM%fragment(F)%gradient_low
+      gradient = ONIOM%fragment(F)%gradient_low
     end select
-    if(present(energy))then
-       root_id = ONIOM%root_id
-       energy = ONIOM%fragment(root_id)%energy_qq
-    endif
+    if (present(energy)) then
+      root_id = ONIOM%root_id
+      energy = ONIOM%fragment(root_id)%energy_qq
+    end if
 #else
     call ONIOM_compile_error()
 #endif
@@ -208,33 +148,17 @@ contains  !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
-  subroutine ONIOM_associate_mol(mol,molptr)
+#ifndef WITH_LWONIOM
+  subroutine lwoniom_get_jobs(dat,jobs)
+!*******************************************************
+!* placeholder for the lwONIOM job table setup routine
+!*******************************************************
     implicit none
-    type(coord),target :: mol
-    type(coord),pointer,intent(out) :: molptr
-    molptr => mol
-  end subroutine ONIOM_associate_mol
-
-!========================================================================================!
-
-  subroutine ONIOM_get_mapping(id, calcids, highlow, fragid)
-     implicit none
-     integer,intent(in) :: id !> calculation ID in CREST
-     integer,intent(in) :: calcids(:,:) !> mappings form calculator setup
-     integer,intent(out) :: highlow,fragid
-     integer :: i,j,k,l
-     highlow = 0
-     fragid = 0
-     iloop : do i=1,size(calcids,2)
-       do j=1,2
-         if( calcids(j,i) == id)then
-           highlow = j
-           fragid = i
-           exit iloop
-         endif
-       enddo
-     enddo iloop
-   end subroutine ONIOM_get_mapping
+    type(lwoniom_data),intent(inout) :: dat
+    type(lwoniom_job),allocatable,intent(out) :: jobs(:)
+    call ONIOM_compile_error()
+  end subroutine lwoniom_get_jobs
+#endif
 
 !========================================================================================!
 
@@ -247,4 +171,3 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
 end module lwoniom_module
-

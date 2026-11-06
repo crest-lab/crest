@@ -49,6 +49,7 @@ subroutine crest_refine(env,input,output)
   real(wp),allocatable :: xyz(:,:,:)
   integer,allocatable  :: at(:)
   integer :: nrefine,refine_stage
+  type(coord),allocatable :: structures(:)
 !===========================================================!
 !>--- setup
   if (present(output)) then
@@ -56,20 +57,33 @@ subroutine crest_refine(env,input,output)
   else
     outname = input  !> overwrite
   end if
- 
-!>--- presorting step, if necessary
-  if(env%refine_presort)then
-    call newcregen(env,0,input)
-    call rename('crest_ensemble.xyz',input)
+
+  if(.not.allocated(env%refine_queue))then
+    call rename(trim(input),trim(output))
+    return
   endif
 
+!>--- presorting step, if necessary
+  if (env%refine_presort) then
+    call newcregen(env,0,input)
+    call rename('crest_ensemble.xyz',input)
+  end if
+
 !>--- read in
-  call rdensemble(input,nat,nall,at,xyz,eread)
-  allocate (etmp(nall),source=0.0_wp)
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
-!>--- Important: crest_sploop requires coordinates in Bohrs
-    xyz = xyz / bohr
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!  call rdensemble(input,nat,nall,at,xyz,eread)
+!  allocate (etmp(nall),source=0.0_wp)
+!!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+!!>--- Important: crest_sploop requires coordinates in Bohrs
+!  xyz = xyz/bohr
+!!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+  call rdensembleparam(input,nat,nall)
+  allocate (xyz(3,nat,nall),at(nat),etmp(nall),eread(nall))
+  call rdensemble(input,nall,structures)
+  at(:) = structures(1)%at(:)
+  do j = 1,nall
+    eread(j) = structures(j)%energy
+    xyz(1:3,1:nat,j) = structures(j)%xyz(1:3,1:nat)
+  end do
 
 !===========================================================!
   DO_REFINE: if (allocated(env%refine_queue)) then
@@ -87,26 +101,37 @@ subroutine crest_refine(env,input,output)
       select case (refine_stage)
       case (refine%singlepoint)
         write (stdout,'("> Singlepoint re-ranking for ",i0," structures")') nall
-        call crest_sploop(env,nat,nall,at,xyz,eread)
+        do j = 1,nall
+          structures(j)%xyz(1:3,1:nat) = xyz(1:3,1:nat,j)
+        end do
+        call crest_sploop(env,nall,structures,eread)
 
       case (refine%correction)
         write (stdout,'("> Additive correction for ",i0," structures")') nall
-        call crest_sploop(env,nat,nall,at,xyz,etmp)
+        do j = 1,nall
+          structures(j)%xyz(1:3,1:nat) = xyz(1:3,1:nat,j)
+        end do
+        call crest_sploop(env,nall,structures,etmp)
         eread(:) = eread(:)+etmp(:)
 
       case (refine%geoopt)
         write (stdout,'("> Geometry optimization of ",i0," structures")') nall
-        call crest_oloop(env,nat,nall,at,xyz,eread,.false.)
+        do j = 1,nall
+          structures(j)%xyz(1:3,1:nat) = xyz(1:3,1:nat,j)
+        end do
+        call crest_oloop(env,nall,structures,.false.)
+        do j = 1,nall
+          xyz(1:3,1:nat,j) = structures(j)%xyz(1:3,1:nat)
+          eread(j) = structures(j)%energy
+        end do
 
-      case(refine%confsolv)
-        call new_ompautoset(env,'subprocess',1,t1,t2)
-        write (stdout,'("> ConfSolv: ΔΔGsoln estimation from 3D directed message passing neural networks (D-MPNN)")')
-        call confsolv_request( input, nall, t2, etmp, io)
-        if(io == 0)then
-        eread(:) = etmp(:)*kcaltoau  !> since CREGEN deals with Eh energies
-        endif   
+      case (refine%deltaG)
+        write (stdout,'("> Free energy correction (δG) for ",i0," structures")') nall
+        call crest_hessloop(env,nat,nall,at,xyz,etmp)
+        eread(:) = eread(:)+etmp(:)
+
       end select
-      write(stdout,*) 
+      write (stdout,*)
     end do
 
     !> reset the refinement stage of the calculator
@@ -116,15 +141,17 @@ subroutine crest_refine(env,input,output)
   end if DO_REFINE
 !===========================================================!
 
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
-!>--- Important: ensemble file must be written in AA
-  xyz = xyz / angstrom
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
-!>--- write output ensemble
-  call wrensemble(outname,nat,nall,at,xyz,eread)
+!>--- sync refined energies and coordinates back into coord structures
+  do j = 1,nall
+    structures(j)%energy = eread(j)
+    structures(j)%xyz(1:3,1:nat) = xyz(1:3,1:nat,j)
+    structures(j)%wrextxyz = .true.
+  end do
+!>--- write output ensemble in extxyz format
+  call wrensemble(outname,nall,structures)
 
 !===========================================================!
-  deallocate (etmp,eread,xyz,at)
+  deallocate (etmp,eread,xyz,at,structures)
   return
 end subroutine crest_refine
 !========================================================================================!

@@ -17,6 +17,7 @@
 set(_lib "test-drive")
 set(_pkg "TEST-DRIVE")
 set(_url "https://github.com/fortran-lang/test-drive")
+set(_branch "c506771aefd594e7e372240a8027b3fd06d61264")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
   set("${_pkg}_FIND_METHOD" "subproject" "cmake" "fetch" "pkgconf")
@@ -24,7 +25,11 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/crest-utils.cmake")
 
-crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
+# test-drive is imported unconditionally (see CMakeLists.txt) so that other
+# subprojects reuse the bundled copy.  Disable its own test suite here so the
+# import only contributes the library target, never its self-tests.
+set(TEST_DRIVE_BUILD_TESTING OFF CACHE BOOL "Disable test-drive self-tests" FORCE)
+crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}" "${_branch}")
 
 if(TARGET "${_lib}::${_lib}")
   set (found TRUE)

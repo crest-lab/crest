@@ -1,0 +1,9 @@
+# Default iMTD-GC conformer search
+runtype = "imtd-gc"
+input   = "struc.xyz"   # input structure file (1-propanol)
+
+[[calculation.level]]
+method = "gfnff"    # GFN-FF force field for fast conformer sampling
+
+[cregen]
+ewin = 2.0          # keep conformers within 2.0 kcal/mol of the lowest

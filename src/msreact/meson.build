@@ -17,4 +17,5 @@
 srcs += files(
   'msreact.f90',
   'msmod.f90',
+  'msreact_calc.f90',
 )

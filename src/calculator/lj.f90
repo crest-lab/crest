@@ -81,7 +81,7 @@ contains  !> MODULE PROCEDURES START HERE
         energy = energy+U
         !>--- Cartesian derivative
         dU = 4.0_wp*epsi*(6.0_wp*(sigma**6)* &
-        & (rij**-7)-12.0_wp*(sigma**12)*(rij**(-13)))
+        & (rij**(-7))-12.0_wp*(sigma**12)*(rij**(-13)))
         dU = dU/rij
         dx = dU*(xyz(1,i)-xyz(1,j))
         dy = dU*(xyz(2,i)-xyz(2,j))

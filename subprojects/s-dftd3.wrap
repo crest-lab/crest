@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/dftd3/simple-dftd3
+revision = 6f0b06fbfa8653a23ca55c453772ce3af4420706
+clone-recursive = true
+
+[provide]
+s-dftd3 = s_dftd3_dep

@@ -17,414 +17,205 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-!> global variables to keep track of restart
+!> Lightweight restart checkpoint for conformational search runtypes.
+!> Records only which stage completed and which file was last written —
+!> no ensemble data is stored.
 
 module crest_restartlog
-  use crest_parameters
-  use crest_data
-  use miscdata, only: PSE
-  use iomod, only: command
+  use crest_parameters,only:wp,stdout
   implicit none
   private
 
-  !logical,parameter :: debug = .true.
-  logical,parameter :: debug = .false.
-  logical,parameter :: saveensembles = .true.
+  character(len=*),parameter,public :: restart_file = 'crest.restart'
 
-!>--- tracking variables
-  integer :: restart_tracker = 0
-  integer :: restart_goal = 0
+  !> All state needed to resume a conformational search.
+  type,public :: restart_data
+    integer  :: version   = 1
+    integer  :: runtype   = 0    !> crestver (crest_imtd=2 or crest_imtd2=22)
+    integer  :: main_iter = 0    !> env%nreset at checkpoint
+    integer  :: mtd_iter  = 0    !> last completed MTD iteration index
+    integer  :: nmetadyn  = 0    !> env%nmetadyn (trimmed after first MTD pass)
+    character(len=64)  :: stage        = 'none'
+    character(len=512) :: last_file    = ''   !> last CREGEN-sorted file written
+    real(wp) :: elowest   = 0.0_wp
+    real(wp) :: eprivious = 0.0_wp
+  end type restart_data
 
-  logical,allocatable :: last_processed(:)
-  character(len=300) :: last_dumped
-
-  !> a backup of the crest envrionment
-  type(systemdata),allocatable :: restart_env
-
-  !> backup of the last processed ensemble
-  character(len=300) :: last_file
-  integer :: last_nat = 0
-  integer :: last_nall = 0
-  integer,allocatable  :: last_at(:)
-  real(wp),allocatable :: last_xyz(:,:,:)
-  character(len=128),allocatable :: last_comments(:)
-
-!>--- routines/functions
-  public :: trackrestart
-  public :: restart_save_env
-  public :: trackensemble
-  interface trackensemble
-    module procedure :: trackensemble_comments
-    module procedure :: trackensemble_energy
-  end interface trackensemble
-  public :: restart_write_dummy
-
-  public :: dump_restart,read_restart
+  public :: write_restart_log
+  public :: read_restart_log
+  public :: restart_file_exists
+  public :: print_restart_info
+  public :: delete_restart_log
 
 !========================================================================================!
 !========================================================================================!
 contains !> MODULE PROCEDURES START HERE
 !========================================================================================!
 !========================================================================================!
-!> Tracking routines to be called within the algos
 
-  function trackrestart(env) result(skip)
-!****************************************
-!* This function is to be called both
-!* to increment the restart tracker, and
-!* to check if a step needs to be skiped
-!****************************************
+  logical function restart_file_exists()
+!*************************************
+!* Returns .true. if crest.restart
+!* exists in the current directory.
+!*************************************
     implicit none
-    logical :: skip
-    type(systemdata),intent(in),optional :: env
-    skip = .false.
-    restart_tracker = restart_tracker+1
-    if (debug) write (stdout,*) '%%% RESTART_TRACKER =',restart_tracker
+    inquire(file=restart_file,exist=restart_file_exists)
+  end function restart_file_exists
 
-    if (restart_tracker < restart_goal) skip = .true.
-    if (.not.skip.and.present(env)) then
-      call restart_save_env(env)
-      call dump_restart()
+!========================================================================================!
+
+  subroutine write_restart_log(runtype,stage,main_iter,mtd_iter,nmetadyn, &
+    &                          elowest,eprivious,last_file_in)
+!*************************************************************
+!* Write a text-based checkpoint to crest.restart.
+!* Called after each MTD iteration and after collectcre.
+!*
+!* Arguments:
+!*   runtype      - crestver constant (crest_imtd or crest_imtd2)
+!*   stage        - stage label: 'mtd_loop', 'post_collect', 'done'
+!*   main_iter    - env%nreset (MAINLOOP iteration counter)
+!*   mtd_iter     - last completed MTD iteration (0 for post-loop stages)
+!*   nmetadyn     - env%nmetadyn (may differ from initial after first pass)
+!*   elowest      - current lowest energy
+!*   eprivious    - previous lowest energy
+!*   last_file_in - last CREGEN-sorted file written to disk
+!*************************************************************
+    implicit none
+    integer,intent(in)          :: runtype,main_iter,mtd_iter,nmetadyn
+    character(len=*),intent(in) :: stage,last_file_in
+    real(wp),intent(in)         :: elowest,eprivious
+    integer :: ich,io
+    open(newunit=ich,file=restart_file,status='replace',iostat=io)
+    if (io /= 0) then
+      write(stdout,'(a)') '**WARNING** could not write crest.restart'
+      return
     end if
-    if(restart_tracker == restart_goal-1)then
-      if (debug) write (stdout,*) '%%% RESTART_RESTORE %%%'
-      call restore_ensemble()
-    endif
-  end function trackrestart
-
-
-  subroutine trackensemble_comments(fname,nat,nall,at,xyz,comments)
-!*******************************************************
-!* This subroutine decides wether to track the ensemble
-!* Typically, this routine is called in CREGEN
-!*******************************************************
-     implicit none
-     character(len=*),intent(in) :: fname
-     integer,intent(in)  :: nat,nall
-     integer,intent(in)  :: at(nat)
-     real(wp),intent(in) :: xyz(3,nat,nall)
-     character(len=*),intent(in) :: comments(nall)
-
-    if (restart_tracker > restart_goal)then
-      call restart_save_ensemble(fname,nat,nall,at,xyz,comments)
-    if (debug) write (stdout,*) '%%% RESTART_ENSEMBLE = ',trim(fname)
-    endif
-  end subroutine trackensemble_comments
-
-  subroutine trackensemble_energy(fname,nat,nall,at,xyz,eread)
-!*******************************************************
-!* This subroutine decides wether to track the ensemble
-!* Typically, this routine is called in CREGEN
-!*******************************************************
-     implicit none
-     character(len=*),intent(in) :: fname
-     integer,intent(in)  :: nat,nall
-     integer,intent(in)  :: at(nat)
-     real(wp),intent(in) :: xyz(3,nat,nall)
-     real(wp),intent(in) :: eread(nall)
-     character(len=50),allocatable  :: comments(:)
-     integer :: i
-    if (restart_tracker > restart_goal)then
-      allocate(comments(nall))
-      do i=1,nall
-        write(comments(i),*) eread(i)
-      enddo
-      call restart_save_ensemble(fname,nat,nall,at,xyz,comments)
-      deallocate(comments)
-    if (debug) write (stdout,*) '%%% RESTART_ENSEMBLE = ',trim(last_file)
-    endif
-  end subroutine trackensemble_energy
-
-
-  subroutine restart_write_dummy(fname)
-!*******************************************************
-!* This subroutine produces a placeholder file with
-!* only one structure
-!*******************************************************
-     implicit none
-     character(len=*),intent(in) :: fname
-     integer :: i,ich
-     if (restart_tracker < restart_goal-1)then
-     if(.not.debug) write (stdout,'(a,a)') 'CREST_RESTART> writing DUMMY file ',trim(fname)
-      open(newunit=ich, file=trim(fname))   
-      write(ich,*) last_nat
-      write(ich,*) trim(last_comments(1))
-      do i=1,last_nat
-      write(ich,'(a2,3f20.10)') PSE(last_at(i)),last_xyz(1:3,i,1)
-      enddo
-      close(ich)
-      if (debug) write (stdout,*) '%%% RESTART_DUMMY = ',trim(fname)
-     endif
-  end subroutine restart_write_dummy
-
-
-  subroutine restore_ensemble()
-!*******************************************************
-!* This subroutine produces a placeholder file with
-!* only one structure
-!*******************************************************
-     implicit none
-     integer :: i,ich,j,k
-     character(len=:),allocatable :: fname
-     character(len=:),allocatable :: atmp
-     !if(index(last_file,crefile).ne.0)then
-     ! call command('rm -f '//crefile//'* 2>/dev/null')
-     ! fname = crefile//'_0.xyz'
-     !else
-      fname=trim(last_file)
-     !endif
-
-      if(.not.debug)then
-         atmp = 'CREST_RESTART> RESTORING file '//trim(fname)
-         k = len_trim(atmp)+2
-         write (stdout,'(a,/,a,/,a)') repeat(':',k),trim(atmp),repeat(':',k) 
-      endif
-      open(newunit=ich, file=trim(fname))
-      do j=1,last_nall
-      write(ich,*) last_nat
-      write(ich,*) trim(last_comments(j))
-      do i=1,last_nat
-      write(ich,'(a2,3f20.10)') PSE(last_at(i)),last_xyz(1:3,i,j)
-      enddo
-      enddo
-      close(ich)
-      if (debug) write (stdout,*) '%%% RESTORE_ENSEMBLE = ',trim(fname)
-  end subroutine restore_ensemble
-
-
-
-
+    write(ich,'(a)') '# CREST restart checkpoint - do not edit manually'
+    write(ich,'(a,1x,i0)') 'version',   1
+    write(ich,'(a,1x,i0)') 'runtype',   runtype
+    write(ich,'(a,1x,i0)') 'main_iter', main_iter
+    write(ich,'(a,1x,i0)') 'mtd_iter',  mtd_iter
+    write(ich,'(a,1x,i0)') 'nmetadyn',  nmetadyn
+    write(ich,'(a,1x,a)')  'stage',     trim(stage)
+    write(ich,'(a,1x,a)')  'last_file', trim(last_file_in)
+    write(ich,'(a,1x,f25.15)') 'elowest',   elowest
+    write(ich,'(a,1x,f25.15)') 'eprivious', eprivious
+    close(ich)
+  end subroutine write_restart_log
 
 !========================================================================================!
-!========================================================================================!
-!> DUMP to binary routines
 
-  subroutine dump_restart()
+  subroutine delete_restart_log()
+!*************************************
+!* Remove crest.restart from the
+!* current directory. Called on
+!* successful completion of a run so
+!* no stale checkpoint is left behind.
+!*************************************
     implicit none
-    integer :: ich,i,j,k,l
-    character(len=250) :: atmp
-    if (debug) write (stdout,*) '%%% RESTART DEBUG dump summary'
-
-    !> DO NOT OVERWRITE IF WE HAVEN'T REACHED THE PREVIOUS RESTART ENTRY POINT
-    if( restart_tracker < restart_goal) return
-
-    open (newunit=ich,file='crest.restart',status='replace',form='unformatted')
-
-    write (ich) restart_tracker
-    if (debug) write (stdout,*) '%%% RESTART_TRACKER =',restart_tracker
-
-    if (allocated(restart_env)) then
-      atmp = restart_env%cmd
-      write (ich) atmp
-      if (debug) write (stdout,*) '%%% cmd: ',trim(atmp)
-
-      atmp = restart_env%inputcoords
-      write (ich) atmp
-      if (debug) write (stdout,*) '%%% inputcoords: ',trim(atmp)
-
-      write (ich) restart_env%eprivious
-      if (debug) write (stdout,*) '%%% eprivious: ',restart_env%eprivious
-
-      write (ich) restart_env%elowest
-      if (debug) write (stdout,*) '%%% elowest: ',restart_env%elowest
-
-      j = restart_env%ref%nat
-      write(ich) j
-      if (debug) write (stdout,*) '%%% ref natoms: ', j
-      do i=1,j
-        write(ich) restart_env%ref%at(i)
-      enddo
-      do i=1,j
-        write(ich) restart_env%ref%xyz(1:3,i)
-      enddo
-   
-    end if
-
-    call dump_last_ensemble(ich)
-    if (debug) write (stdout,'(1x,a,a)') '%%% ensemble: ',trim(last_file)
-    if (debug) write (stdout,*) '%%% nall: ',last_nall
-
-    close (ich)
-  end subroutine dump_restart
-
-  subroutine dump_last_ensemble(ich)
-!******************************************
-!* dump last saved ensemble as binary data
-!******************************************
-    implicit none
-    integer, intent(in) :: ich
-    integer :: nat,nall,i,j,k,l
-    write(ich) last_file
-    nat = last_nat
-    write(ich) nat
-    nall = last_nall
-    write(ich) nall
-    if(allocated(last_comments) .and. allocated(last_xyz))then
-    do k=1,nat
-      write(ich) last_at(k)
-    enddo
-    do i=1,nall
-      write(ich) last_comments(i)
-      do j=1,nat
-        write(ich) last_xyz(1:3,j,i)
-      enddo
-    enddo
-    endif
-  end subroutine dump_last_ensemble
-
-!========================================================================================!
-!========================================================================================!
-!> read from binary subroutines
-
-  subroutine read_restart(env)
-    implicit none
-    type(systemdata),intent(inout) :: env
-    integer :: ich,i,j,k,l
-    character(len=250) :: atmp
-    real(wp) :: rdum,xyzdum(3)
-    integer :: idum
+    integer :: ich,io
     logical :: ex
-    integer,allocatable :: at(:) 
-    real(wp),allocatable :: xyz(:,:)
-    inquire(file='crest.restart', exist=ex)
-
-    if(.not.ex)then
-     write(stderr,'(a)') '**ERROR** while attempting to read crest.restart: file does not exist'
-     error stop
-    endif
-
-    open (newunit=ich,file='crest.restart',status='old',form='unformatted')
-    write(stdout,'(/,a)') repeat(":",80)
-    write(stdout,'(a)') 'READING crest.restart ...'
-    write(stdout,'(/,a)') '**WARNING**'
-    write(stdout,'(1x,a)') "It is a user responsibility to re-use an identical job setup,"
-    write(stdout,'(1x,a)') 'either via cmd or input file. The restart option only tracks'
-    write(stdout,'(1x,a)') 'structure information and a non-unique restart step ID'
-    write(stdout,'(a,/)') '**WARNING**'
-
-
-
-    read (ich) restart_goal
-    write(stdout,'(1x,a,i0)') 'Target restart step: ',restart_goal  
-
-    read (ich) atmp 
-    env%cmd = trim(atmp)
-    write(stdout,'(1x,a,2a)') 'Previous crest cmd: "',env%cmd,'"'
-
-    read (ich) atmp
-    env%inputcoords = trim(atmp)
-    write(stdout,'(1x,a,a)') 'Previous coord input file: ',env%inputcoords
-
-    read (ich) env%eprivious
-    read (ich) env%elowest
-    write(stdout,'(1x,a,f20.10)') 'Previous lowest energy: ',env%elowest
-
-    read (ich) j
-    write(stdout,'(1x,a,i0,a)') 'Original input coordinates for ',j,' atoms (Angström, CMA shifted): '
-    allocate(at(j))
-    do i=1,j
-      read(ich) at(i)
-    enddo
-    allocate(xyz(3,j))
-    do i=1,j
-      read(ich) xyzdum(1:3)
-      xyz(:,i) = xyzdum(:) 
-    enddo
-    write(stdout,'(a5,3a16)') 'at','X','Y','Z'
-    do i=1,j
-      write(stdout,'(a5,3f16.8)') trim(PSE(at(i))),xyz(1:3,i)*autoaa
-    enddo
-    env%ref%nat = j
-    call move_alloc(at, env%ref%at)
-    call move_alloc(xyz, env%ref%xyz)
-     
-
-    call read_last_ensemble(ich)
-    if(last_nat > 0 .and. last_nall > 0)then
-      write(stdout,'(1x,a,a)') 'Last processed ensemble file: ',trim(last_file)
-      write(stdout,'(1x,a,i0)') 'Number of saved structures: ',last_nall
-    endif
-
-
-    close (ich)
-    write(stdout,'(a)') 'FINISHED READING crest.restart ...'
-    write(stdout,'(a,/)') repeat(":",80)
-    !stop
-
-  end subroutine read_restart
-
-  subroutine read_last_ensemble(ich)
-!******************************************
-!* dump last saved ensemble as binary data
-!******************************************
-    implicit none
-    integer, intent(in) :: ich
-    integer :: nat,nall,i,j,k,l
-    read(ich) last_file
-    read(ich) nat
-    last_nat = nat
-    read(ich) nall
-    last_nall = nall
-    if(nat > 0 .and. nall > 0) then
-      allocate(last_at(nat))
-      allocate(last_xyz(3,nat,nall))
-      allocate(last_comments(nall)) 
-      do k=1,nat
-        read(ich) last_at(k)
-      enddo
-      do i=1,nall
-        read(ich) last_comments(i)
-        do j=1,nat
-          read(ich) last_xyz(1:3,j,i)
-        enddo
-      enddo
-    endif
-  end subroutine read_last_ensemble
-
-
+    inquire(file=restart_file,exist=ex)
+    if (.not.ex) return
+    open(newunit=ich,file=restart_file,status='old',iostat=io)
+    if (io == 0) close(ich,status='delete')
+  end subroutine delete_restart_log
 
 !========================================================================================!
-!========================================================================================!
-!> some routines to create backup data
 
-  subroutine restart_save_env(env)
-!*************
-!* backup env
-!*************  
+  subroutine read_restart_log(rdat)
+!*************************************************************
+!* Read crest.restart into a restart_data object.
+!* Unknown keys are silently ignored for forward compatibility.
+!*
+!* Arguments:
+!*   rdat - restart_data object to populate
+!*************************************************************
     implicit none
-    type(systemdata),intent(in) :: env
-    if (.not.allocated(restart_env)) then
-      allocate (restart_env,source=env)
+    type(restart_data),intent(out) :: rdat
+    integer :: ich,io
+    character(len=512) :: line,key,val
+    integer :: pos
+
+    rdat = restart_data()  !> initialise with defaults
+
+    open(newunit=ich,file=restart_file,status='old',iostat=io)
+    if (io /= 0) then
+      write(stdout,'(a)') '**WARNING** could not read crest.restart'
+      return
     end if
-    restart_env = env
-  end subroutine restart_save_env
 
+    do
+      read(ich,'(a)',iostat=io) line
+      if (io /= 0) exit
+      line = adjustl(line)
+      if (len_trim(line) == 0) cycle
+      if (line(1:1) == '#') cycle
+      pos = index(line,' ')
+      if (pos < 2) cycle
+      key = line(1:pos-1)
+      val = adjustl(line(pos+1:))
+      select case(trim(key))
+      case('version')
+        read(val,*,iostat=io) rdat%version
+      case('runtype')
+        read(val,*,iostat=io) rdat%runtype
+      case('main_iter')
+        read(val,*,iostat=io) rdat%main_iter
+      case('mtd_iter')
+        read(val,*,iostat=io) rdat%mtd_iter
+      case('nmetadyn')
+        read(val,*,iostat=io) rdat%nmetadyn
+      case('stage')
+        rdat%stage = trim(val)
+      case('last_file')
+        rdat%last_file = trim(val)
+      case('elowest')
+        read(val,*,iostat=io) rdat%elowest
+      case('eprivious')
+        read(val,*,iostat=io) rdat%eprivious
+      end select
+    end do
+    close(ich)
+  end subroutine read_restart_log
 
-  subroutine restart_save_ensemble(fname,nat,nall,at,xyz,comments)
-!*********************************
-!* backup last processed ensemble
-!*********************************
-     implicit none
-     character(len=*),intent(in) :: fname
-     integer,intent(in)  :: nat,nall
-     integer,intent(in)  :: at(nat)
-     real(wp),intent(in) :: xyz(3,nat,nall)
-     character(len=*),intent(in) :: comments(nall)
-     integer :: i
-     if(.not.saveensembles) return
-     !> backup of the last processed ensemble
-     last_file = trim(fname)
-     last_nat = nat
-     last_nall = nall
-     if(.not.allocated(last_at)) allocate(last_at(nat))
-     last_at(:) = at(:)
-     if(allocated(last_xyz)) deallocate(last_xyz)
-     if(allocated(last_comments)) deallocate(last_comments)
-     allocate(last_xyz(3,nat,nall))
-     allocate(last_comments(nall))
-     last_xyz(:,:,:) = xyz(:,:,:)
-     last_comments(:) = comments(:)
-  end subroutine restart_save_ensemble
+!========================================================================================!
+
+  subroutine print_restart_info(rdat)
+!*****************************************************
+!* Print a summary of the restart checkpoint to stdout.
+!*****************************************************
+    implicit none
+    type(restart_data),intent(in) :: rdat
+    character(len=64) :: rtname
+    integer :: w
+    w = 57
+
+    select case(rdat%runtype)
+    case(2)
+      rtname = 'iMTD-GC'
+    case(22)
+      rtname = 'sMTD-iMTD (entropy)'
+    case default
+      write(rtname,'(a,i0)') 'runtype ',rdat%runtype
+    end select
+
+    write(stdout,*)
+    write(stdout,'(1x,a)') repeat(':',w)
+    write(stdout,'(1x,a,a,a)') ' RESTART DETECTED (',trim(restart_file),')'
+    write(stdout,'(1x,a,a)')   '  runtype  : ',trim(rtname)
+    write(stdout,'(1x,a,a)')   '  stage    : ',trim(rdat%stage)
+    if (rdat%stage == 'mtd_loop') then
+      write(stdout,'(1x,a,i0,a,i0,a)') '  MTD iter : ',rdat%mtd_iter, &
+        &  ' (MAINLOOP ',rdat%main_iter,')'
+    end if
+    if (len_trim(rdat%last_file) > 0) then
+      write(stdout,'(1x,a,a)')   '  last file: ',trim(rdat%last_file)
+    end if
+    write(stdout,'(1x,a,f20.10)') '  elowest  : ',rdat%elowest
+    write(stdout,'(1x,a)') repeat(':',w)
+    write(stdout,*)
+  end subroutine print_restart_info
 
 !========================================================================================!
 !========================================================================================!

@@ -24,6 +24,7 @@ subroutine crest_moleculardynamics(env,tim)
   use strucrd
   use dynamics_module
   use shake_module
+  use iomod,only:colorify
   implicit none
   type(systemdata),intent(inout) :: env
   type(timer),intent(inout)      :: tim
@@ -39,17 +40,19 @@ subroutine crest_moleculardynamics(env,tim)
   real(wp),allocatable :: grad(:,:)
 
   character(len=80) :: atmp
-  character(len=*),parameter :: trjf='crest_dynamics.trj'
+  character(len=*),parameter :: trjf = 'crest_dynamics.trj.xyz'
 !========================================================================================!
-  write(stdout,*)
-  !call system('figlet dynamics')
-  write(stdout,*) "      _                             _           " 
-  write(stdout,*) "   __| |_   _ _ __   __ _ _ __ ___ (_) ___ ___  "
-  write(stdout,*) "  / _` | | | | '_ \ / _` | '_ ` _ \| |/ __/ __| "
-  write(stdout,*) " | (_| | |_| | | | | (_| | | | | | | | (__\__ \ "
-  write(stdout,*) "  \__,_|\__, |_| |_|\__,_|_| |_| |_|_|\___|___/ "
-  write(stdout,*) "        |___/                                   "
-  write(stdout,*)
+  write (stdout,*)
+  write (stdout,*) " ------------------------------------------------- "
+  write (stdout,*) " #####  #   # #    #   ##   #    # #  ####   ####  "
+  write (stdout,*) " #    #  # #  ##   #  #  #  ##  ## # #    # #      "
+  write (stdout,*) " #    #   #   # #  # #    # # ## # # #       ####  "
+  write (stdout,*) " #    #   #   #  # # ###### #    # # #           # "
+  write (stdout,*) " #    #   #   #   ## #    # #    # # #    # #    # "
+  write (stdout,*) " #####    #   #    # #    # #    # #  ####   ####  "
+  write (stdout,*) " ------------------------------------------------- "
+  write (stdout,*)
+
 !========================================================================================!
   call new_ompautoset(env,'max',0,T,Tn)
   call ompprint_intern()
@@ -65,9 +68,9 @@ subroutine crest_moleculardynamics(env,tim)
   !>--- default settings from env
   call env_to_mddat(env)
   mddat = env%mddat
-  calc = env%calc
+  call calc%copy(env%calc)
   !>--- check if we have any MD & calculation settings allocated
-  if (.not. mddat%requested) then
+  if (.not.mddat%requested) then
     write (stdout,*) 'MD requested, but no MD settings present.'
     env%iostatus_meta = status_config
     return
@@ -78,12 +81,12 @@ subroutine crest_moleculardynamics(env,tim)
   end if
 
   !>--- print calculation info
-  call calc%info( stdout )
+  call calc%info(stdout)
 
   !>--- init SHAKE? --> we need connectivity info
   if (mddat%shake) then
     calc%calcs(1)%rdwbo = .true.
-    if(.not.calc%calcs(1)%active) calc%calcs(1)%active=.true.
+    if (.not.calc%calcs(1)%active) calc%calcs(1)%active = .true.
     allocate (grad(3,mol%nat),source=0.0_wp)
     call engrad(mol,calc,energy,grad,io)
     deallocate (grad)

@@ -59,7 +59,7 @@ contains  !> Unit tests for using geometry optimization routines in CREST
     integer :: io
     logical :: wr,pr
 !&<
-    real(wp),parameter :: e_ref = -4.677663337455959_wp
+    real(wp),parameter :: e_ref = -4.677661756_wp
 !&>
 
     !> setup

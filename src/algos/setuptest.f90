@@ -60,10 +60,10 @@ subroutine trialMD_calculator(env)
   type(timer) :: profiler
 
   type(calcdata) :: tmpcalc
-  type(calcdata) :: calcstart
+  type(calcdata),allocatable :: calcstart(:)
   real(wp) :: energy
   real(wp),allocatable :: grd(:,:)
-  integer :: T,Tn
+  integer :: T,Tn,ii
   character(len=*),parameter :: dirnam = 'TRIALMD'
 
 !>--- OMP settings (should be set to 1 to simulate max parallelization)
@@ -88,13 +88,13 @@ subroutine trialMD_calculator(env)
   if (allocated(env%ref%wbo)) then  !> should be allocated from main program
     MDSTART%shk%wbo = env%ref%wbo
   else !> otherwise, obtain from scratch
-    tmpcalc = env%calc
+    call tmpcalc%copy(env%calc)
     mol = molstart
     tmpcalc%calcs(1)%rdwbo = .true. !> obtain WBOs
-    allocate(grd(3,mol%nat))
+    allocate (grd(3,mol%nat))
     call engrad(mol,tmpcalc,energy,grd,io)
-    call move_alloc(tmpcalc%calcs(1)%wbo, env%ref%wbo)
-    deallocate(grd)
+    call move_alloc(tmpcalc%calcs(1)%wbo,env%ref%wbo)
+    deallocate (grd)
     call tmpcalc%reset()
     MDSTART%shk%wbo = env%ref%wbo
   end if
@@ -105,8 +105,6 @@ subroutine trialMD_calculator(env)
   MTD%mtdtype = cv_rmsd
   MTD%cvdump_fs = 550.0_wp
   call MDSTART%add(MTD)
-  calcstart = env%calc !> Save clean state before loop
-
   pr = .false. !> supress stdout printout of MD
 
 !>--- Header
@@ -116,6 +114,13 @@ subroutine trialMD_calculator(env)
 !>--- Iterative loop, since it is also tested if the MD runs at all
   counter = 1
   maxiter = 6
+
+!>--- temporary clean calculation storage per iteration
+  allocate (calcstart(maxiter))
+  do ii = 1,maxiter
+    call calcstart(ii)%copy(env%calc)
+  end do
+
   tstep = MDSTART%tstep
   shakemode = MDSTART%shk%shake_mode
   call profiler%init(maxiter)
@@ -123,8 +128,7 @@ subroutine trialMD_calculator(env)
 
 !>--- Restore initial starting geometry
     mol = molstart
-!>--- Restore clean calculation state
-    env%calc = calcstart
+
 !>--- Modify MD output trajectory
     MD = MDSTART
     MD%tstep = tstep
@@ -137,7 +141,7 @@ subroutine trialMD_calculator(env)
     io = 1
     !================================!
     call profiler%start(counter)
-    call dynamics(mol,MD,env%calc,pr,io)
+    call dynamics(mol,MD,calcstart(counter),pr,io)
     call profiler%stop(counter)
     !================================!
 
@@ -180,6 +184,8 @@ subroutine trialMD_calculator(env)
     end if
 !>--- End loop
   end do iterativ
+
+  deallocate (calcstart)
 
 !>--- transfer final settings to global settings
   env%mdstep = MD%tstep
@@ -302,28 +308,28 @@ subroutine trialOPT_calculator(env)
 !>--- setup
   call env%ref%to(mol)
   call env%ref%to(molopt)
-  allocate(grd(3,mol%nat), source=0.0_wp)
-  tmpcalc = env%calc  !> create copy of calculator
-  tmpcalc%optlev = -1 !> set loose convergence thresholds 
+  allocate (grd(3,mol%nat),source=0.0_wp)
+  call tmpcalc%copy(env%calc)  !> create copy of calculator
+  tmpcalc%optlev = -1 !> set loose convergence thresholds
 
 !>--- perform geometry optimization
-  pr = .false. !> stdout printout
-  wr = .true.  !> write crestopt.log
-  if(wr)then
-    call remove('crestopt.log')
-  endif 
+  pr = env%crestver == crest_trialopt
+  wr = .true.  !> write crestopt.log.xyz
+  if (wr) then
+    call remove('crestopt.log.xyz')
+  end if
   call optimize_geometry(mol,molopt,tmpcalc,energy,grd,pr,wr,io)
 
-!>--- check success 
+!>--- check success
   success = (io == 0)
   call trialOPT_warning(env,molopt,success)
 !>--- if the checks were successfull, env%ref is overwritten
   env%ref%nat = molopt%nat
   env%ref%at = molopt%at
   env%ref%xyz = molopt%xyz
-  env%ref%etot = energy  
+  env%ref%etot = energy
 
-  deallocate(grd) 
+  deallocate (grd)
 end subroutine trialOPT_calculator
 
 !========================================================================================!
@@ -352,7 +358,7 @@ subroutine trialOPT_warning(env,mol,success)
   if (.not.success) then
     write (stdout,*)
     write (stdout,*) ' Initial geometry optimization failed!'
-    write (stdout,*) ' Please check your input and, if present, crestopt.log.'
+    write (stdout,*) ' Please check your input and, if present, crestopt.log.xyz.'
     call creststop(status_failed)
   end if
   write (stdout,*) 'Geometry successfully optimized.'
@@ -396,7 +402,7 @@ subroutine trialOPT_warning(env,mol,success)
         if (env%legacy) then
           write (stdout,'(1x,a)') 'You can check the optimization trajectory in the "xtbopt.log" file.'
         else
-          write (stdout,'(1x,a)') 'You can check the optimization trajectory in the "crestopt.log" file.'
+          write (stdout,'(1x,a)') 'You can check the optimization trajectory in the "crestopt.log.xyz" file.'
         end if
         write (stdout,'(1x,a)') 'Try either of these options:'
         write (stdout,'(/,4x,a)') 'A) Pre-optimize your input seperately and use the optimized'

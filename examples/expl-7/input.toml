@@ -1,0 +1,11 @@
+# iMTD-GC conformer search with GFN2-xTB and ALPB implicit solvation
+runtype = "imtd-gc"
+input   = "struc.xyz"   # input structure file (1-propanol)
+threads = 4             # number of parallel threads
+
+[[calculation.level]]
+method = "gfn2"         # GFN2-xTB semi-empirical Hamiltonian
+alpb   = "h2o"          # ALPB implicit solvation model, water solvent
+
+[cregen]
+ewin = 2.0              # keep conformers within 2.0 kcal/mol of the lowest

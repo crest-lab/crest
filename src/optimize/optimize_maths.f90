@@ -33,8 +33,12 @@ module optimize_maths
   end interface
   public :: detrotra8
   public :: solver_sdavidson
+  public :: solver_ddavidson
   public :: solver_sspevx
+  public :: solver_dspevx
   public :: solver_ssyevx
+  public :: dsqtoh
+  public :: dhtosq
 
 !========================================================================================!
 !========================================================================================!
@@ -113,8 +117,8 @@ contains !> MODULE PROCEDURES START HERE
         i = i+1
         j = j-1
       end do
-      if (first < i-1) call qsort(a,first,i-1,ind)
-      if (j+1 < last) call qsort(a,j+1,last,ind)
+      if (first < i-1) call detrotra_qsort(a,first,i-1,ind)
+      if (j+1 < last) call detrotra_qsort(a,j+1,last,ind)
     end subroutine detrotra_qsort
   end subroutine detrotra8
 
@@ -212,7 +216,9 @@ contains !> MODULE PROCEDURES START HERE
     nprj = 6
     if (nmode .gt. 0) nprj = nprj+nmode
     !if (nmode .lt. 0) nprj = nprj + fixset%n * 3
+    !$omp critical
     allocate (fmat(nat3,nprj))
+    !$omp end critical
     fmat(:,:) = 0.0_wp
 
     if (nmode .ge. 0) then
@@ -252,8 +258,10 @@ contains !> MODULE PROCEDURES START HERE
 
     !> do projection
     call dsyprj(nat3,nprj,fmat,nat3,hess)
-
+    
+    !$omp critical
     deallocate (fmat)
+    !$omp end critical
     return
   end subroutine gtrprojm
 
@@ -458,8 +466,9 @@ contains !> MODULE PROCEDURES START HERE
     external :: dsymm
     external :: dgemm
 !-----------------------------------------------------------------
+   !$omp critical
     allocate (scrb(n,m),scra(n,n))
-
+    !$omp end critical
 !> Expand trigonal matrix asym to full matrix on scra
     call dhtosq(n,scra,asym)
 !> Calculate scrb = asym*bmat (BLAS)
@@ -487,8 +496,9 @@ contains !> MODULE PROCEDURES START HERE
         asym(ij) = asym(ij)+scra(i,j)
       end do
     end do
-
+    !$omp critical
     deallocate (scra,scrb)
+    !$omp end critical
     return
   end subroutine dsyprj
 
@@ -535,7 +545,9 @@ contains !> MODULE PROCEDURES START HERE
 !-----------------------------------------------------------------
 ! Allocate overlap matrix
 !-----------------------------------------------------------------
+    !$omp critical
     allocate (smat(ibsize,ibsize))
+    !$omp end critical
 
 !-----------------------------------------------------------------
 ! Calculate the number of blocks
@@ -599,7 +611,9 @@ contains !> MODULE PROCEDURES START HERE
     end do
 
 !> Clean up and return
+    !$omp critical
     deallocate (smat)
+    !$omp end critical
     return
   end subroutine dblckmgs
 
@@ -816,6 +830,217 @@ contains !> MODULE PROCEDURES START HERE
 
 !========================================================================================!
 
+  subroutine solver_ddavidson(n,crite,Hp,C,e,fail,pr) !> This one now in double precision!!
+!*****************************************************************
+!* subroutine solver_sdavidson
+!*
+!* Davidson method to iteratively diagonalize
+!* a subspace of a matrix to provide its first
+!* few lowest (or highest) eigenvalues.
+!* In this version it is hard-coded to the lowest eigenvalue.
+!*
+!* Input:
+!*      n -  dimension of the matrix to be diagonalized
+!*  crite - eigenvalue convergence threshold
+!*     Hp - the matrix to be diagonalized in packed form
+!*      C - eigenvevtor(s)
+!*     pr - print statement
+!* Output:
+!*      e - eigenvalues
+!*   fail - exit status boolean
+!*
+!* Note the DOUBLE PRECISION!
+!*****************************************************************
+    implicit none
+    logical,intent(in) :: pr
+    logical,parameter :: ini = .false.
+    integer :: n       ! dimension
+    integer,parameter :: nr = 1
+    real(wp) :: crite   ! eigenvalue convergence threshold
+    real(wp) :: Hp(n*(n+1)/2)  ! matrix to be diagonalized
+    real(wp) :: C(n,nr) ! eigenvectors
+    real(wp) :: e(nr)   ! eigenvalues
+    logical,intent(out) :: fail
+    !> Local
+    integer,parameter :: maxiter = 100        ! maximum # of iterations
+    integer :: iter,ineue(1),janf!,lun1,lun2
+    integer :: iideks(maxiter),idum,j,jalt,ilauf,jneu
+    integer :: l1,l2,k,LWORK,LIWORK,INFO,i,ien,ialt,memlun2
+    integer,allocatable :: iwork(:)
+    logical :: lconf
+    real(wp),allocatable :: lun1(:,:),lun2(:,:)
+    integer,parameter :: initial_dyn_array_size = 10
+    real(wp) :: valn(1),uim,s,denerg
+    real(wp),allocatable :: adiag(:),vecf1(:),vecf2(:),w(:)
+    real(wp),allocatable :: Uaug(:,:),d(:),aux(:)
+    real(wp),allocatable :: AB(:,:),av(:),tmpav(:,:)
+    !> LAPACK & BLAS
+    external :: dspmv
+    real(wp),external :: ddot
+    external :: dsyevd
+    external :: daxpy
+
+    fail = .true.
+
+    if (pr) then
+      write (*,'(/,10x,''******************************************'')')
+      write (*,'(10x,''*            multi-root davidson (R4)    *'')')
+      write (*,'(10x,''******************************************'',/)')
+      write (*,*) 'dim ',n,' # roots ',1
+    end if
+
+    allocate (adiag(n),vecf1(n),vecf2(n),w(n),av(maxiter*(maxiter+1)/2))
+
+    allocate (lun1(n,initial_dyn_array_size),lun2(n,initial_dyn_array_size), &
+       &     source=0.0_wp)
+
+    !> H * C for initialization
+    call dmwrite(n,lun1,C(:,1),1)
+    call dspmv('u',n,1.0_wp,Hp,C(:,1),1,0.0_wp,vecf2,1)
+    call dmwrite(n,lun2,vecf2,1)
+
+    !> make array iideks
+    iideks(1) = 1
+    do idum = 2,maxiter
+      iideks(idum) = iideks(idum-1)+idum
+    end do
+    valn = 0
+    lconf = .false.
+    e = 0
+    do i = 1,n
+      adiag(i) = HP(i*(i+1)/2)
+    end do
+    av(1) = ddot(n,C(:,1),1,vecf2,1)
+
+!>--------------------------------
+!> Davidson algo loop
+!>--------------------------------
+    j = 1
+    DAVIDSON: do iter = 1,maxiter-1
+      lwork = 1+6*j+2*j**2
+      liwork = 8*j
+      allocate (Uaug(j,j),d(j),iwork(liwork),aux(lwork))
+      k = 0
+      do l1 = 1,j
+        do l2 = 1,l1
+          k = k+1
+          Uaug(l2,l1) = av(k)
+          Uaug(l1,l2) = av(k)
+        end do
+      end do
+      call dsyevd('V','U',j,Uaug,j,d,aux,LWORK,IWORK,LIWORK,INFO)
+      valn(1:1) = d(1:1)
+
+      !> create and save vectors on vecf1
+      vecf1 = 0.0_wp
+      do i = 1,j
+        call dmread(n,lun1,w,i)
+        uim = Uaug(i,1)
+        call daxpy(n,uim,w,1,vecf1,1)
+      end do
+
+      !> calculate E*bi
+      vecf2 = -valn(1)*vecf1
+      !> calculate h*bi-e*bi (overwrites vecf2)
+      do i = 1,j
+        call dmread(n,lun2,w,i)
+        memlun2 = i
+        uim = Uaug(i,1)
+        call daxpy(n,uim,w,1,vecf2,1)
+      end do
+      deallocate (aux,iwork,d,Uaug)
+      C(1:n,1) = vecf1
+
+      !> calculate (h*bi - e*bi)/(e - haa); (saved as vecf2)
+      vecf1 = vecf2/(valn(1)-adiag)
+
+      !> check for convergence of Davidson algo
+      denerg = abs(valn(1)-e(1))
+      lconf = denerg .lt. crite
+      if (pr) write (*,*) iter,lconf,denerg,valn(1:1)
+      if (lconf) then
+        if (pr) write (*,*) 'all roots converged'
+        fail = .false.
+        exit DAVIDSON
+      end if
+
+      if (j .gt. 0) then
+        ialt = j
+        !> orthogonalize
+        do jalt = 1,ialt
+          call dmread(n,lun1,w,jalt)
+          s = -ddot(n,w,1,vecf1,1)
+          call daxpy(n,s,w,1,vecf1,1)
+        end do
+        !> normalize remaining
+        s = ddot(n,vecf1,1,vecf1,1)
+        if (s .gt. 0.00000001) then
+          s = 1.0_wp/sqrt(s)
+          vecf1 = vecf1*s
+          ialt = ialt+1
+          call dmwrite(n,lun1,vecf1,jalt)
+        else
+          fail = .false.
+          exit DAVIDSON
+        end if
+      end if
+
+      !> H * C
+      call dspmv('u',n,1.0_wp,Hp,vecf1,1,0.0_wp,vecf2,1)
+      call dmwrite(n,lun2,vecf2,memlun2+1)
+
+      !> calculate matrix elements for next iteration
+      do jalt = 1,j
+        call dmread(n,lun1,w,jalt)
+        ilauf = iideks(j)+jalt
+        av(ilauf) = ddot(n,w,1,vecf2,1)
+        ilauf = ilauf+1+j
+      end do
+      av(iideks(j+1)) = ddot(n,vecf2,1,vecf1,1)
+      !> increase expansion space and iterate further
+      e = valn
+      j = j+1
+    end do DAVIDSON
+!>--------------------------------
+!> end algo loop
+!>--------------------------------
+    if (pr.and.fail) write (*,*) 'Warning: davidson not properly converged'
+
+    deallocate (adiag,vecf1,vecf2,w,av,lun1,lun2)
+    return
+  contains
+    !> write array v onto iwo
+    subroutine dmwrite(n,iwo,v,irec)
+      implicit none
+      real(wp),intent(inout),allocatable :: iwo(:,:)
+      real(wp),intent(in)  :: v(n)
+      integer,intent(in)  :: n,irec
+      real(wp),allocatable :: tmp(:,:)
+      integer :: d2,dn
+      d2 = size(iwo,2)
+      if (irec > d2) then
+        dn = d2+d2/2+1
+        allocate (tmp(n,dn))
+        tmp(:,:d2) = iwo
+        deallocate (iwo)
+        call move_alloc(tmp,iwo)
+      end if
+      iwo(:,irec) = v
+      return
+    end subroutine dmwrite
+    !> read array v from iwo
+    subroutine dmread(n,iwo,v,irec)
+      implicit none
+      real(wp),intent(out) :: v(n)
+      real(wp),intent(in)  :: iwo(:,:)
+      integer,intent(in)  :: n,irec
+      v = iwo(:,irec)
+      return
+    end subroutine dmread
+  end subroutine solver_ddavidson
+
+!========================================================================================!
+
   subroutine solver_ssyevx(n,thr,A,U,e,fail)
 !****************************************************************
 !* subroutine solver_ssyevx
@@ -880,6 +1105,57 @@ contains !> MODULE PROCEDURES START HERE
     if (info .ne. 0) fail = .true.
     deallocate (iwork,work,ifail)
   end subroutine solver_sspevx
+
+  subroutine solver_dspevx(n,thr,A,U,e,fail)
+!*********************************************************
+!* subroutine solver_dspevx
+!* wrapper for LAPACK's dspevx routine:
+!* DSPEVX computes all eigenvalues and eigenvectors of a
+!* real symmetric matrix A in packed storage using a
+!* divide and conquer algorithm.
+!*********************************************************
+    implicit none
+    integer,intent(in) :: n
+    real(wp),intent(in) :: thr
+    real(wp),intent(inout) :: A(:)
+    real(wp),intent(inout) :: U(:,:)
+    real(wp),intent(inout) :: e(:)
+    logical,intent(out) :: fail
+    integer :: i,j,k
+    integer :: info
+    real(wp),allocatable :: work(:)
+    integer,allocatable :: iwork(:)
+    integer,allocatable :: ifail(:)
+    real(wp) :: dum
+    !> LAPACK
+    external :: dspevx
+    fail = .false.
+    allocate (iwork(5*n),work(8*n),ifail(n))
+    j = 1
+    call dspevx('V','I','U',n,A,dum,dum,j,j,thr,i,e,U,n,work,iwork,ifail,info)
+    if (info .ne. 0) fail = .true.
+    deallocate (iwork,work,ifail)
+  end subroutine solver_dspevx
+
+  subroutine dsqtoh(n,a,b)
+!****************************************************
+!* converts upper triangle of a matrix into a vector
+!****************************************************
+    implicit none
+    integer,intent(in)  :: n
+    real(wp),intent(in) :: a(n,n)
+    real(wp),intent(out)  :: b(n*(n+1)/2)
+    integer :: i,j,k
+
+    k = 0
+    do i = 1,n
+      do j = 1,i
+        k = k+1
+        b(k) = a(i,j)
+      end do
+    end do
+
+  end subroutine dsqtoh
 
 !========================================================================================!
 !========================================================================================!

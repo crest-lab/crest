@@ -155,14 +155,22 @@ contains  !>--- Module routines start here
     else
       fname = calc%calcfile
     end if
-    if(calc%uhf < 1) calc%uhf = 1 !> ORCA uses multiplicity, not n_alpha - n_beta!
-    call calc%ORCA%write(fname,mol,calc%chrg,calc%uhf)
+    !> ORCA uses the spin multiplicity (2S+1), not uhf = Nα-Nβ
+    call calc%sync_multiplicity()
+    !> pass the level thread count so CREST owns the %pal setup (if > 1)
+    call calc%ORCA%write(fname,mol,calc%chrg,calc%multiplicity,nthreads=calc%threads)
     deallocate (fname)
 
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
     !>--- if the systemcall was already set up, return
     if (allocated(calc%systemcall)) return
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!
+
+    !>--- an absolute path to a missing binary is the most common setup error
+    if (calc%binary(1:1) == '/'.and.index(trim(calc%binary),' ') == 0) then
+      inquire (file=trim(calc%binary),exist=ex)
+      if (.not.ex) write (stdout,'(a,a)') '**ERROR** ORCA binary not found: ',trim(calc%binary)
+    end if
 
     !>--- construct path information for sys-call
     if (allocated(calc%calcspace)) then
@@ -174,7 +182,7 @@ contains  !>--- Module routines start here
 
     calc%systemcall = trim(calc%systemcall)//' ORCA.in' 
        
-    if(calc%ORCA%mpi .and. index(calc%binary,'oversubscribe').eq.0)then
+    if((calc%ORCA%mpi .or. calc%threads > 1) .and. index(calc%binary,'oversubscribe').eq.0)then
       calc%systemcall = trim(calc%systemcall)//' --oversubscribe'
     endif
 

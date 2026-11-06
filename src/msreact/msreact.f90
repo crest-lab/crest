@@ -30,6 +30,8 @@ subroutine msreact_handler(env,tim)
   use atmasses
   use iomod
   use zdata
+  use msreact_calc,only:msreact_sp_calc,msreact_wbo_calc
+  use cregen_interface,only:newcregen
   implicit none
 
   type(systemdata) :: env
@@ -61,8 +63,13 @@ subroutine msreact_handler(env,tim)
   call msreact_head(env,mso)
 
   ! get starting energy of lowest fragment
-  call get_input_energy(env,mso%T,estart)
-  call get_wbo(env,mso%T)
+  if (env%legacy) then
+    call get_input_energy(env,mso%T,estart)
+    call get_wbo(env,mso%T)
+  else
+    call msreact_sp_calc(env,mso%T,estart)
+    call msreact_wbo_calc(env,mso%T)
+  end if
   !-- read the input coord and put it into the
   !   product-list as first structure
   call struc%open('coord')
@@ -148,6 +155,7 @@ subroutine msreact(env,mso,nat,pair)
   use iomod
   use miscdata,only:rcov
   use utilities,only:lin
+  use msreact_calc
   implicit none
 
   type(msobj) :: mso    !main storage object
@@ -170,14 +178,21 @@ subroutine msreact(env,mso,nat,pair)
   character(len=30) :: base
   character(len=512) :: thisdir
   real(wp) :: constr_dist
+  type(msjob),allocatable :: jobs(:)
+  integer :: njob
+  logical :: legacy
 
   inmol = mso%pl%mol(1)
+  legacy = env%legacy
+  njob = 0
 
-  !-- main subdirectory handling
+  !-- main subdirectory handling (xtb jobs of the legacy route)
   call getcwd(thisdir)
   subdir = 'MSDIR'
-  io = makedir(subdir)
-  call chdir(subdir)
+  if (legacy) then
+    io = makedir(subdir)
+    call chdir(subdir)
+  end if
 
   !-- get specific pairs
   base = 'Pair_'
@@ -193,7 +208,11 @@ subroutine msreact(env,mso,nat,pair)
         write (pdir,'(a,i0)') trim(base),np
         constr_dist = mso%cdist*(rcov(inmol%at(i))+rcov(inmol%at(j)))*bohr+float(p)
         ! write(*,*) inmol%at(i),inmol%at(j),constr_dist
-        call isodir(mso,trim(pdir),inmol,i,j,constr_dist,mso%fc)
+        if (legacy) then
+          call isodir(mso,trim(pdir),inmol,i,j,constr_dist,mso%fc)
+        else
+          call msjob_add(jobs,njob,inmol,.true.,i,j,constr_dist,mso%fc)
+        end if
       end if
     end do
   end do
@@ -201,10 +220,14 @@ subroutine msreact(env,mso,nat,pair)
   !attractive potential for H-shifts
   !for H-shifts: xtb -lmo , read xtb.out -> get list of atoms with pi or lone-pair -> H-allowed to shift there
   if (env%msattrh) then
-    call chdir(thisdir)
-    call xtblmo(env,.true.)
-    call readbasicpos(env,nbaseat,basicatlist)
-    call chdir(subdir)
+    if (legacy) then
+      call chdir(thisdir)
+      call xtblmo(env,.true.)
+      call readbasicpos(env,nbaseat,basicatlist)
+      call chdir(subdir)
+    else
+      call msreact_basic_atoms(env,basicatlist)
+    end if
     write (*,*) "Add attractive potential for H-shifts:"
     !-- setting the threads for correct parallelization (were changed in xtblmo call)
     call new_ompautoset(env,'auto',0,T,Tn)
@@ -220,7 +243,11 @@ subroutine msreact(env,mso,nat,pair)
               !write(*,*) "add attractive potential for pair ", np," between ",i," and ",j
               write (pdir,'(a,i0)') 'Pair_',np
               constr_dist = mso%cdist_att*(rcov(inmol%at(i))+rcov(inmol%at(j)))*bohr+float(p)
-              call isodir(mso,trim(pdir),inmol,i,j,constr_dist,mso%fc_attr)
+              if (legacy) then
+                call isodir(mso,trim(pdir),inmol,i,j,constr_dist,mso%fc_attr)
+              else
+                call msjob_add(jobs,njob,inmol,.true.,i,j,constr_dist,mso%fc_attr)
+              end if
             end if
           end if
         end if
@@ -229,8 +256,13 @@ subroutine msreact(env,mso,nat,pair)
   end if
 
   write (*,*) '# of distortions',np
-  call msreact_jobber(env,np,base,.true.,.false.)
-  call msreact_collect(nat,np,base,mso)
+  if (legacy) then
+    call msreact_jobber(env,np,base,.true.,.false.)
+    call msreact_collect(nat,np,base,mso)
+  else
+    call msreact_optjobs(env,mso,njob,jobs)
+    njob = 0
+  end if
 
   !-- do additional shifting of atoms and subsequent optimization
   if (env%msnshifts .gt. 0) then
@@ -241,11 +273,20 @@ subroutine msreact(env,mso,nat,pair)
       call shiftatoms(mso,inmol,inmoldisp)
       np = np+1
       write (pdir,'(a,i0)') trim(base),np
-      call isodiropt(mso,trim(pdir),inmoldisp)
+      if (legacy) then
+        call isodiropt(mso,trim(pdir),inmoldisp)
+      else
+        call msjob_add(jobs,njob,inmoldisp,.false.)
+      end if
     end do
-    call msreact_jobber(env,np,base,.false.,.false.)
-    ! collect everything in isomer list
-    call msreact_collect(nat,np,base,mso)
+    if (legacy) then
+      call msreact_jobber(env,np,base,.false.,.false.)
+      ! collect everything in isomer list
+      call msreact_collect(nat,np,base,mso)
+    else
+      call msreact_optjobs(env,mso,njob,jobs)
+      njob = 0
+    end if
   end if
 
   ! do additional shifting of atoms and subsequent optimization with constrained bonds
@@ -264,14 +305,23 @@ subroutine msreact(env,mso,nat,pair)
             np = np+1
             write (pdir,'(a,i0)') trim(base),np
             constr_dist = mso%cdist*(rcov(inmoldisp%at(i))+rcov(inmoldisp%at(j)))*bohr+float(p)
-            call isodir(mso,trim(pdir),inmoldisp,i,j,constr_dist,mso%fc)
+            if (legacy) then
+              call isodir(mso,trim(pdir),inmoldisp,i,j,constr_dist,mso%fc)
+            else
+              call msjob_add(jobs,njob,inmoldisp,.true.,i,j,constr_dist,mso%fc)
+            end if
           end if
         end do
       end do
     end do
-    call msreact_jobber(env,np,base,.true.,.false.)
-    ! collect everything in isomer list
-    call msreact_collect(nat,np,base,mso)
+    if (legacy) then
+      call msreact_jobber(env,np,base,.true.,.false.)
+      ! collect everything in isomer list
+      call msreact_collect(nat,np,base,mso)
+    else
+      call msreact_optjobs(env,mso,njob,jobs)
+      njob = 0
+    end if
   end if
 
   call chdir(thisdir)

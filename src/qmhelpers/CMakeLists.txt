@@ -21,6 +21,7 @@ list(APPEND srcs
   "${dir}/intpack.f90"
   "${dir}/lopt.f90"
   "${dir}/local.f90"
+  "${dir}/ir_spectrum.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

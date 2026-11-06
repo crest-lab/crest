@@ -1,0 +1,9 @@
+# Tautomer screening via protonation/deprotonation sequences
+runtype = "tautomerize"
+input   = "struc.xyz"   # input structure file (guanine)
+
+[[calculation.level]]
+method = "gfn2"         # GFN2-xTB for tautomer ranking
+
+[cregen]
+ewin = 10.0             # energy window for tautomer selection (kcal/mol)

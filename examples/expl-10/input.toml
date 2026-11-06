@@ -1,0 +1,13 @@
+# Constrained iMTD-GC: atoms 1-4 (C-C-C-O backbone) frozen in Cartesian space;
+# only OH dihedral angles are sampled.
+runtype = "imtd-gc"
+input   = "struc.xyz"   # input structure file (1-propanol)
+
+[[calculation.level]]
+method = "gfnff"        # GFN-FF force field
+
+[calculation]
+freeze = "1-4"          # freeze atoms 1-4 at their input Cartesian coordinates
+
+[cregen]
+ewin = 2.0              # keep conformers within 2.0 kcal/mol of the lowest

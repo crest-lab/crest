@@ -19,6 +19,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND srcs
   "${dir}/msreact.f90"
   "${dir}/msmod.f90"
+  "${dir}/msreact_calc.f90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

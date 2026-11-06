@@ -216,8 +216,13 @@ subroutine reactor(env, tim)
   ! </Comparing all Zeuqal objects>
   !--- 4. optimize the fragments
   if(env%restartopt)then
-    call reactorreopt(env,nat,iat,snapCount,file_xyz,taken,zequals,ndirs)
-    call collectproducts('OPTIM','TMPFRG',ndirs,'crest_products.xyz',env%riso)
+    if(env%legacy)then
+      call reactorreopt(env,nat,iat,snapCount,file_xyz,taken,zequals,ndirs)
+      call collectproducts('OPTIM','TMPFRG',ndirs,'crest_products.xyz',env%riso)
+    else
+      call reactorreopt_calc(env,nat,iat,snapCount,file_xyz,taken,zequals, &
+      &                      'crest_products.xyz',env%riso)
+    endif
   endif
 
   deallocate(nghref,ngh,bonds)
@@ -737,99 +742,245 @@ end subroutine reactorreopt
 
 
 subroutine collectproducts(optdir,base,ndirs,oname,iso)
-    use crest_parameters, only: wp, bohr
-    use iomod
-    use strucrd, only: wrxyz,rdnat,rdcoord
+!**************************************************************
+!* read the xtbopt.xyz files of the legacy fragment
+!* optimizations and write the unique products
+!**************************************************************
+    use crest_parameters, only: wp
+    use strucrd, only: coord,rdnat,rdcoord
     implicit none
     character(len=*),intent(in) :: optdir
     character(len=*),intent(in) :: base
     integer,intent(in) :: ndirs
     character(len=*),intent(in) :: oname
-    character(len=:),allocatable :: path
     logical :: iso
-
-    logical :: ex
-    integer :: i,k
-    integer :: ich
-    integer :: natiso
+    character(len=:),allocatable :: path
     character(len=256) :: atmp
+    type(coord),allocatable :: prods(:)
+    logical,allocatable :: ok(:)
+    logical :: ex
+    integer :: i
+    interface
+      subroutine reactor_products(n,prods,ok,oname,iso)
+        import :: coord
+        integer,intent(in) :: n
+        type(coord),intent(in) :: prods(n)
+        logical,intent(in) :: ok(n)
+        character(len=*),intent(in) :: oname
+        logical,intent(in) :: iso
+      end subroutine reactor_products
+    end interface
 
-    real(wp),allocatable :: xyz(:,:)
-    integer,allocatable :: at(:)
-    character(len=40),allocatable :: sumformulas(:)
-    character(len=40) :: sumform
-    real(wp),allocatable :: energies(:)
-    integer,allocatable :: nats(:)
-    logical,allocatable :: taken(:)
-
-    real(wp) :: de
-    real(wp),parameter :: ethr = 0.05_wp  !energy threshold for same structure
-    real(wp),parameter :: autokcal = 627.509541_wp
-
-    allocate(sumformulas(ndirs))
-    allocate(energies(ndirs), source= 0.0_wp)
-    allocate(nats(ndirs), source = 0)
-    allocate(taken(ndirs), source=.false.)
-
-    inquire(file=oname,exist=ex)
-    if(ex) call remove(oname)
-    open(newunit=ich,file=oname)
-    
-    path=''
+    allocate(prods(ndirs))
+    allocate(ok(ndirs), source=.false.)
     do i=1,ndirs
        write(atmp,'(a,i0)')base,i
        path=optdir//'/'//trim(atmp)//'/'//'xtbopt.xyz'
        inquire(file=path,exist=ex)
        if(.not.ex) cycle !maybe some optimizations failed. they are cycled through.
-       call rdnat(path,nats(i))
-       if(i==1)natiso=nats(i)
-       allocate(xyz(3,nats(i)),at(nats(i)))
-       call rdcoord(path,nats(i),at,xyz,energies(i))
+       call rdnat(path,prods(i)%nat)
+       allocate(prods(i)%xyz(3,prods(i)%nat),prods(i)%at(prods(i)%nat))
+       call rdcoord(path,prods(i)%nat,prods(i)%at,prods(i)%xyz,prods(i)%energy)
+       ok(i) = .true.
+    enddo
+    call reactor_products(ndirs,prods,ok,oname,iso)
+end subroutine collectproducts
 
-       sumformulas(i) = sumform(nats(i),at)
+subroutine reactor_products(n,prods,ok,oname,iso)
+!**************************************************************
+!* write the unique optimized fragments (coordinates in Bohr)
+!* to oname; duplicates by sum formula and energy (0.05 kcal)
+!**************************************************************
+    use crest_parameters, only: wp, bohr
+    use iomod
+    use strucrd, only: coord,wrxyz,sumform
+    implicit none
+    integer,intent(in) :: n
+    type(coord),intent(in) :: prods(n)
+    logical,intent(in) :: ok(n)
+    character(len=*),intent(in) :: oname
+    logical,intent(in) :: iso
+
+    logical :: ex
+    integer :: i,k
+    integer :: ich
+    integer :: natiso
+    character(len=40),allocatable :: sumformulas(:)
+    logical,allocatable :: taken(:)
+    real(wp) :: de
+    real(wp),parameter :: ethr = 0.05_wp  !energy threshold for same structure
+    real(wp),parameter :: autokcal = 627.509541_wp
+
+    allocate(sumformulas(n))
+    allocate(taken(n), source=.false.)
+
+    inquire(file=oname,exist=ex)
+    if(ex) call remove(oname)
+    open(newunit=ich,file=oname)
+
+    natiso = 0
+    do i=1,n
+       if(.not.ok(i)) cycle
+       if(i==1)natiso=prods(i)%nat
+       sumformulas(i) = sumform(prods(i)%nat,prods(i)%at)
 
        !--- check for duplicates based on composition and total energy difference
        taken(i) = .true.
        do k=1,i-1
           if(.not.taken(k))cycle
-          if(nats(i).ne.nats(k)) cycle
+          if(prods(i)%nat.ne.prods(k)%nat) cycle
           if(trim(sumformulas(i))==trim(sumformulas(k)))then
-            de=(energies(i)-energies(k))*autokcal
+            de=(prods(i)%energy-prods(k)%energy)*autokcal
             if(abs(de).le.ethr) taken(i)=.false.
-          else
-            cycle
           endif
        enddo
        !--- exclude non-isomers?
        if(iso)then
-           if(nats(i).ne.natiso) taken(i)=.false. 
+           if(prods(i)%nat.ne.natiso) taken(i)=.false.
        endif
 
        !--- if the structure was taken, write it to the collective ensemble
        if(taken(i))then
-        call wrxyz(ich,nats(i),at,xyz*bohr,energies(i))
-       endif    
-
-       deallocate(at,xyz)
+        call wrxyz(ich,prods(i)%nat,prods(i)%at,prods(i)%xyz*bohr,prods(i)%energy)
+       endif
     enddo
     close(ich)
-
 
     write(*,*)
     call smallhead('reactor products summary')
     k=0
     write(*,'(1x,a,2x,a,4x,a,8x,a)')'structure','#atoms','Etot','composition'
-    do i=1,ndirs
+    do i=1,n
        if(taken(i))then
-       k=k+1 
-       write(*,'(1x,i6,3x,i6,1x,f16.8,3x,a)') k,nats(i),energies(i), &
-      & trim(sumformulas(i))     
+       k=k+1
+       write(*,'(1x,i6,3x,i6,1x,f16.8,3x,a)') k,prods(i)%nat,prods(i)%energy, &
+      & trim(sumformulas(i))
        endif
     enddo
 
     write(*,*)
     write(*,'(1x,a,a,a)')'Structures written to file "',trim(oname),'"'
 
-    deallocate(taken,nats,energies,sumformulas)
+    deallocate(taken,sumformulas)
     return
-end subroutine collectproducts
+end subroutine reactor_products
+
+subroutine reactorreopt_calc(env,nat,at,nall,xyz,taken,frags,oname,iso)
+!**************************************************************
+!* optimize all fragments (> 1 atom) of the taken snapshots
+!* with the calculator, neutral and low-spin as the xtb route,
+!* and write the unique products to oname
+!**************************************************************
+    use crest_parameters, only: wp
+    use crest_data
+    use crest_calculator
+    use strucrd, only: coord
+    use optimize_module
+    use zdata
+    implicit none
+    type(systemdata) :: env
+    integer,intent(in) :: nat
+    integer,intent(in) :: at(nat)
+    integer,intent(in) :: nall
+    real(wp),intent(in) :: xyz(3,nat,nall) !> Bohr
+    logical,intent(in) :: taken(nall)
+    type(zequal),intent(in) :: frags(nall)
+    character(len=*),intent(in) :: oname
+    logical,intent(in) :: iso
+    type(coord),allocatable :: mols(:),prods(:)
+    logical,allocatable :: ok(:)
+    integer :: i,j,k,l,njob,T,Tn
+    logical :: nested
+    external :: ompmklset
+    interface
+      subroutine reactor_products(n,prods,ok,oname,iso)
+        import :: coord
+        integer,intent(in) :: n
+        type(coord),intent(in) :: prods(n)
+        logical,intent(in) :: ok(n)
+        character(len=*),intent(in) :: oname
+        logical,intent(in) :: iso
+      end subroutine reactor_products
+      subroutine reactor_optjob(basecalc,mol,prod,ok)
+        import :: calcdata,coord
+        type(calcdata),intent(in) :: basecalc
+        type(coord),intent(in) :: mol
+        type(coord),intent(out) :: prod
+        logical,intent(out) :: ok
+      end subroutine reactor_optjob
+    end interface
+
+!>--- one job per fragment with more than one atom
+    njob = 0
+    do i=1,nall
+      if(.not.taken(i)) cycle
+      do j=1,frags(i)%ng
+        if(frags(i)%grp(j)%nm > 1) njob = njob+1
+      enddo
+    enddo
+    allocate(mols(njob),prods(njob))
+    allocate(ok(njob), source=.false.)
+    k = 0
+    do i=1,nall
+      if(.not.taken(i)) cycle
+      do j=1,frags(i)%ng
+        l = frags(i)%grp(j)%nm
+        if(l <= 1) cycle
+        k = k+1
+        mols(k)%nat = l
+        mols(k)%at = at(frags(i)%grp(j)%mem(1:l))
+        mols(k)%xyz = xyz(:,frags(i)%grp(j)%mem(1:l),i)
+        mols(k)%chrg = 0
+        mols(k)%uhf = mod(sum(mols(k)%at),2)
+      enddo
+    enddo
+
+    write(*,*)
+    call smallhead('optimization of fragments')
+    write(*,'(1x,i0,'' jobs to do.'')') njob
+    call new_ompautoset(env,'auto_nested',njob,T,Tn)
+    nested = env%omp_allow_nested
+    !$omp parallel do schedule(dynamic) default(shared) private(k)
+    do k=1,njob
+      if(nested) call ompmklset(Tn)
+      call reactor_optjob(env%calc,mols(k),prods(k),ok(k))
+    enddo
+    !$omp end parallel do
+    write(*,'(1x,i0,a,i0,a)') count(ok),' of ',njob,' optimizations successful'
+
+    call reactor_products(njob,prods,ok,oname,iso)
+end subroutine reactorreopt_calc
+
+subroutine reactor_optjob(basecalc,mol,prod,ok)
+!***********************************************************
+!* optimize one fragment at its own charge and uhf
+!***********************************************************
+    use crest_parameters, only: wp
+    use crest_calculator
+    use strucrd, only: coord
+    use optimize_module
+    implicit none
+    type(calcdata),intent(in) :: basecalc
+    type(coord),intent(in) :: mol
+    type(coord),intent(out) :: prod
+    logical,intent(out) :: ok
+    type(calcdata) :: calc
+    real(wp),allocatable :: grd(:,:)
+    real(wp) :: etot
+    integer :: j,io
+
+    !$omp critical
+    call calc%copy(basecalc)
+    !$omp end critical
+    calc%pr_energies = .false.
+    do j=1,calc%ncalculations
+      calc%calcs(j)%chrg = mol%chrg
+      calc%calcs(j)%uhf = mol%uhf
+      call calc%calcs(j)%sync_multiplicity()
+    enddo
+    calc%maxcycle = 0
+    allocate(grd(3,mol%nat), source=0.0_wp)
+    call optimize_geometry(mol,prod,calc,etot,grd,.false.,.false.,io)
+    prod%energy = etot
+    ok = (io == 0)
+end subroutine reactor_optjob

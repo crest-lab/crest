@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/dftd4/dftd4
+revision = 6e1f59c3f39d919a2dbef0601d2576727c8b30e8
+clone-recursive = true
+
+[provide]
+dftd4 = dftd4_dep

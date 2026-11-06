@@ -309,6 +309,9 @@ contains  !> MODULE PROCEDURES START HERE
     case (valuetypes%int_array)
       call get_value(tarray,kv%value_ia)
       kv%na = size(kv%value_ia,1)
+      !> also as reals, so [250, 400, 10] works where floats are expected
+      allocate (kv%value_fa(kv%na))
+      kv%value_fa(:) = real(kv%value_ia(:),wp)
 
     case (valuetypes%float_array)
       call get_value(tarray,kv%value_fa)

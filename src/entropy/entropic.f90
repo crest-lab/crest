@@ -1254,6 +1254,7 @@ subroutine analsym(zmol,fac,pr)
 !*******************************************************
   use crest_parameters,only:wp,idp => dp
   use zdata
+  use symmetry_i,only: getsym
   implicit none
   type(zmolecule) :: zmol
   real(wp),intent(out) :: fac
@@ -1263,19 +1264,14 @@ subroutine analsym(zmol,fac,pr)
   integer,allocatable  :: at(:)
   integer :: i
   character(len=4) :: sfsym
-  real(wp),parameter :: desy = 0.1_wp
-  integer,parameter  :: maxat = 200
   fac = 1.0_wp
   nat = zmol%nat
-  if (nat .gt. maxat) then
-    return
-  end if
   allocate (xyz(3,nat),at(nat))
   do i = 1,nat
     xyz(:,i) = zmol%zat(i)%cart(:)
   end do
   at = zmol%at
-  call getsymmetry2(.false.,6,nat,at,xyz,desy,maxat,sfsym)
+  call getsym(.false.,6,nat,at,xyz,sfsym)
 
   if (pr) then
     write (*,'(1x,a,4x,a)') 'symmetry:',sfsym(1:3)
@@ -1287,6 +1283,7 @@ end subroutine analsym
 subroutine analsym_geo(grp,nat,xyz,at,fac,pr,sfsm)
   use crest_parameters,only:wp,idp => dp
   use zdata
+  use symmetry_i,only: getsym
   implicit none
   type(zequal) :: grp
   real(wp),intent(out) :: fac
@@ -1297,10 +1294,8 @@ subroutine analsym_geo(grp,nat,xyz,at,fac,pr,sfsm)
   character(len=4) :: sfsym
   character(len=4),intent(out) :: sfsm
   real(wp),external :: symfactor
-  real(wp),parameter :: desy = 0.1_wp
-  integer,parameter  :: maxat = 200
   fac = 1.0_wp
-  call getsymmetry2(pr,6,nat,at,xyz,desy,maxat,sfsym)
+  call getsym(pr,6,nat,at,xyz,sfsym)
 
   fac = 1.0_wp/symfactor(grp,sfsym)
   sfsm = sfsym(1:3)

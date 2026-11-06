@@ -1,0 +1,9 @@
+# Geometry optimization
+runtype = "optimize"
+input   = "struc.xyz"   # input structure file (1-propanol)
+
+[calculation]
+optlev = "normal"       # convergence level: crude/loose/normal/tight/vtight
+
+[[calculation.level]]
+method = "gfn2"         # GFN2-xTB semi-empirical Hamiltonian

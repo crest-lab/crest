@@ -1,0 +1,13 @@
+# Standalone molecular dynamics simulation
+runtype = "dynamics"
+input   = "struc.xyz"   # input structure file (1-propanol)
+
+[[calculation.level]]
+method = "gfnff"        # GFN-FF force field for fast MD
+
+[dynamics]
+length_ps   = 20.0      # total simulation length (ps)
+tstep       = 1.0       # integration timestep (fs)
+temperature = 400.0     # thermostat target temperature (K)
+dump        = 100.0     # trajectory dump interval (fs)
+shake       = 1         # constrain X-H bonds (0 = off, 1 = X-H, 2 = all bonds)

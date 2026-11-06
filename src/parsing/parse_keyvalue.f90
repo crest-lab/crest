@@ -362,11 +362,12 @@ contains !> MODULE PROCEDURES START HERE
     end do
     if (allt) then
       kv%id = 6
-      allocate (kv%value_ia(kv%na))
+      allocate (kv%value_ia(kv%na),kv%value_fa(kv%na))
       do k = 1,kv%na
         atmp = trim(adjustl(kv%value_rawa(k)))
         read (atmp,*,iostat=io) num
         kv%value_ia(k) = nint(num)
+        kv%value_fa(k) = num
       end do
       return
     end if

@@ -17,12 +17,9 @@
 ! along with crest.  If not, see <https://www.gnu.org/licenses/>.
 !================================================================================!
 
-
 !> fortran module for simple plain-text file handling
 
 module filemod
-  use iso_fortran_env,wp => real64
-
   implicit none
 
   public :: filetype
@@ -425,7 +422,6 @@ contains  !> MODULE PROCEDURES START HERE
     end do
     close (ich)
   end function lwidth
-
 
 !========================================================================================!
 !get n-th element of a line (seperated by blanks)

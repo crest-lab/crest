@@ -54,6 +54,27 @@ module crest_testmol
 
 
 !&<
+  !> [Co(CN)6]^3- , charge=-3, high-spin uhf=4
+  integer,parameter  :: co_cnx6_nat = 13
+  integer,parameter  :: co_cnx6_at(co_cnx6_nat) = [27, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7]
+  real(wp),parameter :: co_cnx6_xyz(3,co_cnx6_nat) = reshape([ &
+    &  3.68215_wp,  0.36449_wp, -0.34727_wp, &  ! Co
+    &  3.43538_wp,  3.94151_wp, -0.25682_wp, &  ! C
+    &  7.25036_wp,  0.61671_wp, -0.60916_wp, &  ! C
+    &  0.11412_wp,  0.11336_wp, -0.08221_wp, &  ! C
+    &  3.92717_wp, -3.21273_wp, -0.43437_wp, &  ! C
+    &  3.95079_wp,  0.29514_wp,  3.22866_wp, &  ! C
+    &  3.41157_wp,  0.43202_wp, -3.92302_wp, &  ! C
+    &  9.43883_wp,  0.76955_wp, -0.77211_wp, &  ! N
+    & -2.07440_wp, -0.04270_wp,  0.07811_wp, &  ! N
+    &  3.28682_wp,  6.13570_wp, -0.20479_wp, &  ! N
+    &  4.07811_wp, -5.40669_wp, -0.48872_wp, &  ! N
+    &  4.11534_wp,  0.25224_wp,  5.42203_wp, &  ! N
+    &  3.24974_wp,  0.47806_wp, -6.12230_wp  &  ! N
+    & ], shape(co_cnx6_xyz))
+!&>
+
+!&<
   !> distorted methane
   integer,parameter ::  cytosine_nat = 13
   integer, parameter :: cytosine_at(cytosine_nat) = [8,6,7,6,6,6,7,7,1,1,1,1,1]
@@ -80,6 +101,14 @@ contains
     character(len=*),intent(in) :: name
     type(coord),intent(out) :: mol
     select case (name)
+    case ('co_cnx6')
+      mol%nat = co_cnx6_nat
+      allocate (mol%at(mol%nat))
+      mol%at(:) = co_cnx6_at(:)
+      allocate (mol%xyz(3,mol%nat))
+      mol%xyz(:,:) = co_cnx6_xyz(:,:)
+      mol%chrg = -3
+      mol%uhf = 4
     case ('methane')
       mol%nat = methane_nat
       allocate (mol%at(mol%nat))

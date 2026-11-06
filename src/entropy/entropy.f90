@@ -442,6 +442,10 @@ subroutine entropyprintout(T,Srrho,S,Cp,H)
   write (*,*)
   write (*,'(3x,''Cp(total) =      '',f12.6,1x,a)') cp, sunit
   write (*,*)
+  write (*,'(3x,a)') 'Note: S and G above are conformational contributions only.'
+  write (*,'(3x,a)') 'They are additive to the free energy of the lowest-energy conformer.'
+  write (*,'(3x,a)') 'Ref.: P.Pracht, S.Grimme, Chem. Sci., 2021, 12, 6551-6568.'
+  write (*,*)
 
   return
 end subroutine entropyprintout

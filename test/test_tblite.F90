@@ -33,7 +33,8 @@ contains  !> Unit tests for using tblite in crest
     new_unittest("GFN2-xTB singlepoint (anion)  ",test_gfn2_sp_anion), &
     new_unittest("GFN2-xTB singlepoint (S1)     ",test_gfn2_sp_uhf), &
     new_unittest("GFN2-xTB singlepoint (ALPB)   ",test_gfn2_sp_alpb), &
-    new_unittest("GFN1-xTB singlepoint          ",test_gfn1_sp) &
+    new_unittest("GFN1-xTB singlepoint          ",test_gfn1_sp), &
+    new_unittest("GFN2-xTB spin-polarized       ",test_gfn2_sp_spinpol) &
 #else
     new_unittest("Compiled tblite subproject",test_compiled_tblite,should_fail=.true.) &
 #endif
@@ -408,6 +409,50 @@ contains  !> Unit tests for using tblite in crest
 
     deallocate (grad)
   end subroutine test_gfn1_sp
+
+!========================================================================================!
+
+  subroutine test_gfn2_sp_spinpol(error)
+    type(error_type),allocatable,intent(out) :: error
+    type(calcdata) :: calc1,calc2
+    type(calculation_settings) :: sett
+    type(coord) :: mol
+    real(wp) :: e_nospin,e_spinpol
+    real(wp),allocatable :: grad(:,:)
+    integer :: io
+
+    call get_testmol('co_cnx6',mol)
+    allocate (grad(3,mol%nat))
+
+    !> without spin-polarization
+    call sett%create('gfn2')
+    sett%chrg = mol%chrg
+    sett%uhf  = mol%uhf
+    sett%spin_polarized = .false.
+    call calc1%add(sett)
+    call engrad(mol,calc1,e_nospin,grad,io)
+    call check(error,io,0)
+    if (allocated(error)) return
+
+    !> with spin-polarization
+    call sett%create('gfn2')
+    sett%chrg = mol%chrg
+    sett%uhf  = mol%uhf
+    sett%spin_polarized = .true.
+    call calc2%add(sett)
+    call engrad(mol,calc2,e_spinpol,grad,io)
+    call check(error,io,0)
+    if (allocated(error)) return
+
+    !> spin-polarization must lower the energy of this open-shell complex
+    if (e_spinpol >= e_nospin) then
+      call test_failed(error,"spin-polarized energy is not lower than non-spin-polarized energy")
+      write(*,'("  e_nospin  =",f20.10)') e_nospin
+      write(*,'("  e_spinpol =",f20.10)') e_spinpol
+    end if
+
+    deallocate (grad)
+  end subroutine test_gfn2_sp_spinpol
 
 !========================================================================================!
 !========================================================================================!

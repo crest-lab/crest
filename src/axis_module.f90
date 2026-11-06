@@ -75,6 +75,8 @@ module axis_module
   end interface cma
   public :: CMAtrf
 
+  public :: uniqueax
+
 !========================================================================================!
 !========================================================================================!
 contains  !> MODULE PROCEDURES START HERE
@@ -95,15 +97,15 @@ contains  !> MODULE PROCEDURES START HERE
 !========================================================================================!
   subroutine axis_0(nat,at,coord,rot,avmom,evec)
     implicit none
-    integer :: nat
-    integer :: at(nat)
-    real(wp) :: coord(3,nat)
-    real(wp) :: rot(3),avmom,evec(3,3)
+    integer,intent(in)   :: nat
+    integer,intent(in)   :: at(nat)
+    real(wp),intent(in)  :: coord(3,nat)
+    real(wp),intent(out) :: rot(3),avmom,evec(3,3)
     real(wp) :: a(3,3)
     real(wp) :: t(6),xyzmom(3),eig(3)
     !real(wp) :: x(nat),y(nat),z(nat)
-    real(wp),allocatable :: x(:),y(:),z(:)
-    real(wp) :: atmass
+    !real(wp),allocatable :: x(:),y(:),z(:)
+    real(wp) :: atmass,shift(3)
     integer :: i,j
     !************************************************************************
     !*     const1 =  10**40/(n*a*a)
@@ -116,8 +118,9 @@ contains  !> MODULE PROCEDURES START HERE
     !> first we move the molecule to the CMA
     !> this depends on the isotopic masses, and the cartesian geometry.
     !>
-    allocate (x(nat),y(nat),z(nat),source=0.0_wp)
-    call CMA(nat,at,coord,x,y,z)
+!    allocate (x(nat),y(nat),z(nat),source=0.0_wp)
+!    call CMA(nat,at,coord,x,y,z)
+     call CMAshift(nat,at,coord,shift)
 
     !************************************************************************
     !*    matrix for moments of inertia is of form
@@ -133,12 +136,18 @@ contains  !> MODULE PROCEDURES START HERE
     end do
     do i = 1,nat
       atmass = ams(at(i))
-      t(1) = t(1) + atmass * (y(i)**2 + z(i)**2)
-      t(2) = t(2) - atmass * x(i) * y(i)
-      t(3) = t(3) + atmass * (z(i)**2 + x(i)**2)
-      t(4) = t(4) - atmass * z(i) * x(i)
-      t(5) = t(5) - atmass * y(i) * z(i)
-      t(6) = t(6) + atmass * (x(i)**2 + y(i)**2)
+!      t(1) = t(1) + atmass * (y(i)**2 + z(i)**2)
+!      t(2) = t(2) - atmass * x(i) * y(i)
+!      t(3) = t(3) + atmass * (z(i)**2 + x(i)**2)
+!      t(4) = t(4) - atmass * z(i) * x(i)
+!      t(5) = t(5) - atmass * y(i) * z(i)
+!      t(6) = t(6) + atmass * (x(i)**2 + y(i)**2)
+      t(1) = t(1) + atmass * ((coord(2,i)-shift(2))**2 + (coord(3,i)-shift(3))**2)
+      t(2) = t(2) - atmass * (coord(1,i)-shift(1)) * (coord(2,i)-shift(2))
+      t(3) = t(3) + atmass * ((coord(3,i)-shift(3))**2 + (coord(1,i)-shift(1))**2)
+      t(4) = t(4) - atmass * (coord(3,i)-shift(3)) * (coord(1,i)-shift(1))
+      t(5) = t(5) - atmass * (coord(2,i)-shift(2)) * (coord(3,i)-shift(3))
+      t(6) = t(6) + atmass * ((coord(1,i)-shift(1))**2 + (coord(2,i)-shift(2))**2)
       a(1,1) = t(1)
       a(2,1) = t(2)
       a(1,2) = t(2)
@@ -149,7 +158,7 @@ contains  !> MODULE PROCEDURES START HERE
       a(2,3) = t(5)
       a(3,3) = t(6) 
     end do
-    deallocate (z,y,x)
+!    deallocate (z,y,x)
 
     evec = 0.0_wp
     eig = 0.0_wp
@@ -241,12 +250,14 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine axis_2
 
 !========================================================================================!
-!> subroutine axis_3
-!> axis routine that orients the molecule along the
-!> calculated principle axes and shifts it to CMA.
-!> new geometry is written to coordout.
-!>---------------------------------------------
+
   subroutine axis_3(nat,at,coord,coordout,rot)
+!****************************************************
+!* subroutine axis_3
+!* axis routine that orients the molecule along the
+!* calculated principle axes and shifts it to CMA.
+!* new geometry is written to coordout.
+!****************************************************
     implicit none
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
@@ -293,24 +304,50 @@ contains  !> MODULE PROCEDURES START HERE
   end subroutine axis_3
 
 !========================================================================================!
-!> subroutine axis_4
-!> axis routine that orients the molecule along the
-!> calculated principle axes and shifts it to CMA.
-!> new geometry OVERWRITES input.
-!>--------------------------------
-  subroutine axis_4(nat,at,coord)
+
+  subroutine axis_4(nat,at,coord,rotconst)
+!****************************************************
+!* subroutine axis_4
+!* axis routine that orients the molecule along the
+!* calculated principle axes and shifts it to CMA.
+!* new geometry OVERWRITES input.
+!* Optimized for minimal allocation overhead.
+!****************************************************
     implicit none
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
     real(wp),intent(inout) :: coord(3,nat)
-    real(wp) :: rot(3)
-    real(wp),allocatable :: coordtmp(:,:)
+    real(wp),intent(out),optional :: rotconst(3)
+    real(wp) :: coordtmp(3),shift(3)
+    real(wp) :: rot(3),avmom,evec(3,3)
+    integer :: i,j,k
+    real(wp) :: xsum
+    call axis_0(nat,at,coord,rot,avmom,evec)
+    call CMAshift(nat,at,coord,shift)
+    do i=1,nat
+       coord(:,i) = coord(:,i) - shift(:)
+    enddo
+    !> do the trafo (chirality is preserved)
+    xsum = calcxsum(evec)
+    if (xsum .lt. 0.0_wp) then
+      do j = 1,3
+        evec(j,1) = -evec(j,1)
+      end do
+    end if
 
-    allocate (coordtmp(3,nat))
-    !> call axis routine
-    call axis_3(nat,at,coord,coordtmp,rot)
-    coord = coordtmp
-    deallocate (coordtmp)
+    do i = 1,nat
+      coordtmp(:) = coord(:,i)
+      do j = 1,3
+        xsum = 0.0_wp
+        do k = 1,3
+          xsum = xsum + coordtmp(k) * evec(k,j)
+        end do
+        coord(j,i) = xsum
+      end do
+    end do
+    if(present(rotconst))then
+       rotconst(:) = rot(:)
+    endif
 
     return
   end subroutine axis_4
@@ -378,10 +415,43 @@ contains  !> MODULE PROCEDURES START HERE
   end function calcxsum
 
 !========================================================================================!
-!> subroutine CMA
-!> calculate CMA-shifted coordinates x y z
-!>--------------------------------------
+
+  subroutine uniqueax(rot,unique,thr)
+!**************************************************
+!* check if a given rotational constant is unique
+!**************************************************
+    implicit none
+    real(wp),intent(in) :: rot(3)
+    logical,intent(out) :: unique(3)
+    real(wp),intent(in),optional :: thr
+    real(wp) :: thrtmp
+    real(wp) :: diff(3)
+
+    unique(:) = .false.
+
+    if(present(thr))then
+      thrtmp = thr
+    else
+      thrtmp = 0.01_wp
+    endif
+
+    diff(1) = abs(rot(2)/rot(1) - 1.0_wp)
+    diff(2) = abs(rot(3)/rot(1) - 1.0_wp)
+    diff(3) = abs(rot(3)/rot(2) - 1.0_wp)
+
+    if(diff(1) .gt. thrtmp .and. diff(2) .gt. thrtmp) unique(1) = .true.
+    if(diff(1) .gt. thrtmp .and. diff(3) .gt. thrtmp) unique(2) = .true.
+    if(diff(2) .gt. thrtmp .and. diff(3) .gt. thrtmp) unique(3) = .true.
+
+  end subroutine uniqueax
+
+!========================================================================================!
+
   subroutine CMAxyz(nat,at,coord,x,y,z)
+!********************************************
+!* subroutine CMA
+!* calculate CMA-shifted coordinates x y z
+!********************************************
     implicit none
     integer,intent(in) :: nat
     integer,intent(in) :: at(nat)
@@ -410,6 +480,40 @@ contains  !> MODULE PROCEDURES START HERE
     end do
     return
   end subroutine CMAxyz
+
+!========================================================================================!
+
+  subroutine CMAshift(nat,at,coord,shift)
+!*********************************************************
+!* subroutine CMAshift
+!* calculate the shift vector to shift a molecule to CMA
+!*********************************************************
+    implicit none
+    integer,intent(in) :: nat
+    integer,intent(in) :: at(nat)
+    real(wp),intent(in) :: coord(3,nat)
+    real(wp),intent(out) :: shift(3)
+    integer :: i
+    real(wp) :: sumw,sumwx,sumwy,sumwz,atmass
+    sumw = 1.d-20
+    sumwx = 0.d0
+    sumwy = 0.d0
+    sumwz = 0.d0
+    do i = 1,nat
+      atmass = ams(at(i))
+      sumw = sumw + atmass
+      sumwx = sumwx + atmass * coord(1,i)
+      sumwy = sumwy + atmass * coord(2,i)
+      sumwz = sumwz + atmass * coord(3,i)
+    end do
+    sumwx = sumwx / sumw
+    sumwy = sumwy / sumw
+    sumwz = sumwz / sumw
+    shift(1) = sumwx
+    shift(2) = sumwy
+    shift(3) = sumwz
+    return
+  end subroutine CMAshift
 
 !========================================================================================!
 !> subroutine CMAtrf

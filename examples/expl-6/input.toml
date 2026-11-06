@@ -1,0 +1,15 @@
+# iMTD-GC conformer search with two-level (A//B) calculation:
+#   Level 1 – GFN-FF: fast force field used for MD/MTD sampling
+#   Level 2 – GFN2:   re-ranks the final ensemble with single-point energies
+runtype = "imtd-gc"
+input   = "struc.xyz"   # input structure file (1-propanol)
+
+[[calculation.level]]
+method = "gfnff"            # GFN-FF force field for fast MD sampling
+
+[[calculation.level]]
+method  = "gfn2"            # GFN2-xTB for accurate final ranking
+refine  = "singlepoint"     # apply this level as single-point re-ranking step
+
+[cregen]
+ewin = 6.0                  # keep conformers within 6.0 kcal/mol of the lowest

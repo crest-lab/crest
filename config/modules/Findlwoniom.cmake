@@ -17,6 +17,7 @@
 set(_lib "lwoniom")
 set(_pkg "LWONIOM")
 set(_url "https://github.com/crest-lab/lwoniom")
+set(_branch "9430975e59d759879e157dd1cb9b83468f57fd36")
 
 if(NOT DEFINED "${_pkg}_FIND_METHOD")
   set("${_pkg}_FIND_METHOD"  "subproject" "cmake" "fetch" "pkgconf")
@@ -24,7 +25,7 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/crest-utils.cmake")
 
-crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}")
+crest_find_package("${_lib}" "${${_pkg}_FIND_METHOD}" "${_url}" "${_branch}")
 
 set(found FALSE)
 if(TARGET "lwoniom::lwoniom")

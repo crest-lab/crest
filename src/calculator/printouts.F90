@@ -72,7 +72,7 @@ contains  !> MODULE PROCEDURES START HERE
       write (iunit,*)
       write (iunit,*) 'Connectivity information (bond order):'
       do k = 1,calc%ncalculations
-        if (calc%calcs(k)%rdwbo) then
+        if (calc%calcs(k)%rdwbo.and.allocated(calc%calcs(k)%wbo)) then
           write (iunit,'("> ",a,i3,a:)') 'Calculation level ',k,'; '//calc%calcs(k)%shortflag
           write (iunit,'(a12,a12,a20)') 'Atom A','Atom B','BO(A-B)'
           do i = 1,mol%nat

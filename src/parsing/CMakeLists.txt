@@ -18,6 +18,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
    "${dir}/confparse2.f90"
+   "${dir}/parse_hybrid.f90"
    "${dir}/constraining.f90"
    "${dir}/parse_block.f90"
    "${dir}/parse_calcdata.f90"

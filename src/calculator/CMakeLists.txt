@@ -18,6 +18,7 @@ set(dir "${CMAKE_CURRENT_SOURCE_DIR}")
 
 list(APPEND srcs
   "${dir}/calculator.F90"
+  "${dir}/external_engrad.f90"
   "${dir}/calc_type.f90"
   "${dir}/printouts.F90"
   "${dir}/constraints.f90"
@@ -28,16 +29,27 @@ list(APPEND srcs
   "${dir}/oniom_hessian.F90"
   "${dir}/nonadiabatic.f90"
   "${dir}/tblite_api.F90"
+  "${dir}/components/rmsdpot.f90"
   "${dir}/api_helpers.F90"
   "${dir}/api_engrad.f90"
   "${dir}/gradreader.f90"
-  "${dir}/libpvol.F90"
+  "${dir}/components/libpvol.F90"
   "${dir}/subprocess_types.f90"
   "${dir}/xtb_sc.f90"
   "${dir}/orca_sc.f90"
   "${dir}/generic_sc.f90"
   "${dir}/turbom_sc.f90"
   "${dir}/subprocess_engrad.f90"
+  "${dir}/hessian_reconstruct.f90"
+  "${dir}/hr_utils.f90"
+  "${dir}/modelhessians.f90"
+  "${dir}/approxg.f90"
+  "${dir}/penalty.f90"
+  "${dir}/mlip_sc.F90"
+  "${dir}/components/ddx_pc.F90"
+  "${dir}/components/electrostatic.F90"
+  "${dir}/components/surface.F90"
+  "${dir}/components/solvation.F90"
 )
 
 set(srcs ${srcs} PARENT_SCOPE)

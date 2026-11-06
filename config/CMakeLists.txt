@@ -31,11 +31,13 @@ install(
 # Options for enabling or disabling features
 option(WITH_OpenMP  "Enable OpenMP support"       TRUE)
 option(WITH_TBLITE  "Enable support for tblite"   TRUE)
+option(WITH_GXTB    "Enable g-xTB via tblite (requires WITH_TBLITE)" FALSE)
 option(WITH_TOMLF   "Enable support for toml-f"   TRUE)
 option(WITH_GFN0    "Enable support for GFN0-xTB" TRUE)
 option(WITH_GFNFF   "Enable support for GFN-FF"   TRUE)
 option(WITH_LIBPVOL "Enable support for LIBPVOL"  TRUE)
 option(WITH_LWONIOM "Enable support for lwONIOM"  TRUE)
+option(WITH_FMLIP_RELAY "Enable fmlip-relay interface"  TRUE) 
 option(WITH_TESTS   "Enable unit tests"           TRUE)
 
 option(STATICBUILD  "Attempt to link everything statically" FALSE) 
@@ -101,8 +103,11 @@ set(tomlfvar "${WITH_TOMLF}")
 set(gfn0var "${WITH_GFN0}")
 set(gfnffvar "${WITH_GFNFF}")
 set(tblitevar "${WITH_TBLITE}")
+# ddX is a hard requirement of the tblite block, so it tracks WITH_TBLITE here
+set(ddxvar "${WITH_TBLITE}")
 set(libpvolvar "${WITH_LIBPVOL}")
 set(lwoniomvar "${WITH_LWONIOM}")
+set(fmliprelayvar "${WITH_FMLIP_RELAY}")
 
 configure_file(
   "${PROJECT_SOURCE_DIR}/assets/template/metadata.f90"

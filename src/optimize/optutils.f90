@@ -28,7 +28,6 @@ module optimize_utils
   use crest_calculator
   use axis_module
   use strucrd
-  use ls_rmsd
 
   use optimize_type
   use optimize_maths
@@ -334,7 +333,8 @@ contains  !> MODULE PROCEDURES START HERE
                                   '(10x,"│",3x,a,i18,      10x,"│")'
     character(len=*),parameter :: chrfmt = &
                                   '(10x,"│",3x,a,a18,      10x,"│")'
-
+    character(len=*),parameter :: chrfmt2 = &                          
+                                  '(10x,"│",3x,a,a14,      t63,"│")'  
 !>--- set params
     engine = calc%opt_engine
     iupdat = calc%iupdat
@@ -354,6 +354,8 @@ contains  !> MODULE PROCEDURES START HERE
       write (*,chrfmt) "algorithm         ","          L-BFGS"
     case (2)
       write (*,chrfmt) "algorithm         ","Rational Function"
+    case (3)
+      write (*,chrfmt) "algorithm         ","Quasi Newton"
     case (-1)
       write (*,chrfmt) "algorithm         ","Gradient Descent"
     end select
@@ -410,7 +412,7 @@ contains  !> MODULE PROCEDURES START HERE
         write (*,chrfmt) "Hessian update    ","schlegel"
       end select
     end if
-    write (*,chrfmt) "write crestopt.log",bool2string(wr)
+    write (*,chrfmt2) "write crestopt.log.xyz",bool2string(wr)
     if (linear) then
       write (*,chrfmt) "linear (good luck)",bool2string(linear)
     else

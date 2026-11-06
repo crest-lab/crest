@@ -72,6 +72,7 @@ contains  !> MODULE PROCEDURES START HERE
     real(wp) :: dgdx,idgdx,dgdgdx
     real(wp),parameter :: thrs = 1.d-12
     real(wp),parameter :: thr = 1d-2
+    integer :: unit
     !> BLAS:
     external :: dspmv
     real(wp),external :: ddot

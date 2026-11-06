@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/fortran-lang/test-drive
+revision = c506771aefd594e7e372240a8027b3fd06d61264
+clone-recursive = true
+
+[provide]
+test-drive = testdrive_dep

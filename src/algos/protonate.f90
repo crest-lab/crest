@@ -54,12 +54,12 @@ subroutine crest_new_protonate(env,tim)
   real(wp),allocatable :: grad(:,:)
   type(calcdata),allocatable :: tmpcalc
   type(calcdata),allocatable :: tmpcalc_ff
-  type(calculation_settings) :: tmpset
   real(wp),allocatable :: protxyz(:,:)
   integer :: natp,pstep,npnew
   integer,allocatable :: atp(:)
   real(wp),allocatable :: xyzp(:,:,:)
   real(wp),allocatable :: ep(:)
+  type(coord),allocatable :: structures(:)
   logical,allocatable :: atlist(:)
   character(len=*),parameter :: basename = 'protonate_'
 !========================================================================================!
@@ -181,10 +181,20 @@ subroutine crest_new_protonate(env,tim)
     return
   end if
 
+!>--- convert the generated candidates into a coord list (Bohr) and free buffers
+  allocate (structures(npnew))
+  do i = 1,npnew
+    structures(i)%nat = natp
+    structures(i)%at = atp
+    structures(i)%xyz = xyzp(1:3,1:natp,i)
+    structures(i)%energy = ep(i)
+  end do
+  deallocate (xyzp,atp,ep)
+
   write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
   write (stdout,'(a,a,a,i0,a)') '> Write ',trim(atmp),' with ',npnew,' candidates ... '
 
-  call wrensemble(basename//'0.xyz',natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
+  call wrensemble(basename//'0.xyz',npnew,structures)
 
   write (stdout,'(a)') '> done.'
   write (stdout,*)
@@ -200,20 +210,17 @@ subroutine crest_new_protonate(env,tim)
     write (stdout,'(a)') '  with defined bond-topology can help circumvent this issue.'
     write (stdout,'(a)') '> Setting up force-field structure pre-optimization ...'
     allocate (tmpcalc_ff)
-    tmpcalc_ff%optnewinit = .true.
     env%calc%optnewinit = .true.
+    call tmpcalc_ff%create('gfnff',chrg=env%chrg)
     tmpcalc_ff%optnewinit = .true.
-    call tmpset%create('gfnff')
-    tmpset%chrg = env%chrg
-    call tmpcalc_ff%add(tmpset)
     tmpcalc_ff%maxcycle = 10000
     call tmpcalc_ff%info(stdout)
 
     !>--- Run optimizations
     call tim%start(15,'Ensemble optimization (FF)')
-    call print_opt_data(tmpcalc_ff,stdout)
+    call print_opt_data(tmpcalc_ff,stdout,natoms=natp)
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc_ff)
+    call crest_oloop(env,npnew,structures,.false.,tmpcalc_ff)
     call tim%stop(15)
 
     deallocate (tmpcalc_ff)
@@ -221,8 +228,7 @@ subroutine crest_new_protonate(env,tim)
     pstep = pstep+1
     write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
-    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-    deallocate (xyzp,atp) !> clear this space to re-use it
+    call wrensemble(trim(atmp),npnew,structures)
 
     !>--- sorting
     write (stdout,'(a)') '> Sorting structures by energy to remove failed opts. ...'
@@ -235,8 +241,7 @@ subroutine crest_new_protonate(env,tim)
     write (stdout,*)
 
     !>--- re-read sorted ensemble
-    call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
-    xyzp = xyzp*aatoau !> don't forget to restore BOHR
+    call rdensemble(trim(atmp),npnew,structures)
   end if
 
 !========================================================================================!
@@ -251,7 +256,7 @@ subroutine crest_new_protonate(env,tim)
     allocate (atlist(natp),source=.true.)
     atlist(natp) = .false. !> the new one is always last
     do i = 1,natp
-      if (atp(i) == 1) then
+      if (structures(1)%at(i) == 1) then
         atlist(i) = .false. !> additionally un-freeze all H's (this seems to be beneficial)
       end if
     end do
@@ -264,14 +269,13 @@ subroutine crest_new_protonate(env,tim)
     !>--- run opt
     call tim%start(16,'Ensemble optimization (frozen)')
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc)
+    call crest_oloop(env,npnew,structures,.false.,tmpcalc)
     call tim%stop(16)
 
     pstep = pstep+1
     write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
-    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-    deallocate (xyzp,atp) !> clear this space to re-use it
+    call wrensemble(trim(atmp),npnew,structures)
     deallocate (tmpcalc)
 
 !    call tim%start(17,'Ensemble refinement')
@@ -287,8 +291,7 @@ subroutine crest_new_protonate(env,tim)
     write (stdout,*)
 
     !>--- re-read sorted ensemble
-    call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
-    xyzp = xyzp*aatoau !> don't forget to restore BOHR
+    call rdensemble(trim(atmp),npnew,structures)
 
   end if
 
@@ -301,16 +304,15 @@ subroutine crest_new_protonate(env,tim)
     call tmpcalc%info(stdout)
     tmpcalc%optnewinit = .true.
     call tim%start(20,'Ensemble optimization')
-    call print_opt_data(env%calc,stdout)
+    call print_opt_data(env%calc,stdout,natoms=natp)
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep,.false.,tmpcalc)
+    call crest_oloop(env,npnew,structures,.false.,tmpcalc)
     call tim%stop(20)
 
     pstep = pstep+1
     write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
-    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-    deallocate (xyzp,atp)
+    call wrensemble(trim(atmp),npnew,structures)
 
     call tim%start(17,'Ensemble refinement')
     call crest_refine(env,trim(atmp),trim(atmp))
@@ -444,6 +446,7 @@ subroutine protonation_prep_canonical(env,refmol,fname)
   use iomod,only:remove
   use adjacency
   use cregen_interface
+  use term_ui,only:progress_init,progress_update,progress_finish
   implicit none
   type(systemdata) :: env
   type(coord),intent(in) :: refmol 
@@ -482,7 +485,9 @@ subroutine protonation_prep_canonical(env,refmol,fname)
   allocate (canon(nall))
 
   write (stdout,'(a,i0,a)') '> Setting up canonical atom order for ',nall,' structures via CN-based molecular graphs ...'
-  call crest_oloop_pr_progress(env,nall,0)
+  call progress_init(env%ps,nall,width=50,prefix=" ↳ ", &
+    &                suffix="",show_time=.true.,show_eta=.false.)
+  call progress_update(env%ps,0,nall)
   do i = 1,nall
     call canon(i)%init(structures(i),invtype='apsp+')
     call canon(i)%stereo(structures(i))
@@ -490,9 +495,9 @@ subroutine protonation_prep_canonical(env,refmol,fname)
     !call canon(i)%rankprint(structures(i))
     call canon(i)%shrink()
 
-    call crest_oloop_pr_progress(env,nall,i)
+    call progress_update(env%ps,i,nall)
   end do
-  call crest_oloop_pr_progress(env,nall,-1)
+  call progress_finish(env%ps)
 
 !>--- grouping loop
   allocate (group(nall),source=0)
@@ -588,12 +593,12 @@ subroutine crest_new_deprotonate(env,tim)
   real(wp),allocatable :: grad(:,:)
   type(calcdata),allocatable :: tmpcalc
   type(calcdata),allocatable :: tmpcalc_ff
-  type(calculation_settings) :: tmpset
   integer :: natp,pstep,npnew
   integer,allocatable :: atp(:)
   real(wp),allocatable :: xyzp(:,:,:)
   real(wp),allocatable :: ep(:)
   logical,allocatable :: atlist(:)
+  type(coord),allocatable :: structures(:)
   character(len=*),parameter :: basename = 'deprotonate_'
 !========================================================================================!
   write (stdout,*)
@@ -665,10 +670,20 @@ subroutine crest_new_deprotonate(env,tim)
     return
   end if
 
+!>--- convert the generated candidates into a coord list (Bohr) and free buffers
+  allocate (structures(npnew))
+  do i = 1,npnew
+    structures(i)%nat = natp
+    structures(i)%at = atp
+    structures(i)%xyz = xyzp(1:3,1:natp,i)
+    structures(i)%energy = ep(i)
+  end do
+  deallocate (xyzp,atp,ep)
+
   write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
   write (stdout,'(a,a,a,i0,a)') '> Write ',trim(atmp),' with ',npnew,' candidates ... '
 
-  call wrensemble(basename//'0.xyz',natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
+  call wrensemble(basename//'0.xyz',npnew,structures)
 
   write (stdout,'(a)') '> done.'
   write (stdout,*)
@@ -684,20 +699,17 @@ subroutine crest_new_deprotonate(env,tim)
     write (stdout,'(a)') '  with defined bond-topology can help circumvent this issue.'
     write (stdout,'(a)') '> Setting up force-field structure pre-optimization ...'
     allocate (tmpcalc_ff)
-    tmpcalc_ff%optnewinit = .true.
     env%calc%optnewinit = .true.
+    call tmpcalc_ff%create('gfnff',chrg=env%chrg)
     tmpcalc_ff%optnewinit = .true.
-    call tmpset%create('gfnff')
-    tmpset%chrg = env%chrg
-    call tmpcalc_ff%add(tmpset)
     tmpcalc_ff%maxcycle = 10000
     call tmpcalc_ff%info(stdout)
 
     !>--- Run optimizations
     call tim%start(15,'Ensemble optimization (FF)')
-    call print_opt_data(tmpcalc_ff,stdout)
+    call print_opt_data(tmpcalc_ff,stdout,natoms=natp)
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc_ff)
+    call crest_oloop(env,npnew,structures,.false.,tmpcalc_ff)
     call tim%stop(15)
 
     deallocate (tmpcalc_ff)
@@ -705,8 +717,7 @@ subroutine crest_new_deprotonate(env,tim)
     pstep = pstep+1
     write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
-    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-    deallocate (xyzp,atp) !> clear this space to re-use it
+    call wrensemble(trim(atmp),npnew,structures)
 
     !>--- sorting
     write (stdout,'(a)') '> Sorting structures by energy to remove failed opts. ...'
@@ -719,8 +730,7 @@ subroutine crest_new_deprotonate(env,tim)
     write (stdout,*)
 
     !>--- re-read sorted ensemble
-    call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
-    xyzp = xyzp*aatoau !> don't forget to restore BOHR
+    call rdensemble(trim(atmp),npnew,structures)
   end if
 
 !========================================================================================!
@@ -735,7 +745,7 @@ subroutine crest_new_deprotonate(env,tim)
     allocate (atlist(natp),source=.true.)
     atlist(natp) = .false. !> the new one is always last
     do i = 1,natp
-      if (atp(i) == 1) then
+      if (structures(1)%at(i) == 1) then
         atlist(i) = .false. !> additionally un-freeze all H's (this seems to be beneficial)
       end if
     end do
@@ -748,14 +758,13 @@ subroutine crest_new_deprotonate(env,tim)
     !>--- run opt
     call tim%start(16,'Ensemble optimization (frozen)')
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc)
+    call crest_oloop(env,npnew,structures,.false.,tmpcalc)
     call tim%stop(16)
 
     pstep = pstep+1
     write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
-    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-    deallocate (xyzp,atp) !> clear this space to re-use it
+    call wrensemble(trim(atmp),npnew,structures)
     deallocate (tmpcalc)
 
 !    call tim%start(17,'Ensemble refinement')
@@ -771,8 +780,7 @@ subroutine crest_new_deprotonate(env,tim)
     write (stdout,*)
 
     !>--- re-read sorted ensemble
-    call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
-    xyzp = xyzp*aatoau !> don't forget to restore BOHR
+    call rdensemble(trim(atmp),npnew,structures)
 
   end if
 
@@ -784,16 +792,15 @@ subroutine crest_new_deprotonate(env,tim)
     call tmpcalc%info(stdout)
     tmpcalc%optnewinit = .true.
     call tim%start(20,'Ensemble optimization')
-    call print_opt_data(env%calc,stdout)
+    call print_opt_data(env%calc,stdout,natoms=natp)
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc)
+    call crest_oloop(env,npnew,structures,.false.,tmpcalc)
     call tim%stop(20)
 
     pstep = pstep+1
     write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
-    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-    deallocate (xyzp,atp)
+    call wrensemble(trim(atmp),npnew,structures)
 
     call tim%start(17,'Ensemble refinement')
     call crest_refine(env,trim(atmp),trim(atmp))
@@ -996,7 +1003,6 @@ subroutine crest_new_tautomerize(env,tim)
   real(wp),allocatable :: grad(:,:)
   type(calcdata),allocatable :: tmpcalc
   type(calcdata),allocatable :: tmpcalc_ff
-  type(calculation_settings) :: tmpset
   integer :: natp,pstep,npnew
   integer :: tautiter,structiter
   integer,allocatable :: atp(:)
@@ -1004,6 +1010,7 @@ subroutine crest_new_tautomerize(env,tim)
   real(wp),allocatable :: ep(:)
   logical,allocatable :: atlist(:)
   real(wp),allocatable :: protxyz(:,:)
+  type(coord),allocatable :: structures(:)
   character(len=*),parameter :: basename = 'tautomerize_'
 !========================================================================================!
   write (stdout,*)
@@ -1147,10 +1154,20 @@ subroutine crest_new_tautomerize(env,tim)
     return
   end if
 
+!>--- convert the generated candidates into a coord list (Bohr) and free buffers
+  allocate (structures(npnew))
+  do i = 1,npnew
+    structures(i)%nat = natp
+    structures(i)%at = atp
+    structures(i)%xyz = xyzp(1:3,1:natp,i)
+    structures(i)%energy = ep(i)
+  end do
+  deallocate (xyzp,atp,ep)
+
   write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
   write (stdout,'(a,a,a,i0,a)') '> Write ',trim(atmp),' with ',npnew,' candidates ... '
 
-  call wrensemble(basename//'0.xyz',natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
+  call wrensemble(basename//'0.xyz',npnew,structures)
 
   write (stdout,'(a)') '> done.'
   write (stdout,*)
@@ -1166,21 +1183,18 @@ subroutine crest_new_tautomerize(env,tim)
     write (stdout,'(a)') '  with defined bond-topology can help circumvent this issue.'
     write (stdout,'(a)') '> Setting up force-field structure pre-optimization ...'
     allocate (tmpcalc_ff)
-    tmpcalc_ff%optnewinit = .true.
     env%calc%optnewinit = .true.
+    call tmpcalc_ff%create('gfnff',chrg=env%chrg)
     tmpcalc_ff%optnewinit = .true.
-    call tmpset%create('gfnff')
-    tmpset%chrg = env%chrg
-    call tmpcalc_ff%add(tmpset)
     tmpcalc_ff%maxcycle = 10000
     tmpcalc_ff%anopt=.true.
     call tmpcalc_ff%info(stdout)
 
     !>--- Run optimizations
     call tim%start(15,'Ensemble optimization (FF)')
-    call print_opt_data(tmpcalc_ff,stdout)
+    call print_opt_data(tmpcalc_ff,stdout,natoms=natp)
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc_ff)
+    call crest_oloop(env,npnew,structures,.false.,tmpcalc_ff)
     call tim%stop(15)
 
     deallocate (tmpcalc_ff)
@@ -1188,8 +1202,7 @@ subroutine crest_new_tautomerize(env,tim)
     pstep = pstep+1
     write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
-    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-    deallocate (xyzp,atp) !> clear this space to re-use it
+    call wrensemble(trim(atmp),npnew,structures)
 
     !>--- sorting
     write (stdout,'(a)') '> Sorting structures by energy to remove failed opts. ...'
@@ -1205,8 +1218,7 @@ subroutine crest_new_tautomerize(env,tim)
     call protonation_prep_canonical(env,mol,trim(atmp))
 
     !>--- re-read sorted ensemble
-    call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
-    xyzp = xyzp*aatoau !> don't forget to restore BOHR
+    call rdensemble(trim(atmp),npnew,structures)
   end if
 
 !========================================================================================!
@@ -1221,7 +1233,7 @@ subroutine crest_new_tautomerize(env,tim)
     allocate (atlist(natp),source=.true.)
     atlist(natp) = .false. !> the new one is always last
     do i = 1,natp
-      if (atp(i) == 1) then
+      if (structures(1)%at(i) == 1) then
         atlist(i) = .false. !> additionally un-freeze all H's (this seems to be beneficial)
       end if
     end do
@@ -1234,14 +1246,13 @@ subroutine crest_new_tautomerize(env,tim)
     !>--- run opt
     call tim%start(16,'Ensemble optimization (frozen)')
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep(1:npnew),.false.,tmpcalc)
+    call crest_oloop(env,npnew,structures,.false.,tmpcalc)
     call tim%stop(16)
 
     pstep = pstep+1
     write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
-    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-    deallocate (xyzp,atp) !> clear this space to re-use it
+    call wrensemble(trim(atmp),npnew,structures)
     deallocate (tmpcalc)
 
 !    call tim%start(17,'Ensemble refinement')
@@ -1257,8 +1268,7 @@ subroutine crest_new_tautomerize(env,tim)
     write (stdout,*)
 
     !>--- re-read sorted ensemble
-    call rdensemble(trim(atmp),natp,npnew,atp,xyzp)
-    xyzp = xyzp*aatoau !> don't forget to restore BOHR
+    call rdensemble(trim(atmp),npnew,structures)
 
   end if
 
@@ -1271,16 +1281,15 @@ subroutine crest_new_tautomerize(env,tim)
     call tmpcalc%info(stdout)
     tmpcalc%optnewinit = .true.
     call tim%start(20,'Ensemble optimization')
-    call print_opt_data(env%calc,stdout)
+    call print_opt_data(env%calc,stdout,natoms=natp)
     write (stdout,'(a,i0,a)') '> ',npnew,' structures to optimize ...'
-    call crest_oloop(env,natp,npnew,atp,xyzp(:,:,1:npnew),ep,.false.,tmpcalc)
+    call crest_oloop(env,npnew,structures,.false.,tmpcalc)
     call tim%stop(20)
 
     pstep = pstep+1
     write (atmp,'(a,i0,a)') basename,pstep,'.xyz'
     write (stdout,'(a,a,a)') '> Write ',trim(atmp),' with optimized structures ... '
-    call wrensemble(trim(atmp),natp,npnew,atp,xyzp(:,:,1:npnew)*autoaa,ep(1:npnew))
-    deallocate (xyzp,atp)
+    call wrensemble(trim(atmp),npnew,structures)
 
     call tim%start(17,'Ensemble refinement')
     call crest_refine(env,trim(atmp),trim(atmp))

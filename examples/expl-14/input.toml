@@ -1,0 +1,9 @@
+# Metal-ion adduct generation: replace H+ with Cs+ to form adducts
+runtype = "protonate"
+input   = "struc.xyz"   # input structure file (alpha-D-glucose)
+
+[[calculation.level]]
+method = "gfn2"         # GFN2-xTB for adduct ranking
+
+[protonation]
+swel = "Cs+"            # replace added H+ with Cs+ ion (also accepts Na+, Li+, Ca2+, …)

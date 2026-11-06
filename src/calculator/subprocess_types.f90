@@ -27,13 +27,23 @@ module orca_type
   implicit none
   public
 
+  !> ORCA simple-input runtype keywords that CREST strips when assembling
+  !> an input from a user-provided short line (only EnGrad jobs are run)
+  character(len=8),parameter :: orca_runtypes(*) = [character(len=8) :: &
+    & 'opt     ','optts   ','copt    ','engrad  ','numgrad ','freq    ', &
+    & 'numfreq ','anfreq  ','md      ','aimd    ','sp      ','energy  ', &
+    & 'goat    ','irc     ']
+
   type :: orca_input
     character(len=:),allocatable :: cmd
     integer :: nlines = 0
     character(len=:),allocatable :: input(:)
     logical :: mpi = .false.
+    integer :: maxcore = 0    !> ORCA %maxcore per core in MB (0 = unset)
+    integer :: srckind = 0    !> 0=unset, 1=template file, 2=assembled from TOML
   contains
     procedure :: read => read_orca_input
+    procedure :: build => build_orca_input
     procedure :: write => write_orca_input
   end type orca_input
 
@@ -160,28 +170,149 @@ contains  !> MODULE PROCEDURES START HERE
 
     end do
     close (ich)
+    self%srckind = 1
   end subroutine read_orca_input
 
 !========================================================================================!
 
-  subroutine write_orca_input(self,fname,mol,chrg,mult)
+  subroutine build_orca_input(self,simple)
+!***********************************************************************
+!* Assemble an ORCA simple-input '!' line from a short user string
+!* (given via TOML) instead of reading a template file.
+!*
+!* Any runtype keyword (opt/freq/md/... see orca_runtypes) and any PALn
+!* keyword are stripped; ' EnGrad' is appended so CREST always drives an
+!* energy+gradient job. The %pal / %maxcore blocks are added later in
+!* write_orca_input from the level thread count and self%maxcore.
+!***********************************************************************
+    implicit none
+    class(orca_input) :: self
+    character(len=*),intent(in) :: simple
+    character(len=:),allocatable :: work,token,low,out
+    integer :: i,n,i0,k,width
+    logical :: keep
+
+    !> strip a leading '!' if the user provided one
+    work = adjustl(simple)
+    if (len_trim(work) > 0) then
+      if (work(1:1) == '!') work = adjustl(work(2:))
+    end if
+
+    out = '!'
+    n = len_trim(work)
+    i = 1
+    do while (i <= n)
+      !> skip whitespace between tokens
+      do while (i <= n .and. work(i:i) == ' ')
+        i = i+1
+      end do
+      if (i > n) exit
+      i0 = i
+      do while (i <= n .and. work(i:i) /= ' ')
+        i = i+1
+      end do
+      token = work(i0:i-1)
+      low = lowercase(token)
+      keep = .true.
+      !> drop explicit runtype keywords
+      do k = 1,size(orca_runtypes)
+        if (low == trim(orca_runtypes(k))) then
+          keep = .false.
+          exit
+        end if
+      end do
+      !> drop parallelization keywords (PAL2..PAL8) -> handled via threads
+      if (len(low) >= 3) then
+        if (low(1:3) == 'pal') keep = .false.
+      end if
+      if (keep) out = trim(out)//' '//trim(token)
+    end do
+
+    out = trim(out)//' EnGrad'
+
+    width = len_trim(out)+1
+    if (allocated(self%input)) deallocate (self%input)
+    allocate (self%input(1),source=repeat(' ',width))
+    self%input(1) = trim(out)
+    self%nlines = 1
+    self%mpi = .false.
+    self%srckind = 2
+  end subroutine build_orca_input
+
+!========================================================================================!
+
+  subroutine write_orca_input(self,fname,mol,chrg,mult,nthreads)
+!***********************************************************************
+!* Write the ORCA input file: cached template lines followed by a
+!* freshly written coordinate block.
+!*
+!* If nthreads > 0 is given, CREST takes ownership of the parallel
+!* setup: any %pal block (single- or multi-line) and simple-input
+!* PALn keyword in the template is stripped, and a single
+!*   %pal nprocs <nthreads> end
+!* line is appended instead. Likewise, if self%maxcore > 0 any %maxcore
+!* line is replaced by '%maxcore <maxcore>'. With nthreads unset (<1)
+!* and maxcore unset the template is written verbatim (backward compatible).
+!***********************************************************************
     implicit none
     class(orca_input),intent(in) :: self
     character(len=*),intent(in) :: fname
     type(coord),intent(in) :: mol
     integer,intent(in) :: chrg
     integer,intent(in) :: mult
+    integer,intent(in),optional :: nthreads
     integer :: ich,i,j,k,l
+    integer :: nt
+    logical :: override,writemem,inpalblock
+    character(len=:),allocatable :: line,low
 
     if(.not.allocated(self%input))then
       write (stderr,'(3a)') '**ERROR** Please provide an ORCA input template!'
       error stop
     endif
 
+    nt = 0
+    if (present(nthreads)) nt = nthreads
+    override = (nt > 0)
+    writemem = (self%maxcore > 0)
+
     open (newunit=ich,file=fname)
+    inpalblock = .false.
     do i=1,self%nlines
-      write(ich,'(a)') trim(self%input(i))
+      line = trim(self%input(i))
+      low = adjustl(lowercase(line))
+      if (override) then
+        !> skip the interior/end of a multi-line %pal ... end block
+        if (inpalblock) then
+          if (index(low,'end') .ne. 0) inpalblock = .false.
+          cycle
+        end if
+        !> %pal block: single-line (contains 'end') or start of a block
+        if (low(1:1) .eq. '%' .and. index(low,'pal') .ne. 0) then
+          if (index(low,'end') .eq. 0) inpalblock = .true.
+          cycle
+        end if
+        !> simple-input PALn keyword on a '!' line: drop just that token
+        if (low(1:1) .eq. '!') then
+          j = index(low,'pal')
+          if (j .ne. 0) then
+            !> blank out 'pal' + up to two trailing chars (e.g. PAL8)
+            k = min(j+4,len(line))
+            line(j:k) = repeat(' ',k-j+1)
+            line = trim(line)
+          end if
+        end if
+      end if
+      !> drop any existing %maxcore line, CREST writes its own
+      if (writemem .and. low(1:1) .eq. '%' .and. index(low,'maxcore') .ne. 0) cycle
+      write(ich,'(a)') trim(line)
     enddo
+    if (override) then
+      write(ich,'(a,1x,i0,1x,a)') '%pal nprocs',nt,'end   # set by CREST (level threads)'
+    end if
+    if (writemem) then
+      write(ich,'(a,1x,i0,a)') '%maxcore',self%maxcore,'   # set by CREST (per core, MB)'
+    end if
     write(ich,*)
     write(ich,'(a,1x,i0,1x,i0,a)') '*xyz',chrg,mult,'  # charge and multiplicity (2S+1)'
     do i=1,mol%nat

@@ -19,4 +19,5 @@ srcs += files(
   'intpack.f90',
   'lopt.f90',
   'local.f90',
+  'ir_spectrum.f90',
 )

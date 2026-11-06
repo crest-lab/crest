@@ -1,0 +1,6 @@
+# Single-point energy calculation
+runtype = "singlepoint"
+input   = "struc.xyz"   # input structure file (1-propanol)
+
+[[calculation.level]]
+method = "gfn2"         # GFN2-xTB semi-empirical Hamiltonian

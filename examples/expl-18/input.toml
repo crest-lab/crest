@@ -1,0 +1,21 @@
+# Geometry optimisation of a small molecule using the MACE-OFF23 organic
+# force field, served through the fmlip-relay persistent backend.
+#
+# MACE-OFF23 is parameterised for neutral organic molecules over 10 elements
+# (H, C, N, O, P, S, F, Cl, Br, I) in gas/liquid phase or organic crystals.
+# Unlike UMA's "omol" task it does not take a per-molecule charge/spin, so the
+# 'chrg'/'mult' keys are omitted here (neutral closed-shell systems only).
+#
+# Requirements: pip install "../../subprojects/fmlip_relay[mace]"
+# Models download automatically on first use and cache in ~/.cache/mace.
+runtype = "optimize"
+input   = "struc.xyz"   # input structure file (caffeine, C8H10N4O2)
+
+[calculation]
+optlev = "normal"       # convergence level: crude/loose/normal/tight/vtight
+
+[[calculation.level]]
+method        = "mlip"       # ML/classical potential via fmlip-relay socket server
+mlip_backend  = "mace_off"   # MACE-OFF23 organic force field
+mlip_modelsize = "medium"    # model size: small | medium (default) | large
+mlip_device   = "cpu"        # torch device: cpu | cuda | cuda:0  (GPU recommended)

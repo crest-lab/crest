@@ -1,75 +1,101 @@
 # This file is part of crest.
 # SPDX-Identifier: LGPL-3.0-or-later
-#
-# crest is free software: you can redistribute it and/or modify it under
-# the terms of the GNU Lesser General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# crest is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public License
-# along with crest.  If not, see <https://www.gnu.org/licenses/>.
 
-option(
-  'la_backend',
-  type: 'combo',
-  value: 'mkl-static',
-  yield: true,
-  choices: ['mkl', 'mkl-rt', 'mkl-static', 'openblas', 'netlib', 'custom','none'],
-  description: 'Linear algebra backend for program.',
-)
-option(
-  'custom_libraries',
-  type: 'array',
-  value: [],
-  description: 'libraries to load for custom linear algebra backend',
-)
-option(
-  'openmp',
-  type: 'boolean',
-  value: true,
-  yield: true,
-  description: 'use OpenMP parallelisation',
-)
-option(
-  'WITH_TBLITE',
-  type: 'boolean',
-  value: true,
-  description: 'build with tblite integration',
-)
-option(
-  'WITH_GFN0',
-  type: 'boolean',
-  value: true,
-  description: 'build with GFN0-xTB integration',
-)
-option(
-  'WITH_GFNFF',
-  type: 'boolean',
-  value: true,
-  description: 'build with GFN-FF integration',
-)
-option(
-  'WITH_TOMLF',
-  type: 'boolean',
-  value: true,
-  description: 'build with toml-f integration',
-)
-option(
-  'WITH_LIBPVOL',
-  type: 'boolean',
-  value: true,
-  description: 'build with libpvol integration',
+# ── Parallelism ────────────────────────────────────────────────────────────────
+option('openmp',
+  type    : 'boolean',
+  value   : true,
+  description : 'Enable OpenMP parallelisation',
 )
 
-option(
-  'WITH_LWONIOM',
-  type: 'boolean',
-  value: true,
-  description: 'build with lwONIOM integration',
+# ── LAPACK / BLAS provider ─────────────────────────────────────────────────────
+# auto   → try openblas, then mkl, then netlib in that order
+# openblas → OpenBLAS (bundles BLAS+LAPACK)
+# mkl    → Intel Math Kernel Library
+# netlib → Reference LAPACK + BLAS
+# custom → set lapack_libs / blas_libs manually on the meson command line
+#           using -Dlapack_libs=... -Dblas_libs=...
+option('lapack',
+  type    : 'combo',
+  choices : ['auto', 'openblas', 'mkl', 'netlib', 'custom'],
+  value   : 'auto',
+  description : 'LAPACK/BLAS provider',
 )
 
+# Only used when lapack=custom:
+option('lapack_libs',
+  type    : 'array',
+  value   : [],
+  description : 'Extra library names to link for LAPACK (custom mode)',
+)
+option('blas_libs',
+  type    : 'array',
+  value   : [],
+  description : 'Extra library names to link for BLAS (custom mode)',
+)
+
+# ── Static binary ─────────────────────────────────────────────────────────────
+option('static',
+  type    : 'boolean',
+  value   : false,
+  description : 'Attempt a fully static binary (includes OpenMP + LAPACK runtime)',
+)
+
+# ── Static subproject linking ─────────────────────────────────────────────────
+# Link subprojects (tblite, gfn0, gfnff, pvol, lwoniom, toml-f, …) as static
+# archives without forcing a fully static binary.  System runtimes stay dynamic.
+# Implied by -Dstatic=true.
+option('static-deps',
+  type    : 'boolean',
+  value   : true,
+  description : 'Link subprojects statically without a fully static binary',
+)
+
+# ── Optional computational chemistry libraries ─────────────────────────────────
+option('tblite',
+  type    : 'feature',
+  value   : 'auto',
+  description : 'Enable tblite semiempirical library',
+)
+option('gxtb',
+  type    : 'boolean',
+  value   : false,
+  description : 'Enable g-xTB via tblite (requires tblite)',
+)
+option('toml-f',
+  type    : 'feature',
+  value   : 'auto',
+  description : 'Enable TOML-Fortran library (also enables file-based input)',
+)
+option('gfn0',
+  type    : 'feature',
+  value   : 'auto',
+  description : 'Enable GFN0-xTB library',
+)
+option('gfnff',
+  type    : 'feature',
+  value   : 'auto',
+  description : 'Enable GFN-FF library',
+)
+option('libpvol',
+  type    : 'feature',
+  value   : 'auto',
+  description : 'Enable libpvol (volume computation) library',
+)
+option('lwoniom',
+  type    : 'feature',
+  value   : 'auto',
+  description : 'Enable lwONIOM library',
+)
+option('fmlip-relay',
+  type    : 'feature',
+  value   : 'auto',
+  description : 'Enable fmlip-relay ML/IP interface',
+)
+
+# ── Developer options ──────────────────────────────────────────────────────────
+option('tests',
+  type    : 'boolean',
+  value   : true,
+  description : 'Build unit tests (requires test-drive)',
+)

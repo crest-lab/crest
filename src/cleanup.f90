@@ -72,9 +72,9 @@ subroutine custom_cleanup(env)
     call rmrf('cregen_*.tmp')
     call rmrf('MDFILES')
     if(allocated(env%calc%calcs))then
-    if(.not.any(env%calc%calcs(:)%pr))then
+    !if(.not.any(env%calc%calcs(:)%pr))then
       call rmrfw('calculation.level.')
-    endif
+    !endif
     endif
    endif
    call rmrf('.CHRG .UHF')

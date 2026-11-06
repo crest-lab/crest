@@ -32,6 +32,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       use iomod
       use strucrd
       use zdata
+      use acidbase_calc,only:ab_calc
       implicit none
       type(systemdata) :: env
       character(len=*) :: acidfile
@@ -46,7 +47,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       type(zmolecule) :: acid
       type(zmolecule) :: base
       integer :: basechrg
-      integer :: i,j,ich,r
+      integer :: i,j,ich,r,io
       integer :: nata,natb              !number of atoms for acid/bas
       real(wp),allocatable :: wboa(:,:) !WBOs for the acid
       real(wp),allocatable :: wbob(:,:) !WBOs for the base
@@ -84,40 +85,50 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
       gsa=0.0_wp
       grrhoa=0.0_wp
       call simpletopo_mol(mola,acid,.false.,.false.)
-      r = makedir(adir)
-      call chdir(adir)
-      call mola%write('coord')
-      call wrshort('.CHRG',acidchrg)
-      call ab_singlepoint('coord',env,bhess)
-      !-- read energies
-      call grepval('xtb.out',"| TOTAL ENERGY",ldum,eatb)  !includes gsa
-      call grepval('xtb.out',":: -> Gsolv",ldum,gsa)
-      call grepval('xtb.out',":: G(RRHO) contrib.",ldum,grrhoa)
       allocate(wboa(nata,nata),qa(nata), source = 0.0_wp)
-      call readwbo("wbo",nata, wboa)
-      call ab_rdcharges(nata,qa)
-      call chdir(thispath)
-      if(.not.keepdir) call rmrf(adir)
+      if(env%legacy)then
+        r = makedir(adir)
+        call chdir(adir)
+        call mola%write('coord')
+        call wrshort('.CHRG',acidchrg)
+        call ab_singlepoint('coord',env,bhess)
+        !-- read energies
+        call grepval('xtb.out',"| TOTAL ENERGY",ldum,eatb)  !includes gsa
+        call grepval('xtb.out',":: -> Gsolv",ldum,gsa)
+        call grepval('xtb.out',":: G(RRHO) contrib.",ldum,grrhoa)
+        call readwbo("wbo",nata, wboa)
+        call ab_rdcharges(nata,qa)
+        call chdir(thispath)
+        if(.not.keepdir) call rmrf(adir)
+      else
+        call ab_calc(env,mola,acidchrg,bhess,eatb,gsa,grrhoa,wboa,qa,io)
+        if(io /= 0) error stop 'acid/base: calculation of the acid failed'
+      endif
 
 !--- calculation (singlepoint) to get data for base
       ebtb=0.0_wp
       gsb=0.0_wp
       grrhob=0.0_wp
       call simpletopo_mol(molb,base,.false.,.false.)
-      r = makedir(bdir)
-      call chdir(bdir)
-      call molb%write('coord')
-      call wrshort('.CHRG',basechrg)
-      call ab_singlepoint('coord',env,bhess)
-      !-- read energies
-      call grepval('xtb.out',"| TOTAL ENERGY",ldum,ebtb) !includes gsb
-      call grepval('xtb.out',":: -> Gsolv",ldum,gsb)
-      call grepval('xtb.out',":: G(RRHO) contrib.",ldum,grrhob)
       allocate(wbob(natb,natb),qb(natb), source = 0.0_wp)
-      call readwbo("wbo",natb,wbob)
-      call ab_rdcharges(natb,qb)
-      call chdir(thispath)
-      if(.not.keepdir) call rmrf(bdir)
+      if(env%legacy)then
+        r = makedir(bdir)
+        call chdir(bdir)
+        call molb%write('coord')
+        call wrshort('.CHRG',basechrg)
+        call ab_singlepoint('coord',env,bhess)
+        !-- read energies
+        call grepval('xtb.out',"| TOTAL ENERGY",ldum,ebtb) !includes gsb
+        call grepval('xtb.out',":: -> Gsolv",ldum,gsb)
+        call grepval('xtb.out',":: G(RRHO) contrib.",ldum,grrhob)
+        call readwbo("wbo",natb,wbob)
+        call ab_rdcharges(natb,qb)
+        call chdir(thispath)
+        if(.not.keepdir) call rmrf(bdir)
+      else
+        call ab_calc(env,molb,basechrg,bhess,ebtb,gsb,grrhob,wbob,qb,io)
+        if(io /= 0) error stop 'acid/base: calculation of the base failed'
+      endif
 
 !--- identify reactive atom X      
      call ab_reactivecenter(acid,base,X)
@@ -160,6 +171,7 @@ subroutine acidbase(env,acidfile,basefile,acidchrg,verbose,keepdir,dE, &
         write(*,*) 'Gsolv(xtb) A / B    :',gsa,gsb
         write(*,*) 'dE(xtb,uncorr.)     :',detb
         if(bhess)then
+        write(*,*) 'G(RRHO) A / B       :',grrhoa,grrhob
         dgrrho=(grrhob-grrhoa)
         write(*,*) 'dG(xtb,uncorr.)     :',detb+(grrhob-grrhoa)
         endif
@@ -360,6 +372,7 @@ subroutine rewrite_AB_ensemble(env,acensemble,baensemble)
       use crest_data
       use strucrd
       use iomod
+      use acidbase_calc,only:ab_calc
       implicit none
 
       type(systemdata) :: env
@@ -376,6 +389,9 @@ subroutine rewrite_AB_ensemble(env,acensemble,baensemble)
       integer :: nallb
       integer :: achrg,bchrg
       real(wp),allocatable :: be(:)
+      type(coord) :: mol
+      real(wp),allocatable :: wbo(:,:),q(:)
+      integer :: io
       character(len=512) :: thispath
       character(len=128) :: tmppath
       real(wp),parameter :: kcal =627.5095d0
@@ -395,18 +411,28 @@ subroutine rewrite_AB_ensemble(env,acensemble,baensemble)
       call getcwd(thispath)
       write(*,'(1x,a9,a16,a16,a16,a16)')'structure','E_read','E_calc','E_corr','G_calc'
       do i=1,nalla
-      write(tmppath,'(a,i0)')'AC',i
-      l = makedir(trim(tmppath))
-      call chdir(tmppath)
-      call env%wrtCHRG('')
-      call wrcoord('coord',ACIDENSEMBLE%nat,ACIDENSEMBLE%at,ACIDENSEMBLE%xyz(:,:,i)/bohr)
-      call ab_singlepoint('coord',env,bhess)
-      !-- read energies
-      call grepval('xtb.out',"| TOTAL ENERGY",ldum,eatb)  !includes gsa
-      call grepval('xtb.out',":: -> Gsolv",ldum,gsa)
-      call grepval('xtb.out',":: G(RRHO) contrib.",ldum,grrhoa)
-      call chdir(thispath)
-      call rmrf(trim(tmppath))
+      if(env%legacy)then
+        write(tmppath,'(a,i0)')'AC',i
+        l = makedir(trim(tmppath))
+        call chdir(tmppath)
+        call env%wrtCHRG('')
+        call wrcoord('coord',ACIDENSEMBLE%nat,ACIDENSEMBLE%at,ACIDENSEMBLE%xyz(:,:,i)/bohr)
+        call ab_singlepoint('coord',env,bhess)
+        !-- read energies
+        call grepval('xtb.out',"| TOTAL ENERGY",ldum,eatb)  !includes gsa
+        call grepval('xtb.out',":: -> Gsolv",ldum,gsa)
+        call grepval('xtb.out',":: G(RRHO) contrib.",ldum,grrhoa)
+        call chdir(thispath)
+        call rmrf(trim(tmppath))
+      else
+        mol%nat = ACIDENSEMBLE%nat
+        mol%at = ACIDENSEMBLE%at
+        mol%xyz = ACIDENSEMBLE%xyz(:,:,i)/bohr
+        if(allocated(wbo)) deallocate(wbo,q)
+        allocate(wbo(mol%nat,mol%nat),q(mol%nat))
+        call ab_calc(env,mol,achrg,bhess,eatb,gsa,grrhoa,wbo,q,io)
+        if(io /= 0) error stop 'acid/base: calculation of the acid ensemble failed'
+      endif
       ae(i) = eatb + grrhoa
       write(*,'(1x,i9,2f16.8,a16,f16.8)') i,ACIDENSEMBLE%er(i),eatb,'---',ae(i)
       enddo

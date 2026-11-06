@@ -774,7 +774,7 @@ contains  !> MODULE PROCEDURES START HERE
     character(len=80) :: comment
     logical :: ex
     logical :: lprint
-    character(len=40) :: sumform,sumformula
+    character(len=40) :: sumformula
     real(wp) :: mass,erel
 
     nat = mso%pl%mol(1)%nat
@@ -873,7 +873,7 @@ contains  !> MODULE PROCEDURES START HERE
               atf(j,k) = mso%pl%mol(i)%at(k)
             end if
           end do
-          sumformula = sumform(nat,atf(j,:))
+          sumformula = sumform(natf(j),pack(atf(j,:),atf(j,:) > 0))
           ! write to directories
           if (lprint) then
             write (fragdir,'(a,i0)') trim(isodir)//"f",j

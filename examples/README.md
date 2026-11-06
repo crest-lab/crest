@@ -1,34 +1,55 @@
 # Example applications of the CREST program
 
-This directory contains several examples for 
-standard applications of the `crest` program.
+This directory contains examples covering the most common workflows
+of the `crest` program.
 
-Each example directory contains a input structure
-(typically called `struc.xyz`) and a bash script
-called `run.sh` that includes some information about
-the example and will execute the calculation upon
-execution.
+Each example directory contains an input structure (`struc.xyz` or
+similar), a shell script `run.sh`, and a TOML input file `input.toml`.
 
-To run the example scripts simply go to the respective
-directory and execute it from the command line:
+## Running an example
+
+Go to the example directory and execute the script:
 ```bash
+cd expl-6
 ./run.sh
 ```
 
-It is assumed that the `xtb` and `crest` binaries
-are present in the *PATH* variable as such.
-The `run.sh` scripts will check for this, however.
+The `run.sh` scripts show CLI usage.  Alternatively, every example can
+be run through its TOML input file:
+```bash
+crest input.toml
+```
+
+TOML files are detected automatically by their `.toml` extension.  They
+offer the same settings as the CLI flags but in a structured, documented
+format that is easier to modify and reuse.
+
+It is assumed that the `crest` binary is available in `$PATH`.
 
 
 ## Examples
 
-0. *dry run* of the `crest` program
-1. default conformational search (iMTD-GC)
-2. example for different CMD settings
-3. sorting an ensemble file (CREGEN)
-4. constrained conformational sampling
-5. standalone optimization along a trajectory
-6. NCI sampling mode (iMTD-NCI)
-7. protonation site sampling
-8. modified protonation site sampling
-9. tautomer sampling
+| # | Topic | Molecule |
+|---|-------|---------|
+| **0** | *Dry run* — print settings without computing | 1-propanol |
+| **1** | Single-point energy | 1-propanol |
+| **2** | Geometry optimization | 1-propanol |
+| **3** | Optimization + Hessian (vibrational frequencies) | 1-propanol |
+| **4** | Standalone MD simulation | 1-propanol |
+| **5** | Default iMTD-GC conformer search | 1-propanol |
+| **6** | Two-level conformer search (GFN2//GFN-FF, A//B) | 1-propanol |
+| **7** | iMTD-GC with ALPB implicit solvation (GFN2) | 1-propanol |
+| **8** | Quick iMTD-GC conformer search (with -finalhess) | 1-propanol |
+| **9** | Standalone CREGEN ensemble sorting | 1-propanol |
+| **10** | Constrained conformer search | 1-propanol |
+| **11** | Ensemble optimization (mdopt) | 1-propanol |
+| **12** | NCI sampling mode (iMTD-NCI) | water trimer |
+| **13** | Protonation site sampling | uracil |
+| **14** | Metal/ion adducts (Cs+) | alpha-D-glucose |
+| **15** | Tautomer screening | guanine |
+| **16** | fmlip-relay: geometry optimisation with LJ potential | Ar4 cluster |
+| **17** | fmlip-relay: geometry optimisation with FairChem UMA model | caffeine |
+| **18** | fmlip-relay: geometry optimisation with MACE-OFF23 model | caffeine |
+| **19** | Implicit-solvation add-on (ddX/EEQ-BC composite, GFN2 parent) | 1-propanol |
+| **20** | External ORCA subprocess as engrad backend (geometry opt.) | n-pentane |
+| **21** | ONIOM embedding (GFN2 head group in GFN-FF, opt. + freq.) | 1-propanol |

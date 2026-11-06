@@ -1,0 +1,44 @@
+# ONIOM multi-level embedding (via the lwONIOM library):
+# the alcohol head group of 1-propanol is described at the GFN2-xTB level
+# ("high"), embedded in the full molecule described by GFN-FF ("low").
+# The total energy follows the 2-layer ONIOM expression
+#
+#   E(ONIOM) = E_low(real) + E_high(model) - E_low(model)
+#
+# where the "model" system is the head-group fragment, saturated with a
+# link H atom where the C2-C3 bond is cut.  Gradients (and Hessians) of
+# the fragments are projected back onto the real system, so any crest
+# runtype works on top of the ONIOM energy surface.  Here: geometry
+# optimization followed by vibrational frequencies ("ohess").
+#
+# NOTE: there are no CLI flags for the ONIOM setup - it is configured
+#       entirely through the [lwoniom] block of a TOML input.
+runtype = "ohess"
+input   = "struc.xyz"     # input structure file (1-propanol)
+
+[calculation]
+[[calculation.level]]
+method = "gfnff"          # theory level 1: the low level (real system)
+
+[[calculation.level]]
+method = "gfn2"           # theory level 2: the high level (model system)
+
+# ONIOM partitioning, handled by the lwONIOM library
+[lwoniom]
+natoms = 12               # total number of atoms, must match the input structure
+
+# fragments are defined as atom index lists (ranges and comma-separated
+# lists are allowed); fragment 1 is the entire molecule
+fragment.1 = 'all'
+fragment.2 = "3,4,10-12"  # the CH2-OH head group
+
+# layers are lists of fragments: layer 1 is the real system, higher
+# layers are model systems embedded in the layer above.  Several
+# non-overlapping fragments per layer are allowed (MC-ONIOM), as are
+# more than two layers.
+layer.1 = [1]
+layer.2 = [2]
+
+# finally, tie each layer to one of the [[calculation.level]] entries
+layerlevel.1 = 1          # whole molecule -> GFN-FF
+layerlevel.2 = 2          # head group     -> GFN2-xTB
