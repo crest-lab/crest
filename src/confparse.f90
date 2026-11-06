@@ -597,6 +597,11 @@ subroutine parseflags(env,arg,nra)
           write (stdout,'(1x,a,a,a)') 'invalid ensemble file <',trim(env%ensemblename),'>. exit.'
           error stop
         end if
+        !>--- reference structure from the ensemble, as for the other ensemble runtypes
+        if (.not.allocated(env%inputcoords)) then
+          call xyz2coord(env%ensemblename,'coord')
+          env%inputcoords = env%ensemblename
+        end if
         exit
 
       case ('-reactor')  !> xtb nanoreactor workarounds
