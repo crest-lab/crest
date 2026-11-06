@@ -44,6 +44,7 @@ module crest_calculator
   public :: jobtype               !> calculation type ID's
   public :: engrad_interface      !> abstract interface for host-supplied potentials
   public :: get_dipoles
+  public :: scf_accuracy_value    !> SCF accuracy multiplier from a number or preset
 !>--- RE-EXPORT of constraints
   public :: constraint
   public :: scantype

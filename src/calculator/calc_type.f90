@@ -386,6 +386,15 @@ module calc_type
   end type calcdata
 
   public :: get_dipoles
+  public :: scf_accuracy_value
+
+!>--- named SCF accuracy presets (xtb-style multiplier, smaller is tighter)
+  real(wp),parameter :: acc_loose  = 10.0_wp
+  real(wp),parameter :: acc_normal = 1.0_wp
+  real(wp),parameter :: acc_tight  = 0.1_wp
+  real(wp),parameter :: acc_vtight = 0.01_wp
+  real(wp),parameter :: acc_min = 1.0e-4_wp  !> same range as xtb's --acc
+  real(wp),parameter :: acc_max = 1.0e+3_wp
 
 !========================================================================================!
 !========================================================================================!
@@ -1993,6 +2002,51 @@ contains  !>--- Module routines start here
 
     call self%autocomplete(self%id)
   end subroutine create_calclevel_shortcut
+
+!=========================================================================================!
+
+  subroutine scf_accuracy_value(str,acc,ok)
+    !***************************************************************
+    !* Convert an SCF accuracy setting into the xtb-style accuracy
+    !* multiplier used by tblite (econv = 1e-6*acc, pconv = 2e-5*acc).
+    !* Accepts a number or one of the presets loose (10), normal (1),
+    !* tight (0.1) and vtight (0.01). ok is .false. for anything else
+    !* and for numbers outside [1e-4, 1e3].
+    !***************************************************************
+    implicit none
+    character(len=*),intent(in) :: str
+    real(wp),intent(out) :: acc
+    logical,intent(out) :: ok
+    character(len=:),allocatable :: low
+    integer :: i,io,ic
+    low = trim(adjustl(str))
+    do i = 1,len(low)
+      ic = iachar(low(i:i))
+      if (ic >= iachar('A').and.ic <= iachar('Z')) low(i:i) = achar(ic+32)
+    end do
+    ok = .true.
+    acc = acc_normal
+    select case (low)
+    case ('loose')
+      acc = acc_loose
+    case ('normal')
+      acc = acc_normal
+    case ('tight')
+      acc = acc_tight
+    case ('vtight','verytight')
+      acc = acc_vtight
+    case default
+      ok = .false.
+      if (len(low) == 0) return
+      if (verify(low(1:1),'0123456789.+-') /= 0) return
+      read (low,*,iostat=io) acc
+      if (io /= 0) then
+        acc = acc_normal
+        return
+      end if
+      ok = (acc >= acc_min.and.acc <= acc_max)
+    end select
+  end subroutine scf_accuracy_value
 
 !=========================================================================================!
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<!

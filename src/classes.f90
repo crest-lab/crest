@@ -583,6 +583,7 @@ module crest_data
     logical :: allrot = .true.       !> use all rotational constants for check instead of mean?
     logical :: alkylize = .false.    !> alkylization setting
     logical :: alkylizeskip = .true. !> alkylization sampling skip
+    real(wp) :: scf_acc = -1.0_wp    !> CLI SCF accuracy for tblite levels (<0: not set)
     logical :: altopt = .false.
     logical :: autothreads = .true.  !> automatically determine threads
     logical :: autozsort = .false.   !> do the ZSORT in the beginning ?
@@ -1411,6 +1412,7 @@ contains  !> MODULE PROCEDURES START HERE
     self%allrot         = src%allrot
     self%alkylize       = src%alkylize
     self%alkylizeskip   = src%alkylizeskip
+    self%scf_acc        = src%scf_acc
     self%altopt         = src%altopt
     self%autothreads    = src%autothreads
     self%autozsort      = src%autozsort

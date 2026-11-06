@@ -183,6 +183,12 @@ For *--alkylize* additionally cite:
 *-efield* _Ex_ _Ey_ _Ez_::
   Apply a homogeneous external electric field in V/Ang along x, y, z.
 
+*-acc* _real_|_preset_, *-accuracy* _real_|_preset_::
+  SCF accuracy of all tblite levels as an xtb-style multiplier (smaller is
+  tighter; range 1e-4 to 1e3), or one of the presets *loose* (10), *normal* (1),
+  *tight* (0.1) and *vtight* (0.01). Overrides the TOML level key *accuracy*.
+  [_default_: *1.0*]
+
 *-charges* [_file_]::
   Read atomic partial charges from _file_ (default: *charges*).
 

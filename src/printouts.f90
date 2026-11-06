@@ -260,6 +260,8 @@ subroutine confscript_morehelp(flag)
     call help_opt('-g/-gbsa <solvent>',fw,'GBSA implicit solvation')
     call help_opt('-alpb <solvent>',fw,'ALPB implicit solvation')
     call help_opt('-efield <x> <y> <z>',fw,'External electric field in V/Ang along x, y, z')
+    call help_opt('-acc <real|preset>',fw,'SCF accuracy of tblite levels (xtb-style, smaller is tighter)')
+    write (stdout,'(9x,a)') '<preset> = loose (10), normal (1), tight (0.1), vtight (0.01)'
     call help_opt('-charges [<file>]',fw,'Read atomic partial charges from file  [default: "charges"]')
     write (stdout,*)
     fw = 22

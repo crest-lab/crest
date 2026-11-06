@@ -243,6 +243,13 @@ subroutine env2calc_modify(env)
     end do
   end if
 
+  !>--- pass on the CLI SCF accuracy (--acc) to all tblite levels
+  if (env%scf_acc > 0.0_wp) then
+    do i = 1,env%calc%ncalculations
+      if (env%calc%calcs(i)%id == jobtype%tblite) env%calc%calcs(i)%accuracy = env%scf_acc
+    end do
+  end if
+
   !>--- pass on CEH guess flag
   if (env%ceh_guess) then
     do i = 1,env%calc%ncalculations

@@ -26,7 +26,8 @@
 module parse_calcdata
   use crest_parameters
   use crest_data
-  use crest_calculator,only:calcdata,calculation_settings,jobtype,constraint,scantype
+  use crest_calculator,only:calcdata,calculation_settings,jobtype,constraint,scantype, &
+  &                         scf_accuracy_value
   use dynamics_module
   use bh_module
   use gradreader_module,only:gradtype,conv2gradfmt
@@ -229,8 +230,24 @@ contains !> MODULE PROCEDURES START HERE
     case ('etemp')
       job%etemp = kv%value_f
       job%etemp_user_set = .true.
-    case ('accuracy')
-      job%accuracy = kv%value_f
+    case ('accuracy','acc','scf_accuracy')
+      block
+        logical :: accok
+        select case (kv%id)
+        case (valuetypes%float,valuetypes%int)
+          job%accuracy = kv%value_f
+          accok = (kv%value_f >= 1.0e-4_wp.and.kv%value_f <= 1.0e+3_wp)
+        case (valuetypes%string)
+          call scf_accuracy_value(kv%value_c,job%accuracy,accok)
+        case default
+          accok = .false.
+        end select
+        if (.not.accok) then
+          write (stdout,'(a,a,a)') '**ERROR** invalid accuracy "',trim(kv%rawvalue), &
+          &  '": use a number between 1e-4 and 1e3 or loose/normal/tight/vtight'
+          call creststop(status_config)
+        end if
+      end block
     case ('weight')
       job%weight = kv%value_f
     case ('pressure')

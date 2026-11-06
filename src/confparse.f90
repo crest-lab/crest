@@ -1822,6 +1822,19 @@ subroutine parseflags(env,arg,nra)
         processedarg(i) = .true.
         env%ceh_guess = .true.
 
+      case ('-acc','-accuracy')  !> SCF accuracy of tblite levels, xtb-style number or preset
+        processedarg(i) = .true.
+        ctmp = arg1
+        call scf_accuracy_value(ctmp,env%scf_acc,ex)
+        if (.not.ex) then
+          write (stdout,'(/,a,a,a,a)') colorify('**ERROR**','red'),' invalid --acc value "',trim(ctmp), &
+          &  '": use a number between 1e-4 and 1e3 or loose/normal/tight/vtight'
+          call creststop(status_config)
+        end if
+        processedarg(i+1) = .true.
+        write (stdout,'(2x,a,1x,a,a,es9.2,a)') '--acc',trim(ctmp),' : SCF accuracy ', &
+        &  env%scf_acc,' for tblite levels'
+
       case ('-spin-polarized','-spinpol')
         processedarg(i) = .true.
         env%spin_polarized = .true.
