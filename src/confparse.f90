@@ -74,6 +74,7 @@ subroutine parseflags(env,arg,nra)
   !> level settings given on the CLI, applied to TOML levels at the end
   logical :: cli_chrg,cli_uhf,cli_solv,cli_method
   logical :: nocbonds,gfnff_search
+  logical :: toml_first
   integer :: ntoml_lvl
 
   allocate (xx(10),floats(3),strings(3))
@@ -357,6 +358,7 @@ subroutine parseflags(env,arg,nra)
   env%preopt = .true.
 !>--- check for (TOML) input file
   call find_input_file(arg,nra,idum)
+  toml_first = (idum == 1) !> "crest input.toml ...": arg(1) is not a structure
   if (idum .ne. 0) then
     !>--- crest struc.xyz input.toml: atom lists in the TOML (e.g. freeze) need
     !>    the structure before the input file is parsed. "input =" overrides it.
@@ -1079,9 +1081,15 @@ subroutine parseflags(env,arg,nra)
 !> taken for the input coordinates
   if (allocated(env%inputcoords)) then
     call inputcoords(env,env%inputcoords)
+  else if (toml_first) then
+    !>--- the TOML file came first and has no "input" key
+    if (.not.env%dryrun) call misplaced_input_hint(arg,nra,processedarg)
+    call inputcoords(env,'')
   else
+    if (arg(1)(1:1) == '-'.and..not.env%dryrun) call misplaced_input_hint(arg,nra,processedarg)
     call inputcoords(env,trim(arg(1)))
-    processedarg(1) = .true.
+    !>--- a leading flag is not an input file and still has to be parsed
+    if (arg(1)(1:1) /= '-') processedarg(1) = .true.
   end if
 !> For sorting runtypes, fall back to the input file if no ensemble was set explicitly
   if (env%crestver == crest_sorting.and.len_trim(env%ensemblename) == 0) then
@@ -3736,6 +3744,47 @@ end subroutine parseRC2
 
 !========================================================================================!
 
+subroutine misplaced_input_hint(arg,nra,processedarg)
+  !*****************************************************************
+  !* Stop with a hint if no structure was given as first argument,
+  !* but an existing structure file appears later on the command
+  !* line. CREST only reads the input structure from position 1.
+  !*****************************************************************
+  use crest_parameters
+  use crest_data,only:status_input
+  use iomod,only:colorify
+  use strucrd,only:checkcoordtype
+  implicit none
+  integer,intent(in) :: nra
+  character(len=*),intent(in) :: arg(nra)
+  logical,intent(in) :: processedarg(nra)
+  character(len=:),allocatable :: fname
+  character(len=16) :: pos
+  integer :: j,ftype
+  logical :: ex
+  external creststop
+
+  do j = 2,nra
+    if (processedarg(j)) cycle
+    fname = trim(arg(j))
+    if (len(fname) == 0) cycle
+    if (fname(1:1) == '-') cycle
+    inquire (file=fname,exist=ex)
+    if (.not.ex) cycle
+    call checkcoordtype(fname,ftype)
+    if (ftype == 0) cycle
+    write (pos,'(i0)') j
+    write (stdout,'(/,a,a)') colorify('**ERROR**','red'),' no input structure given as the first argument.'
+    write (stdout,'(a)') '  The structure file '//colorify(fname,'gold')//' was found as argument '// &
+    &                    trim(pos)//', but CREST'
+    write (stdout,'(a)') '  only reads the input structure from the first position:'
+    write (stdout,'(a)') '    '//colorify('crest '//fname//' [OPTIONS]','green')
+    call creststop(status_input)
+  end do
+end subroutine misplaced_input_hint
+
+!========================================================================================!
+
 subroutine inputcoords(env,arg)
 !***********************************************************************
 !* subroutine inputcoords
@@ -3770,30 +3819,35 @@ subroutine inputcoords(env,arg)
   end if
 !>---
 
-  inquire (file=arg,exist=ex)
-  inquire (file='coord',exist=ex2)
-  if (.not.ex.and..not.ex2) then
+!>--- the input structure must be given explicitly; there is no fallback
+!>    to a coord file in the working directory
+  ex = .false.
+  if (len_trim(arg) > 0) then
+    if (arg(1:1) /= '-') inquire (file=arg,exist=ex)
+  end if
+  if (.not.ex) then
     if (env%dryrun) then
       write (stdout,*) 'No (valid) input file, but ignoring for dry run.'
       return
     else
-      error stop 'No (valid) input file! exit.'
+      write (stdout,'(/,a,a)') colorify('**ERROR**','red'),' no input structure given.'
+      write (stdout,'(a)') '  Give the structure file as the first argument (crest <struc.xyz> ...)'
+      write (stdout,'(a)') '  or with the input key of a TOML file. A coord file in the working'
+      write (stdout,'(a)') '  directory is no longer read automatically; use "crest coord ..." for it.'
+      call creststop(status_input)
     end if
   end if
+  inquire (file='coord',exist=ex2)
   if (ex2) then
 !>-- save coord as reference
     call copy('coord','coord.original')
   end if
-  if (ex.and.arg(1:1) .ne. '-') then
-    call mol%open(arg)
-    if (allocated(mol%lat)) savelat = mol%lat
-    call mol%write('coord')
-    call mol%write('crest_input_copy.xyz')
-    call mol%deallocate()
-    inputfile = trim(arg)
-  else
-    inputfile = 'coord'
-  end if
+  call mol%open(arg)
+  if (allocated(mol%lat)) savelat = mol%lat
+  call mol%write('coord')
+  call mol%write('crest_input_copy.xyz')
+  call mol%deallocate()
+  inputfile = trim(arg)
   if (.not.allocated(env%inputcoords)) env%inputcoords = inputfile
 
 !>-- if the input was a SDF file, special handling
